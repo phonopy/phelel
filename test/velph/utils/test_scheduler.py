@@ -1,8 +1,10 @@
 """Test scheduler writer."""
 
 import pytest
-
-from velph.utils.scheduler import get_sge_scheduler_script, get_slurm_scheduler_script
+from phelel.velph.utils.scheduler import (
+    get_sge_scheduler_script,
+    get_slurm_scheduler_script,
+)
 
 toml_scheduler_dict = {
     "job_name": "test_job",

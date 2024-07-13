@@ -6,11 +6,10 @@ import itertools
 from collections.abc import Callable
 
 import numpy as np
+from phelel.velph.cli.utils import get_reduced_cell, get_scheduler_dict
+from phelel.velph.templates import default_template_dict
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
-
-from velph.cli.utils import get_reduced_cell, get_scheduler_dict
-from velph.templates import default_template_dict
 
 
 def test_get_scheduler_dict():

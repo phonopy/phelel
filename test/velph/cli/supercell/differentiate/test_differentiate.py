@@ -4,7 +4,7 @@ import pathlib
 
 import phelel
 import pytest
-from velph.cli.supercell.differentiate import run_derivatives
+from phelel.velph.cli.supercell.differentiate import run_derivatives
 
 cwd = pathlib.Path(__file__).parent
 cwd_called = pathlib.Path.cwd()

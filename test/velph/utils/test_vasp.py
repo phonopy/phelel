@@ -6,9 +6,8 @@ import tempfile
 
 import numpy as np
 import tomli
+from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar, VaspKpoints, VaspPotcar
 from phonopy.structure.atoms import PhonopyAtoms
-
-from velph.utils.vasp import CutoffToFFTMesh, VaspIncar, VaspKpoints, VaspPotcar
 
 cwd = pathlib.Path(__file__).parent
 

@@ -2,8 +2,7 @@
 
 import numpy as np
 import pytest
-
-from velph.cli.utils import kspacing_to_mesh
+from phelel.velph.cli.utils import kspacing_to_mesh
 
 
 @pytest.mark.parametrize("use_grg", [True, False])

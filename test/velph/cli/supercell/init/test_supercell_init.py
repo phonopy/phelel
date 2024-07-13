@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import tomli
-from velph.cli.supercell.init import run_init
+from phelel.velph.cli.supercell.init import run_init
 
 cwd = Path(__file__).parent
 
