@@ -4,7 +4,6 @@ import pathlib
 
 import h5py
 import numpy as np
-
 from phelel import Phelel
 from phelel.file_IO import read_phelel_params_hdf5
 from phelel.utils.data import cmplx2real

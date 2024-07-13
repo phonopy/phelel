@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pathlib
 
-import pytest
-
 import phelel
+import pytest
 from phelel import Phelel
 from phelel.api_phelel import PhelelInput
 from phelel.interface.vasp.file_IO import (

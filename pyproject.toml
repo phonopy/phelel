@@ -13,11 +13,16 @@ authors = [
 requires-python = ">=3.9"
 dependencies = [
     "phono3py",
+    "finufft",
+    "click",
+    "tomli",
+    "tomli-w"
 ]
 license = {file = "LICENSE"}
 
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
+velph = "velph.cli:cmd_root"
 
 [tool.setuptools.dynamic]
 version = { attr = "phelel.version.__version__" }
@@ -34,11 +39,6 @@ lint.select = [
 lint.extend-ignore = [
     "D417",
     "D100",
-]
-exclude = [
-  "test/phonon/test_irreps.py",
-  "test/qha/test_electron.py",
-  "phonopy/interface/cp2k.py",
 ]
 
 [tool.ruff.lint.pydocstyle]

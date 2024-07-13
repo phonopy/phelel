@@ -3,7 +3,6 @@
 import pathlib
 
 import numpy as np
-
 from phelel.utils.spinor import PauliMatrices, SpinorRotationMatrices, SxSySzMatrices
 
 cwd = pathlib.Path(__file__).parent
