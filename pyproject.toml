@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phelel"
+dynamic = ["version"]
+readme = {file = "README.md", content-type = "text/markdown"}
+description = "Electron-phonon code."
+authors = [
+    {name = "Atsushi Togo", email = "atztogo@gmail.com"}
+]
+requires-python = ">=3.9"
+dependencies = [
+    "phono3py",
+]
+license = {file = "LICENSE"}
+
+[project.scripts]
+phelel = "phelel.scripts.phelel:run"
+
+[tool.setuptools.dynamic]
+version = { attr = "phelel.version.__version__" }
+
+[tool.ruff]
+line-length = 88
+lint.select = [
+    "F", # Flake8
+    "B", # Black
+    "I", # isort
+    "E", # pycodestyle-errors
+    "D", # pydocstyle
+]
+lint.extend-ignore = [
+    "D417",
+    "D100",
+]
+exclude = [
+  "test/phonon/test_irreps.py",
+  "test/qha/test_electron.py",
+  "phonopy/interface/cp2k.py",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
