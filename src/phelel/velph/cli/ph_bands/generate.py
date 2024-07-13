@@ -46,6 +46,9 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
     )
 
     # QPOINTS
+    if "path" in toml_dict["vasp"]["ph_bands"]["qpoints"]:
+        click.echo("Seek-path (https://github.com/giovannipizzi/seekpath) is used.")
+
     write_kpoints_line_mode(
         primitive,
         directory,

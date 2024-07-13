@@ -8,7 +8,6 @@ from collections import defaultdict
 from typing import Optional, Union
 
 import numpy as np
-import seekpath
 from phonopy.structure.cells import PhonopyAtoms
 
 
@@ -96,6 +95,11 @@ class VaspKpoints:
                     lines.append(f"{coord} {p[i]}")
                 lines.append("")
         else:
+            try:
+                import seekpath
+            except ImportError as exc:
+                raise ModuleNotFoundError("You need to install seekpath.") from exc
+
             band_path = seekpath.get_path(cell.totuple())
             for p in list(band_path["path"]):
                 for i in range(2):

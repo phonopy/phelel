@@ -5,6 +5,7 @@ import pathlib
 import tempfile
 
 import numpy as np
+import pytest
 import tomli
 from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar, VaspKpoints, VaspPotcar
 from phonopy.structure.atoms import PhonopyAtoms
@@ -43,6 +44,7 @@ fractional
 
 def test_write_kpoints_line_mode_seekpath(nacl_cell: PhonopyAtoms):
     """Test of KPOINTS writer in line mode with seekpath."""
+    pytest.importorskip("seekpath")
     toml_str = """line = 51"""
     ref_str = """k points along high symmetry lines by velph
 51
