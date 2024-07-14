@@ -22,7 +22,7 @@ license = {file = "LICENSE"}
 
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
-velph = "velph.cli:cmd_root"
+velph = "phelel.velph.cli:cmd_root"
 
 [tool.setuptools.dynamic]
 version = { attr = "phelel.version.__version__" }
