@@ -30,7 +30,9 @@ def cmd_plot():
 @click.help_option("-h", "--help")
 def cmd_plot_selfenergy(vaspout_filename: str):
     """Plot self-energy in transports."""
-    args = _get_f_h5py_and_plot_filename(pathlib.Path(vaspout_filename))
+    args = _get_f_h5py_and_plot_filename(
+        "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
+    )
     if args[0] is not None:
         plot_selfenergy(*args)
 
@@ -45,21 +47,25 @@ def cmd_plot_selfenergy(vaspout_filename: str):
 @click.help_option("-h", "--help")
 def cmd_plot_transport(vaspout_filename: str):
     """Plot transport in transports."""
-    args = _get_f_h5py_and_plot_filename(pathlib.Path(vaspout_filename))
+    args = _get_f_h5py_and_plot_filename(
+        "transport", vaspout_filename=pathlib.Path(vaspout_filename)
+    )
     if args[0] is not None:
         plot_transport(*args)
 
 
 def _get_f_h5py_and_plot_filename(
+    property_name: str,
     vaspout_filename: pathlib.Path = pathlib.Path("transport/vaspout.h5"),
     plot_filename: Optional[pathlib.Path] = None,
 ) -> tuple[h5py._hl.files.File, pathlib.Path]:
     if not vaspout_filename.exists():
-        click.echo(f'"{vaspout_filename}" not found. Please specific vaspout.h5 file.')
+        click.echo(f'"{vaspout_filename}" (default path) not found.')
+        click.echo("Please specify vaspout.h5 file path.")
         return None, None
 
     if plot_filename is None:
-        _plot_filename = vaspout_filename.parent / "transport.pdf"
+        _plot_filename = vaspout_filename.parent / f"{property_name}.pdf"
     else:
         _plot_filename = plot_filename
 

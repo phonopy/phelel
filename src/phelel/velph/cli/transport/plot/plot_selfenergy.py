@@ -20,7 +20,7 @@ def plot_selfenergy(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool 
         fig, axs = plt.subplots(1, 1, figsize=(4, 4))
     else:
         nrows = len(selfens) // 2
-        fig, axs = plt.subplots(nrows, 2, figsize=(8, 4 * nrows))
+        fig, axs = plt.subplots(nrows, 2, figsize=(8, 4 * nrows), squeeze=True)
 
     for i in range(len(selfens)):
         selfen = selfens[i + 1]
@@ -49,10 +49,19 @@ def _plot(ax, selfen):
 
 
 def _show(selfen: h5py._hl.group.Group, index: int):
-    print(f"- parameters:  # {index}")
-    scattering_approximation = selfen["scattering_approximation"][()]
-    print("    scattering_approximation:", scattering_approximation.decode("utf-8"))
+    """Show self-energy properties.
 
+    ['band_start', 'band_stop', 'bks_idx', 'carrier_per_cell',
+    'carrier_per_cell0', 'delta', 'efermi', 'energies', 'enwin', 'nbands',
+    'nbands_sum', 'nw', 'scattering_approximation', 'select_energy_window',
+    'selfen_dw', 'selfen_fan', 'static', ' ', 'tetrahedron']
+
+    """
+    print(f"- parameters:  # {index}")
+    print(
+        "    scattering_approximation:",
+        selfen["scattering_approximation"][()].decode("utf-8"),
+    )
     print(f"    static_approximation: {bool(selfen['static'][()])}")
     print(f"    use_tetrahedron_method: {bool(selfen["tetrahedron"][()])}")
     if not selfen["tetrahedron"][()]:
@@ -63,11 +72,15 @@ def _show(selfen: h5py._hl.group.Group, index: int):
     print(f"    nbands: {selfen['nbands'][()]}")
     print(f"    nbands_sum: {selfen['nbands_sum'][()]}")
     print(f"    nw: {selfen['nw'][()]}")
+    print("    temperatures:")
+    for i, t in enumerate(selfen["temps"]):
+        print(f"    - {t}  # {i + 1}")
 
-    print("  data_shapes:")
+    print("  data_scalar:")
     print(f"    carrier_per_cell0: {selfen["carrier_per_cell0"][()]}")
-    print(f"    Fan_self_energy: {list(selfen["selfen_fan"].shape)}")
+
+    print("  data_array_shapes:")
     print(f"    carrier_per_cell: {list(selfen["carrier_per_cell"].shape)}")
-    print(f"    temperatures: {list(selfen["temps"].shape)}")
+    print(f"    Fan_self_energy: {list(selfen["selfen_fan"].shape)}")
     print(f"    sampling_energy_points: {list(selfen["energies"].shape)}")
     print(f"    Fermi_energies: {list(selfen["efermi"].shape)}")
