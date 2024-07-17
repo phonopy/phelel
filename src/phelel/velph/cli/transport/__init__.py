@@ -63,3 +63,6 @@ def cmd_generate(toml_filename: str, hdf5_filename: str, dry_run: bool):
 def cmd_check_fft(toml_filename: str):
     """Show [NGX, NGY, NGZ] in vasprun.xml."""
     check_fft(toml_filename, "transport")
+
+
+from phelel.velph.cli.transport.plot import cmd_plot  # noqa F401
