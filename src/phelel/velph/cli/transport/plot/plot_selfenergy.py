@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
-from typing import Optional
-
 import click
 import h5py
 import matplotlib.pyplot as plt
