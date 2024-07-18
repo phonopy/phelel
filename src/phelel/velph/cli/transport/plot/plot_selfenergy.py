@@ -8,7 +8,18 @@ import matplotlib.pyplot as plt
 
 
 def plot_selfenergy(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool = True):
-    """Plot imaginary part of self-energies."""
+    """Plot imaginary part of self-energies.
+
+    Number of "self_energy_*" is
+
+    (N(delta) * N(nbands_sum_array) * N(selfen_approx))
+      * N(ncarrier_per_cell) * N(ncarrier_den) * N(mu)
+
+    sefeln_approx includes
+    - scattering_approximation (CRTA, ERTA, MRTA, MRTA2)
+    - static_approximation (True or False)
+
+    """
     selfens = {}
     for key in f_h5py["results"]["electron_phonon"]["electrons"]:
         if "self_energy_" in key:

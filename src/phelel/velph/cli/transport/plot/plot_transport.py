@@ -9,7 +9,26 @@ import numpy as np
 
 
 def plot_transport(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool = True):
-    """Plot transport properties."""
+    """Plot transport properties.
+
+    Number of "transport_*" is
+
+    ((N(delta) * N(nbands_sum_array) * N(selfen_approx))
+      * N(ncarrier_per_cell) * N(ncarrier_den) * N(mu)) * N(temps)
+
+    N(temps) runs in the inner loop.
+
+    sefeln_approx includes
+    - scattering_approximation (CRTA, ERTA, MRTA, MRTA2)
+    - static_approximation (True or False)
+
+    In the following codes, N(scattering_approximation) * N(temps) are only considered.
+
+    """
+    temps = f_h5py["results"]["electron_phonon"]["electrons"]["self_energy_1"]["temps"][
+        :
+    ]
+
     transports = {}
     for key in f_h5py["results"]["electron_phonon"]["electrons"]:
         if "transport_" in key:
@@ -22,21 +41,22 @@ def plot_transport(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool =
         _show(transport, i + 1)
 
     transports_temps = {}
-    for i in range(len(transports)):
-        transport = transports[i + 1]
-        key = transport["scattering_approximation"][()].decode("utf-8")
-        if key in transports_temps:
-            transports_temps[key].append(transports[i + 1])
-        else:
-            transports_temps[key] = [
-                transports[i + 1],
-            ]
 
-    nrows = len(transports_temps)
-    fig, axs = plt.subplots(nrows, 5, figsize=(20, 4 * nrows))
+    n_blocks = len(transports) // len(temps)
+    assert n_blocks * len(temps) == len(transports)
 
-    for i, key in enumerate(transports_temps):
-        _plot(axs[i, :], transports_temps[key])
+    # Nested loops mimic subroutine transport_elphon.
+    for i_block in range(n_blocks):
+        transports_temps[i_block] = []
+        for i_temp, temp in enumerate(temps):
+            idx = i_block * len(temps) + i_temp + 1
+            transport = transports[idx]
+            assert np.isclose(transport["temperature"], temp)
+            transports_temps[i_block].append(transports[idx])
+
+    fig, axs = plt.subplots(n_blocks, 5, figsize=(20, 4 * n_blocks))
+    for i_block in range(n_blocks):
+        _plot(axs[i_block, :], transports_temps[i_block])
 
     plt.tight_layout()
     if show:
@@ -49,7 +69,7 @@ def plot_transport(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool =
     click.echo(f'Transport plot was saved in "{plot_filename}".')
 
 
-def _plot(axs, tranports_temps):
+def _plot(axs, transports_temps):
     property_names = (
         "e_conductivity",
         "mobility",
@@ -59,15 +79,17 @@ def _plot(axs, tranports_temps):
     )
     properties = [[] for _ in property_names]
     temps = []
-    for trpt in tranports_temps:
+    for trpt in transports_temps:
         temps.append(trpt["temperature"][()])
         for i, property in enumerate(property_names):
             properties[i].append(np.trace(trpt[property][:]) / 3)
 
+    # Here only one key is considered, but there are many of those...
+    key = transports_temps[0]["scattering_approximation"][()].decode("utf-8")
     for i, property in enumerate(property_names):
         axs[i].plot(temps, properties[i], ".-")
         axs[i].set_xlabel("temperature (K)")
-        axs[i].set_ylabel(property)
+        axs[i].set_ylabel(f"{property} ({key})")
 
 
 def _show(transport: h5py._hl.group.Group, index: int):
