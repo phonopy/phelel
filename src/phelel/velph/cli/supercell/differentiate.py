@@ -72,7 +72,7 @@ def run_derivatives(
 
 
 def _check_files_exist(filepath: pathlib.Path) -> bool:
-    if not (filepath / "vasprun.xml").exists():
+    if not _check_file_exists(filepath, "vasprun.xml"):
         click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
         return False
     if _check_four_files_exist(filepath):
@@ -88,26 +88,34 @@ def _check_files_exist(filepath: pathlib.Path) -> bool:
                 "PAW-STRENGTH.bin",
                 "PAW-OVERLAP.bin",
             ):
-                if not (filepath / filename).exists():
+                if not _check_file_exists(filepath, filename):
                     click.echo(f'"{filepath}/{filename}" not found.', err=True)
             return False
 
 
 def _check_four_files_exist(filepath: pathlib.Path) -> bool:
-    """Check if the necessary files exist.
-
-    inwap.yaml
-    LOCAL-POTENTIAL.bin
-    PAW-STRENGTH.bin
-    PAW-OVERLAP.bin
-
-    """
     for filename in (
         "inwap.yaml",
         "LOCAL-POTENTIAL.bin",
         "PAW-STRENGTH.bin",
         "PAW-OVERLAP.bin",
     ):
-        if not (filepath / filename).exists():
+        if not _check_file_exists(filepath, filename):
             return False
     return True
+
+
+def _check_file_exists(filepath: pathlib.Path, filename: str) -> bool:
+    """Check if the necessary file exists.
+
+    The file can be compressed with xz, etc.
+
+    The file names that can be checked are:
+        inwap.yaml
+        LOCAL-POTENTIAL.bin
+        PAW-STRENGTH.bin
+        PAW-OVERLAP.bin
+        vasprun.xml
+
+    """
+    return bool(list(pathlib.Path(filepath).glob(f"{filename}*")))
