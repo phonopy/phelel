@@ -135,15 +135,25 @@ def _show(transport: h5py._hl.group.Group, index: int):
             print(f"    {key[1]}: {transport[key[0]][()]}")
         else:
             print(f"    {key}: {transport[key][()]}")
-    print("  data_array_shapes:")
+
+    print("  data_array_diagonal:")
     for key in (
         "e_conductivity",
         "e_t_conductivity",
-        "energy",
-        ("lab", "Onsager_coefficients"),
         "mobility",
         "peltier",
         "seebeck",
+    ):
+        v = transport[key][:].ravel()
+        print(
+            f"    {key}: [{v[0]:.3e}, {v[4]:.3e}, {v[8]:.3e}, "
+            f"{v[5]:.3e}, {v[2]:.3e}, {v[1]:.3e}]"
+        )
+
+    print("  data_array_shapes:")
+    for key in (
+        "energy",
+        ("lab", "Onsager_coefficients"),
         "transport_function",
     ):
         if isinstance(key, tuple):

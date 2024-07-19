@@ -18,8 +18,11 @@ def test_run_derivatives():
     """
     phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
     hdf5_filename = "phelel_params_test_run_derivatives.hdf5"
-    run_derivatives(phe, hdf5_filename=hdf5_filename, dir_name=cwd / "C111/supercell")
+    run_derivatives(
+        phe, hdf5_filename=hdf5_filename, dir_name=cwd / "C111" / "supercell"
+    )
     file_path = pathlib.Path(cwd_called / hdf5_filename)
+    print(file_path)
     assert file_path.exists()
     file_path.unlink()
 
