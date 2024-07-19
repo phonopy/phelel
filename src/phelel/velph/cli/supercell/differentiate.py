@@ -31,7 +31,11 @@ def run_derivatives(
         id_number = f"{i:0{nd}d}"
         filepath = pathlib.Path(f"{dir_name}/disp-{id_number}")
         if filepath.exists():
-            dir_names.append(filepath)
+            if _check_files_exist(filepath):
+                dir_names.append(filepath)
+            else:
+                click.echo(f'Necessary file not found in "{filepath}".', err=True)
+                return None
         else:
             click.echo(f'"{filepath}" does not exist.', err=True)
             return None
@@ -65,3 +69,45 @@ def run_derivatives(
     phe.save_hdf5(filename=hdf5_filename)
 
     click.echo(f'"{hdf5_filename}" has been made.')
+
+
+def _check_files_exist(filepath: pathlib.Path) -> bool:
+    if not (filepath / "vasprun.xml").exists():
+        click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
+        return False
+    if _check_four_files_exist(filepath):
+        return True
+    else:
+        if (filepath / "vaspout.h5").exists():
+            click.echo(f'Found "{filepath}/vaspout.h5".', err=True)
+            return True
+        else:
+            for filename in (
+                "inwap.yaml",
+                "LOCAL-POTENTIAL.bin",
+                "PAW-STRENGTH.bin",
+                "PAW-OVERLAP.bin",
+            ):
+                if not (filepath / filename).exists():
+                    click.echo(f'"{filepath}/{filename}" not found.', err=True)
+            return False
+
+
+def _check_four_files_exist(filepath: pathlib.Path) -> bool:
+    """Check if the necessary files exist.
+
+    inwap.yaml
+    LOCAL-POTENTIAL.bin
+    PAW-STRENGTH.bin
+    PAW-OVERLAP.bin
+
+    """
+    for filename in (
+        "inwap.yaml",
+        "LOCAL-POTENTIAL.bin",
+        "PAW-STRENGTH.bin",
+        "PAW-OVERLAP.bin",
+    ):
+        if not (filepath / filename).exists():
+            return False
+    return True

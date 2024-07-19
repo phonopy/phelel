@@ -1,6 +1,7 @@
 """velph command line tool / velph-supercell."""
 
 import pathlib
+from typing import Optional
 
 import click
 import tomli
@@ -12,6 +13,7 @@ from phelel.velph.cli.supercell.differentiate import run_derivatives
 from phelel.velph.cli.supercell.generate import write_supercell_input_files
 from phelel.velph.cli.supercell.init import run_init
 from phelel.velph.cli.supercell.phonopy import create_phonopy_yaml
+from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 
 @cmd_root.group("supercell")
@@ -99,11 +101,19 @@ def cmd_generate(toml_filename: str, yaml_filename: str):
     type=click.Path(),
     default="supercell/phelel_params.hdf5",
 )
+@click.option(
+    "--encut",
+    nargs=1,
+    type=float,
+    default=None,
+    help=(
+        "Cutoff energy corresponding to FFT mesh of local potential grid. "
+        "(encut: float, default=None)"
+    ),
+)
 @click.help_option("-h", "--help")
 def cmd_differentiate(
-    toml_filename: str,
-    yaml_filename: str,
-    hdf5_filename: str,
+    toml_filename: str, yaml_filename: str, hdf5_filename: str, encut: Optional[float]
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5."""
     with open(toml_filename, "rb") as f:
@@ -130,6 +140,24 @@ def cmd_differentiate(
         fft_mesh=toml_dict["phelel"]["fft_mesh"],
         is_symmetry=is_symmetry,
     )
+
+    if encut is not None:
+        try:
+            prec = toml_dict["vasp"]["selfenergy"]["incar"]["prec"]
+        except KeyError:
+            click.echo(f'[vasp.selfenergy.incar] not found in "{toml_filename}".')
+            click.echo('prec = "accurate" is assumed.')
+            prec = "accurate"
+        click.echo(f"FFT mesh is generated for encut={encut}.")
+        phe.fft_mesh = CutoffToFFTMesh.get_FFTMesh(encut, phe.primitive.cell, prec)
+
+    if phe.fft_mesh is None:
+        click.echo("FFT mesh is not specified.", err=True)
+    else:
+        if encut is None:
+            click.echo(f"FFT mesh: {phe.fft_mesh}.")
+        else:
+            click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
 
     run_derivatives(phe, hdf5_filename=hdf5_filename)
 
