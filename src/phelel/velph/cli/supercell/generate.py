@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import pathlib
 import shutil
+from typing import Union
 
 import click
 import tomli
+from phono3py import Phono3py
 from phonopy.interface.calculator import write_crystal_structure
 
 import phelel
@@ -35,15 +37,22 @@ def write_supercell_input_files(
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
 
-    _write_supercells(phe, toml_dict)
+    write_supercells(phe, toml_dict)
     if phe.phonon_supercell_matrix is not None:
         if "phonon" in toml_dict["vasp"]["supercell"]:
-            _write_phonon_supercells(phe, toml_dict)
+            write_phonon_supercells(phe, toml_dict)
         else:
             print(f'[vasp.supercell.phonon.*] not found in "{toml_filename}"')
 
 
-def _write_supercells(phe: Phelel, toml_dict: dict):
+def write_supercells(
+    phe: Union[Phelel, Phono3py], toml_dict: dict, dir_name: str = "supercell"
+):
+    """Write VASP input for supercells.
+
+    This is alos used by velph-phono3py-generate.
+
+    """
     kpoints_dict = toml_dict["vasp"]["supercell"]["kpoints"]
     if "kspacing" in kpoints_dict:
         symmetry_dataset = kspacing_to_mesh(kpoints_dict, phe.supercell)
@@ -61,8 +70,8 @@ def _write_supercells(phe: Phelel, toml_dict: dict):
         + phe.supercells_with_displacements
     ):
         id_number = f"{i:0{nd}d}"
-        dir_name = f"supercell/disp-{id_number}"
-        directory = pathlib.Path(dir_name)
+        disp_dir_name = f"{dir_name}/disp-{id_number}"
+        directory = pathlib.Path(disp_dir_name)
         directory.mkdir(parents=True, exist_ok=True)
 
         # POSCAR
@@ -89,10 +98,17 @@ def _write_supercells(phe: Phelel, toml_dict: dict):
             scheduler_dict = get_scheduler_dict(toml_dict, "supercell")
             write_launch_script(scheduler_dict, directory, job_id=id_number)
 
-        click.echo(f'VASP input files were generated in "{dir_name}".')
+        click.echo(f'VASP input files were generated in "{disp_dir_name}".')
 
 
-def _write_phonon_supercells(phe: Phelel, toml_dict: dict):
+def write_phonon_supercells(
+    phe: Union[Phelel, Phono3py], toml_dict: dict, dir_name: str = "supercell"
+):
+    """Write VASP input for phonon supercells.
+
+    This is alos used by velph-phono3py-generate.
+
+    """
     kpoints_dict = toml_dict["vasp"]["supercell"]["phonon"]["kpoints"]
     nd = get_num_digits(phe.phonon_supercells_with_displacements)
 
@@ -103,8 +119,8 @@ def _write_phonon_supercells(phe: Phelel, toml_dict: dict):
         + phe.phonon_supercells_with_displacements
     ):
         id_number = f"{i:0{nd}d}"
-        dir_name = f"supercell/ph-disp-{id_number}"
-        directory = pathlib.Path(dir_name)
+        disp_dir_name = f"{dir_name}/ph-disp-{id_number}"
+        directory = pathlib.Path(disp_dir_name)
         directory.mkdir(parents=True, exist_ok=True)
 
         # POSCAR
@@ -133,4 +149,4 @@ def _write_phonon_supercells(phe: Phelel, toml_dict: dict):
             scheduler_dict = get_scheduler_dict(toml_dict, ["supercell", "phonon"])
             write_launch_script(scheduler_dict, directory, job_id=id_number)
 
-        click.echo(f'VASP input files were generated in "{dir_name}".')
+        click.echo(f'VASP input files were generated in "{disp_dir_name}".')

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import os
 import pathlib
+import xml.parsers.expat
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Literal, Optional, Union
@@ -22,6 +23,8 @@ from phonopy.structure.cells import (
     get_primitive_matrix_by_centring,
     get_reduced_bases,
 )
+from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
+from phonopy.units import Bohr, Hartree
 
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
@@ -467,3 +470,44 @@ def check_fft(toml_filename: str, calculation_name: str) -> None:
         click.echo(f'"{vasprun_path}" not found.')
         click.echo("For estimating FFT mesh numbers, prepare dry-run by")
         click.echo(f"velph elph generate -d -c {calculation_name}")
+
+
+def get_nac_params(
+    toml_dict: dict,
+    vasprun_path: pathlib.Path,
+    primitive: Optional[PhonopyAtoms],
+    convcell: PhonopyAtoms,
+    is_symmetry: bool,
+    symprec: float = 1e-5,
+) -> Optional[dict]:
+    """Collect NAC parameters from vasprun.xml and return them."""
+    with open(vasprun_path, "rb") as f:
+        try:
+            vasprun = VasprunxmlExpat(f)
+            vasprun.parse()
+        except xml.parsers.expat.ExpatError:
+            click.echo(f'Parsing "{vasprun_path}" failed.')
+            return None
+
+    nac_cell = convcell
+    try:
+        if "primitive" in toml_dict["vasp"]["nac"]["cell"]:
+            nac_cell = primitive
+    except KeyError:
+        pass
+
+    borns_, epsilon_ = symmetrize_borns_and_epsilon(
+        vasprun.born,
+        vasprun.epsilon,
+        nac_cell,
+        primitive=primitive,
+        symprec=symprec,
+        is_symmetry=is_symmetry,
+    )
+
+    nac_params = {
+        "born": borns_,
+        "factor": Hartree * Bohr,
+        "dielectric": epsilon_,
+    }
+    return nac_params

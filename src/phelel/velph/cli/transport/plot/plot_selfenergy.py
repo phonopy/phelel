@@ -7,7 +7,9 @@ import h5py
 import matplotlib.pyplot as plt
 
 
-def plot_selfenergy(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool = True):
+def plot_selfenergy(
+    f_h5py: h5py._hl.files.File, plot_filename: str, save_plot: bool = False
+):
     """Plot imaginary part of self-energies.
 
     Number of "self_energy_*" is
@@ -39,14 +41,13 @@ def plot_selfenergy(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool 
         _plot(axs[i], selfen)
 
     plt.tight_layout()
-    if show:
-        plt.show()
-    else:
+    if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
+        click.echo(f'Transport plot was saved in "{plot_filename}".')
+    else:
+        plt.show()
     plt.close()
-
-    click.echo(f'Transport plot was saved in "{plot_filename}".')
 
 
 def _plot(ax, selfen):
