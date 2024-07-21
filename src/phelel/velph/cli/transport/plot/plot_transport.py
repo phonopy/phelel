@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_transport(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool = True):
+def plot_transport(
+    f_h5py: h5py._hl.files.File, plot_filename: str, save_plot: bool = False
+):
     """Plot transport properties.
 
     Number of "transport_*" is
@@ -25,6 +27,14 @@ def plot_transport(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool =
     In the following codes, N(scattering_approximation) * N(temps) are only considered.
 
     """
+    property_names = (
+        "e_conductivity",
+        # "mobility",
+        "e_t_conductivity",
+        "peltier",
+        "seebeck",
+    )
+
     temps = f_h5py["results"]["electron_phonon"]["electrons"]["self_energy_1"]["temps"][
         :
     ]
@@ -54,29 +64,22 @@ def plot_transport(f_h5py: h5py._hl.files.File, plot_filename: str, show: bool =
             assert np.isclose(transport["temperature"], temp)
             transports_temps[i_block].append(transports[idx])
 
-    fig, axs = plt.subplots(n_blocks, 5, figsize=(20, 4 * n_blocks))
+    n_props = len(property_names)
+    fig, axs = plt.subplots(n_blocks, n_props, figsize=(4 * n_props, 4 * n_blocks))
     for i_block in range(n_blocks):
-        _plot(axs[i_block, :], transports_temps[i_block])
+        _plot(axs[i_block, :], transports_temps[i_block], property_names)
 
     plt.tight_layout()
-    if show:
-        plt.show()
-    else:
+    if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
+        click.echo(f'Transport plot was saved in "{plot_filename}".')
+    else:
+        plt.show()
     plt.close()
 
-    click.echo(f'Transport plot was saved in "{plot_filename}".')
 
-
-def _plot(axs, transports_temps):
-    property_names = (
-        "e_conductivity",
-        "mobility",
-        "e_t_conductivity",
-        "peltier",
-        "seebeck",
-    )
+def _plot(axs, transports_temps, property_names):
     properties = [[] for _ in property_names]
     temps = []
     for trpt in transports_temps:
@@ -87,7 +90,10 @@ def _plot(axs, transports_temps):
     # Here only one key is considered, but there are many of those...
     key = transports_temps[0]["scattering_approximation"][()].decode("utf-8")
     for i, property in enumerate(property_names):
-        axs[i].plot(temps, properties[i], ".-")
+        if property == "e_conductivity":
+            axs[i].semilogy(temps, properties[i], ".-")
+        else:
+            axs[i].plot(temps, properties[i], ".-")
         axs[i].set_xlabel("temperature (K)")
         axs[i].set_ylabel(f"{property} ({key})")
 

@@ -1,25 +1,24 @@
 """Implementation of velph-supercell-init."""
 
+from __future__ import annotations
+
 import pathlib
-import xml.parsers.expat
 from typing import Optional
 
 import click
 import numpy as np
-from phonopy.interface.vasp import VasprunxmlExpat
-from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
-from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
-from phonopy.units import Bohr, Hartree
+from phonopy.structure.atoms import parse_cell_dict
 
 from phelel import Phelel
 from phelel.cui.create_supercells import generate_phelel_supercells
+from phelel.velph.cli.utils import get_nac_params
 
 
 def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
 ) -> Optional[Phelel]:
-    """Generate displacements and write phelel_disp.yaml.
+    """Generate supercell and displacements.
 
     current_directory : Path
         Used for test.
@@ -70,7 +69,7 @@ def run_init(
         click.echo('Found "nac" directory. Read NAC params.')
         vasprun_path = nac_directory / "vasprun.xml"
         if vasprun_path.exists():
-            nac_params = _get_nac_params(
+            nac_params = get_nac_params(
                 toml_dict,
                 vasprun_path,
                 primitive,
@@ -84,43 +83,3 @@ def run_init(
             return None
 
     return phe
-
-
-def _get_nac_params(
-    toml_dict: dict,
-    vasprun_path: pathlib.Path,
-    primitive: Optional[PhonopyAtoms],
-    convcell: PhonopyAtoms,
-    is_symmetry: bool,
-    symprec: float = 1e-5,
-) -> Optional[dict]:
-    with open(vasprun_path, "rb") as f:
-        try:
-            vasprun = VasprunxmlExpat(f)
-            vasprun.parse()
-        except xml.parsers.expat.ExpatError:
-            click.echo(f'Parsing "{vasprun_path}" failed.')
-            return None
-
-    nac_cell = convcell
-    try:
-        if "primitive" in toml_dict["vasp"]["nac"]["cell"]:
-            nac_cell = primitive
-    except KeyError:
-        pass
-
-    borns_, epsilon_ = symmetrize_borns_and_epsilon(
-        vasprun.born,
-        vasprun.epsilon,
-        nac_cell,
-        primitive=primitive,
-        symprec=symprec,
-        is_symmetry=is_symmetry,
-    )
-
-    nac_params = {
-        "born": borns_,
-        "factor": Hartree * Bohr,
-        "dielectric": epsilon_,
-    }
-    return nac_params

@@ -27,14 +27,21 @@ def cmd_plot():
     type=click.Path(),
     default="transport/vaspout.h5",
 )
+@click.option(
+    "--save",
+    "save_plot",
+    is_flag=bool,
+    default=False,
+    help=("Save plot to file."),
+)
 @click.help_option("-h", "--help")
-def cmd_plot_selfenergy(vaspout_filename: str):
+def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     """Plot self-energy in transports."""
     args = _get_f_h5py_and_plot_filename(
         "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is not None:
-        plot_selfenergy(*args)
+        plot_selfenergy(*args, save_plot=save_plot)
 
 
 @cmd_plot.command("transport")
@@ -44,14 +51,21 @@ def cmd_plot_selfenergy(vaspout_filename: str):
     type=click.Path(),
     default="transport/vaspout.h5",
 )
+@click.option(
+    "--save",
+    "save_plot",
+    is_flag=bool,
+    default=False,
+    help=("Save plot to file."),
+)
 @click.help_option("-h", "--help")
-def cmd_plot_transport(vaspout_filename: str):
+def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     """Plot transport in transports."""
     args = _get_f_h5py_and_plot_filename(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is not None:
-        plot_transport(*args)
+        plot_transport(*args, save_plot=save_plot)
 
 
 def _get_f_h5py_and_plot_filename(
