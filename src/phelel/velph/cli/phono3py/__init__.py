@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Optional
 
 import click
 import tomli
@@ -29,13 +30,21 @@ def cmd_phono3py():
     type=click.Path(),
     default="velph.toml",
 )
+@click.option(
+    "--rd",
+    "random_displacements",
+    nargs=1,
+    default=None,
+    type=int,
+    help="Number of snapshots of supercells with random directional displacement.",
+)
 @click.help_option("-h", "--help")
-def cmd_init(toml_filename: str):
+def cmd_init(toml_filename: str, random_displacements: Optional[int]):
     """Generate displacements and write phelel_disp.yaml."""
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
 
-    ph3py = run_init(toml_dict)
+    ph3py = run_init(toml_dict, number_of_snapshots=random_displacements)
 
     phono3py_yaml_filename = pathlib.Path("phono3py/phono3py_disp.yaml")
     phono3py_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
