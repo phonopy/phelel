@@ -190,7 +190,7 @@ def get_scheduler_dict(toml_dict: dict, calc_type: str) -> dict:
     for key in calc_type_keys:
         tmp_dict = tmp_dict[key]
     if "scheduler" in tmp_dict:
-        scheduler_dict.update(toml_dict["vasp"][calc_type]["scheduler"])
+        scheduler_dict.update(tmp_dict["scheduler"])
     return scheduler_dict
 
 

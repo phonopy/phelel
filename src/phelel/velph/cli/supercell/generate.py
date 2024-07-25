@@ -53,7 +53,7 @@ def write_supercells(
     This is alos used by velph-phono3py-generate.
 
     """
-    kpoints_dict = toml_dict["vasp"]["supercell"]["kpoints"]
+    kpoints_dict = toml_dict["vasp"][dir_name]["kpoints"]
     if "kspacing" in kpoints_dict:
         symmetry_dataset = kspacing_to_mesh(kpoints_dict, phe.supercell)
         if "symmetry" in toml_dict and "spacegroup_type" in toml_dict["symmetry"]:
@@ -78,13 +78,13 @@ def write_supercells(
         write_crystal_structure(directory / "POSCAR", cell)
 
         # INCAR
-        write_incar(toml_dict["vasp"]["supercell"]["incar"], directory, cell=cell)
+        write_incar(toml_dict["vasp"][dir_name]["incar"], directory, cell=cell)
 
         # KPOINTS
         write_kpoints_mesh_mode(
-            toml_dict["vasp"]["supercell"]["incar"],
+            toml_dict["vasp"][dir_name]["incar"],
             directory,
-            "vasp.supercell.kpoints",
+            f"vasp.{dir_name}.kpoints",
             kpoints_dict,
         )
 
@@ -95,7 +95,7 @@ def write_supercells(
 
         # Scheduler launch script
         if "scheduler" in toml_dict:
-            scheduler_dict = get_scheduler_dict(toml_dict, "supercell")
+            scheduler_dict = get_scheduler_dict(toml_dict, dir_name)
             write_launch_script(scheduler_dict, directory, job_id=id_number)
 
         click.echo(f'VASP input files were generated in "{disp_dir_name}".')
@@ -109,7 +109,7 @@ def write_phonon_supercells(
     This is alos used by velph-phono3py-generate.
 
     """
-    kpoints_dict = toml_dict["vasp"]["supercell"]["phonon"]["kpoints"]
+    kpoints_dict = toml_dict["vasp"][dir_name]["phonon"]["kpoints"]
     nd = get_num_digits(phe.phonon_supercells_with_displacements)
 
     for i, cell in enumerate(
@@ -128,14 +128,14 @@ def write_phonon_supercells(
 
         # INCAR
         write_incar(
-            toml_dict["vasp"]["supercell"]["phonon"]["incar"], directory, cell=cell
+            toml_dict["vasp"][dir_name]["phonon"]["incar"], directory, cell=cell
         )
 
         # KPOINTS
         write_kpoints_mesh_mode(
-            toml_dict["vasp"]["supercell"]["phonon"]["incar"],
+            toml_dict["vasp"][dir_name]["phonon"]["incar"],
             directory,
-            "vasp.supercell.phonon.kpoints",
+            f"vasp.{dir_name}.phonon.kpoints",
             kpoints_dict,
         )
 
@@ -146,7 +146,7 @@ def write_phonon_supercells(
 
         # Scheduler launch script
         if "scheduler" in toml_dict:
-            scheduler_dict = get_scheduler_dict(toml_dict, ["supercell", "phonon"])
+            scheduler_dict = get_scheduler_dict(toml_dict, f"{dir_name}.phonon")
             write_launch_script(scheduler_dict, directory, job_id=id_number)
 
         click.echo(f'VASP input files were generated in "{disp_dir_name}".')

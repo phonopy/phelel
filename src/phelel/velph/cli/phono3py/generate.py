@@ -30,7 +30,7 @@ def write_supercell_input_files(
 
     write_supercells(ph3py, toml_dict, dir_name="phono3py")
     if ph3py.phonon_supercell_matrix is not None:
-        if "phonon" in toml_dict["vasp"]["supercell"]:
+        if "phonon" in toml_dict["vasp"]["phono3py"]:
             write_phonon_supercells(ph3py, toml_dict, dir_name="phono3py")
         else:
-            print(f'[vasp.supercell.phonon.*] not found in "{toml_filename}"')
+            print(f'[vasp.phono3py.phonon.*] not found in "{toml_filename}"')
