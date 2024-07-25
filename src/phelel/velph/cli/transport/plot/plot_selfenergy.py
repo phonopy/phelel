@@ -66,7 +66,7 @@ def _show(selfen: h5py._hl.group.Group, index: int):
     ['band_start', 'band_stop', 'bks_idx', 'carrier_per_cell',
     'carrier_per_cell0', 'delta', 'efermi', 'energies', 'enwin', 'nbands',
     'nbands_sum', 'nw', 'scattering_approximation', 'select_energy_window',
-    'selfen_dw', 'selfen_fan', 'static', ' ', 'tetrahedron']
+    'selfen_dw', 'selfen_fan', 'static', 'tetrahedron']
 
     """
     print(f"- parameters:  # {index}")

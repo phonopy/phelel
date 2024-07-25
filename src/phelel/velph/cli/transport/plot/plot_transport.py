@@ -5,6 +5,7 @@ from __future__ import annotations
 import click
 import h5py
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 
 
@@ -94,8 +95,16 @@ def _plot(axs, transports_temps, property_names):
             axs[i].semilogy(temps, properties[i], ".-")
         else:
             axs[i].plot(temps, properties[i], ".-")
+        axs[i].tick_params(axis="both", which="both", direction="in")
+        axs[i].tick_params(axis="y", direction="in")
         axs[i].set_xlabel("temperature (K)")
         axs[i].set_ylabel(f"{property} ({key})")
+        axs[i].set_xlim(left=0, right=max(temps))
+        axs[i].yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
+        axs[i].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+        ax = axs[i].secondary_yaxis("right")
+        ax.tick_params(axis="y", which="both", direction="in")
+        ax.set_yticklabels([])
 
 
 def _show(transport: h5py._hl.group.Group, index: int):
