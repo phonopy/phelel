@@ -108,7 +108,7 @@ def _generate_phono3py_supercells(
         _distance = distance
 
     phono3py.generate_displacements(
-        distance=distance,
+        distance=_distance,
         is_plusminus=is_plusminus,
         is_diagonal=is_diagonal,
         number_of_snapshots=number_of_snapshots,
