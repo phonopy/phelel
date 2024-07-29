@@ -920,13 +920,13 @@ def _get_vasp_lines(
 
     lines = []
 
-    # supercell
-    if "supercell" in vasp_dict:
-        _add_incar_lines(lines, vasp_dict, incar_commons, "supercell")
-        lines.append("[vasp.supercell.kpoints]")
-        _add_kpoints_lines(lines, supercell_kpoints)
-        _add_calc_type_scheduler_lines(lines, vasp_dict, "supercell")
-        lines.append("")
+    for calc_type in ("supercell", "phono3py"):
+        if calc_type in vasp_dict:
+            _add_incar_lines(lines, vasp_dict, incar_commons, calc_type)
+            lines.append(f"[vasp.{calc_type}.kpoints]")
+            _add_kpoints_lines(lines, supercell_kpoints)
+            _add_calc_type_scheduler_lines(lines, vasp_dict, calc_type)
+            lines.append("")
 
     for calc_type in ("selfenergy", "transport"):
         if calc_type in vasp_dict:
