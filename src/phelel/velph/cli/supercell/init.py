@@ -80,6 +80,5 @@ def run_init(
                 phe.nac_params = nac_params
         else:
             click.echo('Not found "nac/vasprun.xml". NAC params were not included.')
-            return None
 
     return phe

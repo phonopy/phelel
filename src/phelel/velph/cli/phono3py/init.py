@@ -87,7 +87,6 @@ def run_init(
                 ph3py.nac_params = nac_params
         else:
             click.echo('Not found "nac/vasprun.xml". NAC params were not included.')
-            return None
 
     return ph3py
 
