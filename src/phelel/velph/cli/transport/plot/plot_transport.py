@@ -80,7 +80,7 @@ def plot_transport(
     plt.close()
 
 
-def _plot(axs, transports_temps, property_names):
+def _collect_data(transports_temps: dict, property_names: tuple) -> tuple[list, list]:
     properties = [[] for _ in property_names]
     temps = []
     for trpt in transports_temps:
@@ -88,8 +88,19 @@ def _plot(axs, transports_temps, property_names):
         for i, property in enumerate(property_names):
             properties[i].append(np.trace(trpt[property][:]) / 3)
 
+    return properties, temps
+
+
+def _plot(axs: np.ndarray, transports_temps: dict, property_names: tuple):
     # Here only one key is considered, but there are many of those...
     key = transports_temps[0]["scattering_approximation"][()].decode("utf-8")
+
+    properties, temps = _collect_data(transports_temps, property_names)
+    with open(f"{key}.dat", "w") as w:
+        print("# temperature", *property_names, file=w)
+        for temp, props in zip(temps, np.transpose(properties)):
+            print(temp, *props, file=w)
+
     for i, property in enumerate(property_names):
         if property == "e_conductivity":
             axs[i].semilogy(temps, properties[i], ".-")
