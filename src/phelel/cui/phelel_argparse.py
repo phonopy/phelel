@@ -56,7 +56,6 @@ def get_parser():
         "--dim-phonon",
         nargs="+",
         dest="phonon_supercell_dimension",
-        metavar="INT",
         default=None,
         help=(
             "Supercell dimensions for phonon with three integers or "
@@ -65,9 +64,8 @@ def get_parser():
     )
     parser.add_argument(
         "--fft-mesh",
-        nargs=3,
+        nargs="+",
         dest="fft_mesh_numbers",
-        metavar="INT",
         default=None,
         help="FFT mesh numbers used in primitive cell",
     )

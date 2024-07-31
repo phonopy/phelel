@@ -26,6 +26,7 @@ class MockArgs:
     create_derivatives: Optional[Sequence[str]] = None
     is_displacement: bool = False
     is_plusminus_displacements: bool = False
+    fft_mesh_numbers: Optional[str] = None
 
     def __iter__(self):
         """Make self iterable to support in."""
@@ -73,11 +74,14 @@ def test_phelel_script_create_derivatives(use_poscar: bool):
         cell_filename = str(dirname / "phelel_disp_C111.yaml")
         supercell_dimension = None
 
+    fft_mesh_numbers = "1 1 1"
+
     dispdirs = [str(dirname / "C111_disp-000"), str(dirname / "C111_disp-001")]
     argparse_control = _get_phelel_load_args(
         cell_filename=cell_filename,
         create_derivatives=dispdirs,
         supercell_dimenstion=supercell_dimension,
+        fft_mesh_numbers=fft_mesh_numbers,
     )
 
     if use_poscar:
@@ -149,6 +153,7 @@ def _get_phelel_load_args(
     create_derivatives: Optional[Sequence[str]] = None,
     is_displacement: bool = False,
     is_plusminus_displacements: bool = False,
+    fft_mesh_numbers: Optional[str] = None,
 ):
     # Mock of ArgumentParser.args.
     mockargs = MockArgs(
@@ -159,6 +164,7 @@ def _get_phelel_load_args(
         create_derivatives=create_derivatives,
         is_displacement=is_displacement,
         is_plusminus_displacements=is_plusminus_displacements,
+        fft_mesh_numbers=fft_mesh_numbers,
     )
 
     # See phonopy-load script.

@@ -2,7 +2,7 @@
 
 import os
 import pathlib
-from typing import Optional, Union
+from typing import Union
 
 import click
 
@@ -15,8 +15,6 @@ def run_derivatives(
     phe: Phelel,
     hdf5_filename: Union[str, bytes, os.PathLike] = "supercell/phelel_params.hdf5",
     subtract_residual_forces: bool = True,
-    nufft: Optional[str] = None,
-    finufft_eps: Optional[float] = None,
     dir_name: Union[str, bytes, os.PathLike] = "supercell",
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5."""
@@ -61,8 +59,6 @@ def run_derivatives(
     create_derivatives(
         phe,
         dir_names,
-        nufft=nufft,
-        finufft_eps=finufft_eps,
         subtract_rfs=subtract_residual_forces,
         log_level=0,
     )

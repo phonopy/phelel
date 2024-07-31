@@ -77,10 +77,7 @@ class PhelelConfParser(ConfParser):
                 self._confs["create_derivatives"] = " ".join(dir_names)
         if "fft_mesh_numbers" in self._args:
             if self._args.fft_mesh_numbers:
-                if len(self._args.fft_mesh_numbers) == 1:
-                    self._confs["fft_mesh"] = self._args.fft_mesh_numbers[0]
-                elif len(self._args.fft_mesh_numbers) == 3:
-                    self._confs["fft_mesh"] = " ".join(self._args.fft_mesh_numbers)
+                self._confs["fft_mesh"] = " ".join(self._args.fft_mesh_numbers)
         if "finufft_eps" in self._args:
             if self._args.finufft_eps is not None:
                 self._confs["finufft_eps"] = self._args.finufft_eps

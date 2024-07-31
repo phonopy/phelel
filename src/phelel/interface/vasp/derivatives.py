@@ -13,7 +13,7 @@ from phonopy.file_IO import get_born_parameters
 from phonopy.interface.vasp import parse_set_of_forces
 
 from phelel import Phelel
-from phelel.api_phelel import PhelelInput
+from phelel.api_phelel import PhelelDataset
 from phelel.interface.vasp.file_IO import (
     read_inwap_vaspouth5,
     read_inwap_yaml,
@@ -30,7 +30,7 @@ def read_files(
     phonon_dir_names: Optional[Sequence[str]] = None,
     subtract_rfs: bool = False,
     log_level: int = 0,
-) -> PhelelInput:
+) -> PhelelDataset:
     """Load files needed to create derivatives."""
     inwap_path = pathlib.Path(dir_names[0]) / "inwap.yaml"
     if inwap_path.exists():
@@ -75,7 +75,7 @@ def read_files(
     phelel.phonon.forces = forces
     if nac_params:
         phelel.phonon.nac_params = nac_params
-    return PhelelInput(
+    return PhelelDataset(
         local_potentials=loc_pots,
         Dijs=Dijs,
         qijs=qijs,
@@ -88,8 +88,6 @@ def read_files(
 def create_derivatives(
     phelel: Phelel,
     dir_names: Sequence,
-    nufft: Optional[str] = None,
-    finufft_eps: Optional[float] = None,
     subtract_rfs=False,
     log_level=0,
 ):
@@ -128,7 +126,7 @@ def create_derivatives(
         log_level=log_level,
     )
     if phelel.fft_mesh is not None:
-        phelel.run_derivatives(phe_input, nufft=nufft, finufft_eps=finufft_eps)
+        phelel.run_derivatives(phe_input)
 
     # phelel.Rij = read_Rij(dir_names[0], inwap_per)
 
@@ -202,7 +200,7 @@ def _get_datasets(phelel: Phelel) -> tuple:
 
 def _read_local_potentials(
     dir_names: Union[str, bytes, os.PathLike], inwap_per: dict, log_level: int = 0
-) -> np.ndarray:
+) -> list[np.ndarray]:
     loc_pots = []
     for dir_name in dir_names:
         # Note glob returns a generator.
@@ -222,7 +220,9 @@ def _read_local_potentials(
     return loc_pots
 
 
-def _read_PAW_strength_and_overlap(dir_names, inwap_per, log_level=0):
+def _read_PAW_strength_and_overlap(
+    dir_names, inwap_per, log_level=0
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
     Dijs = []
     qijs = []
     for dir_name in dir_names:
