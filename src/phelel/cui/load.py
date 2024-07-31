@@ -18,7 +18,7 @@ from phelel.interface.vasp.derivatives import read_files
 
 
 def load(
-    phonopy_yaml: Union[str, bytes, os.PathLike] = None,
+    phonopy_yaml: Optional[Union[str, bytes, os.PathLike]] = None,
     supercell_matrix: Optional[Union[Sequence, np.ndarray]] = None,
     primitive_matrix: Optional[Union[str, Sequence, np.ndarray]] = None,
     phonon_supercell_matrix: Optional[Union[Sequence, np.ndarray]] = None,

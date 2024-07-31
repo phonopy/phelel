@@ -235,7 +235,7 @@ def _read_PAW_strength_and_overlap(dir_names, inwap_per, log_level=0):
             Dijs.append(read_PAW_Dij_qij(inwap_per, Dij_path))
             qijs.append(read_PAW_Dij_qij(inwap_per, qij_path))
             if log_level:
-                print('"{Dij_path}" and "{qij_path}" were read.')
+                print(f'"{Dij_path}" and "{qij_path}" were read.')
         else:
             Dij_qij_path = pathlib.Path(dir_name) / "vaspout.h5"
             dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
