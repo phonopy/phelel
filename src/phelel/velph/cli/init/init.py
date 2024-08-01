@@ -99,7 +99,6 @@ def _run_init(
     # Prepare velph configurations: default + template files
     #
     velph_template_dict = _parse_velph_template(velph_template_fp)
-    velph_dict = _get_velph_dict(velph_template_dict)
 
     #
     # Collect velph-init command line options.
@@ -128,6 +127,11 @@ def _run_init(
     )
 
     #
+    # Parse velph configurations.
+    #
+    velph_dict = _get_velph_dict(velph_template_dict)
+
+    #
     # Determine cell choices for calculations such as nac, relax, etc.
     #
     cell_choices = _determine_cell_choices(vip, velph_dict)
@@ -151,10 +155,17 @@ def _get_supercell_dimension(
     velph_dict: dict,
     max_num_atoms: Optional[int],
     sym_dataset: dict,
+    find_primitive: bool,
 ) -> Optional[np.ndarray]:
     if max_num_atoms is not None:
+        if find_primitive is False:
+            _max_num_atoms = max_num_atoms * np.rint(
+                1.0 / np.linalg.det(sym_dataset["transformation_matrix"])
+            ).astype(int)
+        else:
+            _max_num_atoms = max_num_atoms
         supercell_dimension = shape_supercell_matrix(
-            estimate_supercell_matrix(sym_dataset, max_num_atoms=max_num_atoms)
+            estimate_supercell_matrix(sym_dataset, max_num_atoms=_max_num_atoms)
         )
     elif "phelel" in velph_dict and "supercell_dimension" in velph_dict["phelel"]:
         supercell_dimension = shape_supercell_matrix(
@@ -406,7 +417,9 @@ def _get_cells(
                     click.echo(f"  [{v[0]:6.3f} {v[1]:6.3f} {v[2]:6.3f}]")
         else:
             primitive = unitcell
-            if len(_primitive) != len(unitcell):
+            if len(_primitive) == len(unitcell):
+                pass
+            else:
                 click.echo(
                     "Input cell is not a primitive cell from the symmetry point of "
                     "view. "
@@ -421,6 +434,11 @@ def _get_cells(
                 click.echo("-" * 70)
                 click.echo("\n".join(get_vasp_structure_lines(_primitive)).strip())
                 click.echo("-" * 70)
+
+    click.echo("Supercell is generated with respect to the cell below.")
+    click.echo("-" * 80)
+    click.echo(str(unitcell))
+    click.echo("-" * 80)
 
     reduced_cell = get_reduced_cell(primitive, tolerance=tolerance)
     if primitive_cell_choice is PrimitiveCellChoice.REDUCED:
@@ -549,7 +567,7 @@ def _get_toml_lines(
 ) -> list[str]:
     """Return velph-toml lines."""
     supercell_dimension = _get_supercell_dimension(
-        velph_dict, vip.max_num_atoms, sym_dataset
+        velph_dict, vip.max_num_atoms, sym_dataset, vip.find_primitive
     )
     if supercell_dimension is None:
         return None
