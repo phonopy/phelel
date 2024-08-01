@@ -2,14 +2,14 @@
 
 import pathlib
 
-from phelel.api_phelel import Phelel, PhelelInput
+from phelel.api_phelel import Phelel, PhelelDataset
 from phelel.base.Dij_qij import DDijQij, DDijQijFit, DeltaDijQij
 
 cwd = pathlib.Path(__file__).parent
 
 
 def test_DeltaDijQij(
-    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelInput
+    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset
 ):
     """Test DeltaDijQij."""
     phe_in = phelel_input_CdAs2_111
@@ -26,7 +26,7 @@ def test_DeltaDijQij(
 
 
 def test_DDijQijFit(
-    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelInput
+    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset
 ):
     """Test DDijQijFit."""
     phe = phelel_empty_CdAs2_111
@@ -51,7 +51,7 @@ def test_DDijQijFit(
     ddijqij.run()
 
 
-def test_DDijQij(phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelInput):
+def test_DDijQij(phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset):
     """Test DDijQij."""
     phe = phelel_empty_CdAs2_111
     phe_in = phelel_input_CdAs2_111

@@ -7,7 +7,7 @@ import pathlib
 import phelel
 import pytest
 from phelel import Phelel
-from phelel.api_phelel import PhelelInput
+from phelel.api_phelel import PhelelDataset
 from phelel.interface.vasp.file_IO import (
     read_inwap_yaml,
     read_local_potential,
@@ -57,7 +57,7 @@ def phelel_input_filenames_C111() -> list:
 
 
 @pytest.fixture(scope="session")
-def phelel_input_C111(phelel_input_filenames_C111) -> PhelelInput:
+def phelel_input_C111(phelel_input_filenames_C111) -> PhelelDataset:
     """Return diamond phelel input."""
     inwap_per, locpot_filenames, Dij_filenames, qij_filenames = (
         phelel_input_filenames_C111
@@ -67,7 +67,7 @@ def phelel_input_C111(phelel_input_filenames_C111) -> PhelelInput:
 
 
 @pytest.fixture(scope="session")
-def phelel_input_NaCl111() -> PhelelInput:
+def phelel_input_NaCl111() -> PhelelDataset:
     """Return NaCl phelel input."""
     inwap_filename = cwd / "inwap_NaCl111.yaml"
     inwap_per = read_inwap_yaml(inwap_filename)
@@ -91,7 +91,7 @@ def phelel_input_NaCl111() -> PhelelInput:
 
 
 @pytest.fixture(scope="session")
-def phelel_input_CdAs2_111() -> PhelelInput:
+def phelel_input_CdAs2_111() -> PhelelDataset:
     """Return CdAs2 phelel input."""
     inwap_filename = cwd / "inwap_CdAs2_111.yaml"
     inwap_per = read_inwap_yaml(inwap_filename)
@@ -111,14 +111,14 @@ def phelel_input_CdAs2_111() -> PhelelInput:
 
 
 @pytest.fixture(scope="session")
-def phelel_C111(phelel_empty_C111: Phelel, phelel_input_C111: PhelelInput) -> Phelel:
+def phelel_C111(phelel_empty_C111: Phelel, phelel_input_C111: PhelelDataset) -> Phelel:
     """Run diamond test."""
     return _get_phelel(phelel_empty_C111, phelel_input_C111)
 
 
 @pytest.fixture(scope="session")
 def phelel_NaCl111(
-    phelel_empty_NaCl111: Phelel, phelel_input_NaCl111: PhelelInput
+    phelel_empty_NaCl111: Phelel, phelel_input_NaCl111: PhelelDataset
 ) -> Phelel:
     """Run NaCl test."""
     return _get_phelel(phelel_empty_NaCl111, phelel_input_NaCl111)
@@ -126,17 +126,16 @@ def phelel_NaCl111(
 
 @pytest.fixture(scope="session")
 def phelel_CdAs2_111(
-    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelInput
+    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset
 ) -> Phelel:
     """Run CdAs2 test."""
     return _get_phelel(phelel_empty_CdAs2_111, phelel_input_CdAs2_111)
 
 
-def _get_phelel(phe: Phelel, phe_input: PhelelInput):
+def _get_phelel(phe: Phelel, phe_input: PhelelDataset):
     phei = phe_input
     phe.fft_mesh = [14, 14, 14]
-    phe.run_dVdu(phei.local_potentials)
-    phe.run_dDijdu(phei.Dijs, phei.qijs, phei.lm_channels)
+    phe.run_derivatives(phei)
     return phe
 
 
@@ -153,7 +152,7 @@ def _get_phelel_input(inwap_per, locpot_filenames, Dij_filenames, qij_filenames)
     for filename in qij_filenames:
         qijs.append(read_PAW_Dij_qij(inwap_per, filename))
 
-    return PhelelInput(
+    return PhelelDataset(
         local_potentials=loc_pots,
         Dijs=Dijs,
         qijs=qijs,

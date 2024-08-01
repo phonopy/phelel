@@ -134,6 +134,21 @@ def main(**argparse_control):
         cell_info["phonon_supercell_matrix"] = ph_smat
     phonon_supercell_matrix = cell_info["phonon_supercell_matrix"]
 
+    if settings.create_displacements:
+        phelel = create_phelel_supercells(
+            cell_info,
+            settings,
+            symprec,
+            log_level=log_level,
+        )
+        finalize_phelel(
+            phelel,
+            confs=phelel_conf.confs,
+            log_level=log_level,
+            displacements_mode=True,
+            filename="phelel_disp.yaml",
+        )
+
     fft_mesh = settings.fft_mesh_numbers
     phelel = Phelel(
         unitcell,
@@ -143,6 +158,7 @@ def main(**argparse_control):
         fft_mesh=fft_mesh,
         symprec=symprec,
         is_symmetry=settings.is_symmetry,
+        finufft_eps=settings.finufft_eps,
     )
 
     if log_level > 0:
@@ -179,20 +195,6 @@ def main(**argparse_control):
             print_cell(phelel.phonon.supercell)
         print("-" * 76)
 
-    if settings.create_displacements:
-        phelel = create_phelel_supercells(
-            cell_info,
-            settings,
-            symprec,
-            log_level=log_level,
-        )
-        finalize_phelel(
-            phelel,
-            confs=phelel_conf.confs,
-            log_level=log_level,
-            displacements_mode=True,
-            filename="phelel_disp.yaml",
-        )
     ##################################
     # Create dV/du, dDij/du, dqij/du #
     ##################################
@@ -229,13 +231,13 @@ def main(**argparse_control):
             create_derivatives(
                 phelel,
                 settings.create_derivatives,
-                finufft_eps=settings.finufft_eps,
                 subtract_rfs=settings.subtract_rfs,
                 log_level=log_level,
             )
-            phelel.save_hdf5(filename="phelel_params.hdf5")
-            if log_level > 0:
-                print('"phelel_params.hdf5" has been created.')
+            if phelel.fft_mesh is not None:
+                phelel.save_hdf5(filename="phelel_params.hdf5")
+                if log_level > 0:
+                    print('"phelel_params.hdf5" has been created.')
             print_end()
             sys.exit(0)
 
