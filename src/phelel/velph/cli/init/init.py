@@ -591,6 +591,23 @@ def _get_toml_lines(
         cell_choices["relax"],
     )
 
+    if "vasp" in velph_dict:
+        _update_kpoints_by_vasp_dict(
+            kpoints_dict,
+            kpoints_dense_dict,
+            qpoints_dict,
+            kpoints_opt_dict,
+            velph_dict["vasp"],
+        )
+        _show_kpoints_lines(
+            kpoints_dict,
+            kpoints_dense_dict,
+            kpoints_opt_dict,
+            velph_dict["vasp"],
+            vip.kspacing,
+            vip.kspacing_dense,
+        )
+
     #
     # velph.toml
     #
@@ -708,22 +725,12 @@ def _get_kpoints_dict(
     cell_for_relax: CellChoice,
 ) -> tuple[dict, dict, dict, dict]:
     """Return kpoints dicts."""
-    if vip_kspacing:
-        _kspacing = vip_kspacing
-    else:
-        _kspacing = 0.3
-
-    if vip_kspacing_dense:
-        _kspacing_dense = vip_kspacing_dense
-    else:
-        _kspacing_dense = 0.3
     use_grg_unitcell = vip_use_grg and (len(unitcell) == len(primitive))
-
     sym_dataset_prim = get_symmetry_dataset(primitive, tolerance=vip_tolerance)
 
     # Grid matrix for unitcell
     gm = GridMatrix(
-        2 * np.pi / _kspacing,
+        2 * np.pi / vip_kspacing,
         lattice=unitcell.cell,
         symmetry_dataset=sym_dataset,
         use_grg=use_grg_unitcell,
@@ -731,7 +738,7 @@ def _get_kpoints_dict(
 
     # Grid matrix for primitive cell
     gm_prim = GridMatrix(
-        2 * np.pi / _kspacing,
+        2 * np.pi / vip_kspacing,
         lattice=primitive.cell,
         symmetry_dataset=sym_dataset_prim,
         use_grg=vip_use_grg,
@@ -741,7 +748,7 @@ def _get_kpoints_dict(
     supercell = get_supercell(unitcell, supercell_dimension)
     sym_dataset_super = get_symmetry_dataset(supercell, tolerance=vip_tolerance)
     gm_super = GridMatrix(
-        2 * np.pi / _kspacing,
+        2 * np.pi / vip_kspacing,
         lattice=supercell.cell,
         symmetry_dataset=sym_dataset_super,
         use_grg=False,
@@ -749,7 +756,7 @@ def _get_kpoints_dict(
 
     # Dense grid matrix for primitive cell
     gm_dense_prim = GridMatrix(
-        2 * np.pi / _kspacing_dense,
+        2 * np.pi / vip_kspacing_dense,
         lattice=primitive.cell,
         symmetry_dataset=sym_dataset_prim,
         use_grg=vip_use_grg,
@@ -763,42 +770,6 @@ def _get_kpoints_dict(
     qpoints_dict: dict = {}
     kpoints_opt_dict: dict = {}
 
-    if "vasp" in velph_dict:
-        _update_kpoints_by_vasp_dict(
-            kpoints_dict,
-            kpoints_dense_dict,
-            qpoints_dict,
-            kpoints_opt_dict,
-            velph_dict["vasp"],
-            vip_kspacing,
-            vip_kspacing_dense,
-        )
-
-    k_mesh_lines = ["[vasp.*.kpoints(_dense).mesh]"]
-    if "supercell" in kpoints_dict:
-        k_mesh_lines.append(
-            "  supercell: {mesh}".format(mesh=kpoints_dict["supercell"]["mesh"])
-        )
-    if "selfenergy" in kpoints_dict:
-        k_mesh_lines.append(
-            "  primitive: {mesh}".format(mesh=kpoints_dict["selfenergy"]["mesh"])
-        )
-    if "selfenergy" in kpoints_dense_dict:
-        k_mesh_lines.append(
-            "  primitive(dense): {mesh}".format(
-                mesh=kpoints_dense_dict["selfenergy"]["mesh"]
-            )
-        )
-    if "relax" in kpoints_dict:
-        k_mesh_lines.append(
-            "  relax: {mesh}".format(mesh=kpoints_dict["relax"]["mesh"])
-        )
-    if "nac" in kpoints_dict:
-        k_mesh_lines.append("  nac: {mesh}".format(mesh=kpoints_dict["nac"]["mesh"]))
-
-    if k_mesh_lines:
-        click.echo("\n".join(k_mesh_lines))
-
     return kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict
 
 
@@ -808,32 +779,51 @@ def _update_kpoints_by_vasp_dict(
     qpoints_dict: dict,
     kpoints_opt_dict: dict,
     vasp_dict: dict,
-    kspacing: Optional[float],
-    kspacing_dense: Optional[float],
 ) -> None:
-    for key in (
-        "supercell",
-        "selfenergy",
-        "relax",
-        "nac",
-        "el_bands",
-        "ph_bands",
-    ):
-        if not kspacing:
-            if key in vasp_dict and "kpoints" in vasp_dict[key]:
-                kpoints_dict[key] = vasp_dict[key]["kpoints"]
-
-    if not kspacing_dense:
-        for key in ("selfenergy", "el_bands"):
-            if key in vasp_dict and "kpoints_dense" in vasp_dict[key]:
-                kpoints_dense_dict[key] = vasp_dict[key]["kpoints_dense"]
-
-    for key in ("ph_bands",):
-        if key in vasp_dict and "qpoints" in vasp_dict[key]:
+    """Overwrite kpoints_(dense_)dict if kpoints are defined in vasp_dict."""
+    for key in vasp_dict:
+        if "kpoints" in vasp_dict[key]:
+            kpoints_dict[key] = vasp_dict[key]["kpoints"]
+        if "kpoints_dense" in vasp_dict[key]:
+            kpoints_dense_dict[key] = vasp_dict[key]["kpoints_dense"]
+        if "qpoints" in vasp_dict[key]:
             qpoints_dict[key] = vasp_dict[key]["qpoints"]
+        if "kpoints_opt" in vasp_dict[key]:
+            kpoints_opt_dict[key] = vasp_dict[key]["kpoints_opt"]
 
-    if "el_bands" in vasp_dict and "kpoints_opt" in vasp_dict["el_bands"]:
-        kpoints_opt_dict["el_bands"] = vasp_dict["el_bands"]["kpoints_opt"]
+
+def _show_kpoints_lines(
+    kpoints_dict: dict,
+    kpoints_dense_dict: dict,
+    kpoints_opt_dict: dict,
+    vasp_dict: dict,
+    vip_kspacing: float,
+    vip_kspacing_dense: float,
+):
+    k_mesh_lines = [f"[vasp.*.kpoints.mesh] (*kspacing={vip_kspacing})"]
+    for key in vasp_dict:
+        if key == "ph_bands":
+            continue
+        if key in kpoints_dict:
+            mesh = kpoints_dict[key].get("mesh")
+            if mesh is not None:
+                line = f"  {key}: {mesh}"
+                if "kpoints" not in vasp_dict[key]:
+                    line += "*"
+                k_mesh_lines.append(line)
+    k_mesh_lines.append(
+        f"[vasp.*.kpoints_dense.mesh] (*kspacing_dense={vip_kspacing_dense})"
+    )
+    for key in vasp_dict:
+        if key in kpoints_dense_dict:
+            mesh = kpoints_dense_dict[key].get("mesh")
+            if mesh is not None:
+                line = f"  {key}: {mesh}"
+                if "kpoints_dense" not in vasp_dict[key]:
+                    line += "*"
+                k_mesh_lines.append(line)
+    if k_mesh_lines:
+        click.echo("\n".join(k_mesh_lines))
 
 
 def _get_kpoints_by_kspacing(
