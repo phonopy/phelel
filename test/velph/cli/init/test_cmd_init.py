@@ -301,16 +301,16 @@ def test_run_init_show_toml(symmetrize_cell: bool):
 
 
 @pytest.mark.parametrize(
-    "in_template,in_options",
-    itertools.product([True, False], repeat=2),
+    "in_template,in_options,in_phelel",
+    itertools.product([True, False], repeat=3),
 )
 def test_run_init_template_amplitude(
-    nacl_cell: PhonopyAtoms, in_template: bool, in_options: bool
+    nacl_cell: PhonopyAtoms, in_template: bool, in_options: bool, in_phelel: bool
 ):
     """Test of preference of amplitude in init option and [phelel].
 
     Preference order:
-        cmd_options > [init.options] > [phelel]
+        [phelel] > cmd_options > [init.options]
 
     Similar tests should be written for "diagonal", "plusminus", and
     "phelel_nosym".
@@ -323,39 +323,50 @@ def test_run_init_template_amplitude(
         template_lines += ["amplitude = 0.06"]
     if in_options:
         cmd_options["amplitude"] = 0.04
-    template_lines += ["[phelel]", "amplitude = 0.05"]
+    if in_phelel:
+        template_lines += ["[phelel]", "amplitude = 0.05"]
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(input_cell, cmd_options, velph_template_fp=velph_template_fp)
     velph_dict = tomli.loads("\n".join(toml_lines))
-    if in_options:
-        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.04)
-    elif in_template:
-        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.06)
-    else:
+    if in_phelel:
         np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.05)
+    else:
+        if in_options:
+            np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.04)
+        else:
+            if in_template:
+                np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.06)
+    if not (in_phelel or in_options or in_template):
+        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.03)
 
 
 @pytest.mark.parametrize(
-    "plusminus,diagonal", itertools.product([True, False], repeat=2)
+    "plusminus,diagonal",
+    itertools.product([True, False], repeat=2),
 )
 def test_run_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
-    """Show toml."""
+    """Test of plusminus and diagonal command line options.
+
+    plusminus is True -> True
+    plusminus is False -> "auto"
+
+    """
     cell_filepath = cwd / "POSCAR_Ti"
-    vip = {
+    command_options = {
         "plusminus": plusminus,
         "diagonal": diagonal,
         "amplitude": 0.05,
         "max_num_atoms": 80,
     }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
-    toml_lines = run_init(vip, vfp)
+    toml_lines = run_init(command_options, vfp)
     velph_dict = tomli.loads("\n".join(toml_lines))
     assert velph_dict["phelel"]["diagonal"] is diagonal
-    if plusminus is False:
-        assert velph_dict["phelel"]["plusminus"] == "auto"
-    else:
+    if plusminus:
         assert velph_dict["phelel"]["plusminus"] is True
+    else:
+        assert velph_dict["phelel"]["plusminus"] == "auto"
     np.testing.assert_almost_equal(velph_dict["phelel"]["amplitude"], 0.05)
     np.testing.assert_array_equal(
         velph_dict["phelel"]["supercell_dimension"], [4, 4, 2]

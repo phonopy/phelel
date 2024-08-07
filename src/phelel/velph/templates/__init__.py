@@ -196,6 +196,7 @@ default_template_dict: dict[str, Any] = {
             "incar": {
                 "lepsilon": True,
                 "npar": None,
+                "ncore": None,
                 "kpar": None,
             },
         },

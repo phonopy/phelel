@@ -36,12 +36,19 @@ from phelel.velph.cli.utils import (
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar
+from phelel.version import __version__
 
 
 def run_init(cmd_init_options: dict, vfp: VelphFilePaths) -> Optional[list[str]]:
     """Run velph-init.
 
     Main part of init processes are implemented in the function _run_init.
+
+    Preference order of configurations is as follows.
+
+    1. Detailed configurations in [phelel] and [vasp] in velph-template.
+    2. Command line options.
+    3. [init.options] (alternative of command-line-options) in velph-template.
 
     Parameters
     ----------
@@ -336,24 +343,13 @@ def _collect_init_params(
                 f'"{template_toml_filepath}".'
             )
 
-    # Set parameters specified by command-line options. amplitude, diagonal,
-    # plusminus, phelel_nosym can be parameters for [phelel]. These are treated
-    # specially. vip_dict is already filled by [init.options]. But
-    # command-line-options have higher preference.
+    # Set parameters specified by command-line options. vip_dict is already
+    # filled by [init.options]. But command-line-options have higher preference.
     for key, value in cmd_params.items():
-        if value is None and key in vip_dict:
-            continue
-        if value is None and key not in (
-            "amplitude",
-            "diagonal",
-            "plusminus",
-            "phelel_nosym",
-        ):
-            continue
-        vip_dict[key] = value
+        if value is not None:
+            vip_dict[key] = value
 
     vip = VelphInitParams(**vip_dict)
-
     return vip
 
 
@@ -611,22 +607,19 @@ def _get_toml_lines(
     #
     # velph.toml
     #
-    if "title" in velph_dict:
-        title = velph_dict["title"]
-        lines = [f'title = "{title}"', ""]
-    else:
-        lines = ['title = "VASP el-ph settings"', ""]
+    lines = []
 
     # [phelel]
-    lines += _get_phelel_lines(
-        velph_dict,
-        supercell_dimension,
-        primitive,
-        vip.amplitude,
-        vip.diagonal,
-        vip.plusminus,
-        vip.phelel_nosym,
-    )
+    if "phelel" in velph_dict:
+        lines += _get_phelel_lines(
+            velph_dict,
+            supercell_dimension,
+            primitive,
+            vip.amplitude,
+            vip.diagonal,
+            vip.plusminus,
+            vip.phelel_nosym,
+        )
 
     # [vasp.*]
     if "vasp" in velph_dict:
@@ -1030,6 +1023,7 @@ def _get_phelel_lines(
 ) -> list:
     lines = []
     lines.append("[phelel]")
+    lines.append(f'version = "{__version__}"')
     if (np.diag(np.diag(supercell_dimension)) == supercell_dimension).all():
         lines.append(
             "supercell_dimension = [{:d}, {:d}, {:d}]".format(
@@ -1042,37 +1036,40 @@ def _get_phelel_lines(
             "[[{:d}, {:d}, {:d}], [{:d}, {:d}, {:d}], [{:d}, {:d}, {:d}]]"
         )
         lines.append(fmt_str.format(*np.ravel(supercell_dimension)))
-    if amplitude is None:
-        if "amplitude" in toml_dict["phelel"]:
-            lines.append(f'amplitude = {toml_dict["phelel"]["amplitude"]}')
+
+    if "amplitude" in toml_dict["phelel"]:
+        lines.append(f'amplitude = {toml_dict["phelel"]["amplitude"]}')
     else:
         lines.append(f"amplitude = {amplitude}")
-    if diagonal is None:
-        if "diagonal" in toml_dict["phelel"]:
-            if toml_dict["phelel"]["diagonal"]:
-                lines.append("diagonal = true")
-            else:
-                lines.append("diagonal = false")
+
+    if "diagonal" in toml_dict["phelel"]:
+        _diagonal = toml_dict["phelel"]["diagonal"]
     else:
-        if diagonal:
-            lines.append("diagonal = true")
+        _diagonal = diagonal
+    assert isinstance(_diagonal, bool)
+    if _diagonal:
+        lines.append("diagonal = true")
+    else:
+        lines.append("diagonal = false")
+
+    if "plusminus" in toml_dict["phelel"]:
+        _plusminus = toml_dict["phelel"]["plusminus"]
+    else:
+        if plusminus is False:
+            _plusminus = "auto"
         else:
-            lines.append("diagonal = false")
-    if plusminus is None:
-        if "plusminus" in toml_dict["phelel"]:
-            if isinstance(toml_dict["phelel"]["plusminus"], bool):
-                if toml_dict["phelel"]["plusminus"]:
-                    lines.append("plusminus = true")
-                else:
-                    lines.append("plusminus = false")
-            if isinstance(toml_dict["phelel"]["plusminus"], str):
-                if toml_dict["phelel"]["plusminus"] == "auto":
-                    lines.append('plusminus = "auto"')
-    else:
-        if plusminus:
+            _plusminus = True
+    if isinstance(_plusminus, bool):
+        if _plusminus:
             lines.append("plusminus = true")
         else:
+            lines.append("plusminus = false")
+    elif isinstance(_plusminus, str):
+        if _plusminus == "auto":
             lines.append('plusminus = "auto"')
+        else:  # Fall back to default
+            lines.append("plusminus = true")
+
     if phelel_nosym:
         lines.append("nosym = true")
 
