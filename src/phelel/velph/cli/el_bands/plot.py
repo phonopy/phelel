@@ -99,14 +99,14 @@ def _plot_dos(ax, f_h5py, ax_bands):
     ax.plot(dos, energies, "-k")
     ymin, ymax = ax_bands.get_ylim()
     i_min = 0
-    i_max = 0
+    i_max = len(energies)
     for i, val in enumerate(energies):
         if val < ymin:
             i_min = i
         if val > ymax:
             i_max = i
             break
-    xmax = dos[i_min:i_max].max() * 1.1
+    xmax = dos[i_min : i_max + 1].max() * 1.1
     ax.hlines(efermi, 0, xmax, "r")
     ax.set_xlim(0, xmax)
     ax.set_ylim(ymin, ymax)
