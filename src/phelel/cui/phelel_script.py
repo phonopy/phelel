@@ -8,6 +8,12 @@ from typing import Optional, Union
 
 import numpy as np
 from phonopy.cui.collect_cell_info import collect_cell_info
+from phonopy.cui.phonopy_script import (
+    print_end,
+    print_error,
+    print_error_message,
+    print_version,
+)
 from phonopy.interface.calculator import get_default_physical_units
 from phonopy.structure.cells import print_cell
 
@@ -15,8 +21,22 @@ from phelel import Phelel
 from phelel.cui.create_supercells import create_phelel_supercells
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.settings import PhelelConfParser
-from phelel.cui.utils import print_end, print_error, print_error_message, print_phelel
 from phelel.interface.phelel_yaml import PhelelYaml
+from phelel.version import __version__
+
+
+# AA is created at http://www.network-science.de/ascii/.
+def print_phelel():
+    """Show phelel logo."""
+    print(
+        r"""       _          _      _
+ _ __ | |__   ___| | ___| |
+| '_ \| '_ \ / _ \ |/ _ \ |
+| |_) | | | |  __/ |  __/ |
+| .__/|_| |_|\___|_|\___|_|
+|_|"""
+    )
+    print_version(__version__, package_name="phelel", rjust_length=25)
 
 
 def finalize_phelel(
@@ -95,6 +115,9 @@ def main(**argparse_control):
         if args.log_level is not None:
             log_level = args.log_level
 
+    if log_level > 0:
+        print_phelel()
+
     if len(args.filename) > 0:
         phelel_conf = PhelelConfParser(filename=args.filename[0], args=args)
         settings = phelel_conf.settings
@@ -162,7 +185,6 @@ def main(**argparse_control):
     )
 
     if log_level > 0:
-        print_phelel()
         print("")
         print('Crystal structure was read from "%s".' % unitcell_filename)
         print("Settings:")
