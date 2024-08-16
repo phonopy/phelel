@@ -100,6 +100,8 @@ def main(**argparse_control):
     #################
     # Option parser #
     #################
+    load_phelel_yaml = argparse_control.get("load_phelel_yaml", False)
+
     if "args" in argparse_control:  # For pytest
         args = argparse_control["args"]
         log_level = args.log_level
@@ -140,6 +142,7 @@ def main(**argparse_control):
         cell_filename=settings.cell_filename,
         chemical_symbols=settings.chemical_symbols,
         phonopy_yaml_cls=PhelelYaml,
+        load_phonopy_yaml=load_phelel_yaml,
     )
     if "error_message" in cell_info:
         print_error_message(cell_info["error_message"])
