@@ -51,16 +51,11 @@ def cmd_generate(toml_filename: str):
 def cmd_plot(window: tuple[float, float]):
     """Plot electronic band structure."""
     vaspout_filename_bands = pathlib.Path("el_bands/bands/vaspout.h5")
-    if vaspout_filename_bands.exists():
-        vaspout_filename_dos = pathlib.Path("el_bands/dos/vaspout.h5")
-        if vaspout_filename_bands.exists():
-            click.echo(f'Found "{vaspout_filename_dos}". DOS will be plotted.')
-            plot_el_bandstructures(
-                window,
-                vaspout_filename_bands,
-                vaspout_filename_dos=vaspout_filename_dos,
-            )
-        else:
-            plot_el_bandstructures(window, vaspout_filename_bands)
-    else:
+    vaspout_filename_dos = pathlib.Path("el_bands/dos/vaspout.h5")
+    if not vaspout_filename_bands.exists():
         click.echo(f'"{vaspout_filename_bands}" not found.')
+    if not vaspout_filename_dos.exists():
+        click.echo(f'"{vaspout_filename_dos}" not found.')
+
+    if vaspout_filename_bands.exists() and vaspout_filename_dos.exists():
+        plot_el_bandstructures(window, vaspout_filename_bands, vaspout_filename_dos)

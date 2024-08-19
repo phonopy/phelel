@@ -488,11 +488,19 @@ class Phelel:
         supercell_matrix: Optional[Union[int, float, Sequence, np.ndarray]],
         primitive_matrix: Optional[Union[str, Sequence, np.ndarray]],
     ) -> Phonopy:
+        """Return Phonopy instance.
+
+        Note
+        ----
+        store_dense_svecs=False is necessary to be compatible with code in VASP.
+
+        """
         return Phonopy(
             self._unitcell,
             supercell_matrix=supercell_matrix,
             primitive_matrix=primitive_matrix,
             symprec=self._symprec,
             is_symmetry=self._is_symmetry,
+            store_dense_svecs=False,
             log_level=self._log_level,
         )

@@ -72,7 +72,7 @@ def _get_f_h5py_and_plot_filename(
     property_name: str,
     vaspout_filename: pathlib.Path = pathlib.Path("transport/vaspout.h5"),
     plot_filename: Optional[pathlib.Path] = None,
-) -> tuple[h5py._hl.files.File, pathlib.Path]:
+) -> tuple[h5py.File, pathlib.Path]:
     if not vaspout_filename.exists():
         click.echo(f'"{vaspout_filename}" (default path) not found.')
         click.echo("Please specify vaspout.h5 file path.")

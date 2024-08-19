@@ -243,7 +243,7 @@ def choose_cell_in_dict(
     return cell
 
 
-def get_reclat_from_vaspout(fp_vaspout: h5py._hl.files.File):
+def get_reclat_from_vaspout(fp_vaspout: h5py.File):
     """Return reciprocal space basis vectors.
 
     Returns
@@ -255,7 +255,7 @@ def get_reclat_from_vaspout(fp_vaspout: h5py._hl.files.File):
     """
     # Basis vectors in direct space in column vectors
     lattice = np.transpose(
-        fp_vaspout["input"]["poscar"]["lattice_vectors"]
+        fp_vaspout["input"]["poscar"]["lattice_vectors"][:]
         * fp_vaspout["input"]["poscar"]["scale"][()]
     )
     # Basis vectors in reciprocal space in row vectors
