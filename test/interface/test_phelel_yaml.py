@@ -4,10 +4,11 @@ from io import StringIO
 from pathlib import Path
 
 import numpy as np
-import phelel
 import yaml
-from phelel.interface.phelel_yaml import PhelelYaml, load_phelel_yaml
 from phonopy.structure.cells import isclose
+
+import phelel
+from phelel.interface.phelel_yaml import PhelelYaml, load_phelel_yaml
 
 cwd = Path(__file__).parent
 

@@ -10,6 +10,12 @@ from typing import Literal, Optional
 import numpy as np
 import pytest
 import tomli
+from phono3py.phonon.grid import BZGrid, get_ir_grid_points
+from phonopy.interface.calculator import read_crystal_structure
+from phonopy.interface.phonopy_yaml import load_phonopy_yaml
+from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import get_primitive
+
 from phelel.velph.cli.init.init import (
     _collect_init_params,
     _determine_cell_choices,
@@ -30,11 +36,6 @@ from phelel.velph.cli.utils import (
     get_symmetry_dataset,
 )
 from phelel.velph.templates import default_template_dict
-from phono3py.phonon.grid import BZGrid, get_ir_grid_points
-from phonopy.interface.calculator import read_crystal_structure
-from phonopy.interface.phonopy_yaml import load_phonopy_yaml
-from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import get_primitive
 
 cwd = pathlib.Path(__file__).parent
 

@@ -3,6 +3,7 @@
 import os
 
 import numpy as np
+
 from phelel.utils.lattice_points import get_lattice_points
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

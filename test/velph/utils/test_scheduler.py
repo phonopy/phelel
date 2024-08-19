@@ -1,6 +1,7 @@
 """Test scheduler writer."""
 
 import pytest
+
 from phelel.velph.utils.scheduler import (
     get_sge_scheduler_script,
     get_slurm_scheduler_script,
