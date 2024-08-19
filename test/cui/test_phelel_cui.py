@@ -8,6 +8,7 @@ from dataclasses import dataclass, fields
 from typing import Optional
 
 import pytest
+
 from phelel.cui.phelel_script import main
 
 cwd = pathlib.Path(__file__).parent

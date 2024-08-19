@@ -2,8 +2,9 @@
 
 import pathlib
 
-import phelel
 import pytest
+
+import phelel
 from phelel.velph.cli.supercell.differentiate import run_derivatives
 
 cwd = pathlib.Path(__file__).parent
