@@ -400,6 +400,7 @@ class Phelel:
         Note
         ----
         After calculation, temporary raw data may be deleted.
+        Force constants are created to have full matrix shape.
 
         """
         if self._fft_mesh is None:
@@ -417,10 +418,16 @@ class Phelel:
 
         if phe_input.phonon_dataset is not None:
             self._prepare_phonon(
-                dataset=phe_input.phonon_dataset, forces=phe_input.forces
+                dataset=phe_input.phonon_dataset,
+                forces=phe_input.forces,
+                calculate_full_force_constants=True,
             )
         else:
-            self._prepare_phonon(dataset=self._dataset, forces=phe_input.forces)
+            self._prepare_phonon(
+                dataset=self._dataset,
+                forces=phe_input.forces,
+                calculate_full_force_constants=True,
+            )
         self._dVdu.run(loc_pots[0], loc_pots[1:], self._dataset["first_atoms"])
         self._dDijdu.run(
             Dijs[0],
