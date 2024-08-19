@@ -9,9 +9,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 
 
-def plot_transport(
-    f_h5py: h5py._hl.files.File, plot_filename: str, save_plot: bool = False
-):
+def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = False):
     """Plot transport properties.
 
     Number of "transport_*" is
@@ -118,7 +116,7 @@ def _plot(axs: np.ndarray, transports_temps: dict, property_names: tuple):
         ax.set_yticklabels([])
 
 
-def _show(transport: h5py._hl.group.Group, index: int):
+def _show(transport: h5py.Group, index: int):
     """Show transport properties.
 
     ['cell_volume', 'dfermi_tol', 'e_conductivity', 'e_t_conductivity', 'emax',

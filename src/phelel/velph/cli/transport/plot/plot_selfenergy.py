@@ -7,9 +7,7 @@ import h5py
 import matplotlib.pyplot as plt
 
 
-def plot_selfenergy(
-    f_h5py: h5py._hl.files.File, plot_filename: str, save_plot: bool = False
-):
+def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = False):
     """Plot imaginary part of self-energies.
 
     Number of "self_energy_*" is
@@ -60,7 +58,7 @@ def _plot(ax, selfen):
             )
 
 
-def _show(selfen: h5py._hl.group.Group, index: int):
+def _show(selfen: h5py.Group, index: int):
     """Show self-energy properties.
 
     ['band_start', 'band_stop', 'bks_idx', 'carrier_per_cell',

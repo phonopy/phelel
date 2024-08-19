@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional
 
 import click
 import h5py
@@ -19,7 +18,7 @@ from phelel.velph.cli.utils import (
 def plot_el_bandstructures(
     window: tuple[float, float],
     vaspout_filename_bands: pathlib.Path,
-    vaspout_filename_dos: Optional[pathlib.Path] = None,
+    vaspout_filename_dos: pathlib.Path,
     plot_filename: pathlib.Path = pathlib.Path("el_bands/el_bands.pdf"),
 ):
     """Plot electronic band structure.
@@ -37,15 +36,35 @@ def plot_el_bandstructures(
 
     """
     f_h5py_bands = h5py.File(vaspout_filename_bands)
+    f_h5py_dos = h5py.File(vaspout_filename_dos)
+    efermi = f_h5py_dos["results"]["electron_dos_kpoints_opt"]["efermi"][()]
+    emin = window[0]
+    emax = window[1]
+    _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
+    ax0, ax1 = axs
 
-    if vaspout_filename_dos:
-        f_h5py_dos = h5py.File(vaspout_filename_dos)
-        _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
-        _plot_bands(axs[0], f_h5py_bands, window)
-        _plot_dos(axs[1], f_h5py_dos, axs[0])
-    else:
-        _, ax = plt.subplots()
-        _plot_bands(ax, f_h5py_bands, window)
+    distances, eigvals, points, labels_at_points = _get_bands_data(f_h5py_bands)
+
+    ax0.plot(distances, eigvals[0, :, :], ".k")
+    ax0.hlines(efermi, distances[0], distances[-1], "r")
+    for x in points[1:-1]:
+        ax0.vlines(x, efermi + emin, efermi + emax, "k")
+    ax0.set_xlim(distances[0], distances[-1])
+    ax0.set_xticks(points)
+    ax0.set_xticklabels(labels_at_points)
+    ax0.set_ylim(efermi + emin, efermi + emax)
+    ax0.set_ylabel("E[eV]", fontsize=14)
+    ymin, ymax = ax0.get_ylim()
+
+    print(ymin, ymax)
+    dos, energies, xmax = _get_dos_data(f_h5py_dos, ymin, ymax)
+
+    ax1.plot(dos, energies, "-k")
+    ax1.hlines(efermi, 0, xmax, "r")
+    ax1.set_xlim(0, xmax)
+    ax1.set_ylim(ymin, ymax)
+    ax1.yaxis.tick_right()
+
     plt.rcParams["pdf.fonttype"] = 42
     plt.tight_layout()
     plt.savefig(plot_filename)
@@ -54,11 +73,7 @@ def plot_el_bandstructures(
     click.echo(f'Electronic band structure plot was saved in "{plot_filename}".')
 
 
-def _plot_bands(ax, f_h5py, window: tuple[float, float]):
-    emin = window[0]
-    emax = window[1]
-
-    efermi = f_h5py["results"]["electron_dos"]["efermi"][()]
+def _get_bands_data(f_h5py: h5py.File):
     eigvals = f_h5py["results"]["electron_eigenvalues_kpoints_opt"]["eigenvalues"]
 
     reclat = get_reclat_from_vaspout(f_h5py)
@@ -81,23 +96,12 @@ def _plot_bands(ax, f_h5py, window: tuple[float, float]):
         labels, distances, n_segments, nk_per_seg, nk_total
     )
 
-    ax.plot(distances, eigvals[0, :, :], ".k")
-    ax.hlines(efermi, distances[0], distances[-1], "r")
-    for x in points[1:-1]:
-        ax.vlines(x, efermi + emin, efermi + emax, "k")
-    ax.set_xlim(distances[0], distances[-1])
-    ax.set_xticks(points)
-    ax.set_xticklabels(labels_at_points)
-    ax.set_ylim(efermi + emin, efermi + emax)
-    ax.set_ylabel("E[eV]", fontsize=14)
+    return distances, eigvals, points, labels_at_points
 
 
-def _plot_dos(ax, f_h5py, ax_bands):
-    efermi = f_h5py["results"]["electron_dos_kpoints_opt"]["efermi"][()]
+def _get_dos_data(f_h5py: h5py.File, ymin: float, ymax: float):
     dos = f_h5py["results"]["electron_dos_kpoints_opt"]["dos"][0, :]
     energies = f_h5py["results"]["electron_dos_kpoints_opt"]["energies"][:]
-    ax.plot(dos, energies, "-k")
-    ymin, ymax = ax_bands.get_ylim()
     i_min = 0
     i_max = len(energies)
     for i, val in enumerate(energies):
@@ -107,7 +111,4 @@ def _plot_dos(ax, f_h5py, ax_bands):
             i_max = i
             break
     xmax = dos[i_min : i_max + 1].max() * 1.1
-    ax.hlines(efermi, 0, xmax, "r")
-    ax.set_xlim(0, xmax)
-    ax.set_ylim(ymin, ymax)
-    ax.yaxis.tick_right()
+    return dos, energies, xmax
