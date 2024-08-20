@@ -20,7 +20,8 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
     N(temps) runs in the inner loop.
 
     sefeln_approx includes
-    - scattering_approximation (CRTA, ERTA, MRTA, MRTA2)
+    - scattering_approximation
+      (CRTA, SERTA, ERTA_LAMBDA, ERTA_TAU, MRTA_LAMBDA, MRTA_TAU)
     - static_approximation (True or False)
 
     In the following codes, N(scattering_approximation) * N(temps) are only considered.
