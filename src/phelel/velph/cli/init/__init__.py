@@ -40,7 +40,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         'Cell choice for NAC, "primitive" or "unitcell" '
-        f'(cell_for_relax: str, default="{DefaultCellChoices.nac.value}")'
+        f'(cell_for_nac: str, default="{DefaultCellChoices.nac.value}")'
     ),
 )
 @click.option(
