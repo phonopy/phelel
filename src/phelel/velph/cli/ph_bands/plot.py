@@ -54,9 +54,9 @@ def plot_ph_bandstructures(
     )
 
     _, ax = plt.subplots()
-    ax.plot(distances, eigvals, ".k")
+    ax.plot(distances, eigvals, "ok", markersize=1)
     for x in points[1:-1]:
-        ax.vlines(x, 0, omega_max, "k")
+        ax.vlines(x, 0, omega_max, "k", linewidth=1)
     ax.set_xlim(distances[0], distances[-1])
     ax.set_xticks(points)
     ax.set_xticklabels(labels_at_points)

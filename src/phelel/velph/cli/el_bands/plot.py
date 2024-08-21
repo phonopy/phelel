@@ -45,10 +45,10 @@ def plot_el_bandstructures(
 
     distances, eigvals, points, labels_at_points = _get_bands_data(f_h5py_bands)
 
-    ax0.plot(distances, eigvals[0, :, :], ".k")
-    ax0.hlines(efermi, distances[0], distances[-1], "r")
+    ax0.plot(distances, eigvals[0, :, :], "ok", markersize=1)
+    ax0.hlines(efermi, distances[0], distances[-1], "r", linewidth=1)
     for x in points[1:-1]:
-        ax0.vlines(x, efermi + emin, efermi + emax, "k")
+        ax0.vlines(x, efermi + emin, efermi + emax, "k", linewidth=1)
     ax0.set_xlim(distances[0], distances[-1])
     ax0.set_xticks(points)
     ax0.set_xticklabels(labels_at_points)
@@ -56,11 +56,10 @@ def plot_el_bandstructures(
     ax0.set_ylabel("E[eV]", fontsize=14)
     ymin, ymax = ax0.get_ylim()
 
-    print(ymin, ymax)
     dos, energies, xmax = _get_dos_data(f_h5py_dos, ymin, ymax)
 
-    ax1.plot(dos, energies, "-k")
-    ax1.hlines(efermi, 0, xmax, "r")
+    ax1.plot(dos, energies, "-k", linewidth=1)
+    ax1.hlines(efermi, 0, xmax, "r", linewidth=1)
     ax1.set_xlim(0, xmax)
     ax1.set_ylim(ymin, ymax)
     ax1.yaxis.tick_right()
