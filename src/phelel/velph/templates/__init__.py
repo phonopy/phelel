@@ -88,7 +88,7 @@ default_template_dict: dict[str, Any] = {
                 "elph_ismear": -24,
                 "elph_mode": "transport",
                 "elph_selfen_carrier_den": 0.0,
-                "elph_scattering_approx": ["erta", "mrta"],
+                "elph_scattering_approx": ["serta", "erta_lambda", "mrta_lambda"],
                 "elph_selfen_temps": [
                     0,
                     1,
