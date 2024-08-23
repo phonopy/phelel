@@ -10,6 +10,11 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Literal, Optional, Union
 
+try:
+    from spglib import SpglibDataset
+except ImportError:
+    from types import SimpleNamespace as SpglibDataset
+
 import click
 import h5py
 import numpy as np
@@ -25,6 +30,7 @@ from phonopy.structure.cells import (
 )
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 from phonopy.units import Bohr, Hartree
+from phonopy.utils import get_dot_access_dataset
 
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
@@ -202,7 +208,7 @@ def assert_kpoints_mesh_symmetry(
         symmetry_dataset = kspacing_to_mesh(kpoints_dict, primitive)
         if "symmetry" in toml_dict and "spacegroup_type" in toml_dict["symmetry"]:
             assert (
-                symmetry_dataset["international"]
+                symmetry_dataset.international
                 == toml_dict["symmetry"]["spacegroup_type"]
             )
 
@@ -321,14 +327,16 @@ def get_special_points(
     return points, labels_at_points
 
 
-def get_symmetry_dataset(cell: PhonopyAtoms, tolerance: float = 1e-5) -> dict:
+def get_symmetry_dataset(cell: PhonopyAtoms, tolerance: float = 1e-5) -> SpglibDataset:
     """Return spglib symmetry dataset."""
-    dataset = spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)
+    dataset = get_dot_access_dataset(
+        spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)
+    )
     return dataset
 
 
 def get_primitive_cell(
-    cell: PhonopyAtoms, sym_dataset: dict, tolerance: float = 1e-5
+    cell: PhonopyAtoms, sym_dataset: SpglibDataset, tolerance: float = 1e-5
 ) -> tuple[PhonopyAtoms, np.ndarray]:
     """Return primitive cell and transformation matrix.
 
@@ -336,8 +344,8 @@ def get_primitive_cell(
     rigid rotation in contrast to `_get_standardized_unitcell`.
 
     """
-    tmat = sym_dataset["transformation_matrix"]
-    centring = sym_dataset["international"][0]
+    tmat = sym_dataset.transformation_matrix
+    centring = sym_dataset.international[0]
     pmat = get_primitive_matrix_by_centring(centring)
     total_tmat = np.array(np.dot(np.linalg.inv(tmat), pmat), dtype="double", order="C")
 
@@ -364,16 +372,16 @@ def get_reduced_cell(
 
 
 def generate_standardized_cells(
-    sym_dataset: dict,
+    sym_dataset: SpglibDataset,
     tolerance: float = 1e-5,
 ) -> tuple[PhonopyAtoms, PhonopyAtoms, np.ndarray]:
     """Return standardized unit cell and primitive cell."""
     click.echo(
         "Crystal structure was standardized based on space-group-type "
-        f"{sym_dataset['international']}."
+        f"{sym_dataset.international}."
     )
     convcell = get_standardized_unitcell(sym_dataset)
-    centring = sym_dataset["international"][0]
+    centring = sym_dataset.international[0]
     pmat = get_primitive_matrix_by_centring(centring)
     if centring == "P":
         primitive = convcell
@@ -383,7 +391,7 @@ def generate_standardized_cells(
     return convcell, primitive, pmat
 
 
-def get_standardized_unitcell(dataset: dict) -> PhonopyAtoms:
+def get_standardized_unitcell(dataset: SpglibDataset) -> PhonopyAtoms:
     """Return conventional unit cell.
 
     This conventional unit cell can include rigid rotation with respect to
@@ -393,7 +401,7 @@ def get_standardized_unitcell(dataset: dict) -> PhonopyAtoms:
     ----------
     cell : PhonopyAtoms
         Input cell.
-    dataset : dict
+    dataset : SpgliDataset
         Symmetry dataset of spglib.
 
     Returns
@@ -402,11 +410,11 @@ def get_standardized_unitcell(dataset: dict) -> PhonopyAtoms:
         Convetional unit cell.
 
     """
-    std_positions = dataset["std_positions"]
-    std_types = dataset["std_types"]
+    std_positions = dataset.std_positions
+    std_types = dataset.std_types
     _, _, _, perm = sort_positions_by_symbols(std_types, std_positions)
     convcell = PhonopyAtoms(
-        cell=dataset["std_lattice"],
+        cell=dataset.std_lattice,
         scaled_positions=std_positions[perm],
         numbers=std_types[perm],
     )
@@ -423,7 +431,7 @@ def get_num_digits(sequence, min_length=3):
 
 def kspacing_to_mesh(
     kpoints_dict: dict, unitcell: PhonopyAtoms, use_grg: bool = False
-) -> dict:
+) -> SpglibDataset:
     """Update kpoints_dict by mesh corresponding to kspacing.
 
     Parameters
@@ -436,12 +444,12 @@ def kspacing_to_mesh(
 
     Returns
     -------
-    dict
+    SpglibDataset
         Symmetry dataset of spglib.
 
     """
     kspacing = kpoints_dict["kspacing"]
-    symmetry_dataset = spglib.get_symmetry_dataset(unitcell.totuple())
+    symmetry_dataset = get_symmetry_dataset(unitcell)
     bzgrid = BZGrid(
         2 * np.pi / kspacing,
         lattice=unitcell.cell,

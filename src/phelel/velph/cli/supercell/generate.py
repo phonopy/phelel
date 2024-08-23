@@ -58,7 +58,7 @@ def write_supercells(
         symmetry_dataset = kspacing_to_mesh(kpoints_dict, phe.supercell)
         if "symmetry" in toml_dict and "spacegroup_type" in toml_dict["symmetry"]:
             assert (
-                symmetry_dataset["international"]
+                symmetry_dataset.international
                 == toml_dict["symmetry"]["spacegroup_type"]
             )
     nd = get_num_digits(phe.supercells_with_displacements)
