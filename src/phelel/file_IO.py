@@ -356,13 +356,13 @@ def _add_datasets(
         w.create_dataset(
             "transformation_matrix",
             data=np.array(
-                symmetry_dataset["transformation_matrix"], dtype="double", order="C"
+                symmetry_dataset.transformation_matrix, dtype="double", order="C"
             ),
         )
         w.create_dataset(
             "direct_rotations",
-            data=np.array(symmetry_dataset["rotations"], dtype="int_", order="C"),
+            data=np.array(symmetry_dataset.rotations, dtype="int_", order="C"),
         )
         w.create_dataset(
-            "spacegroup_number", data=int(symmetry_dataset["number"]), dtype="int_"
+            "spacegroup_number", data=int(symmetry_dataset.number), dtype="int_"
         )

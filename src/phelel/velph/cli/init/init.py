@@ -9,6 +9,11 @@ import os
 import pathlib
 from typing import Optional, Union
 
+try:
+    from spglib import SpglibDataset
+except ImportError:
+    from types import SimpleNamespace as SpglibDataset
+
 import click
 import numpy as np
 import tomli
@@ -161,13 +166,13 @@ def _run_init(
 def _get_supercell_dimension(
     velph_dict: dict,
     max_num_atoms: Optional[int],
-    sym_dataset: dict,
+    sym_dataset: SpglibDataset,
     find_primitive: bool,
 ) -> Optional[np.ndarray]:
     if max_num_atoms is not None:
         if find_primitive is False:
             _max_num_atoms = max_num_atoms * np.rint(
-                1.0 / np.linalg.det(sym_dataset["transformation_matrix"])
+                1.0 / np.linalg.det(sym_dataset.transformation_matrix)
             ).astype(int)
         else:
             _max_num_atoms = max_num_atoms
@@ -641,7 +646,7 @@ def _get_toml_lines(
     # [symmetry]
     if sym_dataset is not None:
         lines.append("[symmetry]")
-        spg_type = sym_dataset["international"]
+        spg_type = sym_dataset.international
         lines.append(f'spacegroup_type = "{spg_type}"')
         lines.append(f"tolerance = {vip.tolerance}")
         if len(unitcell) != len(primitive):
@@ -711,7 +716,7 @@ def _get_kpoints_dict(
     vip_tolerance: float,
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
-    sym_dataset: dict,
+    sym_dataset: SpglibDataset,
     supercell_dimension: np.ndarray,
     velph_dict: dict,
     cell_for_nac: CellChoice,
