@@ -9,7 +9,7 @@ from typing import Optional, Union
 
 import h5py
 import numpy as np
-from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.atoms import PhonopyAtoms, atom_data
 from phonopy.structure.cells import Primitive
 from phonopy.structure.symmetry import Symmetry
 
@@ -111,7 +111,7 @@ def read_phelel_params_hdf5(
             supercell = PhonopyAtoms(
                 cell=f["supercell_lattice"][:].T,
                 scaled_positions=f["supercell_positions"][:],
-                numbers=f["supercell_numbers"][:],
+                symbols=[atom_data[n][1] for n in f["supercell_numbers"][:]],
                 masses=f["supercell_masses"],
             )
             symmetry = Symmetry(supercell)

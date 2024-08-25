@@ -21,9 +21,8 @@ import numpy as np
 import spglib
 from phono3py.phonon.grid import BZGrid
 from phonopy.interface.vasp import VasprunxmlExpat, sort_positions_by_symbols
-from phonopy.structure.atoms import parse_cell_dict
+from phonopy.structure.atoms import PhonopyAtoms, atom_data, parse_cell_dict
 from phonopy.structure.cells import (
-    PhonopyAtoms,
     get_primitive,
     get_primitive_matrix_by_centring,
     get_reduced_bases,
@@ -416,7 +415,7 @@ def get_standardized_unitcell(dataset: SpglibDataset) -> PhonopyAtoms:
     convcell = PhonopyAtoms(
         cell=dataset.std_lattice,
         scaled_positions=std_positions[perm],
-        numbers=std_types[perm],
+        symbols=[atom_data[n][1] for n in std_types[perm]],
     )
     return convcell
 
