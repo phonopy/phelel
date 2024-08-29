@@ -587,7 +587,6 @@ def _get_toml_lines(
         primitive,
         sym_dataset,
         supercell_dimension,
-        velph_dict,
         cell_choices["nac"],
         cell_choices["relax"],
     )
@@ -718,7 +717,6 @@ def _get_kpoints_dict(
     primitive: PhonopyAtoms,
     sym_dataset: SpglibDataset,
     supercell_dimension: np.ndarray,
-    velph_dict: dict,
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
 ) -> tuple[dict, dict, dict, dict]:
@@ -926,50 +924,61 @@ def _get_vasp_lines(
 
     lines = []
 
-    for calc_type in ("supercell", "phono3py"):
-        if calc_type in vasp_dict:
-            _add_incar_lines(lines, vasp_dict, incar_commons, calc_type)
-            lines.append(f"[vasp.{calc_type}.kpoints]")
-            _add_kpoints_lines(lines, supercell_kpoints)
-            _add_calc_type_scheduler_lines(lines, vasp_dict, calc_type)
-            lines.append("")
+    for calc_type in ("supercell", "phono3py", "phono3py.phonon"):
+        keys = calc_type.split(".")
+        _vasp_dict = vasp_dict
+        for key in keys:
+            if key in _vasp_dict:
+                _vasp_dict = _vasp_dict[key]
+            else:
+                continue
+
+        _add_incar_lines(lines, _vasp_dict, incar_commons, calc_type)
+        lines.append(f"[vasp.{calc_type}.kpoints]")
+        _add_kpoints_lines(lines, supercell_kpoints)
+        _add_calc_type_scheduler_lines(lines, _vasp_dict, calc_type)
+        lines.append("")
 
     for calc_type in ("selfenergy", "transport"):
         if calc_type in vasp_dict:
             # primitive cell
-            _add_incar_lines(lines, vasp_dict, incar_commons, calc_type)
+            _vasp_dict = vasp_dict[calc_type]
+            _add_incar_lines(lines, _vasp_dict, incar_commons, calc_type)
             lines.append(f"[vasp.{calc_type}.kpoints]")
             _add_kpoints_lines(lines, selfenergy_kpoints)
             lines.append(f"[vasp.{calc_type}.kpoints_dense]")
             _add_kpoints_lines(lines, selfenergy_kpoints_dense)
-            _add_calc_type_scheduler_lines(lines, vasp_dict, calc_type)
+            _add_calc_type_scheduler_lines(lines, _vasp_dict, calc_type)
             lines.append("")
 
     if "relax" in vasp_dict:
         lines.append("[vasp.relax]")
         assert cell_for_relax in CellChoice
         assert cell_for_relax is not CellChoice.UNSPECIFIED
+        _vasp_dict = vasp_dict["relax"]
         lines.append(f'cell = "{cell_for_relax.value}"')
-        _add_incar_lines(lines, vasp_dict, incar_commons, "relax")
+        _add_incar_lines(lines, _vasp_dict, incar_commons, "relax")
         lines.append("[vasp.relax.kpoints]")
         _add_kpoints_lines(lines, relax_kpoints)
-        _add_calc_type_scheduler_lines(lines, vasp_dict, "relax")
+        _add_calc_type_scheduler_lines(lines, _vasp_dict, "relax")
         lines.append("")
 
     if "nac" in vasp_dict:
         lines.append("[vasp.nac]")
         assert cell_for_nac in CellChoice
         assert cell_for_nac is not CellChoice.UNSPECIFIED
+        _vasp_dict = vasp_dict["nac"]
         lines.append(f'cell = "{cell_for_nac.value}"')
-        _add_incar_lines(lines, vasp_dict, incar_commons, "nac")
+        _add_incar_lines(lines, _vasp_dict, incar_commons, "nac")
         lines.append("[vasp.nac.kpoints]")
         _add_kpoints_lines(lines, nac_kpoints)
-        _add_calc_type_scheduler_lines(lines, vasp_dict, "nac")
+        _add_calc_type_scheduler_lines(lines, _vasp_dict, "nac")
         lines.append("")
 
     if "el_bands" in vasp_dict:
         # primitive cell
-        _add_incar_lines(lines, vasp_dict, incar_commons, "el_bands")
+        _vasp_dict = vasp_dict["el_bands"]
+        _add_incar_lines(lines, _vasp_dict, incar_commons, "el_bands")
         lines.append("[vasp.el_bands.kpoints]")
         _add_kpoints_lines(lines, el_bands_kpoints)
         if el_bands_kpoints_opt:
@@ -978,18 +987,19 @@ def _get_vasp_lines(
         if el_bands_kpoints_dense:
             lines.append("[vasp.el_bands.kpoints_dense]")
             _add_kpoints_lines(lines, el_bands_kpoints_dense)
-        _add_calc_type_scheduler_lines(lines, vasp_dict, "el_bands")
+        _add_calc_type_scheduler_lines(lines, _vasp_dict, "el_bands")
         lines.append("")
 
     if "ph_bands" in vasp_dict:
         # primitive cell
-        _add_incar_lines(lines, vasp_dict, incar_commons, "ph_bands")
+        _vasp_dict = vasp_dict["ph_bands"]
+        _add_incar_lines(lines, _vasp_dict, incar_commons, "ph_bands")
         lines.append("[vasp.ph_bands.kpoints]")
         _add_kpoints_lines(lines, ph_bands_kpoints)
         if ph_bands_qpoints:
             lines.append("[vasp.ph_bands.qpoints]")
             _add_kpoints_lines_bands(lines, ph_bands_qpoints)
-        _add_calc_type_scheduler_lines(lines, vasp_dict, "ph_bands")
+        _add_calc_type_scheduler_lines(lines, _vasp_dict, "ph_bands")
         lines.append("")
 
     return lines
@@ -1091,11 +1101,11 @@ def _get_phelel_lines(
 
 
 def _add_incar_lines(lines: list, vasp_dict: dict, incar_commons: dict, calc_type: str):
-    if "incar" in vasp_dict[calc_type]:
+    if "incar" in vasp_dict:
         lines.append(f"[vasp.{calc_type}.incar]")
         lines.append(
             tomli_w.dumps(
-                _merge_incar_commons(vasp_dict[calc_type]["incar"], incar_commons)
+                _merge_incar_commons(vasp_dict["incar"], incar_commons)
             ).strip()
         )
 
@@ -1125,9 +1135,9 @@ def _add_kpoints_lines(lines: list, kpt_dict: dict) -> None:
 
 
 def _add_calc_type_scheduler_lines(lines: list, vasp_dict: dict, calc_type: str):
-    if "scheduler" in vasp_dict[calc_type]:
+    if "scheduler" in vasp_dict:
         lines.append(f"[vasp.{calc_type}.scheduler]")
-        lines.append(tomli_w.dumps(vasp_dict[calc_type]["scheduler"]))
+        lines.append(tomli_w.dumps(vasp_dict["scheduler"]))
 
 
 def _get_cell_toml_lines(

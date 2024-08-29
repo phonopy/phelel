@@ -74,24 +74,13 @@ def write_supercells(
         directory = pathlib.Path(disp_dir_name)
         directory.mkdir(parents=True, exist_ok=True)
 
-        # POSCAR
-        write_crystal_structure(directory / "POSCAR", cell)
-
-        # INCAR
-        write_incar(toml_dict["vasp"][dir_name]["incar"], directory, cell=cell)
-
-        # KPOINTS
-        write_kpoints_mesh_mode(
-            toml_dict["vasp"][dir_name]["incar"],
+        _write_vasp_files(
             directory,
-            f"vasp.{dir_name}.kpoints",
+            cell,
+            toml_dict["vasp"][dir_name]["incar"],
+            dir_name,
             kpoints_dict,
         )
-
-        # POTCAR
-        potcar_path = pathlib.Path("POTCAR")
-        if potcar_path.exists():
-            shutil.copy2(potcar_path, directory / potcar_path)
 
         # Scheduler launch script
         if "scheduler" in toml_dict:
@@ -123,26 +112,13 @@ def write_phonon_supercells(
         directory = pathlib.Path(disp_dir_name)
         directory.mkdir(parents=True, exist_ok=True)
 
-        # POSCAR
-        write_crystal_structure(directory / "POSCAR", cell)
-
-        # INCAR
-        write_incar(
-            toml_dict["vasp"][dir_name]["phonon"]["incar"], directory, cell=cell
-        )
-
-        # KPOINTS
-        write_kpoints_mesh_mode(
-            toml_dict["vasp"][dir_name]["phonon"]["incar"],
+        _write_vasp_files(
             directory,
-            f"vasp.{dir_name}.phonon.kpoints",
+            cell,
+            toml_dict["vasp"][dir_name]["phonon"]["incar"],
+            f"{dir_name}.phonon",
             kpoints_dict,
         )
-
-        # POTCAR
-        potcar_path = pathlib.Path("POTCAR")
-        if potcar_path.exists():
-            shutil.copy2(potcar_path, directory / potcar_path)
 
         # Scheduler launch script
         if "scheduler" in toml_dict:
@@ -150,3 +126,24 @@ def write_phonon_supercells(
             write_launch_script(scheduler_dict, directory, job_id=id_number)
 
         click.echo(f'VASP input files were generated in "{disp_dir_name}".')
+
+
+def _write_vasp_files(directory, cell, toml_incar_dict, dir_name, kpoints_dict):
+    # POSCAR
+    write_crystal_structure(directory / "POSCAR", cell)
+
+    # INCAR
+    write_incar(toml_incar_dict, directory, cell=cell)
+
+    # KPOINTS
+    write_kpoints_mesh_mode(
+        toml_incar_dict,
+        directory,
+        f"vasp.{dir_name}.kpoints",
+        kpoints_dict,
+    )
+
+    # POTCAR
+    potcar_path = pathlib.Path("POTCAR")
+    if potcar_path.exists():
+        shutil.copy2(potcar_path, directory / potcar_path)
