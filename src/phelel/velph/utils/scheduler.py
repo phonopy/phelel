@@ -12,6 +12,8 @@ def get_sge_scheduler_script(
 ) -> str:
     """Return scheduler script of SGE.
 
+    This is called when scheduler_name = "sge".
+
     Supported parameters
     --------------------
     Necessary tags:
@@ -62,6 +64,8 @@ def get_slurm_scheduler_script(
 ) -> str:
     """Return scheduler script of SLURM.
 
+    This is called when scheduler_name = "slurm".
+
     Supported parameters
     --------------------
     Necessary tags:
@@ -96,7 +100,11 @@ def get_slurm_scheduler_script(
 def get_custom_schedular_script(
     template: str, toml_scheduler_dict: dict, job_id: Optional[Union[str, int]]
 ) -> str:
-    """Return scheduler script with given template."""
+    """Return scheduler script with given template.
+
+    This is called when scheduler_name = "custom".
+
+    """
     sched_dict = copy.deepcopy(toml_scheduler_dict)
     if job_id is not None:
         sched_dict["job_name"] += f"-{job_id}"

@@ -152,20 +152,30 @@ def write_launch_script(
     toml_scheduler_dict: dict, directory: pathlib.Path, job_id: Optional[str] = None
 ) -> None:
     """Write scheduler launch script."""
-    if toml_scheduler_dict["scheduler_name"] in ("sge", "slurm", "custom"):
-        if toml_scheduler_dict["scheduler_name"] == "sge":
-            sched_string = get_sge_scheduler_script(toml_scheduler_dict, job_id=job_id)
-        elif toml_scheduler_dict["scheduler_name"] == "slurm":
-            sched_string = get_slurm_scheduler_script(
-                toml_scheduler_dict, job_id=job_id
+    sched_string = None
+    if toml_scheduler_dict["scheduler_name"] == "sge":
+        sched_string = get_sge_scheduler_script(toml_scheduler_dict, job_id=job_id)
+    elif toml_scheduler_dict["scheduler_name"] == "slurm":
+        sched_string = get_slurm_scheduler_script(toml_scheduler_dict, job_id=job_id)
+    elif toml_scheduler_dict["scheduler_name"] == "custom":
+        if "custom_template" in toml_scheduler_dict:
+            raise RuntimeError(
+                'Key "custom_template" is obsoleted. Use "scheduler_template".'
             )
-        elif toml_scheduler_dict["scheduler_name"] == "custom":
+
+        if "scheduler_template" not in toml_scheduler_dict:
+            click.echo(
+                '"scheduler_template" has to be specified in scheduler setting.',
+                err=True,
+            )
+        else:
             sched_string = get_custom_schedular_script(
-                toml_scheduler_dict["custom_template"],
+                toml_scheduler_dict["scheduler_template"],
                 toml_scheduler_dict,
                 job_id=job_id,
             )
 
+    if sched_string:
         with open(directory / "_job.sh", "w") as w:
             w.write(sched_string)
 
