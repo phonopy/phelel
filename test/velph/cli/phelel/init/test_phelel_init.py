@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import tomli
 
-from phelel.velph.cli.supercell.init import run_init
+from phelel.velph.cli.phelel.init import run_init
 
 cwd = Path(__file__).parent
 

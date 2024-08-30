@@ -19,5 +19,5 @@ from phelel.velph.cli.nac import cmd_nac  # noqa F401
 from phelel.velph.cli.ph_bands import cmd_ph_bands  # noqa F401
 from phelel.velph.cli.relax import cmd_relax  # noqa F401
 from phelel.velph.cli.selfenergy import cmd_selfenergy  # noqa F401
-from phelel.velph.cli.supercell import cmd_supercell  # noqa F401
+from phelel.velph.cli.phelel import cmd_phelel  # noqa F401
 from phelel.velph.cli.transport import cmd_transport  # noqa F401
