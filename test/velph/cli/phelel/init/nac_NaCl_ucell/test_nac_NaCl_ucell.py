@@ -5,12 +5,12 @@ from pathlib import Path
 import numpy as np
 import tomli
 
-from phelel.velph.cli.supercell.init import run_init
+from phelel.velph.cli.phelel.init import run_init
 
 cwd = Path(__file__).parent
 
 
-def test_nac_NaCl_pcell(request):
+def test_nac_NaCl_ucell(request):
     """Test of different NAC cell."""
     toml_str = """title = "VASP el-ph settings"
 
@@ -34,7 +34,7 @@ lcharg = false
 mesh = [1, 1, 1]
 
 [vasp.nac]
-cell = "primitive"
+cell = "unitcell"
 [vasp.nac.incar]
 system = "default"
 ismear = 0
@@ -46,7 +46,7 @@ lwave = false
 lcharg = false
 lepsilon = true
 [vasp.nac.kpoints]
-mesh = [2, 2, 2]
+mesh = [1, 1, 1]
 
 [symmetry]
 spacegroup_type = "Fm-3m"
@@ -103,8 +103,8 @@ coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
 
     toml_dict = tomli.loads(toml_str)
     phe = run_init(toml_dict, current_directory=request.path.parent)
-    ref_born = 1.54116678
-    ref_dielectric = 3.24483954
+    ref_born = 1.74040591
+    ref_dielectric = 3.74364141
     np.testing.assert_array_almost_equal(
         phe.nac_params["born"][0], np.eye(3) * ref_born
     )

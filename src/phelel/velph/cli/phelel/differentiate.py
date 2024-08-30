@@ -13,9 +13,9 @@ from phelel.velph.cli.utils import get_num_digits
 
 def run_derivatives(
     phe: Phelel,
-    hdf5_filename: Union[str, bytes, os.PathLike] = "supercell/phelel_params.hdf5",
+    hdf5_filename: Union[str, bytes, os.PathLike] = "phelel/phelel_params.hdf5",
     subtract_residual_forces: bool = True,
-    dir_name: Union[str, bytes, os.PathLike] = "supercell",
+    dir_name: Union[str, bytes, os.PathLike] = "phelel",
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5."""
     dir_names = []

@@ -126,6 +126,16 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
+    "--phelel-dir-name",
+    "phelel_dir_name",
+    type=str,
+    default="phelel",
+    help=(
+        'Used for backward compatibility, for which set "supercell". '
+        '(phelel_dir_name: str, default="phelel")'
+    ),
+)
+@click.option(
     "--phelel-nosym",
     "phelel_nosym",
     is_flag=True,
@@ -220,6 +230,7 @@ def cmd_init(
     kspacing_dense: Optional[float],
     magmom: Optional[str],
     max_num_atoms: Optional[int],
+    phelel_dir_name: str,
     phelel_nosym: Optional[bool],
     primitive_cell_choice: Optional[str],
     project_folder: str,
@@ -308,7 +319,7 @@ def cmd_init(
 
     vfp = VelphFilePaths(**vfp_dict)
 
-    toml_lines = run_init(vip_cmd_options, vfp)
+    toml_lines = run_init(vip_cmd_options, vfp, phelel_dir_name=phelel_dir_name)
 
     # Write velph.toml.
     if toml_lines:

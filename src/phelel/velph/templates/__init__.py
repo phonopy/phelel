@@ -13,7 +13,7 @@ dictionary structure.
     "fft_mesh":
         FFT mesh used in primitive cell for sandwich.
 "vasp":
-    Types of VASP calculations, e.g., "supercell", "relax", "nac", "selfenergy",
+    Types of VASP calculations, e.g., "phelel", "relax", "nac", "selfenergy",
     "transport", and default set of INCAR settins, "incar".
 
     The default incar settings in the "incar" section are copied to the
@@ -172,13 +172,25 @@ default_template_dict: dict[str, Any] = {
                 "line": 51,
             },
         },
+        "phonopy": {
+            "incar": {
+                "addgrid": True,
+                "isym": 0,
+            },
+        },
         "phono3py": {
             "incar": {
                 "addgrid": True,
                 "isym": 0,
             },
         },
-        "supercell": {
+        "phelel": {
+            "incar": {
+                "lwap": True,
+                "isym": 0,
+            },
+        },
+        "supercell": {  # This is deprecated. Use "phelel" instead.
             "incar": {
                 "lwap": True,
                 "isym": 0,

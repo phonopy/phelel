@@ -13,10 +13,12 @@ from phelel.velph.cli.utils import get_num_digits
 def create_phonopy_yaml(
     toml_filename: pathlib.Path,
     yaml_filename: pathlib.Path,
-    phonopy_yaml_filename: pathlib.Path = pathlib.Path("supercell/phonopy_params.yaml"),
+    dir_name: str,
     subtract_residual_forces: bool = True,
 ):
     """Calculate derivatives and write phelel_params.hdf5."""
+    phonopy_yaml_filename = pathlib.Path(f"{dir_name}/phonopy_params.yaml")
+
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
 
@@ -44,7 +46,7 @@ def create_phonopy_yaml(
         + phe.supercells_with_displacements
     ):
         id_number = f"{i:0{nd}d}"
-        dir_names.append(pathlib.Path(f"supercell/disp-{id_number}"))
+        dir_names.append(pathlib.Path(f"{dir_name}/disp-{id_number}"))
 
     if phe.phonon_supercell_matrix is not None:
         nd = get_num_digits(phe.phonon_supercells_with_displacements)
@@ -55,7 +57,7 @@ def create_phonopy_yaml(
             + phe.phonon_supercells_with_displacements
         ):
             id_number = f"{i:0{nd}d}"
-            dir_names.append(pathlib.Path(f"supercell/ph-disp-{id_number}"))
+            dir_names.append(pathlib.Path(f"{phelel}/ph-disp-{id_number}"))
 
     phonopy_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
 
