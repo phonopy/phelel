@@ -18,14 +18,7 @@ def test_run_derivatives():
 
     """
     phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
-    hdf5_filename = "phelel_params_test_run_derivatives.hdf5"
-    run_derivatives(
-        phe, hdf5_filename=hdf5_filename, dir_name=cwd / "C111" / "supercell"
-    )
-    file_path = pathlib.Path(cwd_called / hdf5_filename)
-    print(file_path)
-    assert file_path.exists()
-    file_path.unlink()
+    assert run_derivatives(phe, dir_name=cwd / "C111" / "supercell")
 
 
 def test_run_derivatives_with_wrong_supercell_matrix():
@@ -43,14 +36,8 @@ def test_run_derivatives_with_wrong_supercell_matrix():
 def test_run_derivatives_with_wrong_phonon_supercell_matrix():
     """Test of run_derivatives.
 
-    This test just checks the creation of hdf5 file and go through this command.
-    Phonon supercell matrix is inconsistent. This results in not making the hdf5
-    file.
+    Phonon supercell matrix is inconsistent. Therefore it will return False.
 
     """
     phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
-    hdf5_filename = "phelel_params_test_run_derivatives.hdf5"
-    run_derivatives(phe, hdf5_filename=hdf5_filename, dir_name=cwd / "C111/supercell")
-
-    file_path = pathlib.Path(cwd_called / hdf5_filename)
-    assert not file_path.exists()
+    assert not run_derivatives(phe, dir_name=cwd / "C111/supercell")

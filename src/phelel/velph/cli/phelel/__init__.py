@@ -104,13 +104,6 @@ def cmd_generate(toml_filename: str, dir_name: str):
     ),
 )
 @click.option(
-    "--hdf5-filename",
-    "hdf5_filename",
-    nargs=1,
-    type=click.Path(),
-    default="phelel/phelel_params.hdf5",
-)
-@click.option(
     "--encut",
     nargs=1,
     type=float,
@@ -123,11 +116,11 @@ def cmd_generate(toml_filename: str, dir_name: str):
 @click.help_option("-h", "--help")
 def cmd_differentiate(
     toml_filename: str,
-    hdf5_filename: str,
     encut: Optional[float],
     dir_name: str,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5."""
+    hdf5_filename = pathlib.Path(f"{dir_name}/phelel_params.hdf5")
     yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
 
     with open(toml_filename, "rb") as f:
@@ -173,7 +166,10 @@ def cmd_differentiate(
         else:
             click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
 
-    run_derivatives(phe, hdf5_filename=hdf5_filename, dir_name=dir_name)
+    if run_derivatives(phe, dir_name=dir_name):
+        pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)
+        phe.save_hdf5(filename=hdf5_filename)
+        click.echo(f'"{hdf5_filename}" has been made.')
 
 
 #

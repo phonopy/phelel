@@ -13,10 +13,9 @@ from phelel.velph.cli.utils import get_num_digits
 
 def run_derivatives(
     phe: Phelel,
-    hdf5_filename: Union[str, bytes, os.PathLike] = "phelel/phelel_params.hdf5",
     subtract_residual_forces: bool = True,
     dir_name: Union[str, bytes, os.PathLike] = "phelel",
-) -> None:
+) -> bool:
     """Calculate derivatives and write phelel_params.hdf5."""
     dir_names = []
     nd = get_num_digits(phe.supercells_with_displacements)
@@ -33,10 +32,10 @@ def run_derivatives(
                 dir_names.append(filepath)
             else:
                 click.echo(f'Necessary file not found in "{filepath}".', err=True)
-                return None
+                return False
         else:
             click.echo(f'"{filepath}" does not exist.', err=True)
-            return None
+            return False
 
     if phe.phonon_supercell_matrix is not None:
         nd = get_num_digits(phe.phonon_supercells_with_displacements)
@@ -52,9 +51,7 @@ def run_derivatives(
                 dir_names.append(filepath)
             else:
                 click.echo(f'"{filepath}" does not exist.', err=True)
-                return None
-
-    pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)
+                return False
 
     create_derivatives(
         phe,
@@ -62,9 +59,8 @@ def run_derivatives(
         subtract_rfs=subtract_residual_forces,
         log_level=0,
     )
-    phe.save_hdf5(filename=hdf5_filename)
 
-    click.echo(f'"{hdf5_filename}" has been made.')
+    return True
 
 
 def _check_files_exist(filepath: pathlib.Path) -> bool:
