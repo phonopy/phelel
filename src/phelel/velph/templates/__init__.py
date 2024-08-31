@@ -53,6 +53,8 @@ from typing import Any
 
 default_template_dict: dict[str, Any] = {
     "phelel": {},
+    "phonopy": {},
+    "phono3py": {},
     "vasp": {
         "incar": {
             "ismear": 0,

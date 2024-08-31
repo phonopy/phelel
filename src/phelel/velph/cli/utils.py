@@ -84,6 +84,7 @@ class VelphInitParams:
     kspacing_dense: Optional[float] = 0.05
     magmom: Optional[str] = None
     max_num_atoms: Optional[int] = None
+    phonon_max_num_atoms: Optional[int] = None
     phelel_nosym: Optional[bool] = False
     primitive_cell_choice: Optional[PrimitiveCellChoice] = (
         PrimitiveCellChoice.STANDARDIZED

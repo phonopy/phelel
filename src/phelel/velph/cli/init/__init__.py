@@ -146,6 +146,19 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
+    "--phonon-max-num-atoms",
+    "phonon_max_num_atoms",
+    nargs=1,
+    default=None,
+    type=int,
+    help=(
+        "Determine phonon supercell dimension so that number of atoms in supercell "
+        "for phonon is less than this number if different one from electron-phonon "
+        "(phelel) or phonon-phonon (phono3py) is expected. "
+        f"(phonon_max_num_atoms: int, default={VelphInitParams.phonon_max_num_atoms})"
+    ),
+)
+@click.option(
     "--plusminus/--auto",
     "plusminus",
     type=bool,
@@ -232,6 +245,7 @@ def cmd_init(
     max_num_atoms: Optional[int],
     phelel_dir_name: str,
     phelel_nosym: Optional[bool],
+    phonon_max_num_atoms: Optional[int],
     primitive_cell_choice: Optional[str],
     project_folder: str,
     symmetrize_cell: Optional[bool],
@@ -272,6 +286,7 @@ def cmd_init(
         "magmom": magmom,
         "max_num_atoms": max_num_atoms,
         "phelel_nosym": phelel_nosym,
+        "phonon_max_num_atoms": phonon_max_num_atoms,
         "primitive_cell_choice": primitive_cell_choice,
         "symmetrize_cell": symmetrize_cell,
         "tolerance": tolerance,
@@ -280,7 +295,6 @@ def cmd_init(
 
     cell_filepath = pathlib.Path(cell_filename)
     if cell_filepath.exists():
-        click.echo(f'Crystal structure file: "{cell_filepath}".')
         vfp_dict = {"cell_filepath": cell_filepath}
     else:
         click.echo(f'"{cell_filename}" not found.', err=True)
@@ -297,7 +311,6 @@ def cmd_init(
     if template_toml_filename is not None:
         velph_tmpl_filepath = pathlib.Path(template_toml_filename)
         if velph_tmpl_filepath.exists():
-            click.echo(f'Velph template file: "{template_toml_filename}".')
             vfp_dict["velph_template_filepath"] = velph_tmpl_filepath
         else:
             click.echo(f'"{template_toml_filename}" not found.', err=True)
@@ -318,7 +331,6 @@ def cmd_init(
             return
 
     vfp = VelphFilePaths(**vfp_dict)
-
     toml_lines = run_init(vip_cmd_options, vfp, phelel_dir_name=phelel_dir_name)
 
     # Write velph.toml.
