@@ -64,16 +64,10 @@ def cmd_init(toml_filename: str, random_displacements: Optional[int]):
     type=click.Path(),
     default="velph.toml",
 )
-@click.option(
-    "--yaml-filename",
-    "yaml_filename",
-    nargs=1,
-    type=click.Path(),
-    default="phono3py/phono3py_disp.yaml",
-)
 @click.help_option("-h", "--help")
-def cmd_generate(toml_filename: str, yaml_filename: str):
+def cmd_generate(toml_filename: str):
     """Generate phono3py input files."""
+    yaml_filename = "phono3py/phono3py_disp.yaml"
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 
