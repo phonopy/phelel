@@ -27,7 +27,10 @@ def run_init(
     """
     convcell = parse_cell_dict(toml_dict["unitcell"])
     supercell_matrix = toml_dict["phelel"].get("supercell_dimension", None)
-    phonon_supercell_matrix = toml_dict["phonopy"].get("supercell_dimension", None)
+    if "phonopy" in toml_dict:
+        phonon_supercell_matrix = toml_dict["phonopy"].get("supercell_dimension", None)
+    else:
+        phonon_supercell_matrix = None
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
         primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)

@@ -633,7 +633,7 @@ class DDijQij:
 
     def _allocate_arrays(self, ncdij, lmdim):
         dtype = "c%d" % (np.dtype("double").itemsize * 2)
-        natom = self._supercell.get_number_of_atoms()
+        natom = len(self._supercell)
         shape = (ncdij, len(self.atom_indices), 3, natom, lmdim, lmdim)
         self._dDijdu = np.zeros(shape, dtype=dtype, order="C")
         self._dqijdu = np.zeros(shape, dtype=dtype, order="C")
