@@ -112,7 +112,7 @@ def read_phelel_params_hdf5(
                 cell=f["supercell_lattice"][:].T,
                 scaled_positions=f["supercell_positions"][:],
                 symbols=[atom_data[n][1] for n in f["supercell_numbers"][:]],
-                masses=f["supercell_masses"],
+                masses=f["supercell_masses"][:],
             )
             symmetry = Symmetry(supercell)
             if "atom_indices_in_derivatives" in f:
@@ -131,7 +131,7 @@ def read_phelel_params_hdf5(
 
         if log_level:
             print(f'dV/du was read from "{filename}".')
-            print('dDij/du was read from "{filename}".')
+            print(f'dDij/du was read from "{filename}".')
     else:
         raise FileNotFoundError(f'"{filename}" was not found.')
 

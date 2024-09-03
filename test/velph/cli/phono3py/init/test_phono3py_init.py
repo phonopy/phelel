@@ -16,7 +16,8 @@ def test_phono3py_init_random_displacements(distance: float):
 supercell_dimension = [4, 4, 2]
 amplitude = {distance}
 fft_mesh = [18, 18, 28]
-[vasp.supercell.incar]
+
+[vasp.phonopy.incar]
 lwap = true
 isym = 0
 kpar = 2
@@ -31,7 +32,7 @@ lwave = false
 lcharg = false
 addgrid = true
 lsorbit = true
-[vasp.supercell.kpoints]
+[vasp.phonopy.kpoints]
 mesh = [6, 6, 7]
 
 [unitcell]
