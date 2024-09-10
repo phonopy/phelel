@@ -65,7 +65,9 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
             transports_temps[i_block].append(transports[idx])
 
     n_props = len(property_names)
-    fig, axs = plt.subplots(n_blocks, n_props, figsize=(4 * n_props, 4 * n_blocks))
+    _, axs = plt.subplots(
+        n_blocks, n_props, figsize=(4 * n_props, 4 * n_blocks), squeeze=False
+    )
     for i_block in range(n_blocks):
         _plot(axs[i_block, :], transports_temps[i_block], property_names)
 
