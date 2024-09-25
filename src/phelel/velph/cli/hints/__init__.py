@@ -56,10 +56,10 @@ def _show_hints(toml_filename: str):
     click.echo("3. Run VASP.")
     click.echo()
     click.echo("# Supercell calculation")
-    click.echo(f'1. Modify [vasp.supercell] section in "{toml_filename}".')
-    click.echo('2. "velph supercell init": Prepare finite displacement calculation. ')
+    click.echo(f'1. Modify [vasp.phelel] section in "{toml_filename}".')
+    click.echo('2. "velph phelel init": Prepare finite displacement calculation. ')
     click.echo("   NAC parameters are read when NAC calculation is available.")
-    click.echo('3. "velph supercell generate": Generate input files.')
+    click.echo('3. "velph phelel generate": Generate input files.')
     click.echo("4. Run VASP.")
     click.echo()
     click.echo("# Phonon band structure calculation")
@@ -72,20 +72,7 @@ def _show_hints(toml_filename: str):
     click.echo("3. Run VASP in ph_bands directories.")
     click.echo('4. "velph ph_bands plot" to plot the phonon bands')
     click.echo()
-    click.echo(
-        '# Electron self-energy calculation (optional, default for "velph selfenergy")'
-    )
-    click.echo(f'1. Modify [vasp.selfenergy] section in "{toml_filename}".')
-    click.echo(
-        '2. (optional) "velph selfenergy generate -d": ' "Dry-run to find FFT-mesh."
-    )
-    click.echo("3. (optional) Run VASP.")
-    click.echo('4. (optioanl) "velph selfenergy check-fft": Check FFT grid.')
-    click.echo('5. (optioanl) Modify "fft_mesh" in [phelel] section manually.')
-    click.echo('6. "velph supercell differentiate": Generate derivatives hdf5 file')
-    click.echo('7. "velph selfenergy generate": Generate input files')
-    click.echo()
-    click.echo("# Other electron-phonon calculation, e.g., transport")
+    click.echo("# Electron transport calculation")
     click.echo(f'1. Write [vasp.transport] section in "{toml_filename}".')
     click.echo('2. (optioanl) "velph transport generate": ' "Dry-run to find FFT-mesh.")
     click.echo("3. (optioanl) Run VASP.")
@@ -94,9 +81,20 @@ def _show_hints(toml_filename: str):
     click.echo('6. "velph supercell differentiate": Generate derivatives hdf5 file')
     click.echo('7. "velph transport generate": Generate input files')
     click.echo()
+    click.echo("# Electron self-energy calculation")
+    click.echo(f'1. Modify [vasp.selfenergy] section in "{toml_filename}".')
+    click.echo(
+        '2. (optional) "velph selfenergy generate -d": ' "Dry-run to find FFT-mesh."
+    )
+    click.echo("3. (optional) Run VASP.")
+    click.echo('4. (optioanl) "velph selfenergy check-fft": Check FFT grid.')
+    click.echo('5. (optioanl) Modify "fft_mesh" in [phelel] section manually.')
+    click.echo('6. "velph phelel differentiate": Generate derivatives hdf5 file')
+    click.echo('7. "velph selfenergy generate": Generate input files')
+    click.echo()
     click.echo("# Different supercell size for phonon")
-    click.echo('1. Write "phonon_supercell_dimension" in [phelel] section and')
-    click.echo("2. Write [vasp.supercell.phonon.*] entry.")
+    click.echo('1. Write "supercell_dimension" in [phonopy] section and')
+    click.echo("2. Write [vasp.phelel.phonon.*] entry.")
     click.echo(
         "------------------------------- velph hints -------------------------------"
     )
