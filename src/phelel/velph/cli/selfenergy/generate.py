@@ -20,24 +20,15 @@ from phelel.velph.cli.utils import (
 )
 
 
-def write_input_files(
-    toml_filepath: pathlib.Path,
-    hdf5_filepath: pathlib.Path,
-    calculation_name: str,
-    dry_run: bool,
-):
+def write_input_files(toml_filepath: pathlib.Path, dry_run: bool):
     """Generate el-ph input files."""
-    write_selfenergy_input_files(
-        toml_filepath, hdf5_filepath, calculation_name, dry_run
-    )
+    write_selfenergy_input_files(toml_filepath, dry_run, calc_type="selfenergy")
 
 
 def write_selfenergy_input_files(
     toml_filepath: pathlib.Path,
-    hdf5_filepath: pathlib.Path,
-    calculation_name: str,
     dry_run: bool,
-    calc_type: Optional[Literal["transport"]] = None,
+    calc_type: Optional[Literal["transport", "selfenergy"]] = None,
     current_directory: pathlib.Path = pathlib.Path(""),
     energy_threshold: float = 0.5,
 ) -> None:
@@ -50,14 +41,29 @@ def write_selfenergy_input_files(
         calc_type="transport".
 
     """
-    directory_path = pathlib.Path(calculation_name)
+    directory_path = pathlib.Path(calc_type)
 
     with open(toml_filepath, "rb") as f:
         toml_dict = tomli.load(f)
 
-    if calculation_name not in toml_dict["vasp"]:
+    if "vasp" not in toml_dict:
+        click.echo(f"[vasp] section not found in {toml_filepath}.", err=True)
+        return None
+
+    if "phelel" in toml_dict["vasp"]:
+        hdf5_filepath = pathlib.Path("phelel/phelel_params.hdf5")
+    elif "supercell" in toml_dict["vasp"]:
+        hdf5_filepath = pathlib.Path("supercell/phelel_params.hdf5")
+    else:
         click.echo(
-            f'[vasp.{calculation_name}.*] section not found in "{toml_filepath}".',
+            f'[vasp.phelel] section not found in "{toml_filepath}".',
+            err=True,
+        )
+        return None
+
+    if calc_type not in toml_dict["vasp"]:
+        click.echo(
+            f'[vasp.{calc_type}] section not found in "{toml_filepath}".',
             err=True,
         )
         return None
@@ -65,14 +71,14 @@ def write_selfenergy_input_files(
     # Check phelel_params.hdf5
     if not dry_run and not hdf5_filepath.exists():
         click.echo(f'"{hdf5_filepath}" not found.', err=True)
-        click.echo('Run "velph supercell differentiate" if necessary.')
+        click.echo('Run "velph phelel differentiate" if necessary.', err=True)
         return None
 
     # mkdir, e.g., selfenergy
     directory_path.mkdir(parents=True, exist_ok=True)
 
     # Dry run
-    toml_incar_dict = toml_dict["vasp"][calculation_name]["incar"]
+    toml_incar_dict = toml_dict["vasp"][calc_type]["incar"]
     if dry_run:
         toml_incar_dict["nelm"] = 0
         toml_incar_dict["elph_run"] = False
@@ -93,22 +99,22 @@ def write_selfenergy_input_files(
     write_incar(toml_incar_dict, directory_path, cell=primitive)
 
     # KPOINTS
-    kpoints_dict = toml_dict["vasp"][calculation_name]["kpoints"]
+    kpoints_dict = toml_dict["vasp"][calc_type]["kpoints"]
     assert_kpoints_mesh_symmetry(toml_dict, kpoints_dict, primitive)
     write_kpoints_mesh_mode(
         toml_incar_dict,
         directory_path,
-        f"vasp.{calculation_name}.kpoints",
+        f"vasp.{calc_type}.kpoints",
         kpoints_dict,
     )
 
     # KPOINTS_DENSE
-    kpoints_dense_dict = toml_dict["vasp"][calculation_name]["kpoints_dense"]
+    kpoints_dense_dict = toml_dict["vasp"][calc_type]["kpoints_dense"]
     assert_kpoints_mesh_symmetry(toml_dict, kpoints_dense_dict, primitive)
     write_kpoints_mesh_mode(
         toml_incar_dict,
         directory_path,
-        f"vasp.{calculation_name}.kpoints_dense",
+        f"vasp.{calc_type}.kpoints_dense",
         kpoints_dense_dict,
         kpoints_filename="KPOINTS_DENSE",
         kspacing_name="elph_kspacing",
@@ -125,7 +131,7 @@ def write_selfenergy_input_files(
 
     # Scheduler launch script
     if "scheduler" in toml_dict:
-        scheduler_dict = get_scheduler_dict(toml_dict, calculation_name)
+        scheduler_dict = get_scheduler_dict(toml_dict, calc_type)
         write_launch_script(scheduler_dict, directory_path)
 
     click.echo(f'VASP input files were generated in "{directory_path}".')

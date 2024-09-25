@@ -18,7 +18,7 @@ def test_run_derivatives():
 
     """
     phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
-    assert run_derivatives(phe, dir_name=cwd / "C111" / "supercell")
+    assert run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
 
 
 def test_run_derivatives_with_wrong_supercell_matrix():
@@ -30,7 +30,7 @@ def test_run_derivatives_with_wrong_supercell_matrix():
     """
     phe = phelel.load(cwd / "phelel_disp_C222.yaml", fft_mesh=[9, 9, 9])
     with pytest.raises(ValueError):
-        run_derivatives(phe, dir_name=cwd / "C111/supercell")
+        run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
 
 
 def test_run_derivatives_with_wrong_phonon_supercell_matrix():
@@ -40,4 +40,4 @@ def test_run_derivatives_with_wrong_phonon_supercell_matrix():
 
     """
     phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
-    assert not run_derivatives(phe, dir_name=cwd / "C111/supercell")
+    assert not run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
