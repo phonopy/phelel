@@ -69,7 +69,6 @@ default_template_dict: dict[str, Any] = {
         "selfenergy": {
             "incar": {
                 "elph_run": True,
-                "elph_driver": "EL",
                 "elph_selfen_fan": True,
                 "elph_selfen_dw": True,
                 "elph_selfen_delta": 0.01,
@@ -90,7 +89,7 @@ default_template_dict: dict[str, Any] = {
                 "elph_ismear": -24,
                 "elph_mode": "transport",
                 "elph_selfen_carrier_den": 0.0,
-                "elph_scattering_approx": ["serta", "erta_lambda", "mrta_lambda"],
+                "elph_scattering_approx": ["serta", "mrta_lambda"],
                 "elph_selfen_temps": [
                     0,
                     1,
@@ -144,9 +143,7 @@ default_template_dict: dict[str, Any] = {
                     1300,
                     1400,
                 ],
-                "elph_transport_nedos": 5001,
-                "elph_wf_cache_mb": 1000,
-                "elph_wf_cache_prefill": True,
+                "elph_transport_nedos": 501,
                 "elph_wf_redistribute": True,
                 "elph_wf_redistribute_opt": 0,
                 "elph_wf_comm_opt": 0,
