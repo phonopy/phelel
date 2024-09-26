@@ -77,16 +77,6 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     default="transport/vaspout.h5",
 )
 @click.option(
-    "--temperature",
-    nargs=1,
-    type=float,
-    default=300,
-    help=(
-        "Temperature for Fermi-Dirac distribution in K. "
-        "(temperature: float, default=300)"
-    ),
-)
-@click.option(
     "--cutoff-occupancy",
     nargs=1,
     type=float,
@@ -97,16 +87,39 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
         "shown. (cutoff_occupancy: float, default=1e-2)"
     ),
 )
+@click.option(
+    "--mu",
+    nargs=1,
+    type=float,
+    default=None,
+    help=(
+        "Chemical potential in eV. "
+        "(mu: float, default=None, which means Fermi energy)"
+    ),
+)
+@click.option(
+    "--temperature",
+    nargs=1,
+    type=float,
+    default=300,
+    help=(
+        "Temperature for Fermi-Dirac distribution in K. "
+        "(temperature: float, default=300)"
+    ),
+)
 @click.help_option("-h", "--help")
 def cmd_plot_eigenvalues(
-    vaspout_filename: str, temperature: float, cutoff_occupancy: float
+    vaspout_filename: str,
+    temperature: float,
+    cutoff_occupancy: float,
+    mu: Optional[float],
 ):
     """Show eigenvalues in transports."""
     args = _get_f_h5py_and_plot_filename(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is not None:
-        plot_eigenvalues(args[0], temperature, cutoff_occupancy)
+        plot_eigenvalues(args[0], temperature, cutoff_occupancy, mu)
 
 
 def _get_f_h5py_and_plot_filename(
