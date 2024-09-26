@@ -1,4 +1,4 @@
-"""Implementation of velph-el_bands-plot."""
+"""Implementation of velph-transport-plot-selfenergy."""
 
 from __future__ import annotations
 

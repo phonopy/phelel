@@ -1,4 +1,4 @@
-"""Implementation of velph-el_bands-plot."""
+"""Implementation of velph-transport-plot-transport."""
 
 from __future__ import annotations
 
@@ -35,15 +35,13 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
         "seebeck",
     )
 
-    temps = f_h5py["results"]["electron_phonon"]["electrons"]["self_energy_1"]["temps"][
-        :
-    ]
+    temps = f_h5py["results/electron_phonon/electrons/self_energy_1/temps"][:]
 
     transports = {}
-    for key in f_h5py["results"]["electron_phonon"]["electrons"]:
+    for key in f_h5py["results/electron_phonon/electrons"]:
         if "transport_" in key:
-            transports[int(key.split("_")[1])] = f_h5py["results"]["electron_phonon"][
-                "electrons"
+            transports[int(key.split("_")[1])] = f_h5py[
+                "results/electron_phonon/electrons"
             ][key]
 
     for i in range(len(transports)):
@@ -97,10 +95,12 @@ def _plot(axs: np.ndarray, transports_temps: dict, property_names: tuple):
     key = transports_temps[0]["scattering_approximation"][()].decode("utf-8")
 
     properties, temps = _collect_data(transports_temps, property_names)
-    with open(f"{key}.dat", "w") as w:
+    dat_filename = f"transport-{key}.dat"
+    with open(dat_filename, "w") as w:
         print("# temperature", *property_names, file=w)
         for temp, props in zip(temps, np.transpose(properties)):
             print(temp, *props, file=w)
+        click.echo(f'Transport data of {key} was saved in "{dat_filename}".')
 
     for i, property in enumerate(property_names):
         if property == "e_conductivity":

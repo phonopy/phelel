@@ -9,6 +9,7 @@ import click
 import h5py
 
 from phelel.velph.cli.transport import cmd_transport
+from phelel.velph.cli.transport.plot.plot_eigenvalues import plot_eigenvalues
 from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
 from phelel.velph.cli.transport.plot.plot_transport import plot_transport
 
@@ -66,6 +67,46 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     )
     if args[0] is not None:
         plot_transport(*args, save_plot=save_plot)
+
+
+@cmd_plot.command("eigenvalues")
+@click.argument(
+    "vaspout_filename",
+    nargs=1,
+    type=click.Path(),
+    default="transport/vaspout.h5",
+)
+@click.option(
+    "--temperature",
+    nargs=1,
+    type=float,
+    default=300,
+    help=(
+        "Temperature for Fermi-Dirac distribution in K. "
+        "(temperature: float, default=300)"
+    ),
+)
+@click.option(
+    "--cutoff-occupancy",
+    nargs=1,
+    type=float,
+    default=1e-2,
+    help=(
+        "Cutoff for the occupancy to show eigenvalues in eV. Eigenvalus with "
+        "occupances in interval [cutoff_occupancy, 1 - cutoff_occupancy] is "
+        "shown. (cutoff_occupancy: float, default=1e-2)"
+    ),
+)
+@click.help_option("-h", "--help")
+def cmd_plot_eigenvalues(
+    vaspout_filename: str, temperature: float, cutoff_occupancy: float
+):
+    """Show eigenvalues in transports."""
+    args = _get_f_h5py_and_plot_filename(
+        "transport", vaspout_filename=pathlib.Path(vaspout_filename)
+    )
+    if args[0] is not None:
+        plot_eigenvalues(args[0], temperature, cutoff_occupancy)
 
 
 def _get_f_h5py_and_plot_filename(
