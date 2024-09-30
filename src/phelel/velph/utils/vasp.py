@@ -7,6 +7,7 @@ import os
 from collections import defaultdict
 from typing import Optional, Union
 
+import h5py
 import numpy as np
 from phonopy.structure.cells import PhonopyAtoms
 
@@ -386,3 +387,26 @@ def read_magmom(magmom: str) -> Optional[list[float]]:
 
     """
     return VaspIncar().expand(magmom.strip())
+
+
+def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> PhonopyAtoms:
+    """Read crystal structure from vaspout.h5."""
+    direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])
+    scale = f_vaspout_h5[f"{group}/scale"][()]
+    lattice = f_vaspout_h5[f"{group}/lattice_vectors"][:] * scale
+    positions = f_vaspout_h5[f"{group}/position_ions"][:]
+    number_ion_types = f_vaspout_h5[f"{group}/number_ion_types"][:]
+    ion_types = f_vaspout_h5[f"{group}/ion_types"][:]
+
+    symbols = []
+    for symbol, number in zip(ion_types, number_ion_types):
+        symbols += [symbol.decode()] * number
+
+    if not direct:
+        positions = positions @ np.linalg.inv(lattice)
+
+    assert len(symbols) == len(positions)
+
+    cell = PhonopyAtoms(cell=lattice, scaled_positions=positions, symbols=symbols)
+
+    return cell

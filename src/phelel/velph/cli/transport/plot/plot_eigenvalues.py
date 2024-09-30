@@ -8,6 +8,9 @@ import h5py
 import numpy as np
 from phonopy.units import Kb
 
+from phelel.velph.cli.utils import get_symmetry_dataset
+from phelel.velph.utils.vasp import read_crystal_structure_from_h5
+
 
 def fermi_dirac_distribution(energy: np.ndarray, temperature: float) -> np.ndarray:
     """Calculate the Fermi-Dirac distribution.
@@ -24,6 +27,7 @@ def plot_eigenvalues(
     temperature: float,
     cutoff_occupancy: float,
     mu: Optional[float],
+    time_reversal: bool = True,
 ):
     """Show eigenvalues, occupation, k-points and Fermi-Dirac distribution.
 
@@ -41,6 +45,19 @@ def plot_eigenvalues(
         Chemical potential in eV. If None, the Fermi energy.
 
     """
+    cell = read_crystal_structure_from_h5(f_h5py, "results/positions")
+    sym_dataset = get_symmetry_dataset(cell)
+    rotations = [r.T for r in sym_dataset.rotations]
+
+    if time_reversal:
+        has_inversion = False
+        for r in rotations:
+            if (r == -np.eye(3, dtype=int)).all():
+                has_inversion = True
+                break
+        if not has_inversion:
+            rotations += [-r for r in rotations]
+
     if mu is None:
         _mu = f_h5py["results/electron_phonon/electrons/dos/efermi"][()]
     else:
@@ -53,6 +70,8 @@ def plot_eigenvalues(
     weights = fermi_dirac_distribution(eigenvals, temperature)
     for i, (e, w) in enumerate(zip(eigenvals[ind], weights[ind])):
         k = kpoints[ind[1][i]]
-        print(f"{i + 1} : {e:.6f} {w:.6f} [{k[0]:.6f} {k[1]:.6f} {k[2]:.6f}]")
+        for r in rotations:
+            rk = r @ k.T
+            print(f"{i + 1} {e:.6f} {w:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]")
         if w < cutoff_occupancy or w > 1 - cutoff_occupancy:
             break
