@@ -93,7 +93,7 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     type=float,
     default=None,
     help=(
-        "Chemical potential in eV. "
+        "Chemical potential in eV unless --tid is specified. "
         "(mu: float, default=None, which means Fermi energy)"
     ),
 )
@@ -101,11 +101,18 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     "--temperature",
     nargs=1,
     type=float,
-    default=300,
+    default=None,
     help=(
-        "Temperature for Fermi-Dirac distribution in K. "
-        "(temperature: float, default=300)"
+        "Temperature for Fermi-Dirac distribution in K unless --tid is specified. "
+        "(temperature: float, default=None, which means 300 K)"
     ),
+)
+@click.option(
+    "--tid",
+    nargs=1,
+    type=int,
+    default=None,
+    help=("Index of transport calculator. (tid: int, default=None)"),
 )
 @click.help_option("-h", "--help")
 def cmd_plot_eigenvalues(
@@ -113,13 +120,20 @@ def cmd_plot_eigenvalues(
     temperature: float,
     cutoff_occupancy: float,
     mu: Optional[float],
+    tid: Optional[int],
 ):
     """Show eigenvalues in transports."""
     args = _get_f_h5py_and_plot_filename(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is not None:
-        plot_eigenvalues(args[0], temperature, cutoff_occupancy, mu)
+        plot_eigenvalues(
+            args[0],
+            tid=tid,
+            temperature=temperature,
+            cutoff_occupancy=cutoff_occupancy,
+            mu=mu,
+        )
 
 
 def _get_f_h5py_and_plot_filename(
