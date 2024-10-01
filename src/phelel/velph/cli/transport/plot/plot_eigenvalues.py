@@ -70,8 +70,8 @@ def plot_eigenvalues(
     weights = fermi_dirac_distribution(eigenvals, temperature)
     for i, (e, w) in enumerate(zip(eigenvals[ind], weights[ind])):
         k = kpoints[ind[1][i]]
+        if w < cutoff_occupancy or w > 1 - cutoff_occupancy:
+            continue
         for r in rotations:
             rk = r @ k.T
             print(f"{i + 1} {e:.6f} {w:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]")
-        if w < cutoff_occupancy or w > 1 - cutoff_occupancy:
-            break
