@@ -255,14 +255,15 @@ def main(**argparse_control):
             else:
                 phelel.phonon_dataset = phe_yml.phonon_dataset
 
-            store_nac_params(
-                phelel.phonon,
-                settings,
-                cell_info["phonopy_yaml"],
-                unitcell_filename,
-                log_level,
-                load_phonopy_yaml=load_phelel_yaml,
-            )
+            if pathlib.Path("BORN").exists() or phe_yml.nac_params:
+                store_nac_params(
+                    phelel.phonon,
+                    settings,
+                    cell_info["phonopy_yaml"],
+                    unitcell_filename,
+                    log_level,
+                    load_phonopy_yaml=load_phelel_yaml,
+                )
 
         if settings.create_derivatives:
             create_derivatives(

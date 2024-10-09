@@ -30,6 +30,7 @@ def create_phelel_supercells(
     """
     optional_structure_info = cell_info["optional_structure_info"]
     unitcell_filename = cell_info["optional_structure_info"][0]
+    phe_yml = cell_info["phonopy_yaml"]
 
     phelel = Phelel(
         cell_info["unitcell"],
@@ -54,11 +55,11 @@ def create_phelel_supercells(
         log_level=log_level,
     )
 
-    if pathlib.Path("BORN").exists():
+    if pathlib.Path("BORN").exists() or (phe_yml and phe_yml.nac_params):
         store_nac_params(
             phelel.phonon,
             settings,
-            cell_info["phonopy_yaml"],
+            phe_yml,
             unitcell_filename,
             log_level,
             load_phonopy_yaml=load_phelel_yaml,

@@ -39,7 +39,7 @@ class MockArgs:
 
 
 def test_phelel_script():
-    """Test phonopy-load command."""
+    """Test phelel command."""
     # Check sys.exit(0)
     cell_filename = str(cwd / ".." / "phelel_disp_C111.yaml")
     argparse_control = _get_phelel_load_args(cell_filename=cell_filename)
