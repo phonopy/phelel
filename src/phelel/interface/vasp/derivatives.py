@@ -242,5 +242,5 @@ def _read_PAW_strength_and_overlap(
             Dijs.append(dij)
             qijs.append(qij)
             if log_level:
-                print('"{Dij_qij_path}" was read.')
+                print(f'"{Dij_qij_path}" was read.')
     return Dijs, qijs

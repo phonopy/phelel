@@ -509,5 +509,6 @@ class Phelel:
             symprec=self._symprec,
             is_symmetry=self._is_symmetry,
             store_dense_svecs=False,
+            calculator=self._calculator,
             log_level=self._log_level,
         )
