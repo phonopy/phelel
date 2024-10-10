@@ -59,9 +59,9 @@ def plot_eigenvalues(
     rotations = [r.T for r in sym_dataset.rotations]
 
     if tid is not None:
-        transport = f_h5py[f"results/electron_phonon/electrons/transport_{tid}"]
-        _temperature = transport["temperature"][()]
-        _mu = transport["mu"][()]
+        transport = f_h5py["results/electron_phonon/electrons/transport_1"]
+        _temperature = transport["temps"][tid - 1]
+        _mu = transport["mu"][tid - 1]
     else:
         if temperature is None:
             _temperature = 300
@@ -101,6 +101,10 @@ def plot_eigenvalues(
         all_kpoints += list(rotations @ k.T)
         all_weights += [wt] * len(rotations)
         all_eigenvals += [e] * len(rotations)
+
+    if not all_kpoints:
+        click.echo("No eigenvalues to plot.")
+        return
 
     all_kpoints = np.array(all_kpoints)
     all_kpoints -= np.rint(all_kpoints)

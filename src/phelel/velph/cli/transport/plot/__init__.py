@@ -112,7 +112,7 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     nargs=1,
     type=int,
     default=None,
-    help=("Index of transport calculator. (tid: int, default=None)"),
+    help=("Index of temperature. (tid: int, default=None)"),
 )
 @click.help_option("-h", "--help")
 def cmd_plot_eigenvalues(

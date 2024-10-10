@@ -86,9 +86,6 @@ def _show(selfen: h5py.Group, index: int):
     for i, t in enumerate(selfen["temps"]):
         print(f"    - {t}  # {i + 1}")
 
-    print("  data_scalar:")
-    print(f"    carrier_per_cell0: {selfen["carrier_per_cell0"][()]}")
-
     print("  data_array_shapes:")
     print(f"    carrier_per_cell: {list(selfen["carrier_per_cell"].shape)}")
     print(f"    Fan_self_energy: {list(selfen["selfen_fan"].shape)}")
