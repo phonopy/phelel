@@ -29,7 +29,7 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
     """
     property_names = (
         "e_conductivity",
-        # "mobility",
+        "e_conductivity",
         "e_t_conductivity",
         "peltier",
         "seebeck",
@@ -57,9 +57,16 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
         figsize=(4 * n_props, 4 * len(transports)),
         squeeze=False,
     )
-    transport_idx = transports[-1]["id_idx"][:]
+    last_transport_idx = transports[-1]["id_idx"][:]
     for i, transport in enumerate(transports):
-        _plot(axs[i, :], transport, property_names, i, transport_idx)
+        _plot(
+            axs[i, :],
+            transport,
+            property_names,
+            i,
+            transport["id_idx"][:],
+            last_transport_idx,
+        )
 
     plt.tight_layout()
     if save_plot:
@@ -77,28 +84,46 @@ def _plot(
     property_names: tuple,
     index: int,
     transport_idx: np.ndarray,
+    last_transport_idx: np.ndarray,
 ):
+    """Plot transport properties.
+
+    Second property with the property name "e_conductivity" is resistivity.
+
+    """
     temps = transport["temps"][:]
     dat_filename = f"transport-{index + 1}.dat"
     properties = []
-    for key in property_names:
-        properties.append([np.trace(tensor) / 3 for tensor in transport[key][:]])
+
+    label_property_names = []
+    for prop_name in property_names:
+        if prop_name == "e_conductivity" and prop_name in label_property_names:
+            label_property_names.append("e_resistivity")
+        else:
+            label_property_names.append(prop_name)
+
+    for key, label_prop_name in zip(property_names, label_property_names):
+        if label_prop_name == "e_resistivity":
+            properties.append([3 / np.trace(tensor) for tensor in transport[key][:]])
+        else:
+            properties.append([np.trace(tensor) / 3 for tensor in transport[key][:]])
+
     with open(dat_filename, "w") as w:
-        print("# temperature", *property_names, file=w)
+        print("# temperature", *label_property_names, file=w)
         for temp, props in zip(temps, np.transpose(properties)):
             print(temp, *props, file=w)
         click.echo(f'Transport data {index + 1} was saved in "{dat_filename}".')
 
     names = [name.decode("utf-8") for name in transport["id_name"][:]]
     labels = []
-    print(names)
+    click.echo([(name, int(i)) for name, i in zip(names, transport_idx)])
     for i, name in enumerate(names):
-        if transport_idx[i] > 1:
+        if last_transport_idx[i] > 1:
             if name == "selfen_approx":
                 labels.append(transport["scattering_approximation"][()].decode("utf-8"))
 
-    for i, property in enumerate(property_names):
-        if property == "e_conductivity":
+    for i, label_property in enumerate(label_property_names):
+        if label_property == "e_conductivity":
             axs[i].semilogy(temps, properties[i], ".-")
         else:
             axs[i].plot(temps, properties[i], ".-")
@@ -106,9 +131,9 @@ def _plot(
         axs[i].tick_params(axis="y", direction="in")
         axs[i].set_xlabel("temperature (K)")
         if labels:
-            axs[i].set_ylabel(f"[{index + 1}] {property} ({"-".join(labels)})")
+            axs[i].set_ylabel(f"[{index + 1}] {label_property} ({"-".join(labels)})")
         else:
-            axs[i].set_ylabel(f"[{index + 1}] {property}")
+            axs[i].set_ylabel(f"[{index + 1}] {label_property}")
         axs[i].set_xlim(left=0, right=max(temps))
         axs[i].yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
         axs[i].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
