@@ -15,7 +15,7 @@ BSD-3-Clause.
 
 ## Contributors
 
-* {user}Atsushi Togo <atztogo> (National Institute for Materials Science)
+- {user}`Atsushi Togo <atztogo>` (National Institute for Materials Science)
 
 ```{toctree}
 :hidden:
