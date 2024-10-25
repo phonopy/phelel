@@ -20,6 +20,7 @@ extensions = [
     "myst_parser",
     "IPython.sphinxext.ipython_console_highlighting",
     "IPython.sphinxext.ipython_directive",
+    "sphinx.ext.extlinks",
 ]
 myst_enable_extensions = ["linkify", "dollarmath", "amsmath"]
 
@@ -33,3 +34,9 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 html_title = "Phelel v.%s" % release
+
+extlinks = {
+    "issue": ("https://github.com/phonopy/phelel/issues/%s", "issue %s"),
+    "path": ("https://github.com/phonopy/phelel/tree/develop/%s", "%s"),
+    "user": ("https://github.com/%s", "%s"),
+}
