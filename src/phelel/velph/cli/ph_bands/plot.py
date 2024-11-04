@@ -4,7 +4,6 @@ import pathlib
 
 import click
 import h5py
-import matplotlib.pyplot as plt
 import numpy as np
 
 from phelel.velph.cli.utils import (
@@ -32,6 +31,8 @@ def plot_ph_bandstructures(
         File name of band structure plot.
 
     """
+    import matplotlib.pyplot as plt
+
     f = h5py.File(vaspout_filename)
     eigvals = f["results"]["phonons"]["eigenvalues"][:]  # phonon eigenvalues
     if use_ordinary_frequency:
