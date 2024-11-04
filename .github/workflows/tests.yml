@@ -34,6 +34,9 @@ jobs:
     - name: Test with pytest
       run: |
         conda activate test
+        velph --help
+        phelel --help
+        phelel-load --help
         pytest -v --cov=./ --cov-report=xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.0.1
