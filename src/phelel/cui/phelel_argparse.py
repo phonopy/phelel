@@ -1,7 +1,7 @@
 """Option parser."""
 
 
-def get_parser():
+def get_parser(load_phelel_yaml=False):
     """Return ArgumentParser instance."""
     import argparse
 
@@ -15,14 +15,15 @@ def get_parser():
         default=None,
         help="Distance of displacements",
     )
-    parser.add_argument(
-        "-c",
-        "--cell",
-        dest="cell_filename",
-        metavar="FILE",
-        default=None,
-        help="Read unit cell",
-    )
+    if not load_phelel_yaml:
+        parser.add_argument(
+            "-c",
+            "--cell",
+            dest="cell_filename",
+            metavar="FILE",
+            default=None,
+            help="Read unit cell",
+        )
     parser.add_argument(
         "--cd",
         "--create-derivatives",
@@ -36,38 +37,47 @@ def get_parser():
             "and displacement supercells are given as arguments."
         ),
     )
-    parser.add_argument(
-        "-d",
-        "--disp",
-        dest="is_displacement",
-        action="store_true",
-        default=False,
-        help="As first stage, get least displacements",
-    )
-    parser.add_argument(
-        "--dim",
-        nargs="+",
-        dest="supercell_dimension",
-        metavar="INT",
-        default=None,
-        help=("Supercell dimensions with three integers or matrix with " "9 integers"),
-    )
-    parser.add_argument(
-        "--dim-phonon",
-        nargs="+",
-        dest="phonon_supercell_dimension",
-        metavar="INT",
-        default=None,
-        help=(
-            "Supercell dimensions for phonon with three integers or "
-            "matrix with 9 integers"
-        ),
-    )
+    if load_phelel_yaml:
+        parser.add_argument(
+            "--config",
+            dest="conf_filename",
+            metavar="FILE",
+            default=None,
+            help="Read phelel configuration file",
+        )
+    if not load_phelel_yaml:
+        parser.add_argument(
+            "-d",
+            "--disp",
+            dest="is_displacement",
+            action="store_true",
+            default=False,
+            help="As first stage, get least displacements",
+        )
+        parser.add_argument(
+            "--dim",
+            nargs="+",
+            dest="supercell_dimension",
+            metavar="INT",
+            default=None,
+            help=(
+                "Supercell dimensions with three integers or matrix with " "9 integers"
+            ),
+        )
+        parser.add_argument(
+            "--dim-phonon",
+            nargs="+",
+            dest="phonon_supercell_dimension",
+            default=None,
+            help=(
+                "Supercell dimensions for phonon with three integers or "
+                "matrix with 9 integers"
+            ),
+        )
     parser.add_argument(
         "--fft-mesh",
-        nargs=3,
+        nargs="+",
         dest="fft_mesh_numbers",
-        metavar="INT",
         default=None,
         help="FFT mesh numbers used in primitive cell",
     )
@@ -162,6 +172,9 @@ def get_parser():
         default=False,
         help="Subtract residual forces for force constants calculation.",
     )
-    parser.add_argument("filename", nargs="*", help="Phelel configure file")
+    if load_phelel_yaml:
+        parser.add_argument("filename", nargs="*", help="phelel.yaml like file")
+    else:
+        parser.add_argument("filename", nargs="*", help="Phelel configure file")
 
     return parser

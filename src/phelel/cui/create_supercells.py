@@ -1,5 +1,6 @@
 """Utilities of main CUI script."""
 
+import pathlib
 from typing import Optional, Union
 
 from phono3py.interface.calculator import (
@@ -7,6 +8,7 @@ from phono3py.interface.calculator import (
     get_additional_info_to_write_supercells,
     get_default_displacement_distance,
 )
+from phonopy.cui.phonopy_script import store_nac_params
 from phonopy.interface.calculator import write_supercells_with_displacements
 
 from phelel.api_phelel import Phelel
@@ -17,6 +19,7 @@ def create_phelel_supercells(
     settings,
     symprec,
     interface_mode="vasp",
+    load_phelel_yaml=False,
     log_level=1,
 ):
     """Create displacements and supercells.
@@ -26,6 +29,8 @@ def create_phelel_supercells(
 
     """
     optional_structure_info = cell_info["optional_structure_info"]
+    unitcell_filename = cell_info["optional_structure_info"][0]
+    phe_yml = cell_info["phonopy_yaml"]
 
     phelel = Phelel(
         cell_info["unitcell"],
@@ -39,7 +44,7 @@ def create_phelel_supercells(
 
     if log_level:
         print("")
-        print('Unit cell was read from "%s".' % optional_structure_info[0])
+        print(f'Unit cell was read from "{unitcell_filename}".')
 
     generate_phelel_supercells(
         phelel,
@@ -49,6 +54,16 @@ def create_phelel_supercells(
         is_diagonal=settings.is_diagonal_displacement,
         log_level=log_level,
     )
+
+    if pathlib.Path("BORN").exists() or (phe_yml and phe_yml.nac_params):
+        store_nac_params(
+            phelel.phonon,
+            settings,
+            phe_yml,
+            unitcell_filename,
+            log_level,
+            load_phonopy_yaml=load_phelel_yaml,
+        )
 
     additional_info = get_additional_info_to_write_supercells(
         interface_mode, phelel.supercell_matrix

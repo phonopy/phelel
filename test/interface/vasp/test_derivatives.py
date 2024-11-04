@@ -61,10 +61,16 @@ def test_read_files_C111():
 
 
 def test_create_derivatives_C111():
-    """Test creating derivatives with C-1x1x1."""
+    """Test creating derivatives with C-1x1x1.
+
+    Check force constants have the full matrix shape.
+
+    """
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
     dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
     create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
+    fc = phelel.force_constants
+    assert fc.shape[0] == fc.shape[1]
 
 
 def test_read_files_C111_ncl():
@@ -75,10 +81,16 @@ def test_read_files_C111_ncl():
 
 
 def test_create_derivatives_C111_ncl():
-    """Test creating derivatives with non-collinear case of C-1x1x1."""
+    """Test creating derivatives with non-collinear case of C-1x1x1.
+
+    Check force constants have the full matrix shape.
+
+    """
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
     dir_names = [cwd / "C111-ncl_disp-000", cwd / "C111-ncl_disp-001"]
     create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
+    fc = phelel.force_constants
+    assert fc.shape[0] == fc.shape[1]
 
 
 def _get_phelel_C111(phelel_yaml_filename: str) -> Phelel:

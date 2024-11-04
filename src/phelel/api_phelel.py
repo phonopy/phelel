@@ -16,19 +16,20 @@ from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
-from phelel.file_IO import write_dDijdu_hdf5, write_dVdu_hdf5, write_phelel_params_hdf5
+from phelel.file_IO import write_phelel_params_hdf5
 from phelel.version import __version__
 
 
 @dataclass
-class PhelelInput:
+class PhelelDataset:
     """Data structure of input data to run derivatives."""
 
-    local_potentials: list
-    Dijs: list
-    qijs: list
+    local_potentials: list[np.ndarray]
+    Dijs: list[np.ndarray]
+    qijs: list[np.ndarray]
     lm_channels: list[dict]
     dataset: Optional[dict] = None
+    phonon_dataset: Optional[dict] = None
     forces: Optional[np.ndarray] = None
 
 
@@ -79,6 +80,8 @@ class Phelel:
         symprec: float = 1e-5,
         is_symmetry: bool = True,
         calculator: Optional[str] = None,
+        nufft: Optional[str] = None,
+        finufft_eps: Optional[float] = None,
         log_level: int = 0,
     ):
         """Init method.
@@ -115,18 +118,21 @@ class Phelel:
             Use crystal symmetry or not. Default is True.
         calculator :
             A dummy parameter.
+        nufft : str or None, optional
+            'finufft' only. Default is None, which corresponds to 'finufft'.
+        finufft_eps : float or None, optional
+            Accuracy of finufft interpolation. Default is None, which
+            corresponds to 1e-6.
         log_level : int, optional
             Log level. 0 is most quiet. Default is 0.
 
         """
         self._unitcell = unitcell
-        if fft_mesh is None:
-            self._fft_mesh = None
-        else:
-            self.fft_mesh = fft_mesh
         self._symprec = symprec
         self._is_symmetry = is_symmetry
         self._calculator = calculator
+        self._nufft = nufft
+        self._finufft_eps = finufft_eps
         self._log_level = log_level
 
         ph = self._get_phonopy(supercell_matrix, primitive_matrix)
@@ -156,7 +162,17 @@ class Phelel:
         self._dVdu = None
         self._dDijdu = None
 
-        self._raw_data = None
+        if fft_mesh is None:
+            self._fft_mesh = None
+        else:
+            self.fft_mesh = fft_mesh
+
+        self._dDijdu = DDijQij(
+            self._supercell,
+            symmetry=self._symmetry,
+            atom_indices=self._atom_indices_in_derivatives,
+            verbose=self._log_level > 0,
+        )
 
     @property
     def version(self) -> str:
@@ -306,12 +322,22 @@ class Phelel:
 
     @property
     def fft_mesh(self) -> np.ndarray:
-        """Return FFT mesh numbers."""
+        """Setter and getter of FFT mesh numbers."""
         return self._fft_mesh
 
     @fft_mesh.setter
-    def fft_mesh(self, fft_mesh):
+    def fft_mesh(self, fft_mesh: Union[Sequence, np.ndarray]):
         self._fft_mesh = np.array(fft_mesh, dtype="int_")
+        self._dVdu = DLocalPotential(
+            self._fft_mesh,
+            self._p2s_matrix,
+            self._supercell,
+            symmetry=self._symmetry,
+            atom_indices=self._atom_indices_in_derivatives,
+            nufft=self._nufft,
+            finufft_eps=self._finufft_eps,
+            verbose=self._log_level > 0,
+        )
 
     @property
     def dVdu(self) -> Optional[DLocalPotential]:
@@ -323,7 +349,7 @@ class Phelel:
         self._dVdu = dVdu
 
     @property
-    def dDijdu(self) -> Optional[DDijQij]:
+    def dDijdu(self) -> DDijQij:
         """Return DDijQij class instance."""
         return self._dDijdu
 
@@ -368,12 +394,13 @@ class Phelel:
         )
         self._dataset = ph.dataset
 
-    def run_derivatives(self, phe_input: PhelelInput, nufft=None, finufft_eps=None):
+    def run_derivatives(self, phe_input: PhelelDataset):
         """Run displacement derivatives calculations from temporary raw data.
 
         Note
         ----
         After calculation, temporary raw data may be deleted.
+        Force constants are created to have full matrix shape.
 
         """
         if self._fft_mesh is None:
@@ -383,109 +410,58 @@ class Phelel:
             )
             raise RuntimeError(msg)
 
-        self.prepare_phonon(dataset=phe_input.dataset, forces=phe_input.forces)
-        self.run_dVdu(
-            phe_input.local_potentials,
-            dataset=phe_input.dataset,
-            nufft=nufft,
-            finufft_eps=finufft_eps,
-        )
-        self.run_dDijdu(
-            phe_input.Dijs,
-            phe_input.qijs,
+        if phe_input.dataset is not None:
+            self._dataset = phe_input.dataset
+        loc_pots = phe_input.local_potentials
+        Dijs = phe_input.Dijs
+        qijs = phe_input.qijs
+
+        if phe_input.phonon_dataset is not None:
+            self._prepare_phonon(
+                dataset=phe_input.phonon_dataset,
+                forces=phe_input.forces,
+                calculate_full_force_constants=True,
+            )
+        else:
+            self._prepare_phonon(
+                dataset=self._dataset,
+                forces=phe_input.forces,
+                calculate_full_force_constants=True,
+            )
+        self._dVdu.run(loc_pots[0], loc_pots[1:], self._dataset["first_atoms"])
+        self._dDijdu.run(
+            Dijs[0],
+            Dijs[1:],
+            qijs[0],
+            qijs[1:],
+            self._dataset["first_atoms"],
             phe_input.lm_channels,
-            dataset=phe_input.dataset,
         )
-        self._raw_data = None
 
     def save_hdf5(
         self, filename: Union[str, bytes, os.PathLike, io.IOBase] = "phelel_params.hdf5"
     ):
         """Write phelel_params.hdf5."""
         write_phelel_params_hdf5(
-            self._dVdu,
-            self._dDijdu,
-            self._supercell_matrix,
-            self._primitive_matrix,
-            self._primitive,
-            self._unitcell,
-            self._supercell,
-            self._atom_indices_in_derivatives,
-            self._dataset,
-            self._phonon.force_constants,
-            self._phonon.supercell_matrix,
-            self._phonon.primitive,
-            self._phonon.supercell,
-            self._phonon.nac_params,
-            self._phonon.primitive_symmetry.dataset,
+            dVdu=self._dVdu,
+            dDijdu=self._dDijdu,
+            supercell_matrix=self._supercell_matrix,
+            primitive_matrix=self._primitive_matrix,
+            primitive=self._primitive,
+            unitcell=self._unitcell,
+            supercell=self._supercell,
+            atom_indices_in_derivatives=self._atom_indices_in_derivatives,
+            disp_dataset=self._dataset,
+            force_constants=self._phonon.force_constants,
+            phonon_supercell_matrix=self._phonon.supercell_matrix,
+            phonon_primitive=self._phonon.primitive,
+            phonon_supercell=self._phonon.supercell,
+            nac_params=self._phonon.nac_params,
+            symmetry_dataset=self._phonon.primitive_symmetry.dataset,
             filename=filename,
         )
 
-    def run_dVdu(
-        self,
-        loc_pots,
-        dataset=None,
-        nufft=None,
-        finufft_eps=None,
-        write_hdf5=False,
-    ):
-        """Calculate dV/du.
-
-        Parameters
-        ----------
-        nufft : str or None, optional
-            'finufft' only. Default is None, which corresponds to 'finufft'.
-        finufft_eps : float or None, optional
-            Accuracy of finufft interpolation. Default is None, which
-            corresponds to 1e-6.
-
-        """
-        dVdu = DLocalPotential(
-            self._fft_mesh,
-            self._p2s_matrix,
-            self._supercell,
-            symmetry=self._symmetry,
-            atom_indices=self._atom_indices_in_derivatives,
-            nufft=nufft,
-            finufft_eps=finufft_eps,
-            verbose=True,
-        )
-        if dataset is not None:
-            self._dataset = dataset
-        displacements = self._dataset["first_atoms"]
-        dVdu.run(loc_pots[0], loc_pots[1:], displacements)
-
-        if write_hdf5:
-            write_dVdu_hdf5(
-                dVdu,
-                self._supercell_matrix,
-                self._primitive_matrix,
-                self._primitive,
-                self._unitcell,
-                self._supercell,
-                filename="dVdu.hdf5",
-            )
-        self._dVdu = dVdu
-
-    def run_dDijdu(self, Dijs, qijs, lm_channels, dataset=None, write_hdf5=False):
-        """Calculate dDij/du."""
-        dDijdu = DDijQij(
-            self._supercell,
-            symmetry=self._symmetry,
-            atom_indices=self._atom_indices_in_derivatives,
-            verbose=True,
-        )
-        if dataset is not None:
-            self._dataset = dataset
-        displacements = self._dataset["first_atoms"]
-        dDijdu.run(Dijs[0], Dijs[1:], qijs[0], qijs[1:], displacements, lm_channels)
-
-        if write_hdf5:
-            write_dDijdu_hdf5(dDijdu)
-
-        self._dDijdu = dDijdu
-
-    def prepare_phonon(
+    def _prepare_phonon(
         self,
         dataset: Optional[dict] = None,
         forces: Optional[
@@ -519,11 +495,20 @@ class Phelel:
         supercell_matrix: Optional[Union[int, float, Sequence, np.ndarray]],
         primitive_matrix: Optional[Union[str, Sequence, np.ndarray]],
     ) -> Phonopy:
+        """Return Phonopy instance.
+
+        Note
+        ----
+        store_dense_svecs=False is necessary to be compatible with code in VASP.
+
+        """
         return Phonopy(
             self._unitcell,
             supercell_matrix=supercell_matrix,
             primitive_matrix=primitive_matrix,
             symprec=self._symprec,
             is_symmetry=self._is_symmetry,
+            store_dense_svecs=False,
+            calculator=self._calculator,
             log_level=self._log_level,
         )

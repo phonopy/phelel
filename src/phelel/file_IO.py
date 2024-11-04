@@ -9,7 +9,7 @@ from typing import Optional, Union
 
 import h5py
 import numpy as np
-from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.atoms import PhonopyAtoms, atom_data
 from phonopy.structure.cells import Primitive
 from phonopy.structure.symmetry import Symmetry
 
@@ -20,21 +20,22 @@ from phelel.utils.lattice_points import get_lattice_points
 
 
 def write_phelel_params_hdf5(
-    dVdu,
-    dDijdu,
-    supercell_matrix,
-    primitive_matrix,
-    primitive,
-    unitcell,
-    supercell,
-    atom_indices_in_derivatives,
-    disp_dataset,
-    force_constants,
-    phonon_supercell_matrix,
-    phonon_primitive,
-    phonon_supercell,
-    nac_params,
-    symmetry_dataset,
+    dVdu: Optional["DLocalPotential"] = None,
+    dDijdu: Optional["DDijQij"] = None,
+    # Rij=None,
+    supercell_matrix=None,
+    primitive_matrix=None,
+    primitive: Optional[Primitive] = None,
+    unitcell: Optional[PhonopyAtoms] = None,
+    supercell: Optional[PhonopyAtoms] = None,
+    atom_indices_in_derivatives=None,
+    disp_dataset=None,
+    force_constants=None,
+    phonon_supercell_matrix=None,
+    phonon_primitive: Optional[Primitive] = None,
+    phonon_supercell: Optional[PhonopyAtoms] = None,
+    nac_params=None,
+    symmetry_dataset=None,
     filename="phelel_params.hdf5",
 ):
     """Write phelel_params.hdf5."""
@@ -111,8 +112,8 @@ def read_phelel_params_hdf5(
             supercell = PhonopyAtoms(
                 cell=f["supercell_lattice"][:].T,
                 scaled_positions=f["supercell_positions"][:],
-                numbers=f["supercell_numbers"][:],
-                masses=f["supercell_masses"],
+                symbols=[atom_data[n][1] for n in f["supercell_numbers"][:]],
+                masses=f["supercell_masses"][:],
             )
             symmetry = Symmetry(supercell)
             if "atom_indices_in_derivatives" in f:
@@ -131,7 +132,7 @@ def read_phelel_params_hdf5(
 
         if log_level:
             print(f'dV/du was read from "{filename}".')
-            print('dDij/du was read from "{filename}".')
+            print(f'dDij/du was read from "{filename}".')
     else:
         raise FileNotFoundError(f'"{filename}" was not found.')
 
@@ -356,13 +357,21 @@ def _add_datasets(
         w.create_dataset(
             "transformation_matrix",
             data=np.array(
-                symmetry_dataset["transformation_matrix"], dtype="double", order="C"
+                symmetry_dataset.transformation_matrix, dtype="double", order="C"
             ),
         )
         w.create_dataset(
             "direct_rotations",
-            data=np.array(symmetry_dataset["rotations"], dtype="int_", order="C"),
+            data=np.array(symmetry_dataset.rotations, dtype="int_", order="C"),
         )
-        w.create_dataset(
-            "spacegroup_number", data=int(symmetry_dataset["number"]), dtype="int_"
-        )
+        sym_dataset_dict = vars(symmetry_dataset)
+        if "number" in sym_dataset_dict:  # For non-magnetic case
+            w.create_dataset(
+                "spacegroup_number", data=int(symmetry_dataset.number), dtype="int_"
+            )
+        elif "uni_number" in sym_dataset_dict:  # For magnetic case
+            w.create_dataset(
+                "magnetic_spacegroup_uni_number",
+                data=int(symmetry_dataset.uni_number),
+                dtype="int_",
+            )

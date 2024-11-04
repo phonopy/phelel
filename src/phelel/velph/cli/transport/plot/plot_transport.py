@@ -1,0 +1,211 @@
+"""Implementation of velph-transport-plot-transport."""
+
+from __future__ import annotations
+
+import click
+import h5py
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+
+
+def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = False):
+    """Plot transport properties.
+
+    Number of "transport_*" is
+
+    ((N(delta) * N(nbands_sum_array) * N(selfen_approx))
+      * N(ncarrier_per_cell) * N(ncarrier_den) * N(mu)) * N(temps)
+
+    N(temps) runs in the inner loop.
+
+    sefeln_approx includes
+    - scattering_approximation
+      (CRTA, SERTA, ERTA_LAMBDA, ERTA_TAU, MRTA_LAMBDA, MRTA_TAU)
+    - static_approximation (True or False)
+
+    In the following codes, N(scattering_approximation) * N(temps) are only considered.
+
+    """
+    property_names = (
+        "e_conductivity",
+        "e_conductivity",
+        "e_t_conductivity",
+        "peltier",
+        "seebeck",
+    )
+
+    n_transport = len(
+        [
+            key
+            for key in f_h5py["results/electron_phonon/electrons"]
+            if "transport_" in key
+        ]
+    )
+    transports = [
+        f_h5py[f"results/electron_phonon/electrons/transport_{n + 1}"]
+        for n in range(n_transport)
+    ]
+
+    for i, transport in enumerate(transports):
+        _show(transport, i + 1)
+
+    n_props = len(property_names)
+    _, axs = plt.subplots(
+        len(transports),
+        n_props,
+        figsize=(4 * n_props, 4 * len(transports)),
+        squeeze=False,
+    )
+    last_transport_idx = transports[-1]["id_idx"][:]
+    for i, transport in enumerate(transports):
+        _plot(
+            axs[i, :],
+            transport,
+            property_names,
+            i,
+            transport["id_idx"][:],
+            last_transport_idx,
+        )
+
+    plt.tight_layout()
+    if save_plot:
+        plt.rcParams["pdf.fonttype"] = 42
+        plt.savefig(plot_filename)
+        click.echo(f'Transport plot was saved in "{plot_filename}".')
+    else:
+        plt.show()
+    plt.close()
+
+
+def _plot(
+    axs: np.ndarray,
+    transport: h5py.Group,
+    property_names: tuple,
+    index: int,
+    transport_idx: np.ndarray,
+    last_transport_idx: np.ndarray,
+):
+    """Plot transport properties.
+
+    Second property with the property name "e_conductivity" is resistivity.
+
+    """
+    temps = transport["temps"][:]
+    dat_filename = f"transport-{index + 1}.dat"
+    properties = []
+
+    label_property_names = []
+    for prop_name in property_names:
+        if prop_name == "e_conductivity" and prop_name in label_property_names:
+            label_property_names.append("e_resistivity")
+        else:
+            label_property_names.append(prop_name)
+
+    for key, label_prop_name in zip(property_names, label_property_names):
+        if label_prop_name == "e_resistivity":
+            properties.append([3 / np.trace(tensor) for tensor in transport[key][:]])
+        else:
+            properties.append([np.trace(tensor) / 3 for tensor in transport[key][:]])
+
+    with open(dat_filename, "w") as w:
+        print("# temperature", *label_property_names, file=w)
+        for temp, props in zip(temps, np.transpose(properties)):
+            print(temp, *props, file=w)
+        click.echo(f'Transport data {index + 1} was saved in "{dat_filename}".')
+
+    names = [name.decode("utf-8") for name in transport["id_name"][:]]
+    labels = []
+    click.echo([(name, int(i)) for name, i in zip(names, transport_idx)])
+    for i, name in enumerate(names):
+        if last_transport_idx[i] > 1:
+            if name == "selfen_approx":
+                labels.append(transport["scattering_approximation"][()].decode("utf-8"))
+
+    for i, label_property in enumerate(label_property_names):
+        if label_property == "e_conductivity":
+            axs[i].semilogy(temps, properties[i], ".-")
+        else:
+            axs[i].plot(temps, properties[i], ".-")
+        axs[i].tick_params(axis="both", which="both", direction="in")
+        axs[i].tick_params(axis="y", direction="in")
+        axs[i].set_xlabel("temperature (K)")
+        if labels:
+            axs[i].set_ylabel(f"[{index + 1}] {label_property} ({"-".join(labels)})")
+        else:
+            axs[i].set_ylabel(f"[{index + 1}] {label_property}")
+        axs[i].set_xlim(left=0, right=max(temps))
+        axs[i].yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
+        axs[i].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+        ax = axs[i].secondary_yaxis("right")
+        ax.tick_params(axis="y", which="both", direction="in")
+        ax.set_yticklabels([])
+
+
+def _show(transport: h5py.Group, index: int):
+    """Show transport properties.
+
+    ['cell_volume', 'dfermi_tol', 'e_conductivity', 'e_t_conductivity', 'emax',
+    'emin', 'energy', 'lab', 'mobility', 'mu', 'n', 'n0', 'ne', 'nedos',
+    'nelect', 'nh', 'peltier', 'scattering_approximation', 'seebeck', 'static',
+    'tau_average', 'temperature', 'transport_function']
+
+    """
+    print(f"- parameters:  # {index}")
+    for i, temp in enumerate(transport["temps"][:]):
+        print(f"  - temperature: {temp}")
+        print(
+            "    scattering_approximation:",
+            transport["scattering_approximation"][()].decode("utf-8"),
+        )
+        for key in (
+            "cell_volume",
+            "dfermi_tol",
+            ("n0", "number_of_electrons_gausslegendre"),
+            "nedos",
+        ):
+            if isinstance(key, tuple):
+                print(f"    {key[1]}: {transport[key[0]][()]}")
+            else:
+                print(f"    {key}: {transport[key][()]}")
+        print(f"    static_approximation: {bool(transport["static"][()])}")
+
+        print("    data_scalar:")
+        for key in (
+            ("emax", "emax_for_transport_function"),
+            ("emin", "emin_for_transport_function"),
+            ("mu", "chemical_potential"),
+            "n",
+            ("ne", "ne_in_conduction_band"),
+            ("nh", "nh_in_valence_band"),
+            "tau_average",
+        ):
+            if isinstance(key, tuple):
+                print(f"      {key[1]}: {transport[key[0]][i]}")
+            else:
+                print(f"      {key}: {transport[key][i]}")
+
+        print("    data_array_diagonal:")
+        for key in (
+            "e_conductivity",
+            "e_t_conductivity",
+            "mobility",
+            "peltier",
+            "seebeck",
+        ):
+            v = transport[key][:].ravel()
+            print(
+                f"      {key}: [{v[0]:.3e}, {v[4]:.3e}, {v[8]:.3e}, "
+                f"{v[5]:.3e}, {v[2]:.3e}, {v[1]:.3e}]"
+            )
+
+        print("    data_array_shapes:")
+        for key in (
+            "energy",
+            ("lab", "Onsager_coefficients"),
+            "transport_function",
+        ):
+            if isinstance(key, tuple):
+                print(f"      {key[1]}: {list(transport[key[0]][i].shape)}")
+            else:
+                print(f"      {key}: {list(transport[key][i].shape)}")

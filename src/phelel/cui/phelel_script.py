@@ -8,6 +8,13 @@ from typing import Optional, Union
 
 import numpy as np
 from phonopy.cui.collect_cell_info import collect_cell_info
+from phonopy.cui.phonopy_script import (
+    print_end,
+    print_error,
+    print_error_message,
+    print_version,
+    store_nac_params,
+)
 from phonopy.interface.calculator import get_default_physical_units
 from phonopy.structure.cells import print_cell
 
@@ -15,8 +22,22 @@ from phelel import Phelel
 from phelel.cui.create_supercells import create_phelel_supercells
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.settings import PhelelConfParser
-from phelel.cui.utils import print_end, print_error, print_error_message, print_phelel
 from phelel.interface.phelel_yaml import PhelelYaml
+from phelel.version import __version__
+
+
+# AA is created at http://www.network-science.de/ascii/.
+def print_phelel():
+    """Show phelel logo."""
+    print(
+        r"""       _          _      _
+ _ __ | |__   ___| | ___| |
+| '_ \| '_ \ / _ \ |/ _ \ |
+| |_) | | | |  __/ |  __/ |
+| .__/|_| |_|\___|_|\___|_|
+|_|"""
+    )
+    print_version(__version__, package_name="phelel", rjust_length=25)
 
 
 def finalize_phelel(
@@ -27,22 +48,22 @@ def finalize_phelel(
     filename: Union[str, pathlib.Path] = "phelel.yaml",
     sys_exit_after_finalize: bool = True,
 ) -> None:
-    """Write phono3py.yaml and then exit.
+    """Write phelel.yaml and then exit.
 
     Parameters
     ----------
-    phono3py : Phono3py
-        Phono3py instance.
+    phelel : Phelel
+        Phelel instance.
     confs : dict
         This contains the settings and command options that the user set.
     log_level : int
         Log level. 0 means quiet.
     displacements_mode : Bool
         When True, crystal structure is written in the length unit of
-        calculator interface in phono3py_disp.yaml. Otherwise, the
+        calculator interface in phelel_disp.yaml. Otherwise, the
         default unit (angstrom) is used.
     filename : str, optional
-        phono3py.yaml is written in this filename.
+        phelel.yaml is written in this filename.
 
     """
     if displacements_mode:
@@ -80,6 +101,8 @@ def main(**argparse_control):
     #################
     # Option parser #
     #################
+    load_phelel_yaml = argparse_control.get("load_phelel_yaml", False)
+
     if "args" in argparse_control:  # For pytest
         args = argparse_control["args"]
         log_level = args.log_level
@@ -94,6 +117,9 @@ def main(**argparse_control):
             log_level = 0
         if args.log_level is not None:
             log_level = args.log_level
+
+    if log_level > 0:
+        print_phelel()
 
     if len(args.filename) > 0:
         phelel_conf = PhelelConfParser(filename=args.filename[0], args=args)
@@ -117,6 +143,7 @@ def main(**argparse_control):
         cell_filename=settings.cell_filename,
         chemical_symbols=settings.chemical_symbols,
         phonopy_yaml_cls=PhelelYaml,
+        load_phonopy_yaml=load_phelel_yaml,
     )
     if "error_message" in cell_info:
         print_error_message(cell_info["error_message"])
@@ -134,6 +161,22 @@ def main(**argparse_control):
         cell_info["phonon_supercell_matrix"] = ph_smat
     phonon_supercell_matrix = cell_info["phonon_supercell_matrix"]
 
+    if settings.create_displacements:
+        phelel = create_phelel_supercells(
+            cell_info,
+            settings,
+            symprec,
+            load_phelel_yaml=load_phelel_yaml,
+            log_level=log_level,
+        )
+        finalize_phelel(
+            phelel,
+            confs=phelel_conf.confs,
+            log_level=log_level,
+            displacements_mode=True,
+            filename="phelel_disp.yaml",
+        )
+
     fft_mesh = settings.fft_mesh_numbers
     phelel = Phelel(
         unitcell,
@@ -143,12 +186,12 @@ def main(**argparse_control):
         fft_mesh=fft_mesh,
         symprec=symprec,
         is_symmetry=settings.is_symmetry,
+        finufft_eps=settings.finufft_eps,
     )
 
     if log_level > 0:
-        print_phelel()
         print("")
-        print('Crystal structure was read from "%s".' % unitcell_filename)
+        print(f'Crystal structure was read from "{unitcell_filename}".')
         print("Settings:")
         if (np.diag(np.diag(supercell_matrix)) - supercell_matrix).any():
             print("  Supercell matrix:")
@@ -179,20 +222,6 @@ def main(**argparse_control):
             print_cell(phelel.phonon.supercell)
         print("-" * 76)
 
-    if settings.create_displacements:
-        phelel = create_phelel_supercells(
-            cell_info,
-            settings,
-            symprec,
-            log_level=log_level,
-        )
-        finalize_phelel(
-            phelel,
-            confs=phelel_conf.confs,
-            log_level=log_level,
-            displacements_mode=True,
-            filename="phelel_disp.yaml",
-        )
     ##################################
     # Create dV/du, dDij/du, dqij/du #
     ##################################
@@ -219,23 +248,34 @@ def main(**argparse_control):
                     print(f'Read displacement datasets from "{filename}".')
                 phe_yml = PhelelYaml()
                 phe_yml.read(filename)
+
             phelel.dataset = phe_yml.dataset
             if phe_yml.phonon_dataset is None:
                 phelel.phonon_dataset = phe_yml.dataset
             else:
                 phelel.phonon_dataset = phe_yml.phonon_dataset
 
+            if pathlib.Path("BORN").exists() or phe_yml.nac_params:
+                store_nac_params(
+                    phelel.phonon,
+                    settings,
+                    cell_info["phonopy_yaml"],
+                    unitcell_filename,
+                    log_level,
+                    load_phonopy_yaml=load_phelel_yaml,
+                )
+
         if settings.create_derivatives:
             create_derivatives(
                 phelel,
                 settings.create_derivatives,
-                finufft_eps=settings.finufft_eps,
                 subtract_rfs=settings.subtract_rfs,
                 log_level=log_level,
             )
-            phelel.save_hdf5(filename="phelel_params.hdf5")
-            if log_level > 0:
-                print('"phelel_params.hdf5" has been created.')
+            if phelel.fft_mesh is not None:
+                phelel.save_hdf5(filename="phelel_params.hdf5")
+                if log_level > 0:
+                    print('"phelel_params.hdf5" has been created.')
             print_end()
             sys.exit(0)
 
