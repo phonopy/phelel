@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import click
 import h5py
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import numpy as np
 
 
@@ -27,6 +25,8 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
     In the following codes, N(scattering_approximation) * N(temps) are only considered.
 
     """
+    import matplotlib.pyplot as plt
+
     property_names = (
         "e_conductivity",
         "e_conductivity",
@@ -91,6 +91,8 @@ def _plot(
     Second property with the property name "e_conductivity" is resistivity.
 
     """
+    import matplotlib.ticker as ticker
+
     temps = transport["temps"][:]
     dat_filename = f"transport-{index + 1}.dat"
     properties = []
@@ -131,7 +133,7 @@ def _plot(
         axs[i].tick_params(axis="y", direction="in")
         axs[i].set_xlabel("temperature (K)")
         if labels:
-            axs[i].set_ylabel(f"[{index + 1}] {label_property} ({"-".join(labels)})")
+            axs[i].set_ylabel(f"[{index + 1}] {label_property} ({'-'.join(labels)})")
         else:
             axs[i].set_ylabel(f"[{index + 1}] {label_property}")
         axs[i].set_xlim(left=0, right=max(temps))
@@ -168,7 +170,7 @@ def _show(transport: h5py.Group, index: int):
                 print(f"    {key[1]}: {transport[key[0]][()]}")
             else:
                 print(f"    {key}: {transport[key][()]}")
-        print(f"    static_approximation: {bool(transport["static"][()])}")
+        print(f"    static_approximation: {bool(transport['static'][()])}")
 
         print("    data_scalar:")
         for key in (
