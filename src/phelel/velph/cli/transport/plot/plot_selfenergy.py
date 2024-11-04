@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import click
 import h5py
-import matplotlib.pyplot as plt
 
 
 def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = False):
@@ -20,6 +19,8 @@ def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fal
     - static_approximation (True or False)
 
     """
+    import matplotlib.pyplot as plt
+
     selfens = {}
     for key in f_h5py["results"]["electron_phonon"]["electrons"]:
         if "self_energy_" in key:
@@ -73,7 +74,7 @@ def _show(selfen: h5py.Group, index: int):
         selfen["scattering_approximation"][()].decode("utf-8"),
     )
     print(f"    static_approximation: {bool(selfen['static'][()])}")
-    print(f"    use_tetrahedron_method: {bool(selfen["tetrahedron"][()])}")
+    print(f"    use_tetrahedron_method: {bool(selfen['tetrahedron'][()])}")
     if not selfen["tetrahedron"][()]:
         print(f"    smearing_width: {selfen['delta'][()]}")
     print(
@@ -87,7 +88,7 @@ def _show(selfen: h5py.Group, index: int):
         print(f"    - {t}  # {i + 1}")
 
     print("  data_array_shapes:")
-    print(f"    carrier_per_cell: {list(selfen["carrier_per_cell"].shape)}")
-    print(f"    Fan_self_energy: {list(selfen["selfen_fan"].shape)}")
-    print(f"    sampling_energy_points: {list(selfen["energies"].shape)}")
-    print(f"    Fermi_energies: {list(selfen["efermi"].shape)}")
+    print(f"    carrier_per_cell: {list(selfen['carrier_per_cell'].shape)}")
+    print(f"    Fan_self_energy: {list(selfen['selfen_fan'].shape)}")
+    print(f"    sampling_energy_points: {list(selfen['energies'].shape)}")
+    print(f"    Fermi_energies: {list(selfen['efermi'].shape)}")
