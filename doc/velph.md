@@ -5,7 +5,7 @@ electron-phonon interaction calculations with VASP code and analyze the results.
 Velph works in combination of command options. The `velph` command is installed
 along with the installation of phelel.
 
-## Shell completion for `velph` command
+## Shell completion
 
 Velph relies on [click](https://click.palletsprojects.com), and shell completion
 is provided for popular shell implementations, see
@@ -161,11 +161,16 @@ options by
 
 Note that the same can be applied to `velph-tmpl.toml`.
 
+### Default INCAR settings
+
+The default INCAR settins are written in `[vasp.incar]`. These settings are
+overwritten by `[vasp.CALC_TYPE.incar]` (`CALC_TYPE` can be `phelel`, `relax`,
+`nac`, `transport`, `phono3py`, `phono3py.phonon`, etc).
+
 ### Scheduler settings
 
 The parameters used for generating the job submission script are specified as
-strings in `[scheduler]`. If `[vasp.CALC_TYPE.scheduler]`, where, `CALC_TYPE`
-can be `relax`, `nac`, `transport`, `phono3py`, `phono3py.phonon`, etc, is
+strings in `[scheduler]`. If `[vasp.CALC_TYPE.scheduler]` is
 specified, `[scheduler]` settings are overwritten by the settings for
 `[vasp.CALC_TYPE]`. The content in this section operates through [Python string
 formatting](https://docs.python.org/3/library/stdtypes.html#str.format), using
@@ -278,7 +283,7 @@ pe = "mpi* 144"
 scheduler_name = "sge"
 job_name = "TiNiSn"
 mpirun_command = "mpirun"
-vasp_binary = "/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std"
+vasp_binary = "/usr/local/vasp/bin/vasp_std"
 pe = "vienna 32"
 prepend_text = '''
 source /opt/intel/oneapi/setvars.sh intel64 --config="/home/togo/.oneapi-config"
@@ -423,7 +428,7 @@ mesh = [11, 11, 11]
 scheduler_name = "sge"
 job_name = "TiNiSn"
 mpirun_command = "mpirun"
-vasp_binary = "/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std"
+vasp_binary = "/usr/local/vasp/bin/vasp_std"
 pe = "vienna 32"
 prepend_text = "source /opt/intel/oneapi/setvars.sh intel64 --config=\"/home/togo/.oneapi-config\"\n"
 append_text = ""
@@ -508,7 +513,6 @@ Structure optimization is done until stress becomes less than 0.1kB (0.01GPa).
 Go back to the top directory and start supercell calculation.
 
 ```
-% velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
 % velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
 Crystal structure file: "relax/relax/iter2/CONTCAR".
 Velph template file: "velph-tmpl.toml".
