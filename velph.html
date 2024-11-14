@@ -279,7 +279,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion-for-velph-command">Shell completion for <code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion">Shell completion</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
@@ -298,6 +298,7 @@
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template">velph-init template</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
 </ul>
 </li>
@@ -319,8 +320,8 @@
 electron-phonon interaction calculations with VASP code and analyze the results.
 Velph works in combination of command options. The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is installed
 along with the installation of phelel.</p>
-<section id="shell-completion-for-velph-command">
-<h2>Shell completion for <code class="docutils literal notranslate"><span class="pre">velph</span></code> command<a class="headerlink" href="#shell-completion-for-velph-command" title="Link to this heading">#</a></h2>
+<section id="shell-completion">
+<h2>Shell completion<a class="headerlink" href="#shell-completion" title="Link to this heading">#</a></h2>
 <p>Velph relies on <a class="reference external" href="https://click.palletsprojects.com">click</a>, and shell completion
 is provided for popular shell implementations, see
 <a class="reference external" href="https://click.palletsprojects.com/en/stable/shell-completion/">shell-completion</a>.</p>
@@ -459,11 +460,16 @@ options by</p>
 <section id="settings-in-sections-of-velph-toml">
 <h2>Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code><a class="headerlink" href="#settings-in-sections-of-velph-toml" title="Link to this heading">#</a></h2>
 <p>Note that the same can be applied to <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code>.</p>
+<section id="default-incar-settings">
+<h3>Default INCAR settings<a class="headerlink" href="#default-incar-settings" title="Link to this heading">#</a></h3>
+<p>The default INCAR settins are written in <code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code>. These settings are
+overwritten by <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.incar]</span></code> (<code class="docutils literal notranslate"><span class="pre">CALC_TYPE</span></code> can be <code class="docutils literal notranslate"><span class="pre">phelel</span></code>, <code class="docutils literal notranslate"><span class="pre">relax</span></code>,
+<code class="docutils literal notranslate"><span class="pre">nac</span></code>, <code class="docutils literal notranslate"><span class="pre">transport</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py.phonon</span></code>, etc).</p>
+</section>
 <section id="scheduler-settings">
 <h3>Scheduler settings<a class="headerlink" href="#scheduler-settings" title="Link to this heading">#</a></h3>
 <p>The parameters used for generating the job submission script are specified as
-strings in <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code>. If <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.scheduler]</span></code>, where, <code class="docutils literal notranslate"><span class="pre">CALC_TYPE</span></code>
-can be <code class="docutils literal notranslate"><span class="pre">relax</span></code>, <code class="docutils literal notranslate"><span class="pre">nac</span></code>, <code class="docutils literal notranslate"><span class="pre">transport</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py.phonon</span></code>, etc, is
+strings in <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code>. If <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.scheduler]</span></code> is
 specified, <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> settings are overwritten by the settings for
 <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE]</span></code>. The content in this section operates through <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str.format">Python string
 formatting</a>, using
@@ -571,7 +577,7 @@ section are inserted.</p></li>
 <span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
 <span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;TiNiSn&quot;</span>
 <span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
-<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/vasp/bin/vasp_std&quot;</span>
 <span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
 <span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
 <span class="s1">source /opt/intel/oneapi/setvars.sh intel64 --config=&quot;/home/togo/.oneapi-config&quot;</span>
@@ -711,7 +717,7 @@ section are inserted.</p></li>
 <span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
 <span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;TiNiSn&quot;</span>
 <span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
-<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/vasp/bin/vasp_std&quot;</span>
 <span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
 <span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;source /opt/intel/oneapi/setvars.sh intel64 --config=</span><span class="se">\&quot;</span><span class="s2">/home/togo/.oneapi-config</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span>
 <span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
@@ -794,7 +800,6 @@ section are inserted.</p></li>
 <p>Structure optimization is done until stress becomes less than 0.1kB (0.01GPa).
 Go back to the top directory and start supercell calculation.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>% velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
-% velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
 Crystal structure file: &quot;relax/relax/iter2/CONTCAR&quot;.
 Velph template file: &quot;velph-tmpl.toml&quot;.
 Read crystal structure file &quot;relax/relax/iter2/CONTCAR&quot;.
@@ -1014,7 +1019,7 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion-for-velph-command">Shell completion for <code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion">Shell completion</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
@@ -1033,6 +1038,7 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template">velph-init template</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
 </ul>
 </li>
