@@ -279,8 +279,29 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-of-shell-completion">Configuration of shell completion</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion-for-velph-command">Shell completion for <code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template">velph-init template</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-nitisn">Example (NiTiSn)</a></li>
 </ul>
             </nav>
         </div>
@@ -292,23 +313,22 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="velph-command">
+  <section class="tex2jax_ignore mathjax_ignore" id="velph-command">
 <h1>velph command<a class="headerlink" href="#velph-command" title="Link to this heading">#</a></h1>
-<section id="configuration-of-shell-completion">
-<h2>Configuration of shell completion<a class="headerlink" href="#configuration-of-shell-completion" title="Link to this heading">#</a></h2>
-<p>Velph command is a convenient tool to systematically perform electron-phonon
-interaction calculations with VASP code and analyze the results. Velph works in
-combination of command options. The command <code class="docutils literal notranslate"><span class="pre">velph</span></code> is installed along with
-the installation of phelel.</p>
-<p>Velph relies on click, and shell completion is provided for popular shell implementations, see
-<a class="reference external" href="https://click.palletsprojects.com/en/stable/shell-completion/">https://click.palletsprojects.com/en/stable/shell-completion/</a>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is a convenient tool to systematically perform
+electron-phonon interaction calculations with VASP code and analyze the results.
+Velph works in combination of command options. The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is installed
+along with the installation of phelel.</p>
+<section id="shell-completion-for-velph-command">
+<h2>Shell completion for <code class="docutils literal notranslate"><span class="pre">velph</span></code> command<a class="headerlink" href="#shell-completion-for-velph-command" title="Link to this heading">#</a></h2>
+<p>Velph relies on <a class="reference external" href="https://click.palletsprojects.com">click</a>, and shell completion
+is provided for popular shell implementations, see
+<a class="reference external" href="https://click.palletsprojects.com/en/stable/shell-completion/">shell-completion</a>.</p>
 <p>For example using bash (zsh) in conda environment, write the following line</p>
-<p>(for bash)</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=bash_source velph)&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=bash_source velph)&quot;</span>  <span class="c1"># BASH</span>
 </pre></div>
 </div>
-<p>(for zsh)</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=zsh_source velph)&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=zsh_source velph)&quot;</span>  <span class="c1"># ZSH</span>
 </pre></div>
 </div>
 <p>in <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> (<code class="docutils literal notranslate"><span class="pre">~/.zshrc</span></code>), or in a conda environment in
@@ -333,6 +353,627 @@ transport<span class="w">   </span>--<span class="w"> </span>Choose<span class="
 <section id="velph-hints">
 <h2><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code><a class="headerlink" href="#velph-hints" title="Link to this heading">#</a></h2>
 <p>This command provides a quick reference of calculation steps.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">hints</span>
+</pre></div>
+</div>
+</section>
+<section id="velph-init">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-init" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> with command options will generate modified <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> from the
+template.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span> <span class="pre">--help</span></code> shows short documents of the options. Two arguments have to
+be specified, POSCAR-format crystal structure and directory name that is created
+where <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is stored. The available options are explained below. Some
+options can be specified in <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> section of the velph-toml template
+file (see <a class="reference internal" href="#velph-init-template"><span class="std std-ref">velph-init template</span></a>).</p>
+<section id="template-toml">
+<h3><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code><a class="headerlink" href="#template-toml" title="Link to this heading">#</a></h3>
+<p>Using this option, <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> like file is read as the template instead of the
+template hard coded in velph code.</p>
+</section>
+<section id="tolerance">
+<h3><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code><a class="headerlink" href="#tolerance" title="Link to this heading">#</a></h3>
+<p>This is used for the symmetry check tolerance in Angstrom. Symmetry is searched
+always even without <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>.</p>
+</section>
+<section id="symmetrize">
+<h3><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code><a class="headerlink" href="#symmetrize" title="Link to this heading">#</a></h3>
+<p>By default (no-symmetrize), the input POSCAR-type structure is simply used as
+the unit cell. With <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>, input POSCAR-type structure is symmetrized
+and standardized conventional unit cell and primitive cell (“unitcell” and
+“primitive_cell”, respectively) are written in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>.</p>
+</section>
+<section id="no-find-primitive">
+<h3><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code><a class="headerlink" href="#no-find-primitive" title="Link to this heading">#</a></h3>
+<p>By this option, the input POSCAR-type structure is used as the primitive cell
+even if it is not a primitive cell.</p>
+</section>
+<section id="kspacing-and-kspacing-dense">
+<h3><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code><a class="headerlink" href="#kspacing-and-kspacing-dense" title="Link to this heading">#</a></h3>
+<p>Sampling k-point meshes are calculated from these values in the similar way to
+VASP <code class="docutils literal notranslate"><span class="pre">KSPACING</span></code> definition by overwriting the template.</p>
+</section>
+<section id="max-num-atoms">
+<h3><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code><a class="headerlink" href="#max-num-atoms" title="Link to this heading">#</a></h3>
+<p>Supercell shape is determined so that its number of atoms is equal or less than
+this number respecting the crystallographic point group.</p>
+</section>
+<section id="cell-for-relax">
+<h3><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code><a class="headerlink" href="#cell-for-relax" title="Link to this heading">#</a></h3>
+<p>This chooses unit cell or primitive cell for structure optimization (<code class="docutils literal notranslate"><span class="pre">relax</span></code>).
+The default is <code class="docutils literal notranslate"><span class="pre">unitcell</span></code>. Specify <code class="docutils literal notranslate"><span class="pre">primitive</span></code> to use primitive cell.</p>
+</section>
+<section id="cell-for-nac">
+<h3><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code><a class="headerlink" href="#cell-for-nac" title="Link to this heading">#</a></h3>
+<p>This chooses unit cell or primitive cell for NAC calculation (<code class="docutils literal notranslate"><span class="pre">nac</span></code>). The
+default is <code class="docutils literal notranslate"><span class="pre">primitive</span></code>. Specify <code class="docutils literal notranslate"><span class="pre">primitive</span></code> to use primitive cell.</p>
+</section>
+<section id="primitive-cell-choice">
+<h3><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code><a class="headerlink" href="#primitive-cell-choice" title="Link to this heading">#</a></h3>
+<p>Primitive cell choice, “standardized” (default) or “reduced”.</p>
+</section>
+<section id="use-grg">
+<h3><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code><a class="headerlink" href="#use-grg" title="Link to this heading">#</a></h3>
+<p>Use generalized regular grid.</p>
+</section>
+<section id="amplitude">
+<h3><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code><a class="headerlink" href="#amplitude" title="Link to this heading">#</a></h3>
+<p>Distance of displacements in Angstrom.</p>
+</section>
+<section id="magmom">
+<h3><code class="docutils literal notranslate"><span class="pre">--magmom</span></code><a class="headerlink" href="#magmom" title="Link to this heading">#</a></h3>
+<p>String corresponding to INCAR MAGMOM tag value for unit cell, e.g., “24*1” or “0
+0 1”. This is similar to <code class="docutils literal notranslate"><span class="pre">MAGMOM</span></code> tag in phonopy, see
+<a class="reference external" href="https://phonopy.github.io/phonopy/setting-tags.html#magmom">https://phonopy.github.io/phonopy/setting-tags.html#magmom</a>. In velph, the
+asterisk symbol (<code class="docutils literal notranslate"><span class="pre">*</span></code>) is supported.</p>
+</section>
+</section>
+<section id="velph-init-template">
+<span id="id1"></span><h2>velph-init template<a class="headerlink" href="#velph-init-template" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">velph-init</span></code> is the command to prepare <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. Without specifying a
+velph-toml-template, the default template is used. Custom template can be
+specified as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> (arbitrary file name) is almost like the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>
+file. It means that the <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> may be created modifying
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. The sections that exist only in the <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> but not in
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code>. This can be used as alternatives of command
+options of <code class="docutils literal notranslate"><span class="pre">velph-init</span></code>, e.g.,</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[init.options]</span>
+<span class="n">kspacing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span>
+<span class="n">kspacing_dense</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1</span>
+<span class="n">max_num_atoms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">120</span>
+</pre></div>
+</div>
+<p>These <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> keywords can be found along with the list of the command
+options by</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="o">--</span><span class="n">help</span>
+</pre></div>
+</div>
+</section>
+<section id="settings-in-sections-of-velph-toml">
+<h2>Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code><a class="headerlink" href="#settings-in-sections-of-velph-toml" title="Link to this heading">#</a></h2>
+<p>Note that the same can be applied to <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code>.</p>
+<section id="scheduler-settings">
+<h3>Scheduler settings<a class="headerlink" href="#scheduler-settings" title="Link to this heading">#</a></h3>
+<p>The parameters used for generating the job submission script are specified as
+strings in <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code>. If <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.scheduler]</span></code>, where, <code class="docutils literal notranslate"><span class="pre">CALC_TYPE</span></code>
+can be <code class="docutils literal notranslate"><span class="pre">relax</span></code>, <code class="docutils literal notranslate"><span class="pre">nac</span></code>, <code class="docutils literal notranslate"><span class="pre">transport</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py.phonon</span></code>, etc, is
+specified, <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> settings are overwritten by the settings for
+<code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE]</span></code>. The content in this section operates through <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str.format">Python string
+formatting</a>, using
+replacement fields named after keyword arguments. Each parameter line in the
+<code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section is treated as a keyword argument, which is then inserted
+into the string format.</p>
+<p>In the <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section, the parameters <code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code> and
+<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> have special roles:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code>: Specifies the template type, with options <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, <code class="docutils literal notranslate"><span class="pre">sge</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">custom</span></code>. For <code class="docutils literal notranslate"><span class="pre">slurm</span></code> and <code class="docutils literal notranslate"><span class="pre">sge</span></code>, the template string (i.e.,
+<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>) is
+<a class="reference external" href="https://github.com/phonopy/phelel/blob/develop/src/phelel/velph/utils/scheduler.py">hard-coded</a>.
+If <code class="docutils literal notranslate"><span class="pre">custom</span></code> is selected, the string provided by <code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> is used,
+into which the parameters are inserted.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>: The string template where parameters defined in this
+section are inserted.</p></li>
+</ul>
+<p>An example is shown below.</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[scheduler]</span>
+<span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
+<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-1/bin/vasp_std&quot;</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">source /opt/intel/oneapi/setvars.sh --config=&quot;/home/togo/.oneapi-config&quot;</span>
+<span class="s1">&#39;&#39;&#39;</span>
+
+<span class="p">...</span>
+<span class="k">[vasp.phelel.scheduler]</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;paris 24&quot;</span>
+
+<span class="p">...</span>
+<span class="k">[vasp.phono3py.phonon.scheduler]</span>
+<span class="n">scheduler_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;#!/bin/bash</span>
+<span class="s1">#QSUB2 core 192</span>
+<span class="s1">#QSUB2 mpi 192</span>
+<span class="s1">#QSUB2 smp 1</span>
+<span class="s1">#QSUB2 wtime 48:00:00</span>
+<span class="s1">#PBS -N {job_name}</span>
+<span class="s1">cd $PBS_O_WORKDIR</span>
+
+<span class="s1">{prepend_text}</span>
+<span class="s1">{mpirun_command} {vasp_binary} | tee vasp_output</span>
+<span class="s1">{append_text}</span>
+<span class="s1">&#39;&#39;&#39;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
+<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpijob&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-2/bin/vasp_std&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">. /etc/profile.d/modules.sh</span>
+<span class="s1">module load inteloneapi22u3</span>
+<span class="s1">&#39;&#39;&#39;</span>
+<span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="example-nitisn">
+<h2>Example (NiTiSn)<a class="headerlink" href="#example-nitisn" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">POSCAR-unitcell</span></code>, <code class="docutils literal notranslate"><span class="pre">POTCAR</span></code>, and <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> are located in the current directory.</p>
+<p>Initial <code class="docutils literal notranslate"><span class="pre">POSCAR-unitcell</span></code>,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Ti4Sn4Ni4</span>
+<span class="mf">1.0</span>
+<span class="mf">5.906882041566931</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>
+<span class="mf">0.000000000000000</span>   <span class="mf">5.906882041566931</span>   <span class="mf">0.000000000000000</span>
+<span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">5.906882041566931</span>
+<span class="n">Ti</span>   <span class="n">Sn</span>   <span class="n">Ni</span>
+<span class="mi">4</span>   <span class="mi">4</span>   <span class="mi">4</span>
+<span class="n">Direct</span>
+<span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>
+<span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>
+<span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>
+<span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>
+<span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>
+<span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>
+<span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>
+<span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>
+<span class="mf">0.250000000000000</span>   <span class="mf">0.250000000000000</span>   <span class="mf">0.250000000000000</span>
+<span class="mf">0.250000000000000</span>   <span class="mf">0.750000000000000</span>   <span class="mf">0.750000000000000</span>
+<span class="mf">0.750000000000000</span>   <span class="mf">0.250000000000000</span>   <span class="mf">0.750000000000000</span>
+<span class="mf">0.750000000000000</span>   <span class="mf">0.750000000000000</span>   <span class="mf">0.250000000000000</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code>,</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[init.options]</span>
+<span class="n">kspacing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1</span>
+<span class="n">kspacing_dense</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span>
+<span class="n">max_num_atoms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
+
+<span class="k">[vasp.incar]</span>
+<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">520</span>
+<span class="n">ncore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+
+<span class="k">[vasp.phelel.incar]</span>
+<span class="n">kpar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="k">[vasp.phelel.scheduler]</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpi* 48&quot;</span>
+
+<span class="k">[vasp.transport.scheduler]</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpi* 144&quot;</span>
+
+<span class="k">[scheduler]</span>
+<span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;TiNiSn&quot;</span>
+<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std&quot;</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">source /opt/intel/oneapi/setvars.sh intel64 --config=&quot;/home/togo/.oneapi-config&quot;</span>
+<span class="s1">&#39;&#39;&#39;</span>
+<span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">POTCAR</span></code> choice,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">PAW_PBE</span> <span class="n">Ti_sv</span> <span class="mi">26</span><span class="n">Sep2005</span>
+  <span class="n">PAW_PBE</span> <span class="n">Sn_d</span> <span class="mi">06</span><span class="n">Sep2000</span>
+  <span class="n">PAW_PBE</span> <span class="n">Ni</span> <span class="mi">02</span><span class="n">Aug2007</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="n">POSCAR_Ti4Sn4Ni4</span> <span class="n">relax</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
+<span class="n">Crystal</span> <span class="n">structure</span> <span class="n">file</span><span class="p">:</span> <span class="s2">&quot;POSCAR_Ti4Sn4Ni4&quot;</span><span class="o">.</span>
+<span class="n">Velph</span> <span class="n">template</span> <span class="n">file</span><span class="p">:</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="o">.</span>
+<span class="n">Read</span> <span class="n">crystal</span> <span class="n">structure</span> <span class="n">file</span> <span class="s2">&quot;POSCAR_Ti4Sn4Ni4&quot;</span><span class="o">.</span>
+<span class="n">Read</span> <span class="n">velph</span> <span class="n">template</span> <span class="n">file</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="o">.</span>
+<span class="n">Following</span> <span class="n">options</span> <span class="n">were</span> <span class="n">found</span> <span class="ow">in</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="p">:</span>
+  <span class="n">kspacing</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
+  <span class="n">kspacing_dense</span> <span class="o">=</span> <span class="s2">&quot;0.2&quot;</span>
+  <span class="n">max_num_atoms</span> <span class="o">=</span> <span class="s2">&quot;100&quot;</span>
+<span class="n">The</span> <span class="n">command</span> <span class="n">options</span> <span class="n">were</span> <span class="n">prefered</span> <span class="n">to</span> <span class="p">[</span><span class="n">init</span><span class="o">.</span><span class="n">options</span><span class="p">]</span> <span class="ow">in</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="o">.</span>
+<span class="n">Found</span> <span class="n">a</span> <span class="n">primitive</span> <span class="n">cell</span> <span class="n">whose</span> <span class="n">transformation</span> <span class="n">matrix</span> <span class="ow">is</span>
+  <span class="p">[</span> <span class="mf">0.000</span>  <span class="mf">0.500</span>  <span class="mf">0.500</span><span class="p">]</span>
+  <span class="p">[</span> <span class="mf">0.500</span>  <span class="mf">0.000</span>  <span class="mf">0.500</span><span class="p">]</span>
+  <span class="p">[</span> <span class="mf">0.500</span>  <span class="mf">0.500</span>  <span class="mf">0.000</span><span class="p">]</span>
+<span class="n">Supercell</span> <span class="ow">is</span> <span class="n">generated</span> <span class="k">with</span> <span class="n">respect</span> <span class="n">to</span> <span class="n">the</span> <span class="n">cell</span> <span class="n">below</span><span class="o">.</span>
+<span class="o">--------------------------------------------------------------------------------</span>
+<span class="n">lattice</span><span class="p">:</span>
+<span class="o">-</span> <span class="p">[</span>     <span class="mf">5.906882041566931</span><span class="p">,</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">0.000000000000000</span> <span class="p">]</span> <span class="c1"># a</span>
+<span class="o">-</span> <span class="p">[</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">5.906882041566931</span><span class="p">,</span>     <span class="mf">0.000000000000000</span> <span class="p">]</span> <span class="c1"># b</span>
+<span class="o">-</span> <span class="p">[</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">5.906882041566931</span> <span class="p">]</span> <span class="c1"># c</span>
+<span class="n">points</span><span class="p">:</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 1</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 2</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 3</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 4</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 5</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 6</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 7</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 8</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 9</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 10</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 11</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 12</span>
+  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span> <span class="p">]</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
+<span class="o">--------------------------------------------------------------------------------</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">incar</span><span class="p">]</span> <span class="p">(</span><span class="n">basic</span> <span class="n">INCAR</span> <span class="n">settings</span><span class="p">)</span>
+  <span class="n">ismear</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.01</span>
+  <span class="n">ediff</span> <span class="o">=</span> <span class="mf">1e-08</span>
+  <span class="n">encut</span> <span class="o">=</span> <span class="mi">520</span>
+  <span class="n">prec</span> <span class="o">=</span> <span class="n">accurate</span>
+  <span class="n">lreal</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">lwave</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">lcharg</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">ncore</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="p">[</span><span class="n">phelel</span><span class="p">]</span>
+  <span class="n">supercell_dimension</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="mi">2</span> <span class="mi">2</span><span class="p">]</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.*.</span><span class="n">kpoints</span><span class="o">.</span><span class="n">mesh</span><span class="p">]</span> <span class="p">(</span><span class="o">*</span><span class="n">kspacing</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+  <span class="n">selfenergy</span><span class="p">:</span> <span class="p">[</span><span class="mi">18</span> <span class="mi">18</span> <span class="mi">18</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">el_bands</span><span class="p">:</span> <span class="p">[</span><span class="mi">18</span> <span class="mi">18</span> <span class="mi">18</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">phelel</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span> <span class="mi">5</span> <span class="mi">5</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">relax</span><span class="p">:</span> <span class="p">[</span><span class="mi">11</span> <span class="mi">11</span> <span class="mi">11</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">nac</span><span class="p">:</span> <span class="p">[</span><span class="mi">18</span> <span class="mi">18</span> <span class="mi">18</span><span class="p">]</span><span class="o">*</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.*.</span><span class="n">kpoints_dense</span><span class="o">.</span><span class="n">mesh</span><span class="p">]</span> <span class="p">(</span><span class="o">*</span><span class="n">kspacing_dense</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+  <span class="n">selfenergy</span><span class="p">:</span> <span class="p">[</span><span class="mi">9</span> <span class="mi">9</span> <span class="mi">9</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">el_bands</span><span class="p">:</span> <span class="p">[</span><span class="mi">9</span> <span class="mi">9</span> <span class="mi">9</span><span class="p">]</span><span class="o">*</span>
+<span class="n">Created</span> <span class="n">new</span> <span class="n">folder</span> <span class="s2">&quot;relax&quot;</span><span class="o">.</span>
+<span class="n">Initial</span> <span class="n">settings</span> <span class="n">were</span> <span class="n">written</span> <span class="n">to</span> <span class="s2">&quot;relax/velph.toml&quot;</span><span class="o">.</span>
+<span class="n">Found</span> <span class="s2">&quot;POTCAR&quot;</span><span class="o">.</span>
+  <span class="n">PAW_PBE</span> <span class="n">Ti_sv</span> <span class="mi">26</span><span class="n">Sep2005</span>
+  <span class="n">PAW_PBE</span> <span class="n">Sn_d</span> <span class="mi">06</span><span class="n">Sep2000</span>
+  <span class="n">PAW_PBE</span> <span class="n">Ni</span> <span class="mi">02</span><span class="n">Aug2007</span>
+  <span class="n">Max</span> <span class="n">ENMAX</span> <span class="ow">in</span> <span class="s2">&quot;POTCAR&quot;</span> <span class="ow">is</span> <span class="mf">274.61</span><span class="o">.</span>
+<span class="s2">&quot;POTCAR&quot;</span> <span class="n">was</span> <span class="n">copied</span> <span class="n">to</span> <span class="s2">&quot;relax/POTCAR&quot;</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>A directory <code class="docutils literal notranslate"><span class="pre">relax</span></code> is created and <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is stored in it.</p>
+<p><code class="docutils literal notranslate"><span class="pre">relax/velph.toml</span></code>,</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phelel]</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.6.0&quot;</span>
+<span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
+<span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
+<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">plusminus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">fft_mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">]</span>
+
+<span class="c1"># ...</span>
+
+<span class="k">[vasp.relax]</span>
+<span class="n">cell</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;unitcell&quot;</span>
+<span class="k">[vasp.relax.incar]</span>
+<span class="n">ediffg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">-1e-06</span>
+<span class="n">ibrion</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="n">isif</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+<span class="n">nsw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span>
+<span class="n">ismear</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="n">sigma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.01</span>
+<span class="n">ediff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-08</span>
+<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">520</span>
+<span class="n">prec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;accurate&quot;</span>
+<span class="n">lreal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">lwave</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">lcharg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">ncore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="k">[vasp.relax.kpoints]</span>
+<span class="n">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">]</span>
+
+<span class="c1"># ...</span>
+
+<span class="k">[scheduler]</span>
+<span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;TiNiSn&quot;</span>
+<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std&quot;</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;source /opt/intel/oneapi/setvars.sh intel64 --config=</span><span class="se">\&quot;</span><span class="s2">/home/togo/.oneapi-config</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span>
+<span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+
+<span class="k">[symmetry]</span>
+<span class="n">spacegroup_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;F-43m&quot;</span>
+<span class="n">tolerance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-05</span>
+<span class="n">primitive_matrix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">],</span>
+<span class="w">  </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">],</span>
+<span class="w">  </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span>
+<span class="p">]</span>
+
+<span class="k">[unitcell]</span>
+<span class="n">lattice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">5.906882041566931</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># a</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">5.906882041566931</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># b</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">5.906882041566931</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># c</span>
+<span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 1</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 2</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 3</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 4</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 5</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 6</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 7</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 8</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 9</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 10</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 11</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 12</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[primitive_cell]</span>
+<span class="n">lattice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># a</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># b</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># c</span>
+<span class="p">]</span>
+<span class="k">[[primitive_cell.points]]</span><span class="w">  </span><span class="c1"># 1</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[primitive_cell.points]]</span><span class="w">  </span><span class="c1"># 2</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
+<span class="k">[[primitive_cell.points]]</span><span class="w">  </span><span class="c1"># 3</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
+<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="w"> </span><span class="p">]</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">fft_mesh</span></code> is calculated from <code class="docutils literal notranslate"><span class="pre">encut</span></code> value in the <code class="docutils literal notranslate"><span class="pre">[vasp.selfenergy.incar]</span></code> section.</p>
+<p>Change directory to <code class="docutils literal notranslate"><span class="pre">relax</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">relax</span> <span class="n">generate</span>
+<span class="o">%</span> <span class="n">cd</span> <span class="n">relax</span><span class="o">/</span><span class="n">iter1</span>
+<span class="o">%</span> <span class="n">qsub</span> <span class="n">_job</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+<p>Structure optimization is done until stress becomes less than 0.1kB (0.01GPa).
+Go back to the top directory and start supercell calculation.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>% velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
+% velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
+Crystal structure file: &quot;relax/relax/iter2/CONTCAR&quot;.
+Velph template file: &quot;velph-tmpl.toml&quot;.
+Read crystal structure file &quot;relax/relax/iter2/CONTCAR&quot;.
+Read velph template file &quot;velph-tmpl.toml&quot;.
+Following options were found in &quot;velph-tmpl.toml&quot;:
+  kspacing = &quot;0.1&quot;
+  kspacing_dense = &quot;0.2&quot;
+  max_num_atoms = &quot;100&quot;
+The command options were prefered to [init.options] in &quot;velph-tmpl.toml&quot;.
+Found a primitive cell whose transformation matrix is
+  [ 0.000  0.500  0.500]
+  [ 0.500  0.000  0.500]
+  [ 0.500  0.500  0.000]
+Supercell is generated with respect to the cell below.
+--------------------------------------------------------------------------------
+lattice:
+- [     5.949975748250650,     0.000000000000000,     0.000000000000000 ] # a
+- [     0.000000000000000,     5.949975748250650,    -0.000000000000000 ] # b
+- [     0.000000000000000,     0.000000000000000,     5.949975748250650 ] # c
+points:
+- symbol: Ti # 1
+  coordinates: [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+  mass: 47.867000
+- symbol: Ti # 2
+  coordinates: [  0.000000000000000,  0.500000000000000,  0.500000000000000 ]
+  mass: 47.867000
+- symbol: Ti # 3
+  coordinates: [  0.500000000000000,  0.000000000000000,  0.500000000000000 ]
+  mass: 47.867000
+- symbol: Ti # 4
+  coordinates: [  0.500000000000000,  0.500000000000000,  0.000000000000000 ]
+  mass: 47.867000
+- symbol: Sn # 5
+  coordinates: [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
+  mass: 118.710000
+- symbol: Sn # 6
+  coordinates: [  0.500000000000000,  0.000000000000000,  0.000000000000000 ]
+  mass: 118.710000
+- symbol: Sn # 7
+  coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
+  mass: 118.710000
+- symbol: Sn # 8
+  coordinates: [  0.000000000000000,  0.000000000000000,  0.500000000000000 ]
+  mass: 118.710000
+- symbol: Ni # 9
+  coordinates: [  0.250000000000000,  0.250000000000000,  0.250000000000000 ]
+  mass: 58.693400
+- symbol: Ni # 10
+  coordinates: [  0.250000000000000,  0.750000000000000,  0.750000000000000 ]
+  mass: 58.693400
+- symbol: Ni # 11
+  coordinates: [  0.750000000000000,  0.250000000000000,  0.750000000000000 ]
+  mass: 58.693400
+- symbol: Ni # 12
+  coordinates: [  0.750000000000000,  0.750000000000000,  0.250000000000000 ]
+  mass: 58.693400
+--------------------------------------------------------------------------------
+[vasp.incar] (basic INCAR settings)
+  ismear = 0
+  sigma = 0.01
+  ediff = 1e-08
+  encut = 520
+  prec = accurate
+  lreal = False
+  lwave = False
+  lcharg = False
+  ncore = 4
+[phelel]
+  supercell_dimension: [2 2 2]
+[vasp.*.kpoints.mesh] (*kspacing=0.1)
+  selfenergy: [18 18 18]*
+  el_bands: [18 18 18]*
+  phelel: [5 5 5]*
+  relax: [11 11 11]*
+  nac: [18 18 18]*
+[vasp.*.kpoints_dense.mesh] (*kspacing_dense=0.2)
+  selfenergy: [9 9 9]*
+  el_bands: [9 9 9]*
+Created new folder &quot;calc&quot;.
+Initial settings were written to &quot;calc/velph.toml&quot;.
+Found &quot;POTCAR&quot;.
+  PAW_PBE Ti_sv 26Sep2005
+  PAW_PBE Sn_d 06Sep2000
+  PAW_PBE Ni 02Aug2007
+  Max ENMAX in &quot;POTCAR&quot; is 274.61.
+&quot;POTCAR&quot; was copied to &quot;calc/POTCAR&quot;.
+</pre></div>
+</div>
+<p>Change directory to <code class="docutils literal notranslate"><span class="pre">calc</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">cd</span> <span class="n">calc</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">phelel</span><span class="p">]</span>
+<span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;0.6.0&quot;</span>
+<span class="n">supercell_dimension</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<span class="n">amplitude</span> <span class="o">=</span> <span class="mf">0.03</span>
+<span class="n">diagonal</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">plusminus</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">fft_mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">]</span>
+
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">phelel</span><span class="o">.</span><span class="n">incar</span><span class="p">]</span>
+<span class="n">lwap</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">isym</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">kpar</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">ismear</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.01</span>
+<span class="n">ediff</span> <span class="o">=</span> <span class="mf">1e-08</span>
+<span class="n">encut</span> <span class="o">=</span> <span class="mi">520</span>
+<span class="n">prec</span> <span class="o">=</span> <span class="s2">&quot;accurate&quot;</span>
+<span class="n">lreal</span> <span class="o">=</span> <span class="n">false</span>
+<span class="n">lwave</span> <span class="o">=</span> <span class="n">false</span>
+<span class="n">lcharg</span> <span class="o">=</span> <span class="n">false</span>
+<span class="n">ncore</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">phelel</span><span class="o">.</span><span class="n">kpoints</span><span class="p">]</span>
+<span class="n">mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">phelel</span><span class="o">.</span><span class="n">scheduler</span><span class="p">]</span>
+<span class="n">pe</span> <span class="o">=</span> <span class="s2">&quot;mpi* 48&quot;</span>
+
+<span class="c1"># ...</span>
+
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">nac</span><span class="p">]</span>
+<span class="n">cell</span> <span class="o">=</span> <span class="s2">&quot;primitive&quot;</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">nac</span><span class="o">.</span><span class="n">incar</span><span class="p">]</span>
+<span class="n">lepsilon</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">ismear</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.01</span>
+<span class="n">ediff</span> <span class="o">=</span> <span class="mf">1e-08</span>
+<span class="n">encut</span> <span class="o">=</span> <span class="mi">520</span>
+<span class="n">prec</span> <span class="o">=</span> <span class="s2">&quot;accurate&quot;</span>
+<span class="n">lreal</span> <span class="o">=</span> <span class="n">false</span>
+<span class="n">lwave</span> <span class="o">=</span> <span class="n">false</span>
+<span class="n">lcharg</span> <span class="o">=</span> <span class="n">false</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">nac</span><span class="o">.</span><span class="n">kpoints</span><span class="p">]</span>
+<span class="n">mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">18</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">18</span><span class="p">]</span>
+
+<span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>NAC and supercell calculations,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>% velph nac generate
+% cd nac; qsub _job.sh; cd ..
+% velph phelel init
+Found &quot;nac&quot; directory. Read NAC params.
+&quot;phelel/phelel_disp.yaml&quot; was generated by phelel.
+VASP input files will be generated by &quot;velph phelel generate&quot;.
+% velph supercell generate
+VASP input files were generated in &quot;supercell/disp-000&quot;.
+VASP input files were generated in &quot;supercell/disp-001&quot;.
+VASP input files were generated in &quot;supercell/disp-002&quot;.
+VASP input files were generated in &quot;supercell/disp-003&quot;.
+VASP input files were generated in &quot;supercell/disp-004&quot;.
+VASP input files were generated in &quot;supercell/disp-005&quot;.
+VASP input files were generated in &quot;supercell/disp-006&quot;.
+% for i in {000..006};do cd phelel/disp-$i; qsub _job.sh; cd ../..;done
+</pre></div>
+</div>
+<p>Using the VASP results of the supercell calculations, derivatives of properties
+are computed using the phelel code. The results are stored in a newly created
+file <code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code>. This process creates only
+<code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code> and is invoked by the following velph command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">phelel</span> <span class="n">differentiate</span>
+<span class="n">Running</span> <span class="n">finufft</span> <span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">1.000e-06</span><span class="p">)</span><span class="o">...</span>
+<span class="n">Running</span> <span class="n">finufft</span> <span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">1.000e-06</span><span class="p">)</span><span class="o">...</span>
+<span class="n">Running</span> <span class="n">finufft</span> <span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">1.000e-06</span><span class="p">)</span><span class="o">...</span>
+<span class="s2">&quot;phelel/phelel_params.hdf5&quot;</span> <span class="n">has</span> <span class="n">been</span> <span class="n">made</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>NAC parameters in <code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code> comes from
+<code class="docutils literal notranslate"><span class="pre">phelel/phelel_disp.yaml</span></code>, i.e.,</p>
+<ol class="arabic simple">
+<li><p>NAC parameters are stored in <code class="docutils literal notranslate"><span class="pre">phelel/phelel_disp.yaml</span></code> when
+<code class="docutils literal notranslate"><span class="pre">phelel/phelel_disp.yaml</span></code> is created by <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code>.</p></li>
+<li><p>NAC data in <code class="docutils literal notranslate"><span class="pre">phelel/phelel_disp.yaml</span></code> are transfered to
+<code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code> by <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code>.</p></li>
+</ol>
+<p>Therefore, <code class="docutils literal notranslate"><span class="pre">nac</span></code> calculation has to exist in the initial step <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code>. If the <code class="docutils literal notranslate"><span class="pre">nac</span></code> calculation is performed after the supercell calculation,
+<code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code> and <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code> have to be re-executed to
+store the NAC parameters in <code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code>.</p>
 </section>
 </section>
 
@@ -373,8 +1014,29 @@ transport<span class="w">   </span>--<span class="w"> </span>Choose<span class="
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-of-shell-completion">Configuration of shell completion</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion-for-velph-command">Shell completion for <code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template">velph-init template</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-nitisn">Example (NiTiSn)</a></li>
 </ul>
   </nav></div>
 
