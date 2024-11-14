@@ -6,7 +6,6 @@ from typing import Optional
 
 import click
 import h5py
-import matplotlib.pyplot as plt
 import numpy as np
 from phonopy.structure.brillouin_zone import get_qpoints_in_Brillouin_zone
 from phonopy.structure.cells import get_reduced_bases
@@ -137,6 +136,8 @@ def _plot_eigenvalues_in_BZ(
     title: Optional[str] = None,
 ):
     """Plot kpoints in Brillouin zone."""
+    import matplotlib.pyplot as plt
+
     ax = _get_ax_3D()
     point_sizes = (1 - np.abs(weights)) * 5
     scatter = ax.scatter(
@@ -158,8 +159,17 @@ def _plot_eigenvalues_in_BZ(
     plt.show()
 
 
-def _get_ax_3D() -> plt.Axes:
-    """Get 3D axis."""
+def _get_ax_3D() -> "plt.Axes":  # noqa: F821
+    """Get 3D axis.
+
+    Returns
+    -------
+    plt.Axes
+        3D axis.
+
+    """
+    import matplotlib.pyplot as plt
+
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1, projection="3d")
     ax.grid(False)
@@ -167,7 +177,7 @@ def _get_ax_3D() -> plt.Axes:
     return ax
 
 
-def _plot_Brillouin_zone(bz_lattice: np.ndarray, ax: plt.Axes):
+def _plot_Brillouin_zone(bz_lattice: np.ndarray, ax: "plt.Axes"):  # noqa: F821
     """Plot Brillouin zone.
 
     Parameters
@@ -176,6 +186,8 @@ def _plot_Brillouin_zone(bz_lattice: np.ndarray, ax: plt.Axes):
         Reciprocal basis vectors in column vectors.
 
     """
+    import matplotlib.pyplot as plt  # noqa: F401
+
     bz_red_lattice = get_reduced_bases(bz_lattice.T).T
     points = np.dot(np.array(list(np.ndindex(3, 3, 3))) - [1, 1, 1], bz_red_lattice.T)
     vor = Voronoi(points)

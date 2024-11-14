@@ -114,6 +114,13 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     default=None,
     help=("Index of temperature. (tid: int, default=None)"),
 )
+@click.option(
+    "--nid",
+    nargs=1,
+    type=int,
+    default=None,
+    help=("Index of N. (nid: int, default=None)"),
+)
 @click.help_option("-h", "--help")
 def cmd_plot_eigenvalues(
     vaspout_filename: str,
@@ -121,6 +128,7 @@ def cmd_plot_eigenvalues(
     cutoff_occupancy: float,
     mu: Optional[float],
     tid: Optional[int],
+    nid: Optional[int],
 ):
     """Show eigenvalues in transports."""
     args = _get_f_h5py_and_plot_filename(
@@ -130,6 +138,7 @@ def cmd_plot_eigenvalues(
         plot_eigenvalues(
             args[0],
             tid=tid,
+            nid=nid,
             temperature=temperature,
             cutoff_occupancy=cutoff_occupancy,
             mu=mu,

@@ -6,7 +6,6 @@ import pathlib
 
 import click
 import h5py
-import matplotlib.pyplot as plt
 
 from phelel.velph.cli.utils import (
     get_distances_along_BZ_path,
@@ -35,6 +34,8 @@ def plot_el_bandstructures(
         File name of band structure plot.
 
     """
+    import matplotlib.pyplot as plt
+
     f_h5py_bands = h5py.File(vaspout_filename_bands)
     f_h5py_dos = h5py.File(vaspout_filename_dos)
     efermi = f_h5py_dos["results"]["electron_dos_kpoints_opt"]["efermi"][()]
