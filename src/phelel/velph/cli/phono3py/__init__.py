@@ -38,13 +38,32 @@ def cmd_phono3py():
     type=int,
     help="Number of snapshots of supercells with random directional displacement.",
 )
+@click.option(
+    "--rd-fc2",
+    "random_displacements_fc2",
+    nargs=1,
+    default=None,
+    type=int,
+    help=(
+        "Number of snapshots of phonon supercells "
+        "with random directional displacement."
+    ),
+)
 @click.help_option("-h", "--help")
-def cmd_init(toml_filename: str, random_displacements: Optional[int]):
+def cmd_init(
+    toml_filename: str,
+    random_displacements: Optional[int],
+    random_displacements_fc2: Optional[int],
+):
     """Generate displacements and write phelel_disp.yaml."""
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
 
-    ph3py = run_init(toml_dict, number_of_snapshots=random_displacements)
+    ph3py = run_init(
+        toml_dict,
+        number_of_snapshots=random_displacements,
+        number_of_snapshots_fc2=random_displacements_fc2,
+    )
 
     phono3py_yaml_filename = pathlib.Path("phono3py/phono3py_disp.yaml")
     phono3py_yaml_filename.parent.mkdir(parents=True, exist_ok=True)

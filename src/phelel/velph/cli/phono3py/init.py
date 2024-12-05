@@ -18,6 +18,7 @@ def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
     number_of_snapshots: Optional[int] = None,
+    number_of_snapshots_fc2: Optional[int] = None,
 ) -> Optional[Phono3py]:
     """Generate displacements and write phono3py_disp.yaml.
 
@@ -27,8 +28,9 @@ def run_init(
     """
     convcell = parse_cell_dict(toml_dict["unitcell"])
     supercell_matrix = toml_dict["phelel"].get("supercell_dimension", None)
-    if "phonopy" in toml_dict:
-        phonon_supercell_matrix = toml_dict["phonopy"].get("supercell_dimension", None)
+    if "phono3py" in toml_dict:
+        phonon_supercell_matrix = supercell_matrix
+        supercell_matrix = toml_dict["phono3py"].get("supercell_dimension", None)
     else:
         phonon_supercell_matrix = None
     if "primitive_cell" in toml_dict:
@@ -70,6 +72,7 @@ def run_init(
         is_plusminus=is_plusminus,
         is_diagonal=is_diagonal,
         number_of_snapshots=number_of_snapshots,
+        number_of_snapshots_fc2=number_of_snapshots_fc2,
     )
 
     nac_directory = current_directory / "nac"
@@ -99,6 +102,7 @@ def _generate_phono3py_supercells(
     is_plusminus: Union[str, bool] = "auto",
     is_diagonal: bool = True,
     number_of_snapshots: Optional[int] = None,
+    number_of_snapshots_fc2: Optional[int] = None,
 ):
     """Generate phelel supercells."""
     if distance is None:
@@ -119,12 +123,14 @@ def _generate_phono3py_supercells(
 
     if phono3py.phonon_supercell_matrix is not None:
         # For estimating number of displacements for harmonic phonon
-        phono3py.generate_fc2_displacements(
-            distance=distance, is_plusminus=False, is_diagonal=False
-        )
-        n_disps = len(phono3py.phonon_supercells_with_displacements)
-        phono3py.generate_fc2_displacements(
-            distance=distance, number_of_snapshots=n_disps, is_plusminus=True
-        )
+        if number_of_snapshots_fc2 is None:
+            phono3py.generate_fc2_displacements(
+                distance=distance, is_plusminus="auto", is_diagonal=False
+            )
+        else:
+            phono3py.generate_fc2_displacements(
+                distance=distance,
+                number_of_snapshots=number_of_snapshots_fc2,
+            )
         n_snapshots = len(phono3py.phonon_supercells_with_displacements)
         click.echo(f"Number of displacements for phonon: {n_snapshots}")
