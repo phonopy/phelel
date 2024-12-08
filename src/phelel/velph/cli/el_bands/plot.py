@@ -6,6 +6,7 @@ import pathlib
 
 import click
 import h5py
+import numpy as np
 
 from phelel.velph.cli.utils import (
     get_distances_along_BZ_path,
@@ -45,9 +46,9 @@ def plot_el_bandstructures(
     if "results" not in f_h5py_dos:
         raise ValueError(f"No electronic DOS results found in {vaspout_filename_dos}.")
     if "electron_dos_kpoints_opt" in f_h5py_dos["results"]:
-        f_h5py_dos_results = f_h5py_dos["results"]["electron_dos_kpoints_opt"]
+        f_h5py_dos_results = f_h5py_dos["results/electron_dos_kpoints_opt"]
     elif "electron_dos" in f_h5py_dos["results"]:
-        f_h5py_dos_results = f_h5py_dos["results"]["electron_dos"]
+        f_h5py_dos_results = f_h5py_dos["results/electron_dos"]
     else:
         raise ValueError("No electron DOS data found in vaspout.h5.")
 
@@ -57,7 +58,12 @@ def plot_el_bandstructures(
     _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
     ax0, ax1 = axs
 
-    distances, eigvals, points, labels_at_points = _get_bands_data(f_h5py_bands)
+    reclat = get_reclat_from_vaspout(f_h5py_bands)
+    distances, eigvals, points, labels_at_points = _get_bands_data(
+        reclat,
+        f_h5py_bands["results/electron_eigenvalues_kpoints_opt"],
+        f_h5py_bands["input/kpoints_opt"],
+    )
 
     ax0.plot(distances, eigvals[0, :, :], "ok", markersize=1)
     ax0.hlines(efermi, distances[0], distances[-1], "r", linewidth=1)
@@ -86,20 +92,18 @@ def plot_el_bandstructures(
     click.echo(f'Electronic band structure plot was saved in "{plot_filename}".')
 
 
-def _get_bands_data(f_h5py: h5py.File):
-    eigvals = f_h5py["results"]["electron_eigenvalues_kpoints_opt"]["eigenvalues"]
+def _get_bands_data(
+    reclat: np.ndarray, f_h5py_bands_results: h5py.Group, f_h5py_bands_input: h5py.Group
+):
+    eigvals = f_h5py_bands_results["eigenvalues"]
 
-    reclat = get_reclat_from_vaspout(f_h5py)
     # k-points in reduced coordinates
-    kpoint_coords = f_h5py["results"]["electron_eigenvalues_kpoints_opt"][
-        "kpoint_coords"
-    ]
+    kpoint_coords = f_h5py_bands_results["kpoint_coords"]
     # Special point labels
     labels = [
-        label.decode("utf-8")
-        for label in f_h5py["input"]["kpoints_opt"]["labels_kpoints"][:]
+        label.decode("utf-8") for label in f_h5py_bands_input["labels_kpoints"][:]
     ]
-    nk_per_seg = f_h5py["input"]["kpoints_opt"]["number_kpoints"][()]
+    nk_per_seg = f_h5py_bands_input["number_kpoints"][()]
     nk_total = len(kpoint_coords)
     k_cart = kpoint_coords @ reclat
     n_segments = nk_total // nk_per_seg
