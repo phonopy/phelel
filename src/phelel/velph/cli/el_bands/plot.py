@@ -38,7 +38,20 @@ def plot_el_bandstructures(
 
     f_h5py_bands = h5py.File(vaspout_filename_bands)
     f_h5py_dos = h5py.File(vaspout_filename_dos)
-    efermi = f_h5py_dos["results"]["electron_dos_kpoints_opt"]["efermi"][()]
+    if "results" not in f_h5py_bands:
+        raise ValueError(
+            f"No electronic band structure results found in {vaspout_filename_bands}."
+        )
+    if "results" not in f_h5py_dos:
+        raise ValueError(f"No electronic DOS results found in {vaspout_filename_dos}.")
+    if "electron_dos_kpoints_opt" in f_h5py_dos["results"]:
+        f_h5py_dos_results = f_h5py_dos["results"]["electron_dos_kpoints_opt"]
+    elif "electron_dos" in f_h5py_dos["results"]:
+        f_h5py_dos_results = f_h5py_dos["results"]["electron_dos"]
+    else:
+        raise ValueError("No electron DOS data found in vaspout.h5.")
+
+    efermi = f_h5py_dos_results["efermi"][()]
     emin = window[0]
     emax = window[1]
     _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
@@ -57,7 +70,7 @@ def plot_el_bandstructures(
     ax0.set_ylabel("E[eV]", fontsize=14)
     ymin, ymax = ax0.get_ylim()
 
-    dos, energies, xmax = _get_dos_data(f_h5py_dos, ymin, ymax)
+    dos, energies, xmax = _get_dos_data(f_h5py_dos_results, ymin, ymax)
 
     ax1.plot(dos, energies, "-k", linewidth=1)
     ax1.hlines(efermi, 0, xmax, "r", linewidth=1)
@@ -99,9 +112,9 @@ def _get_bands_data(f_h5py: h5py.File):
     return distances, eigvals, points, labels_at_points
 
 
-def _get_dos_data(f_h5py: h5py.File, ymin: float, ymax: float):
-    dos = f_h5py["results"]["electron_dos_kpoints_opt"]["dos"][0, :]
-    energies = f_h5py["results"]["electron_dos_kpoints_opt"]["energies"][:]
+def _get_dos_data(f_h5py_dos_results: h5py.Group, ymin: float, ymax: float):
+    dos = f_h5py_dos_results["dos"][0, :]
+    energies = f_h5py_dos_results["energies"][:]
     i_min = 0
     i_max = len(energies)
     for i, val in enumerate(energies):
