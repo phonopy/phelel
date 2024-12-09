@@ -1,4 +1,4 @@
-"""Implementation of velph-phono3py-init."""
+"""Implementation of velph-phonopy-init."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from typing import Optional, Union
 
 import click
 import numpy as np
-from phono3py import Phono3py
-from phono3py.interface.calculator import get_default_displacement_distance
+from phonopy import Phonopy
+from phonopy.interface.calculator import get_default_displacement_distance
 from phonopy.structure.atoms import parse_cell_dict
 
 from phelel.velph.cli.utils import get_nac_params
@@ -18,18 +18,18 @@ def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
     number_of_snapshots: Optional[int] = None,
-) -> Optional[Phono3py]:
-    """Generate displacements and write phono3py_disp.yaml.
+) -> Optional[Phonopy]:
+    """Generate displacements and write phonopy_disp.yaml.
 
     current_directory : Path
         Used for test.
 
     """
-    if "phono3py" not in toml_dict:
-        raise RuntimeError("[phono3py] section not found in toml file.")
+    if "phonopy" not in toml_dict:
+        raise RuntimeError("[phonopy] section not found in toml file.")
 
     convcell = parse_cell_dict(toml_dict["unitcell"])
-    supercell_matrix = toml_dict["phono3py"].get("supercell_dimension", None)
+    supercell_matrix = toml_dict["phonopy"].get("supercell_dimension", None)
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
         primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
@@ -39,12 +39,12 @@ def run_init(
 
     is_symmetry = True
     try:
-        if toml_dict["phono3py"]["nosym"] is True:
+        if toml_dict["phonopy"]["nosym"] is True:
             is_symmetry = False
     except KeyError:
         pass
 
-    ph3py = Phono3py(
+    ph = Phonopy(
         convcell,
         supercell_matrix=supercell_matrix,
         primitive_matrix=primitive_matrix,
@@ -52,16 +52,16 @@ def run_init(
         calculator="vasp",
     )
 
-    amplitude = toml_dict["phono3py"].get("amplitude", None)
+    amplitude = toml_dict["phonopy"].get("amplitude", None)
     if number_of_snapshots is None:
-        is_diagonal = toml_dict["phono3py"].get("diagonal", True)
-        is_plusminus = toml_dict["phono3py"].get("plusminus", "auto")
+        is_diagonal = toml_dict["phonopy"].get("diagonal", True)
+        is_plusminus = toml_dict["phonopy"].get("plusminus", "auto")
     else:
         is_diagonal = False
         is_plusminus = False
 
-    _generate_phono3py_supercells(
-        ph3py,
+    _generate_phonopy_supercells(
+        ph,
         interface_mode="vasp",
         distance=amplitude,
         is_plusminus=is_plusminus,
@@ -82,21 +82,20 @@ def run_init(
                 is_symmetry,
             )
             if nac_params is not None:
-                ph3py.nac_params = nac_params
+                ph.nac_params = nac_params
         else:
             click.echo('Not found "nac/vasprun.xml". NAC params were not included.')
 
-    return ph3py
+    return ph
 
 
-def _generate_phono3py_supercells(
-    phono3py: Phono3py,
+def _generate_phonopy_supercells(
+    phonopy: Phonopy,
     interface_mode: str = "vasp",
     distance: Optional[float] = None,
     is_plusminus: Union[str, bool] = "auto",
     is_diagonal: bool = True,
     number_of_snapshots: Optional[int] = None,
-    number_of_snapshots_fc2: Optional[int] = None,
 ):
     """Generate phelel supercells."""
     if distance is None:
@@ -104,27 +103,11 @@ def _generate_phono3py_supercells(
     else:
         _distance = distance
 
-    phono3py.generate_displacements(
+    phonopy.generate_displacements(
         distance=_distance,
         is_plusminus=is_plusminus,
         is_diagonal=is_diagonal,
         number_of_snapshots=number_of_snapshots,
     )
     click.echo(f"Displacement distance: {_distance}")
-    click.echo(
-        f"Number of displacements: {len(phono3py.supercells_with_displacements)}"
-    )
-
-    if phono3py.phonon_supercell_matrix is not None:
-        # For estimating number of displacements for harmonic phonon
-        if number_of_snapshots_fc2 is None:
-            phono3py.generate_fc2_displacements(
-                distance=distance, is_plusminus="auto", is_diagonal=False
-            )
-        else:
-            phono3py.generate_fc2_displacements(
-                distance=distance,
-                number_of_snapshots=number_of_snapshots_fc2,
-            )
-        n_snapshots = len(phono3py.phonon_supercells_with_displacements)
-        click.echo(f"Number of displacements for phonon: {n_snapshots}")
+    click.echo(f"Number of displacements: {len(phonopy.supercells_with_displacements)}")
