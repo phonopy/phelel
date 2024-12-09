@@ -54,12 +54,12 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
-    "--diagonal/--parallel-to-axes",
+    "--diagonal",
     "diagonal",
     type=bool,
     default=None,
     help=(
-        "Generate displacements only along axes or not."
+        "Generate displacements in diagonal directions or only along axes."
         f"(diagonal: bool, default={VelphInitParams.diagonal})"
     ),
 )
@@ -146,16 +146,17 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
-    "--phonon-max-num-atoms",
-    "phonon_max_num_atoms",
+    "--phono3py-max-num-atoms",
+    "phono3py_max_num_atoms",
     nargs=1,
     default=None,
     type=int,
     help=(
-        "Determine phonon supercell dimension so that number of atoms in supercell "
-        "for phonon is less than this number if different one from electron-phonon "
-        "(phelel) or phonon-phonon (phono3py) is expected. "
-        f"(phonon_max_num_atoms: int, default={VelphInitParams.phonon_max_num_atoms})"
+        "Determine phono3py supercell dimension so that number of atoms in supercell "
+        "for phono3py is less than this number if different dimension from "
+        "that of electron-phonon (phelel) is expected. "
+        "(phono3py_max_num_atoms: int, "
+        f"default={VelphInitParams.phono3py_max_num_atoms})"
     ),
 )
 @click.option(
@@ -245,7 +246,7 @@ def cmd_init(
     max_num_atoms: Optional[int],
     phelel_dir_name: str,
     phelel_nosym: Optional[bool],
-    phonon_max_num_atoms: Optional[int],
+    phono3py_max_num_atoms: Optional[int],
     primitive_cell_choice: Optional[str],
     project_folder: str,
     symmetrize_cell: Optional[bool],
@@ -286,7 +287,7 @@ def cmd_init(
         "magmom": magmom,
         "max_num_atoms": max_num_atoms,
         "phelel_nosym": phelel_nosym,
-        "phonon_max_num_atoms": phonon_max_num_atoms,
+        "phono3py_max_num_atoms": phono3py_max_num_atoms,
         "primitive_cell_choice": primitive_cell_choice,
         "symmetrize_cell": symmetrize_cell,
         "tolerance": tolerance,

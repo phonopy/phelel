@@ -78,13 +78,13 @@ class VelphInitParams:
     cell_for_nac: Optional[CellChoice] = CellChoice.UNSPECIFIED
     cell_for_relax: Optional[CellChoice] = CellChoice.UNSPECIFIED
     find_primitive: Optional[bool] = True
-    diagonal: Optional[bool] = True
+    diagonal: Optional[bool] = False
     plusminus: Optional[bool] = True
     kspacing: Optional[float] = 0.1
     kspacing_dense: Optional[float] = 0.05
     magmom: Optional[str] = None
     max_num_atoms: Optional[int] = None
-    phonon_max_num_atoms: Optional[int] = None
+    phono3py_max_num_atoms: Optional[int] = None
     phelel_nosym: Optional[bool] = False
     primitive_cell_choice: Optional[PrimitiveCellChoice] = (
         PrimitiveCellChoice.STANDARDIZED
