@@ -11,7 +11,7 @@ copyright = "2024, Atsushi Togo"
 author = "Atsushi Togo"
 
 version = "0.6"
-release = "0.6.1"
+release = "0.6.5"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
