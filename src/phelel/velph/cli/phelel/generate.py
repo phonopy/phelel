@@ -9,6 +9,7 @@ from typing import Union
 import click
 import tomli
 from phono3py import Phono3py
+from phonopy import Phonopy
 from phonopy.interface.calculator import write_crystal_structure
 
 import phelel
@@ -47,7 +48,7 @@ def write_supercell_input_files(
 
 
 def write_supercells(
-    phe: Union[Phelel, Phono3py], toml_dict: dict, dir_name: str = "phelel"
+    phe: Union[Phelel, Phonopy, Phono3py], toml_dict: dict, dir_name: str = "phelel"
 ):
     """Write VASP input for supercells.
 
