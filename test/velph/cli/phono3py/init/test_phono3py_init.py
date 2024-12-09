@@ -39,23 +39,13 @@ symbol = "Ti"
 coordinates = [  0.666666666666664,  0.333333333333336,  0.750000000000000 ]
 magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
 
-    toml_dict = tomli.loads(phelel_str + unitcell_str)
-    ph3 = run_init(toml_dict, number_of_snapshots=10)
-    np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([4, 4, 2]))
-    assert len(ph3.supercell) == 64
-    assert ph3.displacements.shape == (10, 64, 3)
-    np.testing.assert_allclose(np.linalg.norm(ph3.displacements, axis=2), distance)
+    for toml_dict in (
+        tomli.loads(phono3py_str + unitcell_str),
+        tomli.loads(phelel_str + phono3py_str + unitcell_str),
+    ):
+        ph3 = run_init(toml_dict, number_of_snapshots=10)
+        np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([2, 2, 1]))
 
-    toml_dict = tomli.loads(phelel_str + phono3py_str + unitcell_str)
-    ph3 = run_init(toml_dict, number_of_snapshots=10, number_of_snapshots_fc2=4)
-    np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([2, 2, 1]))
-    np.testing.assert_array_equal(ph3.phonon_supercell_matrix, np.diag([4, 4, 2]))
-
-    assert len(ph3.supercell) == 8
-    assert ph3.displacements.shape == (10, 8, 3)
-    assert len(ph3.phonon_supercell) == 64
-    assert ph3.phonon_displacements.shape == (4, 64, 3)
-    np.testing.assert_allclose(np.linalg.norm(ph3.displacements, axis=2), distance)
-    np.testing.assert_allclose(
-        np.linalg.norm(ph3.phonon_displacements, axis=2), distance
-    )
+        assert len(ph3.supercell) == 8
+        assert ph3.displacements.shape == (10, 8, 3)
+        np.testing.assert_allclose(np.linalg.norm(ph3.displacements, axis=2), distance)

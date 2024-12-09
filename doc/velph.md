@@ -208,7 +208,7 @@ source /opt/intel/oneapi/setvars.sh --config="/home/togo/.oneapi-config"
 pe = "paris 24"
 
 ...
-[vasp.phono3py.phonon.scheduler]
+[vasp.phonopy.scheduler]
 scheduler_template = '''#!/bin/bash
 #QSUB2 core 192
 #QSUB2 mpi 192

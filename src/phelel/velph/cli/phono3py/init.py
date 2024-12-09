@@ -18,7 +18,6 @@ def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
     number_of_snapshots: Optional[int] = None,
-    number_of_snapshots_fc2: Optional[int] = None,
 ) -> Optional[Phono3py]:
     """Generate displacements and write phono3py_disp.yaml.
 
@@ -26,13 +25,11 @@ def run_init(
         Used for test.
 
     """
+    if "phono3py" not in toml_dict:
+        raise RuntimeError("[phono3py] section not found in toml file.")
+
     convcell = parse_cell_dict(toml_dict["unitcell"])
-    supercell_matrix = toml_dict["phelel"].get("supercell_dimension", None)
-    if "phono3py" in toml_dict:
-        phonon_supercell_matrix = supercell_matrix
-        supercell_matrix = toml_dict["phono3py"].get("supercell_dimension", None)
-    else:
-        phonon_supercell_matrix = None
+    supercell_matrix = toml_dict["phono3py"].get("supercell_dimension", None)
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
         primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
@@ -42,7 +39,7 @@ def run_init(
 
     is_symmetry = True
     try:
-        if toml_dict["phelel"]["nosym"] is True:
+        if toml_dict["phono3py"]["nosym"] is True:
             is_symmetry = False
     except KeyError:
         pass
@@ -50,17 +47,15 @@ def run_init(
     ph3py = Phono3py(
         convcell,
         supercell_matrix=supercell_matrix,
-        phonon_supercell_matrix=phonon_supercell_matrix,
         primitive_matrix=primitive_matrix,
         is_symmetry=is_symmetry,
         calculator="vasp",
     )
 
-    amplitude = toml_dict["phelel"].get("amplitude", None)
-
+    amplitude = toml_dict["phono3py"].get("amplitude", None)
     if number_of_snapshots is None:
-        is_diagonal = toml_dict["phelel"].get("diagonal", True)
-        is_plusminus = toml_dict["phelel"].get("plusminus", "auto")
+        is_diagonal = toml_dict["phono3py"].get("diagonal", True)
+        is_plusminus = toml_dict["phono3py"].get("plusminus", "auto")
     else:
         is_diagonal = False
         is_plusminus = False
@@ -72,7 +67,6 @@ def run_init(
         is_plusminus=is_plusminus,
         is_diagonal=is_diagonal,
         number_of_snapshots=number_of_snapshots,
-        number_of_snapshots_fc2=number_of_snapshots_fc2,
     )
 
     nac_directory = current_directory / "nac"
