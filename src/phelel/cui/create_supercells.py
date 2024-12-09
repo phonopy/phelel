@@ -12,15 +12,17 @@ from phonopy.cui.phonopy_script import store_nac_params
 from phonopy.interface.calculator import write_supercells_with_displacements
 
 from phelel.api_phelel import Phelel
+from phelel.cui.settings import PhelelSettings
+from phelel.interface.phelel_yaml import PhelelYaml
 
 
 def create_phelel_supercells(
-    cell_info,
-    settings,
-    symprec,
-    interface_mode="vasp",
-    load_phelel_yaml=False,
-    log_level=1,
+    cell_info: dict,
+    settings: PhelelSettings,
+    symprec: float,
+    interface_mode: Optional[str] = "vasp",
+    load_phelel_yaml: bool = False,
+    log_level: int = 1,
 ):
     """Create displacements and supercells.
 
@@ -30,7 +32,7 @@ def create_phelel_supercells(
     """
     optional_structure_info = cell_info["optional_structure_info"]
     unitcell_filename = cell_info["optional_structure_info"][0]
-    phe_yml = cell_info["phonopy_yaml"]
+    phe_yml: Optional[PhelelYaml] = cell_info["phonopy_yaml"]
 
     phelel = Phelel(
         cell_info["unitcell"],

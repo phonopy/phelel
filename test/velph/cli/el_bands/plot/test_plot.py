@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from phelel.velph.cli.el_bands.plot import _get_bands_data, _get_dos_data
+from phelel.velph.cli.utils import get_reclat_from_vaspout
 
 cwd = pathlib.Path(__file__).parent
 
@@ -21,9 +22,16 @@ def test_velph_el_bands_plot_TiNiSn():
     assert vaspout_filename_bands.exists()
     f_h5py_bands = h5py.File(vaspout_filename_bands)
     f_h5py_dos = h5py.File(vaspout_filename_dos)
-    distances, eigvals, points, labels_at_points = _get_bands_data(f_h5py_bands)
+    reclat = get_reclat_from_vaspout(f_h5py_bands)
+    distances, eigvals, points, labels_at_points = _get_bands_data(
+        reclat,
+        f_h5py_bands["results/electron_eigenvalues_kpoints_opt"],
+        f_h5py_bands["input/kpoints_opt"],
+    )
     ymin, ymax = 3.575980267703933, 17.575980267703933
-    dos, energies, xmax = _get_dos_data(f_h5py_dos, ymin, ymax)
+    dos, energies, xmax = _get_dos_data(
+        f_h5py_dos["results/electron_dos_kpoints_opt"], ymin, ymax
+    )
 
     assert len(distances) == 306
     assert pytest.approx(distances[100], 1e-5) == 1.421887803385511
