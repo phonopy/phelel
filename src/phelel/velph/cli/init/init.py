@@ -629,9 +629,9 @@ def _get_toml_lines(
         )
         return None
 
-    phonon_supercell_dimension = _get_supercell_dimension(
-        velph_dict.get("phonopy", {}),
-        vip.phonon_max_num_atoms,
+    phono3py_supercell_dimension = _get_supercell_dimension(
+        velph_dict.get("phono3py", {}),
+        vip.phono3py_max_num_atoms,
         sym_dataset,
         vip.find_primitive,
     )
@@ -639,9 +639,9 @@ def _get_toml_lines(
     click.echo("[phelel]")
     _show_supercell_dimension(supercell_dimension)
 
-    if phonon_supercell_dimension is not None:
-        click.echo("[phonopy]")
-        _show_supercell_dimension(phonon_supercell_dimension)
+    if phono3py_supercell_dimension is not None:
+        click.echo("[phono3py]")
+        _show_supercell_dimension(phono3py_supercell_dimension)
 
     (
         kpoints_dict,
@@ -657,7 +657,7 @@ def _get_toml_lines(
         primitive,
         sym_dataset,
         supercell_dimension,
-        phonon_supercell_dimension,
+        phono3py_supercell_dimension,
         cell_choices["nac"],
         cell_choices["relax"],
         phelel_dir_name=phelel_dir_name,
@@ -696,12 +696,12 @@ def _get_toml_lines(
             vip.phelel_nosym,
         )
 
-    # [phonopy]
-    if phonon_supercell_dimension is not None:
-        lines += ["[phonopy]"]
-        lines += _get_supercell_dimension_lines(phonon_supercell_dimension)
+    # [phono3py]
+    if phono3py_supercell_dimension is not None:
+        lines += ["[phono3py]"]
+        lines += _get_supercell_dimension_lines(phono3py_supercell_dimension)
         lines += _get_displacement_settings_lines(
-            velph_dict, "phonopy", vip.amplitude, vip.diagonal, vip.plusminus
+            velph_dict, "phono3py", vip.amplitude, vip.diagonal, vip.plusminus
         )
         lines.append("")
 
@@ -1333,7 +1333,7 @@ def _get_supercell_dimension_lines(
 
 def _get_displacement_settings_lines(
     velph_dict: dict,
-    calc_type: Literal["phelel", "phonopy"],
+    calc_type: Literal["phelel", "phono3py"],
     amplitude: Optional[float],
     diagonal: Optional[bool],
     plusminus: Optional[bool],

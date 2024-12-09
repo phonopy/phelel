@@ -21,4 +21,5 @@ BSD-3-Clause.
 :hidden:
 install
 velph
+changelog
 ```
