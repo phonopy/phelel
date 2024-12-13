@@ -655,7 +655,7 @@ def _get_toml_lines(
         click.echo("", err=True)
         click.echo("Error | Supercell size could not be determined.", err=True)
         click.echo(
-            "      | Specify --max_num_atoms or [phelel.supercell_dimension].",
+            "      | Specify --max-num-atoms or [phelel.supercell_dimension].",
             err=True,
         )
         return None
