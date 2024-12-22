@@ -757,7 +757,7 @@ def _get_toml_lines(
         lines.append(f'spacegroup_type = "{spg_type}"')
         lines.append(f"tolerance = {vip.tolerance}")
         if len(unitcell) != len(primitive):
-            pmat = (np.linalg.inv(unitcell.cell) @ primitive.cell).T
+            pmat = (primitive.cell @ np.linalg.inv(unitcell.cell)).T
             lines.append("primitive_matrix = [")
             for v in pmat:
                 lines.append(f"  [ {v[0]:18.15f}, {v[1]:18.15f}, {v[2]:18.15f} ],")
