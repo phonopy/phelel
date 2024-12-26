@@ -158,8 +158,7 @@ def _find_elph_nbands(current_directory: pathlib.Path, energy_threshold: float) 
 def _estimate_elph_nbands(
     vaspout_path: pathlib.Path,
     energy_threshold: float = 0.5,
-    occupation_condition: float = 1e-5,
-    unoccupation_condition: float = 1e-10,
+    occupation_condition: float = 1e-10,
 ) -> Optional[int]:
     """Estimate elph_nbands from eigenvalues in electronic DOS calculation.
 
@@ -172,9 +171,6 @@ def _estimate_elph_nbands(
     occupation_condition : float
         Condition to determine either if bands are occupied or not. This value
         is used as occupation_number > occupation_condition. Default is 1e-5.
-    unoccupation_condition : float
-        Condition to determine either if bands are unoccupied or not. This value
-        is used as occupation_number < unoccupation_condition. Default is 1e-10.
 
     Returns
     -------
@@ -193,7 +189,7 @@ def _estimate_elph_nbands(
     nbands = eigenvalues.shape[2]
     unoccupied_band_index = None
     for i in range(nbands):
-        if (occupations[:, :, i] < unoccupation_condition).all():
+        if (occupations[:, :, i] < occupation_condition).all():
             unoccupied_band_index = i
             break
     if unoccupied_band_index is None:
@@ -201,10 +197,11 @@ def _estimate_elph_nbands(
 
     occupied_eigvals = np.sort(
         np.extract(
-            occupations[:, :, unoccupied_band_index - 1] > occupation_condition,
+            occupations[:, :, unoccupied_band_index - 1] > occupation_condition * 0.9,
             eigenvalues[:, :, unoccupied_band_index - 1],
         )
     )
+
     max_occupied_eigval = np.max(occupied_eigvals)
 
     for band_index in range(unoccupied_band_index, nbands):
