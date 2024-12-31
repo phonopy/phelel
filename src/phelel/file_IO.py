@@ -10,7 +10,7 @@ from typing import Optional, Union
 import h5py
 import numpy as np
 from phonopy.structure.atoms import PhonopyAtoms, atom_data
-from phonopy.structure.cells import Primitive
+from phonopy.structure.cells import Primitive, dense_to_sparse_svecs
 from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.Dij_qij import DDijQij
@@ -244,7 +244,7 @@ def _add_datasets(
         w.create_dataset(
             "primitive_masses", data=np.array(primitive.masses, dtype="double")
         )
-        p2s_vectors, p2s_multiplicities = primitive.get_smallest_vectors()
+        p2s_vectors, p2s_multiplicities = _get_smallest_vectors(primitive)
         w.create_dataset("p2s_map", data=np.array(primitive.p2s_map, dtype="int_"))
         w.create_dataset("s2p_map", data=np.array(primitive.s2p_map, dtype="int_"))
         w.create_dataset("shortest_vectors", data=np.array(p2s_vectors, dtype="double"))
@@ -308,7 +308,7 @@ def _add_datasets(
             data=np.array(phonon_supercell_matrix, dtype="int_", order="C"),
         )
     if phonon_primitive is not None:
-        p2s_vectors, p2s_multiplicities = phonon_primitive.get_smallest_vectors()
+        p2s_vectors, p2s_multiplicities = _get_smallest_vectors(phonon_primitive)
         w.create_dataset(
             "phonon_p2s_map", data=np.array(phonon_primitive.p2s_map, dtype="int_")
         )
@@ -375,3 +375,11 @@ def _add_datasets(
                 data=int(symmetry_dataset.uni_number),
                 dtype="int_",
             )
+
+
+def _get_smallest_vectors(primitive: Primitive) -> tuple[np.ndarray, np.ndarray]:
+    """Get smallest vectors."""
+    svecs, multi = primitive.get_smallest_vectors()
+    if primitive.store_dense_svecs:
+        svecs, multi = dense_to_sparse_svecs(svecs, multi)
+    return svecs, multi

@@ -12,6 +12,7 @@ authors = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "phonopy >= 2.33.4",
     "phono3py >= 3.6.0",
     "finufft",
     "click",
