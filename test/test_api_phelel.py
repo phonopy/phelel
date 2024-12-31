@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 
 from phelel import Phelel
-from phelel.file_IO import read_phelel_params_hdf5
+from phelel.file_IO import _get_smallest_vectors, read_phelel_params_hdf5
 from phelel.utils.data import cmplx2real
 
 cwd = pathlib.Path(__file__).parent
@@ -62,7 +62,7 @@ def _compare(filename: pathlib.Path, phe: Phelel):
             shortest_vectors_ref = f["shortest_vectors"][:]
             multiplicities_ref = f["shortest_vector_multiplicities"][:]
 
-            shortest_vectors, multiplicities = phe.primitive.get_smallest_vectors()
+            shortest_vectors, multiplicities = _get_smallest_vectors(phe.primitive)
             np.testing.assert_array_equal(
                 shortest_vectors.shape, shortest_vectors_ref.shape
             )
