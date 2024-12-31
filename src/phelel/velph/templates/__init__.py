@@ -73,9 +73,6 @@ default_template_dict: dict[str, Any] = {
                 "elph_selfen_dw": True,
                 "elph_selfen_delta": 0.01,
                 "elph_selfen_temps": [300],
-                "elph_wf_cache_mb": 1000,
-                "elph_wf_cache_prefill": True,
-                "elph_wf_redistribute": True,
                 "elph_nbands": 100,
                 "elph_nbands_sum": [50, 100],
                 "elph_selfen_gaps": True,
@@ -85,7 +82,7 @@ default_template_dict: dict[str, Any] = {
         },
         "transport": {
             "incar": {
-                "elph_fermi_nedos": 5001,
+                "elph_fermi_nedos": 501,
                 "elph_ismear": -24,
                 "elph_mode": "transport",
                 "elph_selfen_carrier_den": 0.0,
@@ -144,9 +141,6 @@ default_template_dict: dict[str, Any] = {
                     1400,
                 ],
                 "elph_transport_nedos": 501,
-                "elph_wf_redistribute": True,
-                "elph_wf_redistribute_opt": 0,
-                "elph_wf_comm_opt": 0,
             },
         },
         "el_bands": {
