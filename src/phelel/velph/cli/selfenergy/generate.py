@@ -37,7 +37,7 @@ def write_selfenergy_input_files(
     current_directory : Path
         Used for test.
     energy_threshold : float
-        Energy threshold (gap) to estimate elph_nbands used for
+        Energy threshold (gap) to estimate elph_selfen_band_stop used for
         calc_type="transport".
 
     """
@@ -83,13 +83,13 @@ def write_selfenergy_input_files(
         toml_incar_dict["nelm"] = 0
         toml_incar_dict["elph_run"] = False
 
-    # Automatic elph_nbands setting for transport.
+    # Automatic elph_selfen_band_stop setting for transport.
     if calc_type == "transport":
-        # Here toml_incar_dict is updated for setting elph_nbands
-        band_index = _find_elph_nbands(current_directory, energy_threshold)
+        # Here toml_incar_dict is updated for setting elph_selfen_band_stop
+        band_index = _find_elph_selfen_band_stop(current_directory, energy_threshold)
         if band_index is not None:
-            click.echo(f'  "elph_nbands={band_index + 1}" in INCAR is set.')
-            toml_incar_dict["elph_nbands"] = band_index + 1
+            click.echo(f'  "elph_selfen_band_stop={band_index + 1}" in INCAR is set.')
+            toml_incar_dict["elph_selfen_band_stop"] = band_index + 1
 
     # POSCAR
     primitive = parse_cell_dict(toml_dict["primitive_cell"])
@@ -137,17 +137,19 @@ def write_selfenergy_input_files(
     click.echo(f'VASP input files were generated in "{directory_path}".')
 
 
-def _find_elph_nbands(current_directory: pathlib.Path, energy_threshold: float) -> int:
+def _find_elph_selfen_band_stop(
+    current_directory: pathlib.Path, energy_threshold: float
+) -> int:
     dos_directory = current_directory / "el_bands" / "dos"
     if dos_directory.exists():
-        click.echo('Found "el_bands/dos" directory. Estimate elph_nbands.')
+        click.echo('Found "el_bands/dos" directory. Estimate elph_selfen_band_stop.')
         vaspout_path = dos_directory / "vaspout.h5"
         if vaspout_path.exists():
-            possiblly_occupied_band_index = _estimate_elph_nbands(
+            possiblly_occupied_band_index = _estimate_elph_selfen_band_stop(
                 vaspout_path, energy_threshold=energy_threshold
             )
             if possiblly_occupied_band_index is None:
-                click.echo("Estimation of elph_nbands failed.")
+                click.echo("Estimation of elph_selfen_band_stop failed.")
                 return None
             return possiblly_occupied_band_index
         else:
@@ -155,19 +157,20 @@ def _find_elph_nbands(current_directory: pathlib.Path, energy_threshold: float) 
             return None
 
 
-def _estimate_elph_nbands(
+def _estimate_elph_selfen_band_stop(
     vaspout_path: pathlib.Path,
     energy_threshold: float = 0.5,
     occupation_condition: float = 1e-10,
 ) -> Optional[int]:
-    """Estimate elph_nbands from eigenvalues in electronic DOS calculation.
+    """Estimate elph_selfen_band_stop from eigenvalues in el-DOS result.
 
     Parameters
     ----------
     vaspout_path : pathlib.Path
         "vaspout.h5" path.
     energy_threshold : float
-        Energy threshold (gap) in eV to estimate elph_nbands. Default is 0.5 eV.
+        Energy threshold (gap) in eV to estimate elph_selfen_band_stop. Default
+        is 0.5 eV.
     occupation_condition : float
         Condition to determine either if bands are occupied or not. This value
         is used as occupation_number > occupation_condition. Default is 1e-5.
