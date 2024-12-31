@@ -84,6 +84,7 @@ class VelphInitParams:
     kspacing_dense: Optional[float] = 0.05
     magmom: Optional[str] = None
     max_num_atoms: Optional[int] = None
+    phonopy_max_num_atoms: Optional[int] = None
     phono3py_max_num_atoms: Optional[int] = None
     phelel_nosym: Optional[bool] = False
     primitive_cell_choice: Optional[PrimitiveCellChoice] = (

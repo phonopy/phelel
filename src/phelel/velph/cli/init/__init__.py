@@ -146,6 +146,20 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
+    "--phonopy-max-num-atoms",
+    "phonopy_max_num_atoms",
+    nargs=1,
+    default=None,
+    type=int,
+    help=(
+        "Determine phonopy supercell dimension so that number of atoms in supercell "
+        "for phonopy is less than this number if different dimension from "
+        "that of electron-phonon (phelel) is expected. "
+        "(phonopy_max_num_atoms: int, "
+        f"default={VelphInitParams.phono3py_max_num_atoms})"
+    ),
+)
+@click.option(
     "--phono3py-max-num-atoms",
     "phono3py_max_num_atoms",
     nargs=1,
@@ -246,6 +260,7 @@ def cmd_init(
     max_num_atoms: Optional[int],
     phelel_dir_name: str,
     phelel_nosym: Optional[bool],
+    phonopy_max_num_atoms: Optional[int],
     phono3py_max_num_atoms: Optional[int],
     primitive_cell_choice: Optional[str],
     project_folder: str,
@@ -287,6 +302,7 @@ def cmd_init(
         "magmom": magmom,
         "max_num_atoms": max_num_atoms,
         "phelel_nosym": phelel_nosym,
+        "phonopy_max_num_atoms": phonopy_max_num_atoms,
         "phono3py_max_num_atoms": phono3py_max_num_atoms,
         "primitive_cell_choice": primitive_cell_choice,
         "symmetrize_cell": symmetrize_cell,

@@ -1,14 +1,14 @@
-"""Tests velph-phono3py-init."""
+"""Tests velph-phonopy-init."""
 
 import numpy as np
 import pytest
 import tomli
 
-from phelel.velph.cli.phono3py.init import run_init
+from phelel.velph.cli.phonopy.init import run_init
 
 
 @pytest.mark.parametrize("distance", [0.03, 0.05])
-def test_phono3py_init_random_displacements(distance: float):
+def test_phonopy_init_random_displacements(distance: float):
     """Test of plusminus and diagonal with Ti."""
     phelel_str = f"""title = "VASP el-ph settings"
 
@@ -18,7 +18,7 @@ amplitude = {distance}
 fft_mesh = [18, 18, 28]
 """
 
-    phono3py_str = f"""[phono3py]
+    phonopy_str = f"""[phonopy]
 supercell_dimension = [2, 2, 1]
 amplitude = {distance}
 """
@@ -40,12 +40,12 @@ coordinates = [  0.666666666666664,  0.333333333333336,  0.750000000000000 ]
 magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
 
     for toml_dict in (
-        tomli.loads(phono3py_str + unitcell_str),
-        tomli.loads(phelel_str + phono3py_str + unitcell_str),
+        tomli.loads(phonopy_str + unitcell_str),
+        tomli.loads(phelel_str + phonopy_str + unitcell_str),
     ):
-        ph3 = run_init(toml_dict, number_of_snapshots=10)
-        np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([2, 2, 1]))
+        ph = run_init(toml_dict, number_of_snapshots=10)
+        np.testing.assert_array_equal(ph.supercell_matrix, np.diag([2, 2, 1]))
 
-        assert len(ph3.supercell) == 8
-        assert ph3.displacements.shape == (10, 8, 3)
-        np.testing.assert_allclose(np.linalg.norm(ph3.displacements, axis=2), distance)
+        assert len(ph.supercell) == 8
+        assert ph.displacements.shape == (10, 8, 3)
+        np.testing.assert_allclose(np.linalg.norm(ph.displacements, axis=2), distance)
