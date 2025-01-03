@@ -10,7 +10,7 @@ Note that this code couples with VASP code, and the electron-phonon interaction
 properties can not be computed only using this code.
 
 Phelel user documentation is found at
-http://phonopy.github.io/phelel/
+https://phonopy.github.io/phelel/
 
 ## Installation
 
