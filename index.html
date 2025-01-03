@@ -287,6 +287,12 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#workflow-of-electron-phonon-interaction-calculation">Workflow of electron-phonon interaction calculation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-tools">Command-line tools</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#phelel-and-phelel-load"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">phelel-load</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph"><code class="docutils literal notranslate"><span class="pre">velph</span></code></a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#license">License</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contributors">Contributors</a></li>
 </ul>
@@ -304,10 +310,67 @@
 <h1>Phelel<a class="headerlink" href="#phelel" title="Link to this heading">#</a></h1>
 <p>A code that provides a few computations related to electron-phonon interaction
 calculation in finite-displacement method reported by</p>
-<p>Laurent Chaput, Atsushi Togo, and Isao Tanaka, Phys. Rev. B <strong>100</strong>, 174304
-(2019).</p>
-<p>Note that this code couples with VASP code, and the electron-phonon interaction
-properties can not be computed only using this code.</p>
+<ul class="simple">
+<li><p>Laurent Chaput, Atsushi Togo, and Isao Tanaka, Phys. Rev. B <strong>100</strong>, 174304
+(2019).</p></li>
+<li><p>Manuel Engel, Henrique Miranda, Laurent Chaput, Atsushi Togo, Carla Verdi,
+Martijn Marsman, and Georg Kresse, Phys. Rev. B <strong>106</strong>, 094316 (2022)</p></li>
+</ul>
+<p>This code couples with VASP code, and the electron-phonon interaction properties
+cannot be computed only using this code.</p>
+<p>Properties calculated using phelel and VASP codes:</p>
+<ul class="simple">
+<li><p>Thermoelectric properties</p></li>
+<li><p>Bandgap renormalization</p></li>
+</ul>
+<section id="workflow-of-electron-phonon-interaction-calculation">
+<span id="phelel-workflow"></span><h2>Workflow of electron-phonon interaction calculation<a class="headerlink" href="#workflow-of-electron-phonon-interaction-calculation" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>(Phelel) Generate supercell structures with atomic displacements from a given unit cell</p></li>
+<li><p>(VASP) Run VASP calculations for the supercell structures to obtain local
+potentials and PAW strengths under atomic displacements</p></li>
+<li><p>(Phelel) Collect VASP results and computer derivatives of local potentials and PAW
+strengths with respect to atomic displacements</p></li>
+<li><p>(VASP) Run VASP with derivatives of local potentials and PAW strengths to
+calculate electron-phonon interaction strengths and related properties, e.g.,</p>
+<ul class="simple">
+<li><p>Electrical conductivity</p></li>
+<li><p>Seebeck coefficient</p></li>
+<li><p>Electrical thermal conductivity</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="command-line-tools">
+<h2>Command-line tools<a class="headerlink" href="#command-line-tools" title="Link to this heading">#</a></h2>
+<section id="phelel-and-phelel-load">
+<h3><code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">phelel-load</span></code><a class="headerlink" href="#phelel-and-phelel-load" title="Link to this heading">#</a></h3>
+<p>These command-line tools are used to perform the steps 1 and 3 in
+<a class="reference internal" href="#phelel-workflow"><span class="std std-ref">Workflow of electron-phonon interaction calculation</span></a>. Usage of <code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">phelel-load</span></code> commands are similar
+to <code class="docutils literal notranslate"><span class="pre">phonopy</span></code> and <code class="docutils literal notranslate"><span class="pre">phonopy-load</span></code> commands in
+<a class="reference external" href="https://phonopy.github.io/phonopy/">phonopy</a> code for phonon calculation.</p>
+</section>
+<section id="velph">
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span></code><a class="headerlink" href="#velph" title="Link to this heading">#</a></h3>
+<p>(see <a class="reference internal" href="velph.html#velph-command"><span class="std std-ref">velph command</span></a>)</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command organizes the <a class="reference internal" href="#phelel-workflow"><span class="std std-ref">Workflow of electron-phonon interaction calculation</span></a> by running its
+sub-commands in a specific sequence. These <code class="docutils literal notranslate"><span class="pre">velph</span></code> sub-commands can perform the
+following operations:</p>
+<ul class="simple">
+<li><p>Execute <code class="docutils literal notranslate"><span class="pre">phelel</span></code>.</p></li>
+<li><p>Generate VASP input files for the following calculations (required for the
+subsequent electron-phonon interaction calculation):</p>
+<ul>
+<li><p>Dielectric constant</p></li>
+<li><p>Born effective charges</p></li>
+<li><p>Electronic band structure and density of states</p></li>
+</ul>
+</li>
+<li><p>Generate VASP input files for phonon and lattice thermal conductivity
+calculations using phonopy and phono3py.</p></li>
+</ul>
+</section>
+</section>
 <section id="license">
 <h2>License<a class="headerlink" href="#license" title="Link to this heading">#</a></h2>
 <p>BSD-3-Clause.</p>
@@ -359,6 +422,12 @@ properties can not be computed only using this code.</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#workflow-of-electron-phonon-interaction-calculation">Workflow of electron-phonon interaction calculation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-tools">Command-line tools</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#phelel-and-phelel-load"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">phelel-load</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph"><code class="docutils literal notranslate"><span class="pre">velph</span></code></a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#license">License</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#contributors">Contributors</a></li>
 </ul>

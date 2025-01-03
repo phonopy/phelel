@@ -1,3 +1,4 @@
+(velph_command)=
 # velph command
 
 The `velph` command is a convenient tool to systematically perform
