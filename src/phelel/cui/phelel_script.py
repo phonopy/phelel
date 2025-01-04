@@ -250,9 +250,7 @@ def main(**argparse_control):
                 phe_yml.read(filename)
 
             phelel.dataset = phe_yml.dataset
-            if phe_yml.phonon_dataset is None:
-                phelel.phonon_dataset = phe_yml.dataset
-            else:
+            if phe_yml.phonon_dataset is not None:
                 phelel.phonon_dataset = phe_yml.phonon_dataset
 
             if pathlib.Path("BORN").exists() or phe_yml.nac_params:

@@ -3,11 +3,19 @@
 A code that provides a few computations related to electron-phonon interaction
 calculation in finite-displacement method reported by
 
-Laurent Chaput, Atsushi Togo, and Isao Tanaka, Phys. Rev. B **100**, 174304
+- Laurent Chaput, Atsushi Togo, and Isao Tanaka, Phys. Rev. B **100**, 174304
 (2019).
+- Manuel Engel, Henrique Miranda, Laurent Chaput, Atsushi Togo, Carla Verdi,
+  Martijn Marsman, and Georg Kresse, Phys. Rev. B **106**, 094316 (2022)
 
-Note that this code couples with VASP code, and the electron-phonon interaction
-properties can not be computed only using this code.
+This code couples with VASP code, and the electron-phonon interaction properties
+cannot be computed only using this code.
+
+Properties calculated using phelel and VASP codes:
+
+- Thermoelectric properties
+- Bandgap renormalization
+
 
 ## License
 
@@ -20,6 +28,8 @@ BSD-3-Clause.
 ```{toctree}
 :hidden:
 install
-velph
+workflow
+phelel-command
+velph-command
 changelog
 ```
