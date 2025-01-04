@@ -277,7 +277,7 @@ class DDijQijFit:
         else:
             atoms = self._atom_indices_in
         self._atom_indices = np.array(
-            [i for i in atoms if i in equiv_atoms], dtype="int_"
+            [i for i in atoms if i in equiv_atoms], dtype="long"
         )
         sitesym_selected_indices = [
             i for i, eq_atom in enumerate(equiv_atoms) if eq_atom in self._atom_indices
@@ -451,7 +451,7 @@ class DDijQij:
         np.unique(atom_indices given at __init__). If None, all atoms in
         supercell.
         shape=(len(atom_indices),)
-        dtype='int_'
+        dtype='long'
 
     """
 
@@ -482,9 +482,9 @@ class DDijQij:
         self._verbose = verbose
 
         if atom_indices is None:
-            self.atom_indices = np.arange(len(self._supercell), dtype="int_")
+            self.atom_indices = np.arange(len(self._supercell), dtype="long")
         else:
-            self.atom_indices = np.array(np.unique(atom_indices), dtype="int_")
+            self.atom_indices = np.array(np.unique(atom_indices), dtype="long")
         if symmetry is None:
             self.symmetry = Symmetry(supercell)
         else:

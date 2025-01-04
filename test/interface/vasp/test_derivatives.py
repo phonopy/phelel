@@ -23,7 +23,7 @@ def test_read_forces_from_vasprunxmls_NaCl111(phelel_empty_NaCl111: Phelel):
     ]
     forces = read_forces_from_vasprunxmls(
         filenames,
-        phe.phonon,
+        phe.supercell,
         subtract_rfs=True,
         log_level=0,
     )
@@ -103,5 +103,4 @@ def _get_phelel_C111(phelel_yaml_filename: str) -> Phelel:
         log_level=1,
     )
     phelel.dataset = phe_yml.dataset
-    phelel.phonon.dataset = phe_yml.dataset
     return phelel
