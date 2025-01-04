@@ -2,7 +2,7 @@
 # phelel command
 
 Command-line tools perform steps 1 and 3 in {ref}`the el-ph calculation
-workflow <workflow>`. Their usage parallels that of the `phonopy`
+workflow <workflow_minimal>`. Their usage parallels that of the `phonopy`
 command in [phonopy](https://phonopy.github.io/phonopy/) for
 phonon calculations.
 
