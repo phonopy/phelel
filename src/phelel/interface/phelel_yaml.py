@@ -189,7 +189,8 @@ class PhelelYamlDumper(PhonopyYamlDumper):
         This method override PhonopyYaml._nac_yaml_lines.
 
         """
-        assert isclose(self._data.primitive, self._data.phonon_primitive)
+        if self._data.phonon_primitive is not None:
+            assert isclose(self._data.primitive, self._data.phonon_primitive)
         return super()._nac_yaml_lines()
 
     def _displacements_yaml_lines(self, with_forces=False):

@@ -1,0 +1,85 @@
+[init.options]
+max_num_atoms = 600
+phono3py_max_num_atoms = 100
+
+[vasp.incar]
+encut = 400
+ncore = 4
+gga = "PS"
+
+[vasp.relax.kpoints]
+mesh = [8, 8, 8]
+shift = [0.5, 0.5, 0.5]
+
+[vasp.nac.kpoints]
+mesh = [16, 16, 16]
+
+[vasp.el_bands.kpoints]
+mesh = [16, 16, 16]
+[vasp.el_bands.kpoints_opt]
+line = 51
+[vasp.el_bands.kpoints_dense]
+mesh = [32, 32, 32]
+
+[vasp.phelel.incar]
+kpar = 2
+ediff = 1e-7
+ncore = 8
+[vasp.phelel.kpoints]
+mesh = [2, 2, 2]
+shift = [0.5, 0.5, 0.5]
+[vasp.phelel.scheduler]
+scheduler_name = "custom"
+scheduler_template = '''#!/bin/bash
+#QSUB2 core 192
+#QSUB2 mpi 192
+#QSUB2 smp 1
+#QSUB2 wtime 48:00:00
+#PBS -N {job_name}
+cd $PBS_O_WORKDIR
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+'''
+job_name = "PbTe"
+mpirun_command = "mpijob"
+vasp_binary = "/home/togo/src/vasp-tmp1-atztogo/bin/vasp_std"
+prepend_text = '''
+. /etc/profile.d/modules.sh
+module load comp3h
+module load hdf5/1.14.3-inteloneapi22u3
+'''
+append_text = ""
+
+[vasp.phono3py.incar]
+kpar = 2
+addgrid = true
+[vasp.phono3py.kpoints]
+mesh = [4, 4, 4]
+shift = [0.5, 0.5, 0.5]
+[vasp.phono3py.scheduler]
+pe = "mpi* 48"
+
+[vasp.phono3py.phonon.incar]
+kpar = 2
+addgrid = true
+[vasp.phono3py.phonon.kpoints]
+mesh = [2, 2, 2]
+shift = [0.5, 0.5, 0.5]
+
+[vasp.transport.incar]
+kpar = 6
+[vasp.transport.scheduler]
+pe = "mpi* 144"
+
+[scheduler]
+scheduler_name = "sge"
+job_name = "PbTe"
+mpirun_command = "mpirun"
+vasp_binary = "/home/togo/phelel/vasp-tmp1-atztogo/bin/vasp_std"
+pe = "vienna 32"
+prepend_text = '''
+source /opt/intel/oneapi/setvars.sh --config="/home/togo/.oneapi-config"
+'''
+append_text = ""
