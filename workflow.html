@@ -265,7 +265,9 @@
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
 </button>
-
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
 </div></div>
       
     </div>
@@ -281,6 +283,15 @@
     <div id="print-main-content">
         <div id="jb-print-toc">
             
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#minimal-calculation-steps">Minimal calculation steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#additional-steps-optional">Additional steps (Optional)</a></li>
+</ul>
+            </nav>
         </div>
     </div>
 </div>
@@ -290,16 +301,25 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="workflow-of-el-ph-calculation">
+  <section class="tex2jax_ignore mathjax_ignore" id="workflow-of-el-ph-calculation">
 <span id="workflow"></span><h1>Workflow of el-ph calculation<a class="headerlink" href="#workflow-of-el-ph-calculation" title="Link to this heading">#</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To perform the workflow for electron-phonon related properties (including
+thermoelectric properties), <a class="reference internal" href="velph-command.html#velph-command"><span class="std std-ref">velph command</span></a> can be particularly helpful in
+managing the required calculations. For instance, it can generate VASP inputs
+for supercells with displacements as well as the parameters needed to
+incorporate the long-range dipole contribution in electron-phonon interactions.
+Additionally, it enables monitoring of both electronic and phonon band
+structures.</p>
+</div>
+<section id="minimal-calculation-steps">
+<h2>Minimal calculation steps<a class="headerlink" href="#minimal-calculation-steps" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p>(Phelel) Generate supercell structures with atomic displacements from a given unit cell</p></li>
-<li><p>(VASP) Run VASP calculations for the supercell structures to obtain local
-potentials and PAW strengths under atomic displacements</p></li>
-<li><p>(Phelel) Collect VASP results and computer derivatives of local potentials and PAW
-strengths with respect to atomic displacements</p></li>
-<li><p>(VASP) Run VASP with derivatives of local potentials and PAW strengths to
-calculate electron-phonon interaction strengths and related properties, e.g.,</p>
+<li><p><strong>(Phelel)</strong> Generate supercell structures with atomic displacements based on the initial unit cell.</p></li>
+<li><p><strong>(VASP)</strong> Perform calculations on these supercell structures to obtain local potentials and PAW strengths under the applied atomic displacements.</p></li>
+<li><p><strong>(Phelel)</strong> Gather VASP results and compute derivatives of the local potentials and PAW strengths with respect to the atomic displacements.</p></li>
+<li><p><strong>(VASP)</strong> Use these derived quantities to calculate electron–phonon interaction strengths and related properties, such as:</p>
 <ul class="simple">
 <li><p>Electrical conductivity</p></li>
 <li><p>Seebeck coefficient</p></li>
@@ -307,6 +327,21 @@ calculate electron-phonon interaction strengths and related properties, e.g.,</p
 </ul>
 </li>
 </ol>
+</section>
+<section id="additional-steps-optional">
+<h2>Additional steps (Optional)<a class="headerlink" href="#additional-steps-optional" title="Link to this heading">#</a></h2>
+<p><strong>Before step 4</strong></p>
+<ul class="simple">
+<li><p>Electronic band structure and density of states calculations</p></li>
+<li><p>Dielectric constant and Born effective charge calculations</p></li>
+<li><p>Phonon band structure calculations</p></li>
+</ul>
+<p><strong>After step 4</strong></p>
+<ul class="simple">
+<li><p>Lattice thermal conductivity calculations needed to compute the thermoelectric
+figure of merit</p></li>
+</ul>
+</section>
 </section>
 
 
@@ -344,6 +379,23 @@ calculate electron-phonon interaction strengths and related properties, e.g.,</p
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#minimal-calculation-steps">Minimal calculation steps</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#additional-steps-optional">Additional steps (Optional)</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>
