@@ -300,6 +300,8 @@ class Phelel:
     @nac_params.setter
     def nac_params(self, nac_params: dict):
         self._phelel_phonon.nac_params = nac_params
+        if self._phonon is not None:
+            self._phonon.nac_params = nac_params
 
     @property
     def force_constants(self) -> Optional[np.ndarray]:
@@ -319,11 +321,18 @@ class Phelel:
     @property
     def forces(self) -> np.ndarray:
         """Setter and getter of forces of supercells."""
-        return self._phelel_phonon.forces
+        if self._phonon is None:
+            return self._phelel_phonon.forces
+        else:
+            return self._phonon.forces
 
     @forces.setter
     def forces(self, forces: Union[Sequence, np.ndarray]):
-        self._phelel_phonon.forces = np.array(forces, dtype="double", order="C")
+        _forces = np.array(forces, dtype="double", order="C")
+        if self._phonon is None:
+            self._phelel_phonon.forces = _forces
+        else:
+            self._phonon.forces = _forces
 
     @property
     def unit_conversion_factor(self) -> float:
@@ -391,11 +400,7 @@ class Phelel:
             Phonopy.generate_displacements.
 
         """
-        ph = self._get_phonopy(
-            self._phelel_phonon.supercell_matrix, self._phelel_phonon.primitive_matrix
-        )
-        ph.dataset = self._phelel_phonon.dataset
-        return ph.supercells_with_displacements
+        return self._phelel_phonon.supercells_with_displacements
 
     @property
     def phonon_supercells_with_displacements(self) -> Optional[list[PhonopyAtoms]]:
@@ -418,13 +423,9 @@ class Phelel:
         is_diagonal=True,
     ):
         """Generate displacement dataset."""
-        ph = self._get_phonopy(
-            self._phelel_phonon.supercell_matrix, self._phelel_phonon.primitive_matrix
-        )
-        ph.generate_displacements(
+        self._phelel_phonon.generate_displacements(
             distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
         )
-        self._phelel_phonon.dataset = ph.dataset
 
     def run_derivatives(self, phe_input: PhelelDataset):
         """Run displacement derivatives calculations from temporary raw data.
@@ -517,30 +518,23 @@ class Phelel:
         show_drift: bool = True,
     ):
         """Initialize phonon calculation."""
-        if self._phonon is not None:
-            if dataset is not None:
-                self._phonon.dataset = dataset
-            if forces is not None:
-                self._phonon.forces = forces
-                self._phonon.produce_force_constants(
-                    calculate_full_force_constants=calculate_full_force_constants,
-                    fc_calculator=fc_calculator,
-                    fc_calculator_options=fc_calculator_options,
-                    show_drift=show_drift,
-                )
-            elif force_constants is not None:
-                self._phonon.force_constants = force_constants
+        if self._phonon is None:
+            ph = self._phelel_phonon
         else:
-            if forces is not None:
-                self._phelel_phonon.forces = forces
-                self._phelel_phonon.produce_force_constants(
-                    calculate_full_force_constants=calculate_full_force_constants,
-                    fc_calculator=fc_calculator,
-                    fc_calculator_options=fc_calculator_options,
-                    show_drift=show_drift,
-                )
-            elif force_constants is not None:
-                self._phelel_phonon.force_constants = force_constants
+            ph = self._phonon
+        if dataset is not None:
+            ph.dataset = dataset
+        if forces is not None:
+            ph.forces = forces
+        if ph.forces is not None:
+            ph.produce_force_constants(
+                calculate_full_force_constants=calculate_full_force_constants,
+                fc_calculator=fc_calculator,
+                fc_calculator_options=fc_calculator_options,
+                show_drift=show_drift,
+            )
+        elif force_constants is not None:
+            ph.force_constants = force_constants
 
     def _get_phonopy(
         self,
