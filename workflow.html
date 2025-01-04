@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Installation &#8212; Phelel v.0.7.0</title>
+    <title>Workflow of el-ph calculation &#8212; Phelel v.0.7.0</title>
   
   
   
@@ -43,11 +43,11 @@
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'install';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'workflow';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Workflow of el-ph calculation" href="workflow.html" />
-    <link rel="prev" title="Phelel" href="index.html" />
+    <link rel="next" title="phelel command" href="phelel-command.html" />
+    <link rel="prev" title="Installation" href="install.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.7" />
@@ -138,8 +138,8 @@
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         <ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Workflow of el-ph calculation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="phelel-command.html">phelel command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-command.html">velph command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
@@ -202,7 +202,7 @@
       
       
       
-      <li><a href="_sources/install.md" target="_blank"
+      <li><a href="_sources/workflow.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -265,9 +265,7 @@
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
 </button>
-<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="fa-solid fa-list"></span>
-</button>
+
 </div></div>
       
     </div>
@@ -278,20 +276,11 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Installation</h1>
+    <h1>Workflow of el-ph calculation</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
             
-            <div>
-                <h2> Contents </h2>
-            </div>
-            <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#requirement">Requirement</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation-from-source-code">Installation from source code</a></li>
-</ul>
-            </nav>
         </div>
     </div>
 </div>
@@ -301,40 +290,23 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h1>
-<section id="requirement">
-<h2>Requirement<a class="headerlink" href="#requirement" title="Link to this heading">#</a></h2>
+  <section id="workflow-of-el-ph-calculation">
+<span id="workflow"></span><h1>Workflow of el-ph calculation<a class="headerlink" href="#workflow-of-el-ph-calculation" title="Link to this heading">#</a></h1>
+<ol class="arabic simple">
+<li><p>(Phelel) Generate supercell structures with atomic displacements from a given unit cell</p></li>
+<li><p>(VASP) Run VASP calculations for the supercell structures to obtain local
+potentials and PAW strengths under atomic displacements</p></li>
+<li><p>(Phelel) Collect VASP results and computer derivatives of local potentials and PAW
+strengths with respect to atomic displacements</p></li>
+<li><p>(VASP) Run VASP with derivatives of local potentials and PAW strengths to
+calculate electron-phonon interaction strengths and related properties, e.g.,</p>
 <ul class="simple">
-<li><p>phonopy</p></li>
-<li><p>phono3py</p></li>
-<li><p>spglib</p></li>
-<li><p>finufft</p></li>
-<li><p>click</p></li>
-<li><p>tomli</p></li>
-<li><p>tomli-w</p></li>
-<li><p>seekpath (optional)</p></li>
+<li><p>Electrical conductivity</p></li>
+<li><p>Seebeck coefficient</p></li>
+<li><p>Electrical thermal conductivity</p></li>
 </ul>
-</section>
-<section id="installation-from-source-code">
-<h2>Installation from source code<a class="headerlink" href="#installation-from-source-code" title="Link to this heading">#</a></h2>
-<p>A simplest installation using conda-forge packages:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">conda</span> <span class="n">create</span> <span class="o">-</span><span class="n">n</span> <span class="n">phelel</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span>
-<span class="o">%</span> <span class="n">conda</span> <span class="n">activate</span> <span class="n">phelel</span>
-<span class="o">%</span> <span class="n">conda</span> <span class="n">install</span> <span class="n">phelel</span>
-</pre></div>
-</div>
-<p>From source code of phelel,</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">conda</span> <span class="n">create</span> <span class="o">-</span><span class="n">n</span> <span class="n">phelel</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span>
-<span class="o">%</span> <span class="n">conda</span> <span class="n">activate</span> <span class="n">phelel</span>
-<span class="o">%</span> <span class="n">conda</span> <span class="n">install</span> <span class="o">-</span><span class="n">c</span> <span class="n">conda</span><span class="o">-</span><span class="n">forge</span> <span class="n">phono3py</span> <span class="n">finufft</span> <span class="n">click</span> <span class="n">tomli</span> <span class="n">tomli</span><span class="o">-</span><span class="n">w</span> <span class="n">seekpath</span>
-<span class="o">%</span> <span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">phonopy</span><span class="o">/</span><span class="n">phelel</span><span class="o">.</span><span class="n">git</span>
-<span class="o">%</span> <span class="n">cd</span> <span class="n">phelel</span>
-<span class="o">%</span> <span class="n">pip</span> <span class="n">install</span> <span class="o">-</span><span class="n">e</span> <span class="o">.</span>
-</pre></div>
-</div>
-<p>The pypi package is also available.</p>
-</section>
+</li>
+</ol>
 </section>
 
 
@@ -349,20 +321,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="index.html"
+       href="install.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Phelel</p>
+        <p class="prev-next-title">Installation</p>
       </div>
     </a>
     <a class="right-next"
-       href="workflow.html"
+       href="phelel-command.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Workflow of el-ph calculation</p>
+        <p class="prev-next-title">phelel command</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -372,23 +344,6 @@
             </div>
             
             
-              
-                <dialog id="pst-secondary-sidebar-modal"></dialog>
-                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
-
-
-  <div class="sidebar-secondary-item">
-  <div class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> Contents
-  </div>
-  <nav class="bd-toc-nav page-toc">
-    <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#requirement">Requirement</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation-from-source-code">Installation from source code</a></li>
-</ul>
-  </nav></div>
-
-</div></div>
               
             
           </div>

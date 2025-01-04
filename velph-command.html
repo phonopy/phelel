@@ -43,11 +43,11 @@
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'velph';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'velph-command';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Change Log" href="changelog.html" />
-    <link rel="prev" title="Installation" href="install.html" />
+    <link rel="prev" title="phelel command" href="phelel-command.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.7" />
@@ -139,6 +139,8 @@
     <div class="bd-toc-item navbar-nav active">
         <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="phelel-command.html">phelel command</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">velph command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
 </ul>
@@ -200,7 +202,7 @@
       
       
       
-      <li><a href="_sources/velph.md" target="_blank"
+      <li><a href="_sources/velph-command.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -327,6 +329,22 @@
 electron-phonon interaction calculations with VASP code and analyze the results.
 Velph works in combination of command options. The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is installed
 along with the installation of phelel.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command orchestrates el-ph calculation <a class="reference internal" href="workflow.html#workflow"><span class="std std-ref">workflow</span></a> by
+running its sub-commands in a specific sequence. These <code class="docutils literal notranslate"><span class="pre">velph</span></code> sub-commands can
+perform the following operations:</p>
+<ul class="simple">
+<li><p>Execute <code class="docutils literal notranslate"><span class="pre">phelel</span></code>.</p></li>
+<li><p>Generate VASP input files for the following calculations (required for the
+subsequent electron-phonon interaction calculation):</p>
+<ul>
+<li><p>Dielectric constant</p></li>
+<li><p>Born effective charges</p></li>
+<li><p>Electronic band structure and density of states</p></li>
+</ul>
+</li>
+<li><p>Generate VASP input files for phonon and lattice thermal conductivity
+calculations using phonopy and phono3py.</p></li>
+</ul>
 <section id="shell-completion">
 <h2>Shell completion<a class="headerlink" href="#shell-completion" title="Link to this heading">#</a></h2>
 <p>Velph relies on <a class="reference external" href="https://click.palletsprojects.com">click</a>, and shell completion
@@ -1001,12 +1019,12 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="install.html"
+       href="phelel-command.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Installation</p>
+        <p class="prev-next-title">phelel command</p>
       </div>
     </a>
     <a class="right-next"
