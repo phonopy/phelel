@@ -8,9 +8,11 @@ from collections.abc import Sequence
 from typing import Optional, Union
 
 import numpy as np
-from phonopy import Phonopy
 from phonopy.file_IO import get_born_parameters
 from phonopy.interface.vasp import parse_set_of_forces
+from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import Primitive
+from phonopy.structure.symmetry import Symmetry
 
 from phelel import Phelel
 from phelel.api_phelel import PhelelDataset
@@ -58,23 +60,37 @@ def read_files(
     else:
         _dir_names = phonon_dir_names
     vasprun_filenames = _get_vasprun_filenames(_dir_names, log_level=log_level)
+
+    if phelel.phonon_supercell_matrix:
+        supercell = phelel.phonon_supercell
+    else:
+        supercell = phelel.supercell
     forces = read_forces_from_vasprunxmls(
         vasprun_filenames,
-        phelel.phonon,
+        supercell,
         subtract_rfs=subtract_rfs,
         log_level=log_level,
     )
 
-    if forces[0].shape[0] != len(phelel.phonon_supercell):
+    if forces[0].shape[0] != len(supercell):
         raise ValueError(
             "Number of ions in the phonon supercell is different from the number of "
             "atoms in the vasprun.xml file."
         )
 
-    nac_params = _read_born(phelel.phonon)
-    phelel.phonon.forces = forces
+    if phelel.phonon_supercell_matrix is None:
+        phelel.forces = forces
+    else:
+        phelel.phonon.forces = forces
+
+    nac_params = _read_born(
+        phelel.primitive, phelel.primitive_symmetry, log_level=log_level
+    )
     if nac_params:
-        phelel.phonon.nac_params = nac_params
+        phelel.nac_params = nac_params
+        if phelel.phonon_supercell_matrix is not None:
+            phelel.phonon.nac_params = nac_params
+
     return PhelelDataset(
         local_potentials=loc_pots,
         Dijs=Dijs,
@@ -138,14 +154,12 @@ def read_Rij(dir_name, inwap_per):
 
 def read_forces_from_vasprunxmls(
     vasprun_filenames: Union[list, tuple],
-    phonon: Phonopy,
+    supercell: PhonopyAtoms,
     subtract_rfs=False,
     log_level=0,
 ):
     """Read forces from vasprun.xml's and read NAC params from BORN."""
-    calc_dataset = parse_set_of_forces(
-        len(phonon.supercell), vasprun_filenames, verbose=False
-    )
+    calc_dataset = parse_set_of_forces(len(supercell), vasprun_filenames, verbose=False)
     forces = calc_dataset["forces"]
 
     if subtract_rfs:
@@ -171,12 +185,10 @@ def _get_vasprun_filenames(dir_names, log_level=0):
     return vasprun_filenames
 
 
-def _read_born(phonon: Phonopy, log_level=0):
+def _read_born(primitive: Primitive, primitive_symmetry: Symmetry, log_level: int = 0):
     if pathlib.Path("BORN").exists():
         with open("BORN", "r") as f:
-            nac_params = get_born_parameters(
-                f, phonon.primitive, phonon.primitive_symmetry
-            )
+            nac_params = get_born_parameters(f, primitive, primitive_symmetry)
             if log_level:
                 print('"BORN" was read.')
         return nac_params
@@ -188,7 +200,7 @@ def _get_datasets(phelel: Phelel) -> tuple:
     """Return inwap dataset and phonopy dataset."""
     if "first_atoms" in phelel.dataset:
         dataset = phelel.dataset
-        if "first_atoms" in phelel.phonon_dataset:
+        if phelel.phonon_supercell_matrix and "first_atoms" in phelel.phonon_dataset:
             phonon_dataset = phelel.phonon_dataset
         else:
             phonon_dataset = dataset

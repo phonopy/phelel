@@ -108,7 +108,7 @@ class LocalPotentialInterpolationNUFFT:
     ----------
     p2s_matrix : ndarray
         Transformation matrix to supercell from primitive cell
-        dtype='int_'
+        dtype='long'
         shape=(3,3)
     grid_points : ndarray
         Points to be used to compute <psi|dV_loc|psi'> given as
@@ -120,7 +120,7 @@ class LocalPotentialInterpolationNUFFT:
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
         Lattice points in supercell in primitive cell coordinates
-        dtype='int_'
+        dtype='long'
         shape=(det(supercell_matrxi), 3)
     dVdu : ndarray
         Displacement derivative of local potential in supercell interpolated on
@@ -130,7 +130,7 @@ class LocalPotentialInterpolationNUFFT:
     atom_indices_returned : ndarray
         Atom indices in supercell where dV will be computed. If those indices
         don't belong to symmetrically equivalent atoms to the dispalced atom.
-        dtype='int_', shape=(atom_indices,)
+        dtype='long', shape=(atom_indices,)
     dVs : list of DeltaLocalPotential
         This is given from DLocalPotential.run().
 
@@ -153,11 +153,11 @@ class LocalPotentialInterpolationNUFFT:
         ----------
         fft_mesh : array_like
             Mesh numbers for primitive cell
-            dtype='int_'
+            dtype='long'
             shape=(3,)
         p2s_matrix : array_like
             Supercell matrix relative to primitve cell
-            dtype='int_'
+            dtype='long'
             shape=(3,3)
         supercell : PhonopyAtoms
             Perfect supercell
@@ -179,7 +179,7 @@ class LocalPotentialInterpolationNUFFT:
         ##########
         # Inputs #
         ##########
-        self._fft_mesh = np.array(fft_mesh, dtype="int_")
+        self._fft_mesh = np.array(fft_mesh, dtype="long")
         self._verbose = verbose
         self._supercell = supercell
         self._symmetry = symmetry
@@ -196,7 +196,7 @@ class LocalPotentialInterpolationNUFFT:
         ##########
         # Public #
         ##########
-        self._p2s_matrix = np.array(p2s_matrix, dtype="int_", order="C")
+        self._p2s_matrix = np.array(p2s_matrix, dtype="long", order="C")
         (self._grid_points, self._lattice_points) = get_grid_points(
             fft_mesh, self._p2s_matrix
         )
@@ -327,7 +327,7 @@ class LocalPotentialInterpolationNUFFT:
         else:
             atoms = self._atom_indices_in
         self._atom_indices_returned = np.array(
-            [i for i in atoms if i in equiv_atoms], dtype="int_"
+            [i for i in atoms if i in equiv_atoms], dtype="long"
         )
         sitesym_selected_indices = [
             i
@@ -493,7 +493,7 @@ class DLocalPotential:
     ----------
     p2s_matrix : ndarray
         Transformation matrix to supercell from primitive cell.
-        dtype='int_', shape=(3,3)
+        dtype='long', shape=(3,3)
     grid_points : ndarray
         Points to be used to compute <psi|dV_loc|psi'> given as
         coordinates of supercell. Coordinates are given as
@@ -504,7 +504,7 @@ class DLocalPotential:
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
         Lattice points in supercell in primitive cell coordinates.
-        dtype='int_', shape=(det(supercell_matrxi), 3)
+        dtype='long', shape=(det(supercell_matrxi), 3)
     supercell : PhonopyAtoms
         Supercell.
     symmetry : Symmetry
@@ -517,10 +517,10 @@ class DLocalPotential:
         Atom indices in supercell where dV is computed. This is made as
         np.unique(atom_indices given at __init__). If None, all atoms in
         supercell.
-        shape=(len(atom_indices),), dtype='int_'
+        shape=(len(atom_indices),), dtype='long'
     fft_mesh : array_like
         Mesh numbers for primitive cell.
-        dtype='int_', shape=(3,)
+        dtype='long', shape=(3,)
 
     """
 
@@ -541,10 +541,10 @@ class DLocalPotential:
         ----------
         fft_mesh : array_like
             Mesh numbers for primitive cell.
-            dtype='int_', shape=(3,)
+            dtype='long', shape=(3,)
         p2s_matrix : ndarray or 2d list
             Supercell matrix relative to primitve cell.
-            dtype='int_', shape=(3,3)
+            dtype='long', shape=(3,3)
         supercell : PhonopyAtoms
             Supercell.
         symmetry : Symmetry, optional
@@ -569,9 +569,9 @@ class DLocalPotential:
         self._fft_mesh = fft_mesh
         self._p2s_matrix = p2s_matrix
         if atom_indices is None:
-            self._atom_indices = np.arange(len(self._supercell), dtype="int_")
+            self._atom_indices = np.arange(len(self._supercell), dtype="long")
         else:
-            self._atom_indices = np.array(np.unique(atom_indices), dtype="int_")
+            self._atom_indices = np.array(np.unique(atom_indices), dtype="long")
         if symmetry is None:
             self._symmetry = Symmetry(self._supercell)
         else:
@@ -644,7 +644,7 @@ class DLocalPotential:
     def lattice_points(self, lattice_points: np.ndarray):
         multi = determinant(self.p2s_matrix)
         if lattice_points.shape == (multi, 3):
-            self._lattice_points = np.array(lattice_points, dtype="int_", order="C")
+            self._lattice_points = np.array(lattice_points, dtype="long", order="C")
         else:
             raise RuntimeError(
                 "Array shape disagreement is found, %s!=%s."
@@ -862,11 +862,11 @@ def collect_site_symmetry_operations(
         Sets of indices of symmetry operations. Each set contains symmetry
         operations that send the displaced atom to specific one of equivalent
         atoms.
-        dtype='int_'
+        dtype='long'
         shape=(equiv_atoms, site_syms)
     equiv_atoms : ndarray
         Indices of symmetrically equivalent atoms
-        dtype='int_'
+        dtype='long'
         shape=(equiv_atoms,)
 
     """
@@ -881,7 +881,7 @@ def collect_site_symmetry_operations(
             for i, x in enumerate(map_to_indep_atoms)
             if map_to_indep_atoms[disp_atom] == x
         ],
-        dtype="int_",
+        dtype="long",
     )
     ops_sets = []
     for i_atom in equiv_atoms:
@@ -889,7 +889,7 @@ def collect_site_symmetry_operations(
         if len(isyms) > 0:
             ops_sets.append(isyms)
 
-    return np.array(ops_sets, dtype="int_", order="C"), equiv_atoms
+    return np.array(ops_sets, dtype="long", order="C"), equiv_atoms
 
 
 def get_displacements_with_rotations(
@@ -993,7 +993,7 @@ def get_grid_points(
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
         Lattice points in supercell in primitive cell coordinates
-        dtype='int_'
+        dtype='long'
         shape=(det(p2s_matrix), 3)
 
     """

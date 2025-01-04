@@ -127,7 +127,7 @@ def read_phelel_params_hdf5(
                     np.linalg.inv(f["supercell_lattice"][:]) @ f["primitive_lattice"][:]
                 )
             p2s_mat_float = np.linalg.inv(pmat)
-            p2s_matrix = np.rint(p2s_mat_float).astype("int_")
+            p2s_matrix = np.rint(p2s_mat_float).astype("long")
             assert (abs(p2s_matrix - p2s_mat_float) < 1e-5).all()
 
         if log_level:
@@ -222,7 +222,7 @@ def _add_datasets(
         w.create_dataset("Rij", data=cmplx2real(Rij))
     if supercell_matrix is not None:
         w.create_dataset(
-            "supercell_matrix", data=np.array(supercell_matrix, dtype="int_", order="C")
+            "supercell_matrix", data=np.array(supercell_matrix, dtype="long", order="C")
         )
     if primitive_matrix is not None:
         w.create_dataset(
@@ -239,24 +239,24 @@ def _add_datasets(
             data=np.array(primitive.scaled_positions, dtype="double", order="C"),
         )
         w.create_dataset(
-            "primitive_numbers", data=np.array(primitive.numbers, dtype="int_")
+            "primitive_numbers", data=np.array(primitive.numbers, dtype="long")
         )
         w.create_dataset(
             "primitive_masses", data=np.array(primitive.masses, dtype="double")
         )
         p2s_vectors, p2s_multiplicities = _get_smallest_vectors(primitive)
-        w.create_dataset("p2s_map", data=np.array(primitive.p2s_map, dtype="int_"))
-        w.create_dataset("s2p_map", data=np.array(primitive.s2p_map, dtype="int_"))
+        w.create_dataset("p2s_map", data=np.array(primitive.p2s_map, dtype="long"))
+        w.create_dataset("s2p_map", data=np.array(primitive.s2p_map, dtype="long"))
         w.create_dataset("shortest_vectors", data=np.array(p2s_vectors, dtype="double"))
         w.create_dataset(
             "shortest_vector_multiplicities",
-            data=np.array(p2s_multiplicities, dtype="int_"),
+            data=np.array(p2s_multiplicities, dtype="long"),
         )
         if atom_indices_in_derivatives is not None:
             if not np.array_equal(atom_indices_in_derivatives, primitive.p2s_map):
                 w.create_dataset(
                     "atom_indices_in_derivatives",
-                    data=np.array(atom_indices_in_derivatives, dtype="int_"),
+                    data=np.array(atom_indices_in_derivatives, dtype="long"),
                 )
     if unitcell is not None:
         w.create_dataset(
@@ -268,7 +268,7 @@ def _add_datasets(
             data=np.array(unitcell.scaled_positions, dtype="double", order="C"),
         )
         w.create_dataset(
-            "unitcell_numbers", data=np.array(unitcell.numbers, dtype="int_")
+            "unitcell_numbers", data=np.array(unitcell.numbers, dtype="long")
         )
         w.create_dataset(
             "unitcell_masses", data=np.array(unitcell.masses, dtype="double")
@@ -283,7 +283,7 @@ def _add_datasets(
             data=np.array(supercell.scaled_positions, dtype="double", order="C"),
         )
         w.create_dataset(
-            "supercell_numbers", data=np.array(supercell.numbers, dtype="int_")
+            "supercell_numbers", data=np.array(supercell.numbers, dtype="long")
         )
         w.create_dataset(
             "supercell_masses", data=np.array(supercell.masses, dtype="double")
@@ -292,7 +292,7 @@ def _add_datasets(
         if "first_atoms" in disp_dataset:
             atom_indices = [d["number"] for d in disp_dataset["first_atoms"]]
             w.create_dataset(
-                "displacements_atom_indices", data=np.array(atom_indices, dtype="int_")
+                "displacements_atom_indices", data=np.array(atom_indices, dtype="long")
             )
             disps = [d["displacement"] for d in disp_dataset["first_atoms"]]
             w.create_dataset(
@@ -305,25 +305,25 @@ def _add_datasets(
     if phonon_supercell_matrix is not None:
         w.create_dataset(
             "phonon_supercell_matrix",
-            data=np.array(phonon_supercell_matrix, dtype="int_", order="C"),
+            data=np.array(phonon_supercell_matrix, dtype="long", order="C"),
         )
     if phonon_primitive is not None:
         p2s_vectors, p2s_multiplicities = _get_smallest_vectors(phonon_primitive)
         w.create_dataset(
-            "phonon_p2s_map", data=np.array(phonon_primitive.p2s_map, dtype="int_")
+            "phonon_p2s_map", data=np.array(phonon_primitive.p2s_map, dtype="long")
         )
         w.create_dataset(
-            "phonon_s2p_map", data=np.array(phonon_primitive.s2p_map, dtype="int_")
+            "phonon_s2p_map", data=np.array(phonon_primitive.s2p_map, dtype="long")
         )
         w.create_dataset(
             "phonon_shortest_vectors", data=np.array(p2s_vectors, dtype="double")
         )
         w.create_dataset(
             "phonon_shortest_vector_multiplicities",
-            data=np.array(p2s_multiplicities, dtype="int_"),
+            data=np.array(p2s_multiplicities, dtype="long"),
         )
         p2s_mat_float = np.linalg.inv(phonon_primitive.primitive_matrix)
-        p2s_matrix = np.rint(p2s_mat_float).astype("int_")
+        p2s_matrix = np.rint(p2s_mat_float).astype("long")
         assert (abs(p2s_matrix - p2s_mat_float) < 1e-5).all()
         lattice_points, _ = get_lattice_points(p2s_matrix)
         w.create_dataset("phonon_lattice_point", data=lattice_points)
@@ -338,7 +338,7 @@ def _add_datasets(
         )
         w.create_dataset(
             "phonon_supercell_numbers",
-            data=np.array(phonon_supercell.numbers, dtype="int_"),
+            data=np.array(phonon_supercell.numbers, dtype="long"),
         )
         w.create_dataset(
             "phonon_supercell_masses",
@@ -362,18 +362,18 @@ def _add_datasets(
         )
         w.create_dataset(
             "direct_rotations",
-            data=np.array(symmetry_dataset.rotations, dtype="int_", order="C"),
+            data=np.array(symmetry_dataset.rotations, dtype="long", order="C"),
         )
         sym_dataset_dict = vars(symmetry_dataset)
         if "number" in sym_dataset_dict:  # For non-magnetic case
             w.create_dataset(
-                "spacegroup_number", data=int(symmetry_dataset.number), dtype="int_"
+                "spacegroup_number", data=int(symmetry_dataset.number), dtype="long"
             )
         elif "uni_number" in sym_dataset_dict:  # For magnetic case
             w.create_dataset(
                 "magnetic_spacegroup_uni_number",
                 data=int(symmetry_dataset.uni_number),
-                dtype="int_",
+                dtype="long",
             )
 
 
