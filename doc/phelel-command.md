@@ -1,5 +1,5 @@
 (phelel_command)=
-# phelel command
+# `phelel` command
 
 Command-line tools perform steps 1 and 3 in {ref}`the el-ph calculation
 workflow <workflow_minimal>`. Their usage parallels that of the `phonopy`
