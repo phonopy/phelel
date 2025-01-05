@@ -2,6 +2,11 @@
 
 # Change Log
 
+## Jan-5-2024: Version 0.8.0
+
+- Refactoring of `Phelel` class
+- Major update of documentation
+
 ## Dec-31-2024: Version 0.7.0
 
 - Maintenance release to follow the change of phonopy.

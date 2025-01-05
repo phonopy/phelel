@@ -124,8 +124,6 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
             "phelel_disp.yaml",
             "SPOSCAR",
             "POSCAR-002",
-            "SPOSCAR_PH",
-            "POSCAR_PH-002",
         )
         for created_filename in ("POSCAR-003", "POSCAR_PH-003"):
             file_path = pathlib.Path(cwd_called / created_filename)
@@ -135,10 +133,8 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
             "phelel_disp.yaml",
             "SPOSCAR",
             "POSCAR-001",
-            "SPOSCAR_PH",
-            "POSCAR_PH-001",
         )
-        for created_filename in ("POSCAR-002", "POSCAR_PH-002"):
+        for created_filename in ("POSCAR-002",):
             file_path = pathlib.Path(cwd_called / created_filename)
             assert not file_path.exists()
 

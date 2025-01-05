@@ -23,7 +23,6 @@ def test_PhelelYaml_get_yaml_lines():
     assert isclose(phe_yml.primitive, phe_yml_test.primitive)
     assert isclose(phe_yml.unitcell, phe_yml_test.unitcell)
     assert isclose(phe_yml.supercell, phe_yml_test.supercell)
-    assert isclose(phe_yml.phonon_supercell, phe_yml_test.phonon_supercell)
     assert phe_yml.version == phe_yml_test.version
     np.testing.assert_array_equal(
         phe_yml.supercell_matrix, phe_yml_test.supercell_matrix
