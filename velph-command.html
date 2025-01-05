@@ -143,6 +143,7 @@
 <li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-init.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-init-template.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-subcommands.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-example.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> example</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
@@ -291,8 +292,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-does-the-velph-command-do">What does the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command do?</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#listing-velph-subcommands">Listing <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-subcommands"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
 </ul>
             </nav>
@@ -310,27 +310,20 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is a convenient tool for systematically performing
 electron-phonon interaction calculations using the VASP code and for analyzing
 the resulting data.</p>
-<section id="what-does-the-velph-command-do">
-<h2>What does the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command do?<a class="headerlink" href="#what-does-the-velph-command-do" title="Link to this heading">#</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command orchestrates the electron-phonon (el-ph) calculation
 workflow <a class="reference internal" href="workflow.html#workflow"><span class="std std-ref">workflow</span></a> by running a series of subcommands in a
-specific sequence. These subcommands can:</p>
-<ul class="simple">
-<li><p>Execute <code class="docutils literal notranslate"><span class="pre">phelel</span></code>.</p></li>
-<li><p>Generate VASP input files for:</p>
-<ul>
-<li><p>Dielectric constant calculations</p></li>
-<li><p>Born effective charge calculations</p></li>
-<li><p>Electronic band structure and density of states calculations
-(all of which are required for subsequent electron-phonon interaction calculations)</p></li>
-</ul>
-</li>
-<li><p>Generate VASP input files for phonon and lattice thermal conductivity calculations using phonopy and phono3py.</p></li>
-</ul>
-</section>
-<section id="listing-velph-subcommands">
-<h2>Listing <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands<a class="headerlink" href="#listing-velph-subcommands" title="Link to this heading">#</a></h2>
-<p>You can see a list of supported subcommands by simply typing:</p>
+specific sequence.</p>
+<section id="velph-subcommands">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands<a class="headerlink" href="#velph-subcommands" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command includes a variety of subcommands. To initiate an
+electron–phonon (el-ph) calculation, run <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> to generate the
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file. Command options for <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> are detailed in
+<a class="reference internal" href="velph-init.html#velph-init"><span class="std std-ref">velph init</span></a>. Once the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file is prepared, other <code class="docutils literal notranslate"><span class="pre">velph</span></code>
+subcommands generate VASP input files, post-process VASP calculation results,
+and calculate derivatives of the local potential and PAW strengths with respect
+to atomic displacement, resulting in the <code class="docutils literal notranslate"><span class="pre">phelel_params.hdf5</span></code> file. Most of the
+<code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands are explained in <a class="reference internal" href="velph-subcommands.html#velph-subcommands"><span class="std std-ref">velph subcommands</span></a>.</p>
+<p>A list of supported subcommands is displayed by typing:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span>
 <span class="n">Usage</span><span class="p">:</span> <span class="n">velph</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">COMMAND</span> <span class="p">[</span><span class="n">ARGS</span><span class="p">]</span><span class="o">...</span>
 
@@ -410,8 +403,7 @@ specific sequence. These subcommands can:</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-does-the-velph-command-do">What does the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command do?</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#listing-velph-subcommands">Listing <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-subcommands"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
 </ul>
   </nav></div>
