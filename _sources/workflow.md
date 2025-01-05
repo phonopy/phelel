@@ -11,6 +11,7 @@ Additionally, it enables monitoring of both electronic and phonon band
 structures.
 ```
 
+(workflow_minimal)=
 ## Minimal calculation steps
 
 1. **(Phelel)** Generate supercell structures with atomic displacements based on the initial unit cell.
