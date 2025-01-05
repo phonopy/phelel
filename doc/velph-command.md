@@ -5,23 +5,22 @@ The `velph` command is a convenient tool for systematically performing
 electron-phonon interaction calculations using the VASP code and for analyzing
 the resulting data.
 
-## What does the `velph` command do?
-
 The `velph` command orchestrates the electron-phonon (el-ph) calculation
 workflow {ref}`workflow <workflow>` by running a series of subcommands in a
-specific sequence. These subcommands can:
+specific sequence.
 
-- Execute `phelel`.
-- Generate VASP input files for:
-  - Dielectric constant calculations
-  - Born effective charge calculations
-  - Electronic band structure and density of states calculations
-  (all of which are required for subsequent electron-phonon interaction calculations)
-- Generate VASP input files for phonon and lattice thermal conductivity calculations using phonopy and phono3py.
+## `velph` subcommands
 
-## Listing `velph` subcommands
+The `velph` command includes a variety of subcommands. To initiate an
+electron–phonon (el-ph) calculation, run `velph init` to generate the
+`velph.toml` file. Command options for `velph init` are detailed in
+{ref}`velph_init`. Once the `velph.toml` file is prepared, other `velph`
+subcommands generate VASP input files, post-process VASP calculation results,
+and calculate derivatives of the local potential and PAW strengths with respect
+to atomic displacement, resulting in the `phelel_params.hdf5` file. Most of the
+`velph` subcommands are explained in {ref}`velph_subcommands`.
 
-You can see a list of supported subcommands by simply typing:
+A list of supported subcommands is displayed by typing:
 
 ```
 % velph
