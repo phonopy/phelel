@@ -1,0 +1,629 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>velph init &#8212; Phelel v.0.8.0</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=a3416100" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=d6acfc83"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'velph-init';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="velph subcommands" href="velph-subcommands.html" />
+    <link rel="prev" title="velph command" href="velph-command.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.8" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Phelel v.0.8.0</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-command.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-subcommands.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-example.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/velph-init.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>velph init</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-options"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> options</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="velph-init">
+<h1><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-init" title="Link to this heading">#</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> with command options will generate modified <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> from the
+template.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span> <span class="pre">--help</span></code> shows short documents of the options. Two arguments have to
+be specified, POSCAR-format crystal structure and directory name that is created
+where <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is stored. The available options are explained below. Some
+options can be specified in <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> section of the velph-toml template
+file (see <a class="reference internal" href="#velph-init-template"><span class="std std-ref">velph init template</span></a>).</p>
+<section id="velph-init-options">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> options<a class="headerlink" href="#velph-init-options" title="Link to this heading">#</a></h2>
+<section id="template-toml">
+<h3><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code><a class="headerlink" href="#template-toml" title="Link to this heading">#</a></h3>
+<p>Using this option, <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> like file is read as the template instead of the
+template hard coded in velph code.</p>
+</section>
+<section id="tolerance">
+<h3><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code><a class="headerlink" href="#tolerance" title="Link to this heading">#</a></h3>
+<p>This is used for the symmetry check tolerance in Angstrom. Symmetry is searched
+always even without <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>.</p>
+</section>
+<section id="symmetrize">
+<h3><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code><a class="headerlink" href="#symmetrize" title="Link to this heading">#</a></h3>
+<p>By default (no-symmetrize), the input POSCAR-type structure is simply used as
+the unit cell. With <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>, input POSCAR-type structure is symmetrized
+and standardized conventional unit cell and primitive cell (“unitcell” and
+“primitive_cell”, respectively) are written in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>.</p>
+</section>
+<section id="no-find-primitive">
+<h3><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code><a class="headerlink" href="#no-find-primitive" title="Link to this heading">#</a></h3>
+<p>By this option, the input POSCAR-type structure is used as the primitive cell
+even if it is not a primitive cell.</p>
+</section>
+<section id="kspacing-and-kspacing-dense">
+<h3><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code><a class="headerlink" href="#kspacing-and-kspacing-dense" title="Link to this heading">#</a></h3>
+<p>Sampling k-point meshes are calculated from these values in the similar way to
+VASP <code class="docutils literal notranslate"><span class="pre">KSPACING</span></code> definition by overwriting the template.</p>
+</section>
+<section id="max-num-atoms">
+<h3><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code><a class="headerlink" href="#max-num-atoms" title="Link to this heading">#</a></h3>
+<p>Supercell shape is determined so that its number of atoms is equal or less than
+this number respecting the crystallographic point group.</p>
+</section>
+<section id="phonopy-max-num-atoms-and-phono3py-max-num-atoms">
+<h3><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code><a class="headerlink" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms" title="Link to this heading">#</a></h3>
+<p>Supercell shapes for phonopy and phono3py are determined in the same manner as
+<code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code>.</p>
+</section>
+<section id="cell-for-relax">
+<h3><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code><a class="headerlink" href="#cell-for-relax" title="Link to this heading">#</a></h3>
+<p>This chooses unit cell or primitive cell for structure optimization (<code class="docutils literal notranslate"><span class="pre">relax</span></code>).
+The default is <code class="docutils literal notranslate"><span class="pre">unitcell</span></code>. Specify <code class="docutils literal notranslate"><span class="pre">primitive</span></code> to use primitive cell.</p>
+</section>
+<section id="cell-for-nac">
+<h3><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code><a class="headerlink" href="#cell-for-nac" title="Link to this heading">#</a></h3>
+<p>This chooses unit cell or primitive cell for NAC calculation (<code class="docutils literal notranslate"><span class="pre">nac</span></code>). The
+default is <code class="docutils literal notranslate"><span class="pre">primitive</span></code>. Specify <code class="docutils literal notranslate"><span class="pre">primitive</span></code> to use primitive cell.</p>
+</section>
+<section id="primitive-cell-choice">
+<h3><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code><a class="headerlink" href="#primitive-cell-choice" title="Link to this heading">#</a></h3>
+<p>Primitive cell choice, “standardized” (default) or “reduced”.</p>
+</section>
+<section id="use-grg">
+<h3><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code><a class="headerlink" href="#use-grg" title="Link to this heading">#</a></h3>
+<p>Use generalized regular grid.</p>
+</section>
+<section id="amplitude">
+<h3><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code><a class="headerlink" href="#amplitude" title="Link to this heading">#</a></h3>
+<p>Distance of displacements in Angstrom.</p>
+</section>
+<section id="magmom">
+<h3><code class="docutils literal notranslate"><span class="pre">--magmom</span></code><a class="headerlink" href="#magmom" title="Link to this heading">#</a></h3>
+<p>String corresponding to INCAR MAGMOM tag value for unit cell, e.g., “24*1” or “0
+0 1”. This is similar to <code class="docutils literal notranslate"><span class="pre">MAGMOM</span></code> tag in phonopy, see
+<a class="reference external" href="https://phonopy.github.io/phonopy/setting-tags.html#magmom">https://phonopy.github.io/phonopy/setting-tags.html#magmom</a>. In velph, the
+asterisk symbol (<code class="docutils literal notranslate"><span class="pre">*</span></code>) is supported.</p>
+</section>
+</section>
+<section id="velph-init-template">
+<span id="id1"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template<a class="headerlink" href="#velph-init-template" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> is the command to prepare <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. Without specifying a
+velph-toml-template, the default template is used. Custom template can be
+specified as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> (arbitrary file name) is almost like the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>
+file. It means that the <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> may be created modifying
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. The sections that exist only in the <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> but not in
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code>. This can be used as alternatives of command
+options of <code class="docutils literal notranslate"><span class="pre">velph-init</span></code>, e.g.,</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[init.options]</span>
+<span class="n">kspacing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span>
+<span class="n">kspacing_dense</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1</span>
+<span class="n">max_num_atoms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">120</span>
+</pre></div>
+</div>
+<p>These <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> keywords can be found along with the list of the command
+options by</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="o">--</span><span class="n">help</span>
+</pre></div>
+</div>
+</section>
+<section id="settings-in-sections-of-velph-toml">
+<h2>Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code><a class="headerlink" href="#settings-in-sections-of-velph-toml" title="Link to this heading">#</a></h2>
+<p>Note that the same can be applied to <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code>.</p>
+<section id="default-incar-settings">
+<h3>Default INCAR settings<a class="headerlink" href="#default-incar-settings" title="Link to this heading">#</a></h3>
+<p>The default INCAR settins are written in <code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code>. These settings are
+overwritten by <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.incar]</span></code> (<code class="docutils literal notranslate"><span class="pre">CALC_TYPE</span></code> can be <code class="docutils literal notranslate"><span class="pre">phelel</span></code>, <code class="docutils literal notranslate"><span class="pre">relax</span></code>,
+<code class="docutils literal notranslate"><span class="pre">nac</span></code>, <code class="docutils literal notranslate"><span class="pre">transport</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py.phonon</span></code>, etc).</p>
+</section>
+<section id="scheduler-settings">
+<h3>Scheduler settings<a class="headerlink" href="#scheduler-settings" title="Link to this heading">#</a></h3>
+<p>The parameters used for generating the job submission script are specified as
+strings in <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code>. If <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.scheduler]</span></code> is
+specified, <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> settings are overwritten by the settings for
+<code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE]</span></code>. The content in this section operates through <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str.format">Python string
+formatting</a>, using
+replacement fields named after keyword arguments. Each parameter line in the
+<code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section is treated as a keyword argument, which is then inserted
+into the string format.</p>
+<p>In the <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section, the parameters <code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code> and
+<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> have special roles:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code>: Specifies the template type, with options <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, <code class="docutils literal notranslate"><span class="pre">sge</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">custom</span></code>. For <code class="docutils literal notranslate"><span class="pre">slurm</span></code> and <code class="docutils literal notranslate"><span class="pre">sge</span></code>, the template string (i.e.,
+<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>) is
+<a class="reference external" href="https://github.com/phonopy/phelel/blob/develop/src/phelel/velph/utils/scheduler.py">hard-coded</a>.
+If <code class="docutils literal notranslate"><span class="pre">custom</span></code> is selected, the string provided by <code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> is used,
+into which the parameters are inserted.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>: The string template where parameters defined in this
+section are inserted.</p></li>
+</ul>
+<p>An example is shown below.</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[scheduler]</span>
+<span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
+<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-1/bin/vasp_std&quot;</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">source /opt/intel/oneapi/setvars.sh --config=&quot;/home/togo/.oneapi-config&quot;</span>
+<span class="s1">&#39;&#39;&#39;</span>
+
+<span class="p">...</span>
+<span class="k">[vasp.phelel.scheduler]</span>
+<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;paris 24&quot;</span>
+
+<span class="p">...</span>
+<span class="k">[vasp.phonopy.scheduler]</span>
+<span class="n">scheduler_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;#!/bin/bash</span>
+<span class="s1">#QSUB2 core 192</span>
+<span class="s1">#QSUB2 mpi 192</span>
+<span class="s1">#QSUB2 smp 1</span>
+<span class="s1">#QSUB2 wtime 48:00:00</span>
+<span class="s1">#PBS -N {job_name}</span>
+<span class="s1">cd $PBS_O_WORKDIR</span>
+
+<span class="s1">{prepend_text}</span>
+<span class="s1">{mpirun_command} {vasp_binary} | tee vasp_output</span>
+<span class="s1">{append_text}</span>
+<span class="s1">&#39;&#39;&#39;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
+<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpijob&quot;</span>
+<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-2/bin/vasp_std&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">. /etc/profile.d/modules.sh</span>
+<span class="s1">module load inteloneapi22u3</span>
+<span class="s1">&#39;&#39;&#39;</span>
+<span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="velph-command.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="velph-subcommands.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-options"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> options</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Atsushi Togo
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2024, Atsushi Togo.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
