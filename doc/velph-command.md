@@ -1,62 +1,55 @@
 (velph_command)=
-# velph command
+# `velph` command
 
-The `velph` command is a convenient tool to systematically perform
-electron-phonon interaction calculations with VASP code and analyze the results.
-Velph works in combination of command options. The `velph` command is installed
-along with the installation of phelel.
+The `velph` command is a convenient tool for systematically performing
+electron-phonon interaction calculations using the VASP code and for analyzing
+the resulting data.
 
-The `velph` command orchestrates el-ph calculation {ref}`workflow <workflow>` by
-running its sub-commands in a specific sequence. These `velph` sub-commands can
-perform the following operations:
+## What does the `velph` command do?
+
+The `velph` command orchestrates the electron-phonon (el-ph) calculation
+workflow {ref}`workflow <workflow>` by running a series of subcommands in a
+specific sequence. These subcommands can:
 
 - Execute `phelel`.
-- Generate VASP input files for the following calculations (required for the
-  subsequent electron-phonon interaction calculation):
-  - Dielectric constant
-  - Born effective charges
-  - Electronic band structure and density of states
-- Generate VASP input files for phonon and lattice thermal conductivity
-  calculations using phonopy and phono3py.
+- Generate VASP input files for:
+  - Dielectric constant calculations
+  - Born effective charge calculations
+  - Electronic band structure and density of states calculations
+  (all of which are required for subsequent electron-phonon interaction calculations)
+- Generate VASP input files for phonon and lattice thermal conductivity calculations using phonopy and phono3py.
 
-## Shell completion
+## Listing `velph` subcommands
 
-Velph relies on [click](https://click.palletsprojects.com), and shell completion
-is provided for popular shell implementations, see
-[shell-completion](https://click.palletsprojects.com/en/stable/shell-completion/).
-
-For example using bash (zsh) in conda environment, write the following line
+You can see a list of supported subcommands by simply typing:
 
 ```
-eval "$(_VELPH_COMPLETE=bash_source velph)"  # BASH
+% velph
+Usage: velph [OPTIONS] COMMAND [ARGS]...
+
+  Command-line utility to help VASP el-ph calculation.
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  el_bands    Choose electronic band structure options.
+  generate    Write POSCAR-unitcell and POSCAR-primitive.
+  hints       Show velph command hints.
+  init        Initialize an electron phonon calculation project.
+  nac         Choose nac options.
+  ph_bands    Choose phonon band structure options.
+  phelel      Choose supercell options.
+  phono3py    Choose phono3py options.
+  phonopy     Choose phonopy options.
+  relax       Choose relax options.
+  selfenergy  Choose selfenergy options.
+  transport   Choose transport options.
 ```
 
-```
-eval "$(_VELPH_COMPLETE=zsh_source velph)"  # ZSH
-```
+## `velph` command operations
 
-in `~/.bashrc` (`~/.zshrc`), or in a conda environment in
-`$CONDA_PREFIX/etc/conda/activate.d/env_vars.sh`.
-
-After setting and reloading the configuration file (e.g., `~/.bashrc`),
-sub-commands are listed by pushing tab key:
-
-```bash
-% velph [PUSH-TAB-KEY]
-el_bands    -- Choose electronic band structure options.
-generate    -- Write POSCAR-unitcell and POSCAR-primitive.
-hints       -- Show velph command hints.
-init        -- Initialize an electron phonon calculation...
-nac         -- Choose nac options.
-ph_bands    -- Choose phonon band structure options.
-phelel      -- Choose supercell options.
-phono3py    -- Choose phono3py options.
-relax       -- Choose relax options.
-selfenergy  -- Choose selfenergy options.
-transport   -- Choose transport options.
-```
-
-## `velph-hints`
+### `velph hints`
 
 This command provides a quick reference of calculation steps.
 
@@ -64,7 +57,7 @@ This command provides a quick reference of calculation steps.
 % velph hints
 ```
 
-## `velph init`
+### `velph init`
 
 `velph init` with command options will generate modified `velph.toml` from the
 template.
@@ -79,61 +72,66 @@ options can be specified in `[init.options]` section of the velph-toml template
 file (see {ref}`velph-init-template`).
 
 
-### `--template-toml`
+#### `--template-toml`
 
 Using this option, `velph.toml` like file is read as the template instead of the
 template hard coded in velph code.
 
-### `--tolerance`
+#### `--tolerance`
 
 This is used for the symmetry check tolerance in Angstrom. Symmetry is searched
 always even without `--symmetrize`.
 
-### `--symmetrize`
+#### `--symmetrize`
 
 By default (no-symmetrize), the input POSCAR-type structure is simply used as
 the unit cell. With `--symmetrize`, input POSCAR-type structure is symmetrized
 and standardized conventional unit cell and primitive cell ("unitcell" and
 "primitive_cell", respectively) are written in `velph.toml`.
 
-### `--no-find-primitive`
+#### `--no-find-primitive`
 
 By this option, the input POSCAR-type structure is used as the primitive cell
 even if it is not a primitive cell.
 
-### `--kspacing` and `--kspacing-dense`
+#### `--kspacing` and `--kspacing-dense`
 
 Sampling k-point meshes are calculated from these values in the similar way to
 VASP `KSPACING` definition by overwriting the template.
 
-### `--max-num-atoms`
+#### `--max-num-atoms`
 
 Supercell shape is determined so that its number of atoms is equal or less than
 this number respecting the crystallographic point group.
 
-### `--cell-for-relax`
+#### `--phonopy-max-num-atoms` and `--phono3py-max-num-atoms`
+
+Supercell shapes for phonopy and phono3py are determined in the same manner as
+`--max-num-atoms`.
+
+#### `--cell-for-relax`
 
 This chooses unit cell or primitive cell for structure optimization (`relax`).
 The default is `unitcell`. Specify `primitive` to use primitive cell.
 
-### `--cell-for-nac`
+#### `--cell-for-nac`
 
 This chooses unit cell or primitive cell for NAC calculation (`nac`). The
 default is `primitive`. Specify `primitive` to use primitive cell.
 
-### `--primitive-cell-choice`
+#### `--primitive-cell-choice`
 
 Primitive cell choice, "standardized" (default) or "reduced".
 
-### `--use-grg`
+#### `--use-grg`
 
 Use generalized regular grid.
 
-### `--amplitude`
+#### `--amplitude`
 
 Distance of displacements in Angstrom.
 
-### `--magmom`
+#### `--magmom`
 
 String corresponding to INCAR MAGMOM tag value for unit cell, e.g., "24*1" or "0
 0 1". This is similar to `MAGMOM` tag in phonopy, see
@@ -141,9 +139,9 @@ https://phonopy.github.io/phonopy/setting-tags.html#magmom. In velph, the
 asterisk symbol (`*`) is supported.
 
 (velph-init-template)=
-## velph-init template
+## `velph init` template
 
-`velph-init` is the command to prepare `velph.toml`. Without specifying a
+`velph init` is the command to prepare `velph.toml`. Without specifying a
 velph-toml-template, the default template is used. Custom template can be
 specified as follows:
 
