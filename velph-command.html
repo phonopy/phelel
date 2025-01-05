@@ -140,8 +140,8 @@
         <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phelel-command.html">phelel command</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">velph command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
 </ul>
 
@@ -288,24 +288,29 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion">Shell completion</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-does-the-velph-command-do">What does the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command do?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#listing-velph-subcommands">Listing <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-command-operations"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command operations</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template">velph-init template</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
@@ -324,67 +329,66 @@
                 <article class="bd-article">
                   
   <section class="tex2jax_ignore mathjax_ignore" id="velph-command">
-<span id="id1"></span><h1>velph command<a class="headerlink" href="#velph-command" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is a convenient tool to systematically perform
-electron-phonon interaction calculations with VASP code and analyze the results.
-Velph works in combination of command options. The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is installed
-along with the installation of phelel.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command orchestrates el-ph calculation <a class="reference internal" href="workflow.html#workflow"><span class="std std-ref">workflow</span></a> by
-running its sub-commands in a specific sequence. These <code class="docutils literal notranslate"><span class="pre">velph</span></code> sub-commands can
-perform the following operations:</p>
+<span id="id1"></span><h1><code class="docutils literal notranslate"><span class="pre">velph</span></code> command<a class="headerlink" href="#velph-command" title="Link to this heading">#</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command is a convenient tool for systematically performing
+electron-phonon interaction calculations using the VASP code and for analyzing
+the resulting data.</p>
+<section id="what-does-the-velph-command-do">
+<h2>What does the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command do?<a class="headerlink" href="#what-does-the-velph-command-do" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> command orchestrates the electron-phonon (el-ph) calculation
+workflow <a class="reference internal" href="workflow.html#workflow"><span class="std std-ref">workflow</span></a> by running a series of subcommands in a
+specific sequence. These subcommands can:</p>
 <ul class="simple">
 <li><p>Execute <code class="docutils literal notranslate"><span class="pre">phelel</span></code>.</p></li>
-<li><p>Generate VASP input files for the following calculations (required for the
-subsequent electron-phonon interaction calculation):</p>
+<li><p>Generate VASP input files for:</p>
 <ul>
-<li><p>Dielectric constant</p></li>
-<li><p>Born effective charges</p></li>
-<li><p>Electronic band structure and density of states</p></li>
+<li><p>Dielectric constant calculations</p></li>
+<li><p>Born effective charge calculations</p></li>
+<li><p>Electronic band structure and density of states calculations
+(all of which are required for subsequent electron-phonon interaction calculations)</p></li>
 </ul>
 </li>
-<li><p>Generate VASP input files for phonon and lattice thermal conductivity
-calculations using phonopy and phono3py.</p></li>
+<li><p>Generate VASP input files for phonon and lattice thermal conductivity calculations using phonopy and phono3py.</p></li>
 </ul>
-<section id="shell-completion">
-<h2>Shell completion<a class="headerlink" href="#shell-completion" title="Link to this heading">#</a></h2>
-<p>Velph relies on <a class="reference external" href="https://click.palletsprojects.com">click</a>, and shell completion
-is provided for popular shell implementations, see
-<a class="reference external" href="https://click.palletsprojects.com/en/stable/shell-completion/">shell-completion</a>.</p>
-<p>For example using bash (zsh) in conda environment, write the following line</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=bash_source velph)&quot;</span>  <span class="c1"># BASH</span>
-</pre></div>
-</div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=zsh_source velph)&quot;</span>  <span class="c1"># ZSH</span>
-</pre></div>
-</div>
-<p>in <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> (<code class="docutils literal notranslate"><span class="pre">~/.zshrc</span></code>), or in a conda environment in
-<code class="docutils literal notranslate"><span class="pre">$CONDA_PREFIX/etc/conda/activate.d/env_vars.sh</span></code>.</p>
-<p>After setting and reloading the configuration file (e.g., <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code>),
-sub-commands are listed by pushing tab key:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span><span class="o">[</span>PUSH-TAB-KEY<span class="o">]</span>
-el_bands<span class="w">    </span>--<span class="w"> </span>Choose<span class="w"> </span>electronic<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>options.
-generate<span class="w">    </span>--<span class="w"> </span>Write<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>and<span class="w"> </span>POSCAR-primitive.
-hints<span class="w">       </span>--<span class="w"> </span>Show<span class="w"> </span>velph<span class="w"> </span><span class="nb">command</span><span class="w"> </span>hints.
-init<span class="w">        </span>--<span class="w"> </span>Initialize<span class="w"> </span>an<span class="w"> </span>electron<span class="w"> </span>phonon<span class="w"> </span>calculation...
-nac<span class="w">         </span>--<span class="w"> </span>Choose<span class="w"> </span>nac<span class="w"> </span>options.
-ph_bands<span class="w">    </span>--<span class="w"> </span>Choose<span class="w"> </span>phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>options.
-phelel<span class="w">      </span>--<span class="w"> </span>Choose<span class="w"> </span>supercell<span class="w"> </span>options.
-phono3py<span class="w">    </span>--<span class="w"> </span>Choose<span class="w"> </span>phono3py<span class="w"> </span>options.
-relax<span class="w">       </span>--<span class="w"> </span>Choose<span class="w"> </span>relax<span class="w"> </span>options.
-selfenergy<span class="w">  </span>--<span class="w"> </span>Choose<span class="w"> </span>selfenergy<span class="w"> </span>options.
-transport<span class="w">   </span>--<span class="w"> </span>Choose<span class="w"> </span>transport<span class="w"> </span>options.
+</section>
+<section id="listing-velph-subcommands">
+<h2>Listing <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands<a class="headerlink" href="#listing-velph-subcommands" title="Link to this heading">#</a></h2>
+<p>You can see a list of supported subcommands by simply typing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span>
+<span class="n">Usage</span><span class="p">:</span> <span class="n">velph</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">COMMAND</span> <span class="p">[</span><span class="n">ARGS</span><span class="p">]</span><span class="o">...</span>
+
+  <span class="n">Command</span><span class="o">-</span><span class="n">line</span> <span class="n">utility</span> <span class="n">to</span> <span class="n">help</span> <span class="n">VASP</span> <span class="n">el</span><span class="o">-</span><span class="n">ph</span> <span class="n">calculation</span><span class="o">.</span>
+
+<span class="n">Options</span><span class="p">:</span>
+  <span class="o">-</span><span class="n">h</span><span class="p">,</span> <span class="o">--</span><span class="n">help</span>  <span class="n">Show</span> <span class="n">this</span> <span class="n">message</span> <span class="ow">and</span> <span class="n">exit</span><span class="o">.</span>
+
+<span class="n">Commands</span><span class="p">:</span>
+  <span class="n">el_bands</span>    <span class="n">Choose</span> <span class="n">electronic</span> <span class="n">band</span> <span class="n">structure</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">generate</span>    <span class="n">Write</span> <span class="n">POSCAR</span><span class="o">-</span><span class="n">unitcell</span> <span class="ow">and</span> <span class="n">POSCAR</span><span class="o">-</span><span class="n">primitive</span><span class="o">.</span>
+  <span class="n">hints</span>       <span class="n">Show</span> <span class="n">velph</span> <span class="n">command</span> <span class="n">hints</span><span class="o">.</span>
+  <span class="n">init</span>        <span class="n">Initialize</span> <span class="n">an</span> <span class="n">electron</span> <span class="n">phonon</span> <span class="n">calculation</span> <span class="n">project</span><span class="o">.</span>
+  <span class="n">nac</span>         <span class="n">Choose</span> <span class="n">nac</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">ph_bands</span>    <span class="n">Choose</span> <span class="n">phonon</span> <span class="n">band</span> <span class="n">structure</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">phelel</span>      <span class="n">Choose</span> <span class="n">supercell</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">phono3py</span>    <span class="n">Choose</span> <span class="n">phono3py</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">phonopy</span>     <span class="n">Choose</span> <span class="n">phonopy</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">relax</span>       <span class="n">Choose</span> <span class="n">relax</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">selfenergy</span>  <span class="n">Choose</span> <span class="n">selfenergy</span> <span class="n">options</span><span class="o">.</span>
+  <span class="n">transport</span>   <span class="n">Choose</span> <span class="n">transport</span> <span class="n">options</span><span class="o">.</span>
 </pre></div>
 </div>
 </section>
+<section id="velph-command-operations">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span></code> command operations<a class="headerlink" href="#velph-command-operations" title="Link to this heading">#</a></h2>
 <section id="velph-hints">
-<h2><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code><a class="headerlink" href="#velph-hints" title="Link to this heading">#</a></h2>
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code><a class="headerlink" href="#velph-hints" title="Link to this heading">#</a></h3>
 <p>This command provides a quick reference of calculation steps.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">hints</span>
 </pre></div>
 </div>
 </section>
 <section id="velph-init">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-init" title="Link to this heading">#</a></h2>
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-init" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> with command options will generate modified <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> from the
 template.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span>
@@ -394,72 +398,78 @@ template.</p>
 be specified, POSCAR-format crystal structure and directory name that is created
 where <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is stored. The available options are explained below. Some
 options can be specified in <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> section of the velph-toml template
-file (see <a class="reference internal" href="#velph-init-template"><span class="std std-ref">velph-init template</span></a>).</p>
+file (see <a class="reference internal" href="#velph-init-template"><span class="std std-ref">velph init template</span></a>).</p>
 <section id="template-toml">
-<h3><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code><a class="headerlink" href="#template-toml" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code><a class="headerlink" href="#template-toml" title="Link to this heading">#</a></h4>
 <p>Using this option, <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> like file is read as the template instead of the
 template hard coded in velph code.</p>
 </section>
 <section id="tolerance">
-<h3><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code><a class="headerlink" href="#tolerance" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code><a class="headerlink" href="#tolerance" title="Link to this heading">#</a></h4>
 <p>This is used for the symmetry check tolerance in Angstrom. Symmetry is searched
 always even without <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>.</p>
 </section>
 <section id="symmetrize">
-<h3><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code><a class="headerlink" href="#symmetrize" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code><a class="headerlink" href="#symmetrize" title="Link to this heading">#</a></h4>
 <p>By default (no-symmetrize), the input POSCAR-type structure is simply used as
 the unit cell. With <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>, input POSCAR-type structure is symmetrized
 and standardized conventional unit cell and primitive cell (“unitcell” and
 “primitive_cell”, respectively) are written in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>.</p>
 </section>
 <section id="no-find-primitive">
-<h3><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code><a class="headerlink" href="#no-find-primitive" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code><a class="headerlink" href="#no-find-primitive" title="Link to this heading">#</a></h4>
 <p>By this option, the input POSCAR-type structure is used as the primitive cell
 even if it is not a primitive cell.</p>
 </section>
 <section id="kspacing-and-kspacing-dense">
-<h3><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code><a class="headerlink" href="#kspacing-and-kspacing-dense" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code><a class="headerlink" href="#kspacing-and-kspacing-dense" title="Link to this heading">#</a></h4>
 <p>Sampling k-point meshes are calculated from these values in the similar way to
 VASP <code class="docutils literal notranslate"><span class="pre">KSPACING</span></code> definition by overwriting the template.</p>
 </section>
 <section id="max-num-atoms">
-<h3><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code><a class="headerlink" href="#max-num-atoms" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code><a class="headerlink" href="#max-num-atoms" title="Link to this heading">#</a></h4>
 <p>Supercell shape is determined so that its number of atoms is equal or less than
 this number respecting the crystallographic point group.</p>
 </section>
+<section id="phonopy-max-num-atoms-and-phono3py-max-num-atoms">
+<h4><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code><a class="headerlink" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms" title="Link to this heading">#</a></h4>
+<p>Supercell shapes for phonopy and phono3py are determined in the same manner as
+<code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code>.</p>
+</section>
 <section id="cell-for-relax">
-<h3><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code><a class="headerlink" href="#cell-for-relax" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code><a class="headerlink" href="#cell-for-relax" title="Link to this heading">#</a></h4>
 <p>This chooses unit cell or primitive cell for structure optimization (<code class="docutils literal notranslate"><span class="pre">relax</span></code>).
 The default is <code class="docutils literal notranslate"><span class="pre">unitcell</span></code>. Specify <code class="docutils literal notranslate"><span class="pre">primitive</span></code> to use primitive cell.</p>
 </section>
 <section id="cell-for-nac">
-<h3><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code><a class="headerlink" href="#cell-for-nac" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code><a class="headerlink" href="#cell-for-nac" title="Link to this heading">#</a></h4>
 <p>This chooses unit cell or primitive cell for NAC calculation (<code class="docutils literal notranslate"><span class="pre">nac</span></code>). The
 default is <code class="docutils literal notranslate"><span class="pre">primitive</span></code>. Specify <code class="docutils literal notranslate"><span class="pre">primitive</span></code> to use primitive cell.</p>
 </section>
 <section id="primitive-cell-choice">
-<h3><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code><a class="headerlink" href="#primitive-cell-choice" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code><a class="headerlink" href="#primitive-cell-choice" title="Link to this heading">#</a></h4>
 <p>Primitive cell choice, “standardized” (default) or “reduced”.</p>
 </section>
 <section id="use-grg">
-<h3><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code><a class="headerlink" href="#use-grg" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code><a class="headerlink" href="#use-grg" title="Link to this heading">#</a></h4>
 <p>Use generalized regular grid.</p>
 </section>
 <section id="amplitude">
-<h3><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code><a class="headerlink" href="#amplitude" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code><a class="headerlink" href="#amplitude" title="Link to this heading">#</a></h4>
 <p>Distance of displacements in Angstrom.</p>
 </section>
 <section id="magmom">
-<h3><code class="docutils literal notranslate"><span class="pre">--magmom</span></code><a class="headerlink" href="#magmom" title="Link to this heading">#</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">--magmom</span></code><a class="headerlink" href="#magmom" title="Link to this heading">#</a></h4>
 <p>String corresponding to INCAR MAGMOM tag value for unit cell, e.g., “24*1” or “0
 0 1”. This is similar to <code class="docutils literal notranslate"><span class="pre">MAGMOM</span></code> tag in phonopy, see
 <a class="reference external" href="https://phonopy.github.io/phonopy/setting-tags.html#magmom">https://phonopy.github.io/phonopy/setting-tags.html#magmom</a>. In velph, the
 asterisk symbol (<code class="docutils literal notranslate"><span class="pre">*</span></code>) is supported.</p>
 </section>
 </section>
+</section>
 <section id="velph-init-template">
-<span id="id2"></span><h2>velph-init template<a class="headerlink" href="#velph-init-template" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">velph-init</span></code> is the command to prepare <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. Without specifying a
+<span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template<a class="headerlink" href="#velph-init-template" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> is the command to prepare <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. Without specifying a
 velph-toml-template, the default template is used. Custom template can be
 specified as follows:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
@@ -1024,7 +1034,7 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">phelel command</p>
+        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</p>
       </div>
     </a>
     <a class="right-next"
@@ -1053,24 +1063,29 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion">Shell completion</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph-hints</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-does-the-velph-command-do">What does the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command do?</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#listing-velph-subcommands">Listing <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-command-operations"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command operations</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#use-grg"><code class="docutils literal notranslate"><span class="pre">--use-grg</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#amplitude"><code class="docutils literal notranslate"><span class="pre">--amplitude</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#magmom"><code class="docutils literal notranslate"><span class="pre">--magmom</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template">velph-init template</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-template"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>

@@ -140,8 +140,8 @@
         <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phelel-command.html">phelel command</a></li>
-<li class="toctree-l1"><a class="reference internal" href="velph-command.html">velph command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-command.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
 </ul>
 
@@ -290,6 +290,10 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#requirement">Requirement</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation-from-source-code">Installation from source code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phelel-and-velph-commands"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">velph</span></code> commands</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion-of-velph-command">Shell completion of <code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+</ul>
+</li>
 </ul>
             </nav>
         </div>
@@ -334,6 +338,44 @@
 </pre></div>
 </div>
 <p>The pypi package is also available.</p>
+</section>
+<section id="phelel-and-velph-commands">
+<h2><code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">velph</span></code> commands<a class="headerlink" href="#phelel-and-velph-commands" title="Link to this heading">#</a></h2>
+<p>Installing the phelel package makes the <code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">velph</span></code> commands available.
+Their usage is described in <a class="reference internal" href="phelel-command.html#phelel-command"><span class="std std-ref">phelel command</span></a> and <a class="reference internal" href="velph-command.html#velph-command"><span class="std std-ref">velph command</span></a>,
+respectively. Additionally, the <code class="docutils literal notranslate"><span class="pre">velph</span></code> command supports shell completion, which
+requires further configuration as described in the next section.</p>
+<section id="shell-completion-of-velph-command">
+<h3>Shell completion of <code class="docutils literal notranslate"><span class="pre">velph</span></code> command<a class="headerlink" href="#shell-completion-of-velph-command" title="Link to this heading">#</a></h3>
+<p>Velph relies on <a class="reference external" href="https://click.palletsprojects.com">click</a>, and shell completion
+is provided for popular shell implementations, see
+<a class="reference external" href="https://click.palletsprojects.com/en/stable/shell-completion/">shell-completion</a>.</p>
+<p>For example using bash (zsh) in conda environment, write the following line</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=bash_source velph)&quot;</span>  <span class="c1"># BASH</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;$(_VELPH_COMPLETE=zsh_source velph)&quot;</span>  <span class="c1"># ZSH</span>
+</pre></div>
+</div>
+<p>in <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> (<code class="docutils literal notranslate"><span class="pre">~/.zshrc</span></code>), or in a conda environment in
+<code class="docutils literal notranslate"><span class="pre">$CONDA_PREFIX/etc/conda/activate.d/env_vars.sh</span></code>.</p>
+<p>After setting and reloading the configuration file (e.g., <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code>),
+sub-commands are listed by pushing tab key:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span><span class="o">[</span>PUSH-TAB-KEY<span class="o">]</span>
+el_bands<span class="w">    </span>--<span class="w"> </span>Choose<span class="w"> </span>electronic<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>options.
+generate<span class="w">    </span>--<span class="w"> </span>Write<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>and<span class="w"> </span>POSCAR-primitive.
+hints<span class="w">       </span>--<span class="w"> </span>Show<span class="w"> </span>velph<span class="w"> </span><span class="nb">command</span><span class="w"> </span>hints.
+init<span class="w">        </span>--<span class="w"> </span>Initialize<span class="w"> </span>an<span class="w"> </span>electron<span class="w"> </span>phonon<span class="w"> </span>calculation...
+nac<span class="w">         </span>--<span class="w"> </span>Choose<span class="w"> </span>nac<span class="w"> </span>options.
+ph_bands<span class="w">    </span>--<span class="w"> </span>Choose<span class="w"> </span>phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>options.
+phelel<span class="w">      </span>--<span class="w"> </span>Choose<span class="w"> </span>supercell<span class="w"> </span>options.
+phono3py<span class="w">    </span>--<span class="w"> </span>Choose<span class="w"> </span>phono3py<span class="w"> </span>options.
+relax<span class="w">       </span>--<span class="w"> </span>Choose<span class="w"> </span>relax<span class="w"> </span>options.
+selfenergy<span class="w">  </span>--<span class="w"> </span>Choose<span class="w"> </span>selfenergy<span class="w"> </span>options.
+transport<span class="w">   </span>--<span class="w"> </span>Choose<span class="w"> </span>transport<span class="w"> </span>options.
+</pre></div>
+</div>
+</section>
 </section>
 </section>
 
@@ -385,6 +427,10 @@
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#requirement">Requirement</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation-from-source-code">Installation from source code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phelel-and-velph-commands"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> and <code class="docutils literal notranslate"><span class="pre">velph</span></code> commands</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shell-completion-of-velph-command">Shell completion of <code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 
