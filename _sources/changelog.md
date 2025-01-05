@@ -2,7 +2,7 @@
 
 # Change Log
 
-## Jan-5-2024: Version 0.8.0
+## Jan-5-2025: Version 0.8.0
 
 - Refactoring of `Phelel` class
 - Major update of documentation
