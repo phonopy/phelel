@@ -1,4 +1,7 @@
+(velph_subcommands)=
 # `velph` subcommands
+
+`velph init` is
 
 ## `velph phelel`
 
