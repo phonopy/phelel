@@ -46,6 +46,7 @@ Commands:
   transport   Choose transport options.
 ```
 
+(velph_hints)=
 ## `velph hints`
 
 This command provides a quick reference of calculation steps.
