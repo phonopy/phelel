@@ -78,10 +78,7 @@ def read_files(
             "atoms in the vasprun.xml file."
         )
 
-    if phelel.phonon_supercell_matrix is None:
-        phelel.forces = forces
-    else:
-        phelel.phonon.forces = forces
+    phelel.forces = forces
 
     nac_params = _read_born(
         phelel.primitive, phelel.primitive_symmetry, log_level=log_level

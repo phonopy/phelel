@@ -350,11 +350,6 @@ class Phelel:
             return self._phonon.unit_conversion_factor
 
     @property
-    def phonon(self) -> Optional[Phonopy]:
-        """Return Phonopy class instance."""
-        return self._phonon
-
-    @property
     def fft_mesh(self) -> np.ndarray:
         """Setter and getter of FFT mesh numbers."""
         return self._fft_mesh
@@ -427,6 +422,20 @@ class Phelel:
             distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
         )
 
+    def generate_phonon_displacements(
+        self,
+        distance=0.01,
+        is_plusminus="auto",
+        is_diagonal=True,
+    ):
+        """Generate displacement dataset."""
+        if self._phonon is None:
+            msg = "Phonon instance has to be initialized."
+            raise RuntimeError(msg)
+        self._phonon.generate_displacements(
+            distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
+        )
+
     def run_derivatives(self, phe_input: PhelelDataset):
         """Run displacement derivatives calculations from temporary raw data.
 
@@ -488,6 +497,7 @@ class Phelel:
             "atom_indices_in_derivatives": self._atom_indices_in_derivatives,
             "disp_dataset": self._phelel_phonon.dataset,
             "nac_params": self._phelel_phonon.nac_params,
+            "filename": filename,
         }
         if self._phonon is not None:
             params.update(
@@ -497,10 +507,28 @@ class Phelel:
                     "phonon_primitive": self._phonon.primitive,
                     "phonon_supercell": self._phonon.supercell,
                     "symmetry_dataset": self._phonon.primitive_symmetry.dataset,
-                    "filename": filename,
                 }
             )
         write_phelel_params_hdf5(**params)
+
+    def save_phonon(
+        self,
+        filename="phonopy_params.yaml",
+        settings=None,
+        hdf5_settings=None,
+        compression: Union[str, bool] = False,
+    ):
+        """Save phonon in yaml format."""
+        if self._phonon is None:
+            ph = self._phelel_phonon
+        else:
+            ph = self._phonon
+        ph.save(
+            filename=filename,
+            settings=settings,
+            hdf5_settings=hdf5_settings,
+            compression=compression,
+        )
 
     def _prepare_phonon(
         self,
