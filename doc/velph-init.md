@@ -3,7 +3,7 @@
 
 `velph init` with command options will generate modified `velph.toml` from the
 template.
-```
+```bash
 % velph init [OPTIONS] CELL_FILENAME PROJECT_FOLDER
 ```
 

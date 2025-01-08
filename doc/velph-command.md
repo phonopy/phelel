@@ -22,7 +22,7 @@ to atomic displacement, resulting in the `phelel_params.hdf5` file. Most of the
 
 A list of supported subcommands is displayed by typing:
 
-```
+```bash
 % velph
 Usage: velph [OPTIONS] COMMAND [ARGS]...
 
@@ -51,6 +51,6 @@ Commands:
 
 This command provides a quick reference of calculation steps.
 
-```
+```bash
 % velph hints
 ```
