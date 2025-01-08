@@ -30,7 +30,7 @@
   <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
 <link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
 
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=a3416100" />
   
   <!-- So that users can add custom icons -->
@@ -324,34 +324,34 @@ and calculate derivatives of the local potential and PAW strengths with respect
 to atomic displacement, resulting in the <code class="docutils literal notranslate"><span class="pre">phelel_params.hdf5</span></code> file. Most of the
 <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands are explained in <a class="reference internal" href="velph-subcommands.html#velph-subcommands"><span class="std std-ref">velph subcommands</span></a>.</p>
 <p>A list of supported subcommands is displayed by typing:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span>
-<span class="n">Usage</span><span class="p">:</span> <span class="n">velph</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">COMMAND</span> <span class="p">[</span><span class="n">ARGS</span><span class="p">]</span><span class="o">...</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph
+Usage:<span class="w"> </span>velph<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
 
-  <span class="n">Command</span><span class="o">-</span><span class="n">line</span> <span class="n">utility</span> <span class="n">to</span> <span class="n">help</span> <span class="n">VASP</span> <span class="n">el</span><span class="o">-</span><span class="n">ph</span> <span class="n">calculation</span><span class="o">.</span>
+<span class="w">  </span>Command-line<span class="w"> </span>utility<span class="w"> </span>to<span class="w"> </span><span class="nb">help</span><span class="w"> </span>VASP<span class="w"> </span>el-ph<span class="w"> </span>calculation.
 
-<span class="n">Options</span><span class="p">:</span>
-  <span class="o">-</span><span class="n">h</span><span class="p">,</span> <span class="o">--</span><span class="n">help</span>  <span class="n">Show</span> <span class="n">this</span> <span class="n">message</span> <span class="ow">and</span> <span class="n">exit</span><span class="o">.</span>
+Options:
+<span class="w">  </span>-h,<span class="w"> </span>--help<span class="w">  </span>Show<span class="w"> </span>this<span class="w"> </span>message<span class="w"> </span>and<span class="w"> </span>exit.
 
-<span class="n">Commands</span><span class="p">:</span>
-  <span class="n">el_bands</span>    <span class="n">Choose</span> <span class="n">electronic</span> <span class="n">band</span> <span class="n">structure</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">generate</span>    <span class="n">Write</span> <span class="n">POSCAR</span><span class="o">-</span><span class="n">unitcell</span> <span class="ow">and</span> <span class="n">POSCAR</span><span class="o">-</span><span class="n">primitive</span><span class="o">.</span>
-  <span class="n">hints</span>       <span class="n">Show</span> <span class="n">velph</span> <span class="n">command</span> <span class="n">hints</span><span class="o">.</span>
-  <span class="n">init</span>        <span class="n">Initialize</span> <span class="n">an</span> <span class="n">electron</span> <span class="n">phonon</span> <span class="n">calculation</span> <span class="n">project</span><span class="o">.</span>
-  <span class="n">nac</span>         <span class="n">Choose</span> <span class="n">nac</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">ph_bands</span>    <span class="n">Choose</span> <span class="n">phonon</span> <span class="n">band</span> <span class="n">structure</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">phelel</span>      <span class="n">Choose</span> <span class="n">supercell</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">phono3py</span>    <span class="n">Choose</span> <span class="n">phono3py</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">phonopy</span>     <span class="n">Choose</span> <span class="n">phonopy</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">relax</span>       <span class="n">Choose</span> <span class="n">relax</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">selfenergy</span>  <span class="n">Choose</span> <span class="n">selfenergy</span> <span class="n">options</span><span class="o">.</span>
-  <span class="n">transport</span>   <span class="n">Choose</span> <span class="n">transport</span> <span class="n">options</span><span class="o">.</span>
+Commands:
+<span class="w">  </span>el_bands<span class="w">    </span>Choose<span class="w"> </span>electronic<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>options.
+<span class="w">  </span>generate<span class="w">    </span>Write<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>and<span class="w"> </span>POSCAR-primitive.
+<span class="w">  </span>hints<span class="w">       </span>Show<span class="w"> </span>velph<span class="w"> </span><span class="nb">command</span><span class="w"> </span>hints.
+<span class="w">  </span>init<span class="w">        </span>Initialize<span class="w"> </span>an<span class="w"> </span>electron<span class="w"> </span>phonon<span class="w"> </span>calculation<span class="w"> </span>project.
+<span class="w">  </span>nac<span class="w">         </span>Choose<span class="w"> </span>nac<span class="w"> </span>options.
+<span class="w">  </span>ph_bands<span class="w">    </span>Choose<span class="w"> </span>phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>options.
+<span class="w">  </span>phelel<span class="w">      </span>Choose<span class="w"> </span>supercell<span class="w"> </span>options.
+<span class="w">  </span>phono3py<span class="w">    </span>Choose<span class="w"> </span>phono3py<span class="w"> </span>options.
+<span class="w">  </span>phonopy<span class="w">     </span>Choose<span class="w"> </span>phonopy<span class="w"> </span>options.
+<span class="w">  </span>relax<span class="w">       </span>Choose<span class="w"> </span>relax<span class="w"> </span>options.
+<span class="w">  </span>selfenergy<span class="w">  </span>Choose<span class="w"> </span>selfenergy<span class="w"> </span>options.
+<span class="w">  </span>transport<span class="w">   </span>Choose<span class="w"> </span>transport<span class="w"> </span>options.
 </pre></div>
 </div>
 </section>
 <section id="velph-hints">
 <span id="id2"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code><a class="headerlink" href="#velph-hints" title="Link to this heading">#</a></h2>
 <p>This command provides a quick reference of calculation steps.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">hints</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>hints
 </pre></div>
 </div>
 </section>
