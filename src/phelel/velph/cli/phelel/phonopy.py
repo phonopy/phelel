@@ -63,12 +63,16 @@ def create_phonopy_yaml(
 
     # NAC params should be contained phelel_disp.yaml.
     # Therefore nac_params is not set to phe here.
+    if phe.phonon_supercell_matrix is None:
+        supercell = phe.supercell
+    else:
+        supercell = phe.phonon_supercell
     forces = read_forces_from_vasprunxmls(
         [d / "vasprun.xml" for d in dir_names],
-        phe.phonon,
+        supercell,
         subtract_rfs=subtract_residual_forces,
         log_level=0,
     )
-    phe.phonon.forces = forces
-    phe.phonon.save(filename=phonopy_yaml_filename)
+    phe.forces = forces
+    phe.save_phonon(filename=phonopy_yaml_filename)
     click.echo(f'"{phonopy_yaml_filename}" has been made.')

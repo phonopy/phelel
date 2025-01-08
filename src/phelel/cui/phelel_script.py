@@ -219,7 +219,7 @@ def main(**argparse_control):
         print_cell(phelel.supercell)
         if phelel.phonon_supercell_matrix is not None:
             print("-" * 28 + " phonon super cell " + "-" * 29)
-            print_cell(phelel.phonon.supercell)
+            print_cell(phelel.phonon_supercell)
         print("-" * 76)
 
     ##################################

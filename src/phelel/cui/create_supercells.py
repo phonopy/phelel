@@ -78,14 +78,14 @@ def create_phelel_supercells(
         additional_info=additional_info,
     )
 
-    if phelel.phonon is not None:
+    if phelel.phonon_supercell_matrix is not None:
         additional_info = get_additional_info_to_write_fc2_supercells(
             interface_mode, phelel.phonon_supercell_matrix, suffix="PH"
         )
         write_supercells_with_displacements(
-            phelel.phonon.calculator,
-            phelel.phonon.supercell,
-            phelel.phonon.supercells_with_displacements,
+            phelel.calculator,
+            phelel.phonon_supercell,
+            phelel.phonon_supercells_with_displacements,
             optional_structure_info=optional_structure_info,
             additional_info=additional_info,
         )
@@ -115,12 +115,12 @@ def generate_phelel_supercells(
         print("Displacement distance: %s" % _distance)
         print("Number of displacements: %d" % len(phelel.supercells_with_displacements))
 
-    if phelel.phonon is not None:
-        phelel.phonon.generate_displacements(
+    if phelel.phonon_supercell_matrix is not None:
+        phelel.generate_phonon_displacements(
             distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
         )
         if log_level:
             print(
                 "Number of displacements for phonon: %d"
-                % len(phelel.phonon.supercells_with_displacements)
+                % len(phelel.phonon_supercells_with_displacements)
             )

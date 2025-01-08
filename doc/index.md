@@ -31,5 +31,10 @@ install
 workflow
 phelel-command
 velph-command
+velph-init
+velph-init-template
+velph-subcommands
+velph-example
+reference
 changelog
 ```
