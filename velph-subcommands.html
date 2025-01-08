@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>velph subcommands &#8212; Phelel v.0.8.0</title>
+    <title>velph subcommands &#8212; Phelel v.0.8.1</title>
   
   
   
@@ -39,7 +39,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=d6acfc83"></script>
+    <script src="_static/documentation_options.js?v=6d507e9e"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -125,7 +125,7 @@
   
   
   
-    <p class="title logo__title">Phelel v.0.8.0</p>
+    <p class="title logo__title">Phelel v.0.8.1</p>
   
 </a></div>
         <div class="sidebar-primary-item">
@@ -146,6 +146,7 @@
 <li class="toctree-l1"><a class="reference internal" href="velph-init-template.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-example.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">References</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Change Log</a></li>
 </ul>
 
@@ -405,8 +406,15 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 <p>This subcommand calculates the derivatives of local potentials and PAW strengths
 with respect to displacement, performing similar operations as steps 1 and 3
 carried out by the <code class="docutils literal notranslate"><span class="pre">phelel</span></code> command in the <a class="reference internal" href="workflow.html#workflow-minimal"><span class="std std-ref">workflow</span></a>.</p>
+<p>The subcommands below should be executed in the following order:</p>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#velph-phelel-init-subcommand"><span class="std std-ref">velph phelel init</span></a></p></li>
+<li><p><a class="reference internal" href="#velph-phelel-generate-subcommand"><span class="std std-ref">velph phelel generate</span></a></p></li>
+<li><p><a class="reference internal" href="#velph-phelel-differentiate-subcommand"><span class="std std-ref">velph phelel differentiate</span></a></p></li>
+<li><p><a class="reference internal" href="#velph-phelel-phonopy-subcommand"><span class="std std-ref">velph phelel phonopy</span></a> (optional)</p></li>
+</ol>
 <section id="velph-phelel-init">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-phelel-init" title="Link to this heading">#</a></h3>
+<span id="velph-phelel-init-subcommand"></span><h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-phelel-init" title="Link to this heading">#</a></h3>
 <p>This subcommand generates the <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code> file, which contains
 information about the supercell structure and displacements. It is recommended
 to generate <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code> after performing the NAC calculation (see
@@ -421,7 +429,8 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 </div>
 </section>
 <section id="velph-phelel-generate">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-phelel-generate" title="Link to this heading">#</a></h3>
+<span id="velph-phelel-generate-subcommand"></span><h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-phelel-generate" title="Link to this heading">#</a></h3>
+<p>VASP input files and job scripts are generated.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>generate
 VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-000&quot;</span>.
 VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-001&quot;</span>.
@@ -432,10 +441,27 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 </div>
 </section>
 <section id="velph-phelel-differentiate">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code><a class="headerlink" href="#velph-phelel-differentiate" title="Link to this heading">#</a></h3>
+<span id="velph-phelel-differentiate-subcommand"></span><h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code><a class="headerlink" href="#velph-phelel-differentiate" title="Link to this heading">#</a></h3>
+<p>The derivatives of local potentials and PAW strengths with respect to
+displacement are calculated and stored in <code class="docutils literal notranslate"><span class="pre">phelel_params.hdf5</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>differentiate
+FFT<span class="w"> </span>mesh:<span class="w"> </span><span class="o">[</span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="m">30</span><span class="o">]</span>.
+Running<span class="w"> </span>finufft<span class="w"> </span><span class="o">(</span><span class="nv">eps</span><span class="o">=</span><span class="m">1</span>.000e-06<span class="o">)</span>...
+Running<span class="w"> </span>finufft<span class="w"> </span><span class="o">(</span><span class="nv">eps</span><span class="o">=</span><span class="m">1</span>.000e-06<span class="o">)</span>...
+<span class="s2">&quot;phelel/phelel_params.hdf5&quot;</span><span class="w"> </span>has<span class="w"> </span>been<span class="w"> </span>made.
+</pre></div>
+</div>
 </section>
 <section id="velph-phelel-phonopy">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code><a class="headerlink" href="#velph-phelel-phonopy" title="Link to this heading">#</a></h3>
+<span id="velph-phelel-phonopy-subcommand"></span><h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code><a class="headerlink" href="#velph-phelel-phonopy" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">phonopy_params.yaml</span></code> that contains information necessary for phonon calculation
+by the phonopy code is generated from <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code> and the results of the
+VASP inputs generated by <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>phonopy
+<span class="s2">&quot;phelel/phonopy_params.yaml&quot;</span><span class="w"> </span>has<span class="w"> </span>been<span class="w"> </span>made.
+%<span class="w"> </span>phonopy-load<span class="w"> </span>phelel/phonopy_params.yaml<span class="w"> </span>--band<span class="w"> </span>auto<span class="w"> </span>-p
+</pre></div>
+</div>
 </section>
 </section>
 <section id="velph-transport">
