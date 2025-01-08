@@ -5,7 +5,7 @@
 * phonopy
 * phono3py
 * spglib
-* finufft
+* {ref}`reference_finufft`
 * click
 * tomli
 * tomli-w

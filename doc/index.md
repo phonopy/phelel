@@ -35,5 +35,6 @@ velph-init
 velph-init-template
 velph-subcommands
 velph-example
+reference
 changelog
 ```
