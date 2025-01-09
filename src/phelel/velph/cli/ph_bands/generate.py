@@ -17,7 +17,10 @@ from phelel.velph.cli.utils import (
 )
 
 
-def write_input_files(toml_filename: pathlib.Path) -> None:
+def write_input_files(
+    toml_filename: pathlib.Path,
+    dir_name: str = "phelel",
+) -> None:
     """Generate VASP inputs to generate phonon band structure."""
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
@@ -58,12 +61,12 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
     )
 
     # phelel_params.hdf5
-    if pathlib.Path("supercell/phelel_params.hdf5").exists():
+    if pathlib.Path(f"{dir_name}/phelel_params.hdf5").exists():
         shutil.copy2(
-            "supercell/phelel_params.hdf5", "ph_bands/bands/phelel_params.hdf5"
+            f"{dir_name}/phelel_params.hdf5", "ph_bands/bands/phelel_params.hdf5"
         )
     else:
-        click.echo('"supercell/bands/phelel_params.hdf5" not found.', err=True)
+        click.echo(f'"{dir_name}/bands/phelel_params.hdf5" not found.', err=True)
         return None
 
     # POTCAR

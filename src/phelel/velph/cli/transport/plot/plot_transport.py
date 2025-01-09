@@ -35,13 +35,12 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
         "seebeck",
     )
 
+    f_elph = f_h5py["results/electron_phonon/electrons"]
+
     n_transport = len(
-        [
-            key
-            for key in f_h5py["results/electron_phonon/electrons"]
-            if "transport_" in key
-        ]
+        [key for key in f_elph if "transport_" in key and key.split("_")[1].isdigit()]
     )
+    assert n_transport == int(f_elph["transport_meta/ncalculators"][()])
     transports = [
         f_h5py[f"results/electron_phonon/electrons/transport_{n + 1}"]
         for n in range(n_transport)
