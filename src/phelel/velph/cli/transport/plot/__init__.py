@@ -138,7 +138,6 @@ def cmd_plot_eigenvalues(
         plot_eigenvalues(
             args[0],
             tid=tid,
-            nid=nid,
             temperature=temperature,
             cutoff_occupancy=cutoff_occupancy,
             mu=mu,

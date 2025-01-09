@@ -22,11 +22,14 @@ def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fal
     import matplotlib.pyplot as plt
 
     selfens = {}
-    for key in f_h5py["results"]["electron_phonon"]["electrons"]:
+    f_elph = f_h5py["results/electron_phonon/electrons"]
+    for key in f_elph:
         if "self_energy_" in key:
-            selfens[int(key.split("_")[2])] = f_h5py["results"]["electron_phonon"][
-                "electrons"
-            ][key]
+            index = key.split("_")[-1]
+            if index.isdigit():
+                selfens[int(index)] = f_elph[key]
+
+    assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])
 
     if len(selfens) == 1:
         fig, axs = plt.subplots(1, 1, figsize=(4, 4))

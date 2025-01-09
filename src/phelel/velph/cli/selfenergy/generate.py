@@ -173,7 +173,7 @@ def _estimate_elph_selfen_band_stop(
         is 0.5 eV.
     occupation_condition : float
         Condition to determine either if bands are occupied or not. This value
-        is used as occupation_number > occupation_condition. Default is 1e-5.
+        is used as occupation_number > occupation_condition. Default is 1e-10.
 
     Returns
     -------
