@@ -9,7 +9,8 @@ The following subcommands must be executed in the directory containing the
 properly organized relative to the current directory where `velph.toml` is
 located.
 
-A typical workflow of velph subcommands for transport property calculation is illustrated below.
+A typical workflow of velph subcommands for transport property calculation is
+illustrated below.
 
 ```{mermaid}
 graph LR
@@ -274,6 +275,8 @@ VASP input files were generated in "transport".
 
 ### `velph transport plot`
 
+#### `velph transport plot transport`
+
 The following command opens a graphical window that contains plots of transport
 properties in `vaspout.h5`.
 
@@ -281,10 +284,9 @@ properties in `vaspout.h5`.
 % velph transport plot transport
 ```
 
-The following command opens a graphical window that displays eigenvalues in the
-Brillouin zone with non-zero and non-one occupations. The eigenvalues are
-obtained from `vaspout.h5`, and their occupations are calculated based on the
-temperature and Fermi level specified through the command options.
+#### `velph transport plot eigenvalues`
+
+The following command opens a graphical window that displays eigenvalues in the Brillouin zone with non-zero and non-one occupations. These eigenvalues are obtained from `vaspout.h5`, and their occupations are computed based on the temperature and Fermi level specified through the command options.
 
 ```bash
 % velph transport plot eigenvalues
@@ -293,6 +295,15 @@ temperature: 300.000000 K
 No eigenvalues to plot.
 % velph transport plot eigenvalues --mu 4
 ```
+
+This subcommand requires pre-calculated eigenvalues, Fermi levels, and input
+parameters such as temperatures. However, electron-phonon calculation results
+are not necessary. If the goal is to visualize Fermi surface pockets on a
+k-point grid, it is recommended to run the electron-phonon calculation using
+`ELPH_SCATTERING_APPROX=CRTA` to generate the required `vaspout.h5` file
+efficiently.
+
+#### `velph transport plot selfenergy`
 
 The following command opens a graphical window that displays Fan self-energies.
 
