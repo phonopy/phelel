@@ -43,6 +43,14 @@
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'velph-subcommands';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -293,18 +301,8 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-differentiate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-phonopy"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">generate</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-plot"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span> <span class="pre">generate</span></code></a></li>
 </ul>
@@ -316,6 +314,18 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-el-bands"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-el-bands-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">generate</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-el-bands-plot"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">plot</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-differentiate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-phonopy"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">generate</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-plot"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-ph-bands"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span></code></a><ul class="nav section-nav flex-column">
@@ -352,7 +362,18 @@ are explained on this page.</p>
 <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file. This ensures that the directories and files generated are
 properly organized relative to the current directory where <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is
 located.</p>
-<p>In the following example, two <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> command operations generate two
+<p>A typical workflow of velph subcommands for transport property calculation is illustrated below.</p>
+<pre  class="mermaid">
+        graph LR
+A[velph-init] --&gt; B[velph-relax]
+B --&gt; C[velph-init]
+C --&gt; D[velph-nac]
+C --&gt; E[velph-el_bands]
+F[velph-phelel]
+D --&gt; F
+E --&gt; F
+F --&gt; G[velph-transport]
+    </pre><p>In the following example, two <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> command operations generate two
 different directories. The first operation performs crystal structure relaxation
 in the <code class="docutils literal notranslate"><span class="pre">relax</span></code> directory. The second operation, using the relaxed crystal
 structure, carries out additional calculations required for electron-phonon
@@ -401,6 +422,100 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 ...
 </pre></div>
 </div>
+<section id="velph-init">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-init" title="Link to this heading">#</a></h2>
+<p>See <a class="reference internal" href="velph-init.html#velph-init"><span class="std std-ref">velph init</span></a>.</p>
+</section>
+<section id="velph-hints">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code><a class="headerlink" href="#velph-hints" title="Link to this heading">#</a></h2>
+<p>See <a class="reference internal" href="velph-command.html#velph-hints"><span class="std std-ref">velph hints</span></a>.</p>
+</section>
+<section id="velph-relax">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code><a class="headerlink" href="#velph-relax" title="Link to this heading">#</a></h2>
+<p>It is recommended to create a project directory secific for relaxation
+calculation, e.g., as</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>ls
+POSCAR-unitcell<span class="w">  </span>POTCAR<span class="w">  </span>velph-tmpl.toml
+%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>relax
+...
+%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>relax
+%<span class="w"> </span>ls
+POTCAR<span class="w">  </span>velph.toml
+%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
+...
+</pre></div>
+</div>
+<section id="velph-relax-generate">
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-relax-generate" title="Link to this heading">#</a></h3>
+<p>This subcommand generates VASP input files and a job script for crystal
+structure relaxation. Initially, these files are created in the <code class="docutils literal notranslate"><span class="pre">iter1</span></code>
+directory. The process supports multiple relaxation steps, where the <code class="docutils literal notranslate"><span class="pre">CONTCAR</span></code>
+file from the previous iteration is used as the <code class="docutils literal notranslate"><span class="pre">POSCAR</span></code> for the next step once
+the preceding VASP calculation is complete. Each subsequent set of input files
+is generated in directories named <code class="docutils literal notranslate"><span class="pre">iter2</span></code>, <code class="docutils literal notranslate"><span class="pre">iter3</span></code>, and so on.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>ls
+POTCAR<span class="w">  </span>velph.toml
+%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;relax/iter1&quot;</span>.
+...
+<span class="c1"># Run VASP calculation in relax/iter1</span>
+...
+%<span class="w"> </span>ls
+POTCAR<span class="w">  </span>relax/<span class="w">  </span>velph.toml
+%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
+<span class="s2">&quot;relax/iter1&quot;</span><span class="w"> </span>exists.
+<span class="s2">&quot;relax/iter1/CONTCAR&quot;</span><span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>as<span class="w"> </span>new<span class="w"> </span><span class="s2">&quot;POSCAR&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;relax/iter2&quot;</span>.
+...
+</pre></div>
+</div>
+</section>
+</section>
+<section id="velph-nac">
+<span id="velph-nac-subcommand"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">nac</span></code><a class="headerlink" href="#velph-nac" title="Link to this heading">#</a></h2>
+<p>This subcommand is used to prepare VASP input files for calculating the
+dielectric constant and Born effective charges. These quantities are required
+for the non-analytical term correction in phonon calculations and for handling
+the long-range terms in electron-phonon interaction calculations.</p>
+<section id="velph-nac-generate">
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">nac</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-nac-generate" title="Link to this heading">#</a></h3>
+<p>After the VASP calculation is complete, the dielectric constant and Born
+effective charges are extracted from the <code class="docutils literal notranslate"><span class="pre">vasprun.xml</span></code> file during the execution
+of <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code>, <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span> <span class="pre">init</span></code>, or <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span> <span class="pre">init</span></code>. The
+extracted values are then written to <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py_disp.yaml</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">phonopy_disp.yaml</span></code>, respectively.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>nac<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;nac&quot;</span>.
+</pre></div>
+</div>
+</section>
+</section>
+<section id="velph-el-bands">
+<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span></code><a class="headerlink" href="#velph-el-bands" title="Link to this heading">#</a></h2>
+<p>This subcommand is used to prepare VASP input files for electronic band
+structure and density of states calculations, and to plot the resulting data.</p>
+<section id="velph-el-bands-generate">
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-el-bands-generate" title="Link to this heading">#</a></h3>
+<p>The VASP input files have been prepared so that the calculation results will be
+stored in <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>el_bands<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;el_bands/bands&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;el_bands/dos&quot;</span>.
+</pre></div>
+</div>
+</section>
+<section id="velph-el-bands-plot">
+<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">plot</span></code><a class="headerlink" href="#velph-el-bands-plot" title="Link to this heading">#</a></h3>
+<p>The electronic band structure and density of states are plotted and saved in the
+<code class="docutils literal notranslate"><span class="pre">el_bands.pdf</span></code> file. The energy range must be specified using the <code class="docutils literal notranslate"><span class="pre">--windows</span></code>
+option, with the first and second arguments representing the range below and
+above the Fermi energy in eV, respectively.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>el_bands<span class="w"> </span>plot<span class="w"> </span>--window<span class="w"> </span>-5<span class="w"> </span><span class="m">9</span>
+Electronic<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>plot<span class="w"> </span>was<span class="w"> </span>saved<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;el_bands/el_bands.pdf&quot;</span>.
+</pre></div>
+</div>
+</section>
+</section>
 <section id="velph-phelel">
 <h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code><a class="headerlink" href="#velph-phelel" title="Link to this heading">#</a></h2>
 <p>This subcommand calculates the derivatives of local potentials and PAW strengths
@@ -454,6 +569,14 @@ Running<span class="w"> </span>finufft<span class="w"> </span><span class="o">(<
 </section>
 <section id="velph-phelel-phonopy">
 <span id="velph-phelel-phonopy-subcommand"></span><h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code><a class="headerlink" href="#velph-phelel-phonopy" title="Link to this heading">#</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This subcommand is similar to <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span></code>, but the phonon band structure is
+calculated using the phonopy code. While the phonon calculation routines of VASP
+and phonopy are expected to yield similar results, they are not entirely
+equivalent. However, for electron-phonon calculations, the VASP routine is
+utilized.</p>
+</div>
 <p><code class="docutils literal notranslate"><span class="pre">phonopy_params.yaml</span></code> that contains information necessary for phonon calculation
 by the phonopy code is generated from <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code> and the results of the
 VASP inputs generated by <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code>.</p>
@@ -466,88 +589,67 @@ VASP inputs generated by <code class="docutils literal notranslate"><span class=
 </section>
 <section id="velph-transport">
 <h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span></code><a class="headerlink" href="#velph-transport" title="Link to this heading">#</a></h2>
+<p>This subcommand is used to prepare VASP input files for calculating transport
+properties based on electron-phonon interactions.</p>
 <section id="velph-transport-generate">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-transport-generate" title="Link to this heading">#</a></h3>
+<p>The VASP input files are prepared for transport property calculations. Users
+should review the generated <code class="docutils literal notranslate"><span class="pre">INCAR</span></code> tags and modify them as necessary for the
+target material. If results from <code class="docutils literal notranslate"><span class="pre">el_bands/dos</span></code> calculations are available, the
+maximum band index for the self-energy calculation is estimated and written into
+the <code class="docutils literal notranslate"><span class="pre">INCAR</span></code> file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>generate
+Found<span class="w"> </span><span class="s2">&quot;el_bands/dos&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Estimate<span class="w"> </span>elph_selfen_band_stop.
+<span class="w">  </span><span class="s2">&quot;elph_selfen_band_stop=5&quot;</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>INCAR<span class="w"> </span>is<span class="w"> </span>set.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;transport&quot;</span>.
+</pre></div>
+</div>
 </section>
 <section id="velph-transport-plot">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span></code><a class="headerlink" href="#velph-transport-plot" title="Link to this heading">#</a></h3>
-</section>
-</section>
-<section id="velph-relax">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code><a class="headerlink" href="#velph-relax" title="Link to this heading">#</a></h2>
-<p>It is recommended to create a project directory secific for relaxation
-calculation, e.g., as</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>ls
-POSCAR-unitcell<span class="w">  </span>POTCAR<span class="w">  </span>velph-tmpl.toml
-%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>relax
-...
-%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>relax
-%<span class="w"> </span>ls
-POTCAR<span class="w">  </span>velph.toml
-%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
-...
+<p>The following command opens a graphical window that contains plots of transport
+properties in <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>transport
 </pre></div>
 </div>
-<section id="velph-relax-generate">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-relax-generate" title="Link to this heading">#</a></h3>
-<p>This subcommand generates VASP input files and a job script for crystal
-structure relaxation. Initially, these files are created in the <code class="docutils literal notranslate"><span class="pre">iter1</span></code>
-directory. The process supports multiple relaxation steps, where the <code class="docutils literal notranslate"><span class="pre">CONTCAR</span></code>
-file from the previous iteration is used as the <code class="docutils literal notranslate"><span class="pre">POSCAR</span></code> for the next step once
-the preceding VASP calculation is complete. Each subsequent set of input files
-is generated in directories named <code class="docutils literal notranslate"><span class="pre">iter2</span></code>, <code class="docutils literal notranslate"><span class="pre">iter3</span></code>, and so on.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>ls
-POTCAR<span class="w">  </span>velph.toml
-%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;relax/iter1&quot;</span>.
-...
-<span class="c1"># Run VASP calculation in relax/iter1</span>
-...
-%<span class="w"> </span>ls
-POTCAR<span class="w">  </span>relax/<span class="w">  </span>velph.toml
-%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
-<span class="s2">&quot;relax/iter1&quot;</span><span class="w"> </span>exists.
-<span class="s2">&quot;relax/iter1/CONTCAR&quot;</span><span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>as<span class="w"> </span>new<span class="w"> </span><span class="s2">&quot;POSCAR&quot;</span>.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;relax/iter2&quot;</span>.
-...
+<p>The following command opens a graphical window that displays eigenvalues in the
+Brillouin zone with non-zero and non-one occupations. The eigenvalues are
+obtained from <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>, and their occupations are calculated based on the
+temperature and Fermi level specified through the command options.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>eigenvalues
+mu:<span class="w"> </span><span class="m">4</span>.837002<span class="w"> </span>eV
+temperature:<span class="w"> </span><span class="m">300</span>.000000<span class="w"> </span>K
+No<span class="w"> </span>eigenvalues<span class="w"> </span>to<span class="w"> </span>plot.
+%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>eigenvalues<span class="w"> </span>--mu<span class="w"> </span><span class="m">4</span>
 </pre></div>
 </div>
-</section>
-</section>
-<section id="velph-nac">
-<span id="velph-nac-subcommand"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">nac</span></code><a class="headerlink" href="#velph-nac" title="Link to this heading">#</a></h2>
-<p>This subcommand is used to calculate dielectric constant and Born effective
-charges that are used for non-analytical term correction of phonon calculation
-and treatment of long range term of electron-phonon interaction calculation.</p>
-<section id="velph-nac-generate">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">nac</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-nac-generate" title="Link to this heading">#</a></h3>
-<p>After the VASP calculation is complete, the dielectric constant and Born
-effective charges are extracted from the <code class="docutils literal notranslate"><span class="pre">vasprun.xml</span></code> file during the execution
-of <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code>, <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span> <span class="pre">init</span></code>, or <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span> <span class="pre">init</span></code>. The
-extracted values are then written to <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py_disp.yaml</span></code>,
-or <code class="docutils literal notranslate"><span class="pre">phonopy_disp.yaml</span></code>, respectively.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>nac<span class="w"> </span>generate
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;nac&quot;</span>.
+<p>The following command opens a graphical window that displays Fan self-energies.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>selfenergy
 </pre></div>
 </div>
-</section>
-</section>
-<section id="velph-el-bands">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span></code><a class="headerlink" href="#velph-el-bands" title="Link to this heading">#</a></h2>
-<section id="velph-el-bands-generate">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-el-bands-generate" title="Link to this heading">#</a></h3>
-</section>
-<section id="velph-el-bands-plot">
-<h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">plot</span></code><a class="headerlink" href="#velph-el-bands-plot" title="Link to this heading">#</a></h3>
 </section>
 </section>
 <section id="velph-ph-bands">
 <h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span></code><a class="headerlink" href="#velph-ph-bands" title="Link to this heading">#</a></h2>
+<p>This subcommand is used to prepare VASP input files for phonon band structure
+calculation using the supercell force constants stored in <code class="docutils literal notranslate"><span class="pre">phelel_params.hdf5</span></code>,
+and to plot the resulting data.</p>
 <section id="velph-ph-bands-generate">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-ph-bands-generate" title="Link to this heading">#</a></h3>
+<p>The VASP input files including <code class="docutils literal notranslate"><span class="pre">QPOINTS</span></code> are prepared so that the
+calculation results will be stored in <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>ph_bands<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;ph_bands/bands&quot;</span>.
+</pre></div>
+</div>
 </section>
 <section id="velph-ph-bands-plot">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span> <span class="pre">plot</span></code><a class="headerlink" href="#velph-ph-bands-plot" title="Link to this heading">#</a></h3>
+<p>The phonon band structure is plotted and saved in the <code class="docutils literal notranslate"><span class="pre">ph_bands.pdf</span></code> file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>ph_bands<span class="w"> </span>plot
+Phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>plot<span class="w"> </span>was<span class="w"> </span>saved<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;ph_bands/ph_bands.pdf&quot;</span>.
+</pre></div>
+</div>
 </section>
 </section>
 <section id="velph-phono3py">
@@ -616,18 +718,8 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-differentiate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-phonopy"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code></a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">generate</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-plot"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span></code></a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span> <span class="pre">generate</span></code></a></li>
 </ul>
@@ -639,6 +731,18 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-el-bands"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-el-bands-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">generate</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-el-bands-plot"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">plot</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">generate</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-differentiate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">differentiate</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-phelel-phonopy"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">phonopy</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">generate</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-transport-plot"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-ph-bands"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span></code></a><ul class="nav section-nav flex-column">
