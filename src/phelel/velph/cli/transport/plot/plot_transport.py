@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import pathlib
+
 import click
 import h5py
 import numpy as np
 
 
-def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = False):
+def plot_transport(
+    f_h5py: h5py.File,
+    plot_filename: str,
+    dir_name: pathlib.Path,
+    save_plot: bool = False,
+):
     """Plot transport properties.
 
     Number of "transport_*" is
@@ -46,8 +53,14 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
         for n in range(n_transport)
     ]
 
+    lines = []
     for i, transport in enumerate(transports):
-        _show(transport, i + 1)
+        lines += _show(transport, i + 1)
+    with open(dir_name / "transport.txt", "w") as w:
+        print("\n".join(lines), file=w)
+    click.echo(
+        f'Summary of data structure was saved in "{dir_name / "transport.txt"}".'
+    )
 
     n_props = len(property_names)
     _, axs = plt.subplots(
@@ -65,6 +78,7 @@ def plot_transport(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fals
             i,
             transport["id_idx"][:],
             last_transport_idx,
+            transport_dir_name=dir_name,
         )
 
     plt.tight_layout()
@@ -84,6 +98,7 @@ def _plot(
     index: int,
     transport_idx: np.ndarray,
     last_transport_idx: np.ndarray,
+    transport_dir_name: pathlib.Path = pathlib.Path("transport"),
 ):
     """Plot transport properties.
 
@@ -93,7 +108,7 @@ def _plot(
     import matplotlib.ticker as ticker
 
     temps = transport["temps"][:]
-    dat_filename = f"transport-{index + 1}.dat"
+    dat_filename = transport_dir_name / f"transport-{index + 1}.dat"
     properties = []
 
     label_property_names = []
@@ -109,19 +124,22 @@ def _plot(
         else:
             properties.append([np.trace(tensor) / 3 for tensor in transport[key][:]])
 
+    names = [name.decode("utf-8") for name in transport["id_name"][:]]
+    labels = []
+    click.echo(
+        f"{index + 1}. "
+        + " / ".join([f"{name} {int(i)}" for name, i in zip(names, transport_idx)])
+    )
+    for i, name in enumerate(names):
+        if last_transport_idx[i] > 1:
+            if name == "selfen_approx":
+                labels.append(transport["scattering_approximation"][()].decode("utf-8"))
+
     with open(dat_filename, "w") as w:
         print("# temperature", *label_property_names, file=w)
         for temp, props in zip(temps, np.transpose(properties)):
             print(temp, *props, file=w)
         click.echo(f'Transport data {index + 1} was saved in "{dat_filename}".')
-
-    names = [name.decode("utf-8") for name in transport["id_name"][:]]
-    labels = []
-    click.echo([(name, int(i)) for name, i in zip(names, transport_idx)])
-    for i, name in enumerate(names):
-        if last_transport_idx[i] > 1:
-            if name == "selfen_approx":
-                labels.append(transport["scattering_approximation"][()].decode("utf-8"))
 
     for i, label_property in enumerate(label_property_names):
         if label_property == "e_conductivity":
@@ -143,7 +161,7 @@ def _plot(
         ax.set_yticklabels([])
 
 
-def _show(transport: h5py.Group, index: int):
+def _show(transport: h5py.Group, index: int) -> list[str]:
     """Show transport properties.
 
     ['cell_volume', 'dfermi_tol', 'e_conductivity', 'e_t_conductivity', 'emax',
@@ -152,13 +170,15 @@ def _show(transport: h5py.Group, index: int):
     'tau_average', 'temperature', 'transport_function']
 
     """
-    print(f"- parameters:  # {index}")
+    lines = [f"- parameters:  # {index}"]
     for i, temp in enumerate(transport["temps"][:]):
-        print(f"  - temperature: {temp}")
-        print(
-            "    scattering_approximation:",
-            transport["scattering_approximation"][()].decode("utf-8"),
-        )
+        lines += [
+            f"  - temperature: {temp}",
+            "    scattering_approximation: {}".format(
+                transport["scattering_approximation"][()].decode("utf-8")
+            ),
+        ]
+
         for key in (
             "cell_volume",
             "dfermi_tol",
@@ -166,12 +186,12 @@ def _show(transport: h5py.Group, index: int):
             "nedos",
         ):
             if isinstance(key, tuple):
-                print(f"    {key[1]}: {transport[key[0]][()]}")
+                lines.append(f"    {key[1]}: {transport[key[0]][()]}")
             else:
-                print(f"    {key}: {transport[key][()]}")
-        print(f"    static_approximation: {bool(transport['static'][()])}")
+                lines.append(f"    {key}: {transport[key][()]}")
+        lines.append(f"    static_approximation: {bool(transport['static'][()])}")
 
-        print("    data_scalar:")
+        lines.append("    data_scalar:")
         for key in (
             ("emax", "emax_for_transport_function"),
             ("emin", "emin_for_transport_function"),
@@ -182,11 +202,11 @@ def _show(transport: h5py.Group, index: int):
             "tau_average",
         ):
             if isinstance(key, tuple):
-                print(f"      {key[1]}: {transport[key[0]][i]}")
+                lines.append(f"      {key[1]}: {transport[key[0]][i]}")
             else:
-                print(f"      {key}: {transport[key][i]}")
+                lines.append(f"      {key}: {transport[key][i]}")
 
-        print("    data_array_diagonal:")
+        lines.append("    data_array_diagonal:")
         for key in (
             "e_conductivity",
             "e_t_conductivity",
@@ -195,18 +215,20 @@ def _show(transport: h5py.Group, index: int):
             "seebeck",
         ):
             v = transport[key][:].ravel()
-            print(
+            lines.append(
                 f"      {key}: [{v[0]:.3e}, {v[4]:.3e}, {v[8]:.3e}, "
                 f"{v[5]:.3e}, {v[2]:.3e}, {v[1]:.3e}]"
             )
 
-        print("    data_array_shapes:")
+        lines.append("    data_array_shapes:")
         for key in (
             "energy",
             ("lab", "Onsager_coefficients"),
             "transport_function",
         ):
             if isinstance(key, tuple):
-                print(f"      {key[1]}: {list(transport[key[0]][i].shape)}")
+                lines.append(f"      {key[1]}: {list(transport[key[0]][i].shape)}")
             else:
-                print(f"      {key}: {list(transport[key][i].shape)}")
+                lines.append(f"      {key}: {list(transport[key][i].shape)}")
+
+        return lines
