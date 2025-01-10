@@ -142,6 +142,7 @@
 <li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-command.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-toml.html"><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-init.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-subcommands.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
@@ -293,11 +294,8 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#init-options"><code class="docutils literal notranslate"><span class="pre">[init.options]</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#vasp-incar"><code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code></a></li>
 </ul>
             </nav>
         </div>
@@ -311,99 +309,48 @@
                   
   <section class="tex2jax_ignore mathjax_ignore" id="velph-init-template">
 <span id="id1"></span><h1><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template<a class="headerlink" href="#velph-init-template" title="Link to this heading">#</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> is the command to prepare <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. Without specifying a
-velph-toml-template, the default template is used. Custom template can be
-specified as follows:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="p">[</span><span class="n">OPTIONS</span><span class="p">]</span> <span class="n">CELL_FILENAME</span> <span class="n">PROJECT_FOLDER</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> command is used to prepare the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file. If no custom
+template is specified, a default template is applied. To specify a custom
+template, use the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>CELL_FILENAME<span class="w"> </span>PROJECT_FOLDER<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> (arbitrary file name) is almost like the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>
-file. It means that the <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> may be created modifying
-<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. The sections that exist only in the <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> but not in
-<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code>. This can be used as alternatives of command
-options of <code class="docutils literal notranslate"><span class="pre">velph-init</span></code>, e.g.,</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> file (which can have any file name) is similar to the
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file. It can be created by modifying an existing <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>.
+However, a key difference is that <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> may include an
+<code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> section that is not present in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>. This section
+allows you to define default values as substitutes for command-line options used
+with <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code>, as described in the next section.</p>
+<section id="init-options">
+<span id="velph-init-template-init-options"></span><h2><code class="docutils literal notranslate"><span class="pre">[init.options]</span></code><a class="headerlink" href="#init-options" title="Link to this heading">#</a></h2>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[init.options]</span>
 <span class="n">kspacing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span>
 <span class="n">kspacing_dense</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1</span>
 <span class="n">max_num_atoms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">120</span>
 </pre></div>
 </div>
-<p>These <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> keywords can be found along with the list of the command
-options by</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="o">--</span><span class="n">help</span>
-</pre></div>
-</div>
-<section id="settings-in-sections-of-velph-toml">
-<h2>Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code><a class="headerlink" href="#settings-in-sections-of-velph-toml" title="Link to this heading">#</a></h2>
-<p>Note that the same can be applied to <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code>.</p>
-<section id="default-incar-settings">
-<h3>Default INCAR settings<a class="headerlink" href="#default-incar-settings" title="Link to this heading">#</a></h3>
-<p>The default INCAR settins are written in <code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code>. These settings are
-overwritten by <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.incar]</span></code> (<code class="docutils literal notranslate"><span class="pre">CALC_TYPE</span></code> can be <code class="docutils literal notranslate"><span class="pre">phelel</span></code>, <code class="docutils literal notranslate"><span class="pre">relax</span></code>,
-<code class="docutils literal notranslate"><span class="pre">nac</span></code>, <code class="docutils literal notranslate"><span class="pre">transport</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py.phonon</span></code>, etc).</p>
-</section>
-<section id="scheduler-settings">
-<h3>Scheduler settings<a class="headerlink" href="#scheduler-settings" title="Link to this heading">#</a></h3>
-<p>The parameters used for generating the job submission script are specified as
-strings in <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code>. If <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.scheduler]</span></code> is
-specified, <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> settings are overwritten by the settings for
-<code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE]</span></code>. The content in this section operates through <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str.format">Python string
-formatting</a>, using
-replacement fields named after keyword arguments. Each parameter line in the
-<code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section is treated as a keyword argument, which is then inserted
-into the string format.</p>
-<p>In the <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section, the parameters <code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code> and
-<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> have special roles:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code>: Specifies the template type, with options <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, <code class="docutils literal notranslate"><span class="pre">sge</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">custom</span></code>. For <code class="docutils literal notranslate"><span class="pre">slurm</span></code> and <code class="docutils literal notranslate"><span class="pre">sge</span></code>, the template string (i.e.,
-<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>) is
-<a class="reference external" href="https://github.com/phonopy/phelel/blob/develop/src/phelel/velph/utils/scheduler.py">hard-coded</a>.
-If <code class="docutils literal notranslate"><span class="pre">custom</span></code> is selected, the string provided by <code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> is used,
-into which the parameters are inserted.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>: The string template where parameters defined in this
-section are inserted.</p></li>
-</ul>
-<p>An example is shown below.</p>
-<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[scheduler]</span>
-<span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
-<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
-<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
-<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-1/bin/vasp_std&quot;</span>
-<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
-<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">source /opt/intel/oneapi/setvars.sh --config=&quot;/home/togo/.oneapi-config&quot;</span>
-<span class="s1">&#39;&#39;&#39;</span>
-
-<span class="p">...</span>
-<span class="k">[vasp.phelel.scheduler]</span>
-<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;paris 24&quot;</span>
-
-<span class="p">...</span>
-<span class="k">[vasp.phonopy.scheduler]</span>
-<span class="n">scheduler_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;#!/bin/bash</span>
-<span class="s1">#QSUB2 core 192</span>
-<span class="s1">#QSUB2 mpi 192</span>
-<span class="s1">#QSUB2 smp 1</span>
-<span class="s1">#QSUB2 wtime 48:00:00</span>
-<span class="s1">#PBS -N {job_name}</span>
-<span class="s1">cd $PBS_O_WORKDIR</span>
-
-<span class="s1">{prepend_text}</span>
-<span class="s1">{mpirun_command} {vasp_binary} | tee vasp_output</span>
-<span class="s1">{append_text}</span>
-<span class="s1">&#39;&#39;&#39;</span>
-<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
-<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpijob&quot;</span>
-<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-2/bin/vasp_std&quot;</span>
-<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">. /etc/profile.d/modules.sh</span>
-<span class="s1">module load inteloneapi22u3</span>
-<span class="s1">&#39;&#39;&#39;</span>
-<span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+<p>The <code class="docutils literal notranslate"><span class="pre">[init.options]</span></code> keywords correspond to command-line options for <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code>. To view a complete list of available options, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--help
 </pre></div>
 </div>
 </section>
+<section id="vasp-incar">
+<span id="velph-init-template-incar"></span><h2><code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code><a class="headerlink" href="#vasp-incar" title="Link to this heading">#</a></h2>
+<p>The base INCAR settings are defined in the <code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code> section. These
+settings can be overridden by the <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.incar]</span></code> section if existed,
+where <code class="docutils literal notranslate"><span class="pre">CALC_TYPE</span></code> could be <code class="docutils literal notranslate"><span class="pre">phelel</span></code>, <code class="docutils literal notranslate"><span class="pre">relax</span></code>, <code class="docutils literal notranslate"><span class="pre">nac</span></code>, <code class="docutils literal notranslate"><span class="pre">transport</span></code>, <code class="docutils literal notranslate"><span class="pre">phono3py</span></code>,
+<code class="docutils literal notranslate"><span class="pre">phono3py.phonon</span></code>, etc. For example, consider the following configuration:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[vasp.incar]</span>
+<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">400</span>
+<span class="n">ncore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="n">gga</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PS&quot;</span>
+</pre></div>
+</div>
+<p>In this case, the <code class="docutils literal notranslate"><span class="pre">[vasp.phelel.incar]</span></code> section in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is initially
+populated with these base settings. And then, the default parameters specific to
+the <code class="docutils literal notranslate"><span class="pre">phelel</span></code> calculation, as well as any settings defined in the
+<code class="docutils literal notranslate"><span class="pre">[vasp.phelel.incar]</span></code> section of the template, will override these
+configurations as needed.</p>
 </section>
 </section>
 
@@ -453,11 +400,8 @@ section are inserted.</p></li>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#settings-in-sections-of-velph-toml">Settings in sections of <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#default-incar-settings">Default INCAR settings</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-settings">Scheduler settings</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#init-options"><code class="docutils literal notranslate"><span class="pre">[init.options]</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#vasp-incar"><code class="docutils literal notranslate"><span class="pre">[vasp.incar]</span></code></a></li>
 </ul>
   </nav></div>
 

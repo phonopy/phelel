@@ -142,6 +142,7 @@
 <li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow of el-ph calculation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-command.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-toml.html"><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-init.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-init-template.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
@@ -444,7 +445,7 @@ Electronic<span class="w"> </span>band<span class="w"> </span>structure<span cla
 </section>
 </section>
 <section id="velph-phelel">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code><a class="headerlink" href="#velph-phelel" title="Link to this heading">#</a></h2>
+<span id="velph-phelel-subcommand"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span></code><a class="headerlink" href="#velph-phelel" title="Link to this heading">#</a></h2>
 <p>This subcommand calculates the derivatives of local potentials and PAW strengths
 with respect to displacement, performing similar operations as steps 1 and 3
 carried out by the <code class="docutils literal notranslate"><span class="pre">phelel</span></code> command in the <a class="reference internal" href="workflow.html#workflow-minimal"><span class="std std-ref">workflow</span></a>.</p>
@@ -455,6 +456,15 @@ carried out by the <code class="docutils literal notranslate"><span class="pre">
 <li><p><a class="reference internal" href="#velph-phelel-differentiate-subcommand"><span class="std std-ref">velph phelel differentiate</span></a></p></li>
 <li><p><a class="reference internal" href="#velph-phelel-phonopy-subcommand"><span class="std std-ref">velph phelel phonopy</span></a> (optional)</p></li>
 </ol>
+<p>Certain configurations for phelel can be specified directly in the
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phelel]</span>
+<span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
+<span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
+<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">plusminus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</pre></div>
+</div>
 <section id="velph-phelel-init">
 <span id="velph-phelel-init-subcommand"></span><h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phelel</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-phelel-init" title="Link to this heading">#</a></h3>
 <p>This subcommand generates the <code class="docutils literal notranslate"><span class="pre">phelel_disp.yaml</span></code> file, which contains
@@ -544,7 +554,10 @@ properties in <code class="docutils literal notranslate"><span class="pre">vaspo
 </section>
 <section id="velph-transport-plot-eigenvalues">
 <h4><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span> <span class="pre">eigenvalues</span></code><a class="headerlink" href="#velph-transport-plot-eigenvalues" title="Link to this heading">#</a></h4>
-<p>The following command opens a graphical window that displays eigenvalues in the Brillouin zone with non-zero and non-one occupations. These eigenvalues are obtained from <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>, and their occupations are computed based on the temperature and Fermi level specified through the command options.</p>
+<p>The following command opens a graphical window that displays eigenvalues in the
+Brillouin zone with non-zero and non-one occupations. These eigenvalues are
+obtained from <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>, and their occupations are computed based on the
+temperature and Fermi level specified through the command options.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>eigenvalues
 mu:<span class="w"> </span><span class="m">4</span>.837002<span class="w"> </span>eV
 temperature:<span class="w"> </span><span class="m">300</span>.000000<span class="w"> </span>K
@@ -592,10 +605,11 @@ Phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="
 </section>
 </section>
 <section id="velph-phono3py">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span></code><a class="headerlink" href="#velph-phono3py" title="Link to this heading">#</a></h2>
-<p>This subcommand facilitates lattice thermal conductivity calculations using the
-phono3py code. To use this subcommand, the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file must include a
-<code class="docutils literal notranslate"><span class="pre">[phono3py]</span></code> section configured as shown below:</p>
+<span id="velph-phono3py-subcommand"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span></code><a class="headerlink" href="#velph-phono3py" title="Link to this heading">#</a></h2>
+<p>This subcommand facilitates anharmonic phonon calculation including lattice
+thermal conductivity calculation using the phono3py code. Certain configurations
+for supercell and displacements can be specified directly in the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>
+file:</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phono3py]</span>
 <span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
 <span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
@@ -633,7 +647,8 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 </div>
 <p>After completing supercell force calculations using the VASP code, the
 <code class="docutils literal notranslate"><span class="pre">phono3py_params.yaml</span></code> file can be created with the following command:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>phono3py<span class="w"> </span>--cfz<span class="w"> </span>phono3py/disp-00000/vasprun.xml<span class="w"> </span>--cf3<span class="w"> </span>phono3py/disp-<span class="o">{</span><span class="m">00001</span>..00120<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>phono3py
+%<span class="w"> </span>phono3py<span class="w"> </span>--cfz<span class="w"> </span>disp-00000/vasprun.xml<span class="w"> </span>--cf3<span class="w"> </span>disp-<span class="o">{</span><span class="m">00001</span>..00120<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
 </pre></div>
 </div>
 <p>In this step, forces from 120 supercells are collected, and the corresponding
@@ -641,8 +656,10 @@ data are stored in the <code class="docutils literal notranslate"><span class="p
 </section>
 </section>
 <section id="velph-phonopy">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span></code><a class="headerlink" href="#velph-phonopy" title="Link to this heading">#</a></h2>
-<p>The purpose of this subcommand is nearly identical to that of <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span></code>.</p>
+<span id="velph-phonopy-subcommand"></span><h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span></code><a class="headerlink" href="#velph-phonopy" title="Link to this heading">#</a></h2>
+<p>This subcommand facilitates phonon calculation using the phonopy code. Certain
+configurations for supercell and displacements can be specified directly in the
+<code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file:</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phonopy]</span>
 <span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
 <span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
@@ -671,7 +688,8 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 </div>
 <p>After completing supercell force calculations using the VASP code, the
 <code class="docutils literal notranslate"><span class="pre">phonopy_params.yaml</span></code> file can be created with the following command:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>phonopy<span class="w"> </span>--fz<span class="w"> </span>phonopy/disp-<span class="o">{</span><span class="m">00000</span>..00010<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>phonopy
+%<span class="w"> </span>phonopy<span class="w"> </span>--fz<span class="w"> </span>disp-<span class="o">{</span><span class="m">00000</span>..00010<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
 </pre></div>
 </div>
 </section>
