@@ -100,6 +100,7 @@ above the Fermi energy in eV, respectively.
 Electronic band structure plot was saved in "el_bands/el_bands.pdf".
 ```
 
+(velph_phelel_subcommand)=
 ## `velph phelel`
 
 This subcommand calculates the derivatives of local potentials and PAW strengths
@@ -112,6 +113,17 @@ The subcommands below should be executed in the following order:
 2. {ref}`velph_phelel_generate_subcommand`
 3. {ref}`velph_phelel_differentiate_subcommand`
 4. {ref}`velph_phelel_phonopy_subcommand` (optional)
+
+Certain configurations for phelel can be specified directly in the
+`velph.toml` file:
+
+```toml
+[phelel]
+supercell_dimension = [2, 2, 2]
+amplitude = 0.03
+diagonal = false
+plusminus = true
+```
 
 (velph_phelel_init_subcommand)=
 ### `velph phelel init`
@@ -212,7 +224,10 @@ properties in `vaspout.h5`.
 
 #### `velph transport plot eigenvalues`
 
-The following command opens a graphical window that displays eigenvalues in the Brillouin zone with non-zero and non-one occupations. These eigenvalues are obtained from `vaspout.h5`, and their occupations are computed based on the temperature and Fermi level specified through the command options.
+The following command opens a graphical window that displays eigenvalues in the
+Brillouin zone with non-zero and non-one occupations. These eigenvalues are
+obtained from `vaspout.h5`, and their occupations are computed based on the
+temperature and Fermi level specified through the command options.
 
 ```bash
 % velph transport plot eigenvalues
@@ -262,11 +277,13 @@ The phonon band structure is plotted and saved in the `ph_bands.pdf` file.
 Phonon band structure plot was saved in "ph_bands/ph_bands.pdf".
 ```
 
+(velph_phono3py_subcommand)=
 ## `velph phono3py`
 
-This subcommand facilitates lattice thermal conductivity calculations using the
-phono3py code. To use this subcommand, the `velph.toml` file must include a
-`[phono3py]` section configured as shown below:
+This subcommand facilitates anharmonic phonon calculation including lattice
+thermal conductivity calculation using the phono3py code. Certain configurations
+for supercell and displacements can be specified directly in the `velph.toml`
+file:
 
 ```toml
 [phono3py]
@@ -312,15 +329,19 @@ After completing supercell force calculations using the VASP code, the
 `phono3py_params.yaml` file can be created with the following command:
 
 ```bash
-% phono3py --cfz phono3py/disp-00000/vasprun.xml --cf3 phono3py/disp-{00001..00120}/vasprun.xml --sp
+% cd phono3py
+% phono3py --cfz disp-00000/vasprun.xml --cf3 disp-{00001..00120}/vasprun.xml --sp
 ```
 
 In this step, forces from 120 supercells are collected, and the corresponding
 data are stored in the `phono3py_params.yaml` file.
 
+(velph_phonopy_subcommand)=
 ## `velph phonopy`
 
-The purpose of this subcommand is nearly identical to that of `velph phono3py`.
+This subcommand facilitates phonon calculation using the phonopy code. Certain
+configurations for supercell and displacements can be specified directly in the
+`velph.toml` file:
 
 ```toml
 [phonopy]
@@ -354,5 +375,6 @@ After completing supercell force calculations using the VASP code, the
 `phonopy_params.yaml` file can be created with the following command:
 
 ```bash
-% phonopy --fz phonopy/disp-{00000..00010}/vasprun.xml --sp
+% cd phonopy
+% phonopy --fz disp-{00000..00010}/vasprun.xml --sp
 ```
