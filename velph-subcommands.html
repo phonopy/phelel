@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>velph subcommands &#8212; Phelel v.0.8.1</title>
+    <title>velph subcommands &#8212; Phelel v.0.8.2</title>
   
   
   
@@ -39,7 +39,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=6d507e9e"></script>
+    <script src="_static/documentation_options.js?v=7a24fef8"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -125,7 +125,7 @@
   
   
   
-    <p class="title logo__title">Phelel v.0.8.1</p>
+    <p class="title logo__title">Phelel v.0.8.2</p>
   
 </a></div>
         <div class="sidebar-primary-item">
@@ -547,17 +547,20 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 <section id="velph-transport-plot-transport">
 <h4><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span> <span class="pre">transport</span></code><a class="headerlink" href="#velph-transport-plot-transport" title="Link to this heading">#</a></h4>
 <p>The following command opens a graphical window that contains plots of transport
-properties in <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>.</p>
+properties.  By default, it uses the <code class="docutils literal notranslate"><span class="pre">transport/vaspout.h5</span></code> file unless a
+different file is specified as the first argument.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>transport
 </pre></div>
 </div>
 </section>
 <section id="velph-transport-plot-eigenvalues">
 <h4><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span> <span class="pre">eigenvalues</span></code><a class="headerlink" href="#velph-transport-plot-eigenvalues" title="Link to this heading">#</a></h4>
-<p>The following command opens a graphical window that displays eigenvalues in the
-Brillouin zone with non-zero and non-one occupations. These eigenvalues are
-obtained from <code class="docutils literal notranslate"><span class="pre">vaspout.h5</span></code>, and their occupations are computed based on the
-temperature and Fermi level specified through the command options.</p>
+<p>The following command opens a graphical window to display eigenvalues in the
+Brillouin zone with occupations that are neither zero nor one. By default, these
+eigenvalues are extracted from the <code class="docutils literal notranslate"><span class="pre">transport/vaspout.h5</span></code> file unless a
+different file is specified as the first argument. Their occupations are
+determined based on the temperature and Fermi level set through the command-line
+options.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>eigenvalues
 mu:<span class="w"> </span><span class="m">4</span>.837002<span class="w"> </span>eV
 temperature:<span class="w"> </span><span class="m">300</span>.000000<span class="w"> </span>K
@@ -574,7 +577,9 @@ efficiently.</p>
 </section>
 <section id="velph-transport-plot-selfenergy">
 <h4><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">plot</span> <span class="pre">selfenergy</span></code><a class="headerlink" href="#velph-transport-plot-selfenergy" title="Link to this heading">#</a></h4>
-<p>The following command opens a graphical window that displays Fan self-energies.</p>
+<p>The following command opens a graphical window to display Fan self-energies. By
+default, it uses the <code class="docutils literal notranslate"><span class="pre">transport/vaspout.h5</span></code> file unless a different file is
+specified as the first argument.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>plot<span class="w"> </span>selfenergy
 </pre></div>
 </div>

@@ -2,6 +2,10 @@
 
 # Change Log
 
+## Jan-10-2025: Version 0.8.2
+
+- Collection of small updates of velph command
+
 ## Jan-8-2025: Version 0.8.1
 
 - Fix minor bugs in velph command
