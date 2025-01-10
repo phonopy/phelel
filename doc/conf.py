@@ -11,7 +11,7 @@ copyright = "2024, Atsushi Togo"
 author = "Atsushi Togo"
 
 version = "0.8"
-release = "0.8.1"
+release = "0.8.2"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -21,6 +21,7 @@ extensions = [
     "IPython.sphinxext.ipython_console_highlighting",
     "IPython.sphinxext.ipython_directive",
     "sphinx.ext.extlinks",
+    "sphinxcontrib.mermaid",
 ]
 myst_enable_extensions = ["linkify", "dollarmath", "amsmath"]
 

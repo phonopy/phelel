@@ -31,6 +31,7 @@ install
 workflow
 phelel-command
 velph-command
+velph-toml
 velph-init
 velph-init-template
 velph-subcommands

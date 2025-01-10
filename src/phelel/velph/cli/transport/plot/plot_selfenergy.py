@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import pathlib
+
 import click
 import h5py
 
 
-def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = False):
+def plot_selfenergy(
+    f_h5py: h5py.File,
+    plot_filename: str,
+    dir_name: pathlib.Path,
+    save_plot: bool = False,
+):
     """Plot imaginary part of self-energies.
 
     Number of "self_energy_*" is
@@ -22,11 +29,14 @@ def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fal
     import matplotlib.pyplot as plt
 
     selfens = {}
-    for key in f_h5py["results"]["electron_phonon"]["electrons"]:
+    f_elph = f_h5py["results/electron_phonon/electrons"]
+    for key in f_elph:
         if "self_energy_" in key:
-            selfens[int(key.split("_")[2])] = f_h5py["results"]["electron_phonon"][
-                "electrons"
-            ][key]
+            index = key.split("_")[-1]
+            if index.isdigit():
+                selfens[int(index)] = f_elph[key]
+
+    assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])
 
     if len(selfens) == 1:
         fig, axs = plt.subplots(1, 1, figsize=(4, 4))
@@ -34,10 +44,17 @@ def plot_selfenergy(f_h5py: h5py.File, plot_filename: str, save_plot: bool = Fal
         nrows = len(selfens) // 2
         fig, axs = plt.subplots(nrows, 2, figsize=(8, 4 * nrows), squeeze=True)
 
+    lines = []
     for i in range(len(selfens)):
         selfen = selfens[i + 1]
-        _show(selfen, i + 1)
+        lines += _get_text_lines(selfen, i + 1)
         _plot(axs[i], selfen)
+
+    with open(dir_name / "selfenergy.txt", "w") as w:
+        print("\n".join(lines), file=w)
+    click.echo(
+        f'Summary of data structure was saved in "{dir_name / "selfenergy.txt"}".'
+    )
 
     plt.tight_layout()
     if save_plot:
@@ -59,7 +76,7 @@ def _plot(ax, selfen):
             )
 
 
-def _show(selfen: h5py.Group, index: int):
+def _get_text_lines(selfen: h5py.Group, index: int) -> list[str]:
     """Show self-energy properties.
 
     ['band_start', 'band_stop', 'bks_idx', 'carrier_per_cell',
@@ -68,27 +85,31 @@ def _show(selfen: h5py.Group, index: int):
     'selfen_dw', 'selfen_fan', 'static', 'tetrahedron']
 
     """
-    print(f"- parameters:  # {index}")
-    print(
-        "    scattering_approximation:",
-        selfen["scattering_approximation"][()].decode("utf-8"),
-    )
-    print(f"    static_approximation: {bool(selfen['static'][()])}")
-    print(f"    use_tetrahedron_method: {bool(selfen['tetrahedron'][()])}")
+    lines = [
+        f"- parameters:  # {index}",
+        "    scattering_approximation: {}".format(
+            selfen["scattering_approximation"][()].decode("utf-8")
+        ),
+        f"    static_approximation: {bool(selfen['static'][()])}",
+        f"    use_tetrahedron_method: {bool(selfen['tetrahedron'][()])}",
+    ]
     if not selfen["tetrahedron"][()]:
-        print(f"    smearing_width: {selfen['delta'][()]}")
-    print(
-        f"    band_start_stop: [{selfen['band_start'][()]}, {selfen['band_stop'][()]}]"
-    )
-    print(f"    nbands: {selfen['nbands'][()]}")
-    print(f"    nbands_sum: {selfen['nbands_sum'][()]}")
-    print(f"    nw: {selfen['nw'][()]}")
-    print("    temperatures:")
+        lines.append(f"    smearing_width: {selfen['delta'][()]}")
+    lines += [
+        f"    band_start_stop: [{selfen['band_start'][()]}, {selfen['band_stop'][()]}]",
+        f"    nbands: {selfen['nbands'][()]}",
+        f"    nbands_sum: {selfen['nbands_sum'][()]}",
+        f"    nw: {selfen['nw'][()]}",
+        "    temperatures:",
+    ]
     for i, t in enumerate(selfen["temps"]):
-        print(f"    - {t}  # {i + 1}")
+        lines.append(f"    - {t}  # {i + 1}")
 
-    print("  data_array_shapes:")
-    print(f"    carrier_per_cell: {list(selfen['carrier_per_cell'].shape)}")
-    print(f"    Fan_self_energy: {list(selfen['selfen_fan'].shape)}")
-    print(f"    sampling_energy_points: {list(selfen['energies'].shape)}")
-    print(f"    Fermi_energies: {list(selfen['efermi'].shape)}")
+    lines += [
+        "  data_array_shapes:",
+        f"    carrier_per_cell: {list(selfen['carrier_per_cell'].shape)}",
+        f"    Fan_self_energy: {list(selfen['selfen_fan'].shape)}",
+        f"    sampling_energy_points: {list(selfen['energies'].shape)}",
+        f"    Fermi_energies: {list(selfen['efermi'].shape)}",
+    ]
+    return lines

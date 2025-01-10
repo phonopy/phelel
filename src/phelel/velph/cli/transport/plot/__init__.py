@@ -114,13 +114,6 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     default=None,
     help=("Index of temperature. (tid: int, default=None)"),
 )
-@click.option(
-    "--nid",
-    nargs=1,
-    type=int,
-    default=None,
-    help=("Index of N. (nid: int, default=None)"),
-)
 @click.help_option("-h", "--help")
 def cmd_plot_eigenvalues(
     vaspout_filename: str,
@@ -128,21 +121,30 @@ def cmd_plot_eigenvalues(
     cutoff_occupancy: float,
     mu: Optional[float],
     tid: Optional[int],
-    nid: Optional[int],
 ):
     """Show eigenvalues in transports."""
     args = _get_f_h5py_and_plot_filename(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
-    if args[0] is not None:
-        plot_eigenvalues(
-            args[0],
-            tid=tid,
-            nid=nid,
-            temperature=temperature,
-            cutoff_occupancy=cutoff_occupancy,
-            mu=mu,
-        )
+    if args[0] is None:
+        return
+
+    retvals = plot_eigenvalues(
+        args[0],
+        tid=tid,
+        temperature=temperature,
+        cutoff_occupancy=cutoff_occupancy,
+        mu=mu,
+    )
+
+    if retvals is not None:
+        with open("transport/bz.dat", "w") as w:
+            for i, (e, wt, rk) in enumerate(zip(*retvals)):
+                print(
+                    f"{i + 1} {e:.6f} {wt:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]",
+                    file=w,
+                )
+        click.echo('"transport/bz.dat" file was created.')
 
 
 def _get_f_h5py_and_plot_filename(
@@ -155,11 +157,13 @@ def _get_f_h5py_and_plot_filename(
         click.echo("Please specify vaspout.h5 file path.")
         return None, None
 
+    dir_name = vaspout_filename.parent
+
     if plot_filename is None:
-        _plot_filename = vaspout_filename.parent / f"{property_name}.pdf"
+        _plot_filename = dir_name / f"{property_name}.pdf"
     else:
         _plot_filename = plot_filename
 
     f_h5py = h5py.File(vaspout_filename)
 
-    return f_h5py, _plot_filename
+    return f_h5py, _plot_filename, dir_name
