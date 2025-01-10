@@ -43,14 +43,6 @@
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
-    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
-    <script type="module">
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
-window.addEventListener("load", () => mermaid.run());
-</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'velph-subcommands';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -301,8 +293,6 @@ window.addEventListener("load", () => mermaid.run());
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span> <span class="pre">generate</span></code></a></li>
 </ul>
@@ -367,75 +357,6 @@ are explained on this page.</p>
 <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file. This ensures that the directories and files generated are
 properly organized relative to the current directory where <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is
 located.</p>
-<p>A typical workflow of velph subcommands for transport property calculation is
-illustrated below.</p>
-<pre  class="mermaid">
-        graph LR
-A[velph-init] --&gt; B[velph-relax]
-B --&gt; C[velph-init]
-C --&gt; D[velph-nac]
-C --&gt; E[velph-el_bands]
-F[velph-phelel]
-D --&gt; F
-E --&gt; F
-F --&gt; G[velph-transport]
-    </pre><p>In the following example, two <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> command operations generate two
-different directories. The first operation performs crystal structure relaxation
-in the <code class="docutils literal notranslate"><span class="pre">relax</span></code> directory. The second operation, using the relaxed crystal
-structure, carries out additional calculations required for electron-phonon
-interactions in the <code class="docutils literal notranslate"><span class="pre">calc</span></code> directory. Details about <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> are
-described in <a class="reference internal" href="velph-init-template.html#velph-init-template"><span class="std std-ref">velph init template</span></a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>ls
-POSCAR-unitcell<span class="w">  </span>POTCAR<span class="w">  </span>velph-tmpl.toml
-%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>relax
-...
-%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>relax
-%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
-...
-<span class="c1"># Run VASP relaxation calculation</span>
-...
-%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>..
-%<span class="w"> </span>ls
-POSCAR-unitcell<span class="w">  </span>POTCAR<span class="w">  </span>relax/<span class="w">  </span>velph-tmpl.toml
-%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span><span class="sb">`</span>ls<span class="w"> </span>relax/relax/iter*/CONTCAR<span class="p">|</span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="sb">`</span><span class="w"> </span>calc
-...
-%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>calc
-%<span class="w"> </span>ls
-POTCAR<span class="w">  </span>velph.toml
-%<span class="w"> </span>velph<span class="w"> </span>nac<span class="w"> </span>generate
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;nac&quot;</span>.
-%<span class="w"> </span>ls
-POTCAR<span class="w">  </span>nac/<span class="w">  </span>velph.toml
-...
-<span class="c1"># Run NAC calculation</span>
-...
-%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>init
-Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
-<span class="s2">&quot;phelel/phelel_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phelel generate&quot;</span>.
-%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>generate
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-000&quot;</span>.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-001&quot;</span>.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-002&quot;</span>.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-003&quot;</span>.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-004&quot;</span>.
-%<span class="w"> </span>ls
-POTCAR<span class="w">  </span>nac/<span class="w">  </span>phelel/<span class="w">  </span>velph.toml
-%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>init
-Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
-<span class="s2">&quot;phelel/phelel_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
-VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phelel generate&quot;</span>.
-...
-</pre></div>
-</div>
-<section id="velph-init">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-init" title="Link to this heading">#</a></h2>
-<p>See <a class="reference internal" href="velph-init.html#velph-init"><span class="std std-ref">velph init</span></a>.</p>
-</section>
-<section id="velph-hints">
-<h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code><a class="headerlink" href="#velph-hints" title="Link to this heading">#</a></h2>
-<p>See <a class="reference internal" href="velph-command.html#velph-hints"><span class="std std-ref">velph hints</span></a>.</p>
-</section>
 <section id="velph-relax">
 <h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code><a class="headerlink" href="#velph-relax" title="Link to this heading">#</a></h2>
 <p>It is recommended to create a project directory secific for relaxation
@@ -672,20 +593,87 @@ Phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="
 </section>
 <section id="velph-phono3py">
 <h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span></code><a class="headerlink" href="#velph-phono3py" title="Link to this heading">#</a></h2>
+<p>This subcommand facilitates lattice thermal conductivity calculations using the
+phono3py code. To use this subcommand, the <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file must include a
+<code class="docutils literal notranslate"><span class="pre">[phono3py]</span></code> section configured as shown below:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phono3py]</span>
+<span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
+<span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
+<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">plusminus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</pre></div>
+</div>
 <section id="velph-phono3py-init">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-phono3py-init" title="Link to this heading">#</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">phono3py_disp.yaml</span></code> file, which contains displacement information, is
+generated by this subcommand. It is recommended to use the <code class="docutils literal notranslate"><span class="pre">--rd</span></code> option with a
+sufficiently large argument to create supercells with random directional
+displacements. Note that it is not necessary to calculate forces for all
+supercells to ultimately generate the <code class="docutils literal notranslate"><span class="pre">phono3py_params.yaml</span></code> file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phono3py<span class="w"> </span>init<span class="w"> </span>--rd<span class="w"> </span><span class="m">2000</span>
+Displacement<span class="w"> </span>distance:<span class="w"> </span><span class="m">0</span>.03
+Number<span class="w"> </span>of<span class="w"> </span>displacements:<span class="w"> </span><span class="m">2000</span>
+Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
+<span class="s2">&quot;phono3py/phono3py_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phono3py generate&quot;</span>.
+</pre></div>
+</div>
 </section>
 <section id="velph-phono3py-generate">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-phono3py-generate" title="Link to this heading">#</a></h3>
+<p>VASP input files for supercell force calculations are generated, with each
+directory corresponding to a specific supercell displacement configuration. The
+perfect supercell (i.e., without displacements) is labeled as <code class="docutils literal notranslate"><span class="pre">disp-00000</span></code>.</p>
+<p>For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phono3py<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phono3py/disp-0000&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phono3py/disp-0001&quot;</span>.
+...
+</pre></div>
+</div>
+<p>After completing supercell force calculations using the VASP code, the
+<code class="docutils literal notranslate"><span class="pre">phono3py_params.yaml</span></code> file can be created with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>phono3py<span class="w"> </span>--cfz<span class="w"> </span>phono3py/disp-00000/vasprun.xml<span class="w"> </span>--cf3<span class="w"> </span>phono3py/disp-<span class="o">{</span><span class="m">00001</span>..00120<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
+</pre></div>
+</div>
+<p>In this step, forces from 120 supercells are collected, and the corresponding
+data are stored in the <code class="docutils literal notranslate"><span class="pre">phono3py_params.yaml</span></code> file.</p>
 </section>
 </section>
 <section id="velph-phonopy">
 <h2><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span></code><a class="headerlink" href="#velph-phonopy" title="Link to this heading">#</a></h2>
+<p>The purpose of this subcommand is nearly identical to that of <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phono3py</span></code>.</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phonopy]</span>
+<span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
+<span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
+<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="n">plusminus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</pre></div>
+</div>
 <section id="velph-phonopy-init">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-phonopy-init" title="Link to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phonopy<span class="w"> </span>init<span class="w"> </span>--rd<span class="w"> </span><span class="m">10</span>
+Displacement<span class="w"> </span>distance:<span class="w"> </span><span class="m">0</span>.03
+Number<span class="w"> </span>of<span class="w"> </span>displacements:<span class="w"> </span><span class="m">10</span>
+Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
+<span class="s2">&quot;phonopy/phonopy_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phonopy generate&quot;</span>.
+</pre></div>
+</div>
 </section>
 <section id="velph-phonopy-generate">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-phonopy-generate" title="Link to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phonopy<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-000&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-001&quot;</span>.
+...
+</pre></div>
+</div>
+<p>After completing supercell force calculations using the VASP code, the
+<code class="docutils literal notranslate"><span class="pre">phonopy_params.yaml</span></code> file can be created with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>phonopy<span class="w"> </span>--fz<span class="w"> </span>phonopy/disp-<span class="o">{</span><span class="m">00000</span>..00010<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
+</pre></div>
+</div>
 </section>
 </section>
 </section>
@@ -736,8 +724,6 @@ Phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-hints"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">hints</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-relax-generate"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">relax</span> <span class="pre">generate</span></code></a></li>
 </ul>

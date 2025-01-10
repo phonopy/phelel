@@ -43,6 +43,14 @@
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'velph-command';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -324,7 +332,19 @@ subcommands generate VASP input files, post-process VASP calculation results,
 and calculate derivatives of the local potential and PAW strengths with respect
 to atomic displacement, resulting in the <code class="docutils literal notranslate"><span class="pre">phelel_params.hdf5</span></code> file. Most of the
 <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands are explained in <a class="reference internal" href="velph-subcommands.html#velph-subcommands"><span class="std std-ref">velph subcommands</span></a>.</p>
-<p>A list of supported subcommands is displayed by typing:</p>
+<p>A typical workflow of velph subcommands for transport property calculation is
+illustrated below.</p>
+<pre  class="mermaid">
+        graph LR
+A[velph-init] --&gt; B[velph-relax]
+B --&gt; C[velph-init]
+C --&gt; D[velph-nac]
+C --&gt; E[velph-el_bands]
+F[velph-phelel]
+D --&gt; F
+E --&gt; F
+F --&gt; G[velph-transport]
+    </pre><p>A list of supported subcommands is displayed by typing:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph
 Usage:<span class="w"> </span>velph<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
 
@@ -346,6 +366,55 @@ Commands:
 <span class="w">  </span>relax<span class="w">       </span>Choose<span class="w"> </span>relax<span class="w"> </span>options.
 <span class="w">  </span>selfenergy<span class="w">  </span>Choose<span class="w"> </span>selfenergy<span class="w"> </span>options.
 <span class="w">  </span>transport<span class="w">   </span>Choose<span class="w"> </span>transport<span class="w"> </span>options.
+</pre></div>
+</div>
+<p>In the following example, two <code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> command operations generate two
+different directories. The first operation performs crystal structure relaxation
+in the <code class="docutils literal notranslate"><span class="pre">relax</span></code> directory. The second operation, using the relaxed crystal
+structure, carries out additional calculations required for electron-phonon
+interactions in the <code class="docutils literal notranslate"><span class="pre">calc</span></code> directory. Details about <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> are
+described in <a class="reference internal" href="velph-init-template.html#velph-init-template"><span class="std std-ref">velph init template</span></a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>ls
+POSCAR-unitcell<span class="w">  </span>POTCAR<span class="w">  </span>velph-tmpl.toml
+%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span>POSCAR-unitcell<span class="w"> </span>relax
+...
+%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>relax
+%<span class="w"> </span>velph<span class="w"> </span>relax<span class="w"> </span>generate
+...
+<span class="c1"># Run VASP relaxation calculation</span>
+...
+%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>..
+%<span class="w"> </span>ls
+POSCAR-unitcell<span class="w">  </span>POTCAR<span class="w">  </span>relax/<span class="w">  </span>velph-tmpl.toml
+%<span class="w"> </span>velph<span class="w"> </span>init<span class="w"> </span>--template-toml<span class="w"> </span>velph-tmpl.toml<span class="w"> </span><span class="sb">`</span>ls<span class="w"> </span>relax/relax/iter*/CONTCAR<span class="p">|</span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="sb">`</span><span class="w"> </span>calc
+...
+%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>calc
+%<span class="w"> </span>ls
+POTCAR<span class="w">  </span>velph.toml
+%<span class="w"> </span>velph<span class="w"> </span>nac<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>made<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;nac&quot;</span>.
+%<span class="w"> </span>ls
+POTCAR<span class="w">  </span>nac/<span class="w">  </span>velph.toml
+...
+<span class="c1"># Run NAC calculation</span>
+...
+%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>init
+Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
+<span class="s2">&quot;phelel/phelel_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phelel generate&quot;</span>.
+%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>generate
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-000&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-001&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-002&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-003&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phelel/disp-004&quot;</span>.
+%<span class="w"> </span>ls
+POTCAR<span class="w">  </span>nac/<span class="w">  </span>phelel/<span class="w">  </span>velph.toml
+%<span class="w"> </span>velph<span class="w"> </span>phelel<span class="w"> </span>init
+Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
+<span class="s2">&quot;phelel/phelel_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phelel generate&quot;</span>.
+...
 </pre></div>
 </div>
 </section>
