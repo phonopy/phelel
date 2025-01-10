@@ -36,7 +36,7 @@ def plot_eigenvalues(
     cutoff_occupancy: float = 1e-2,
     mu: Optional[float] = None,
     time_reversal: bool = True,
-):
+) -> Optional[tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Show eigenvalues, occupation, k-points and Fermi-Dirac distribution.
 
     Parameters
@@ -114,19 +114,14 @@ def plot_eigenvalues(
     all_weights = np.array(all_weights)
     all_eigenvals = np.array(all_eigenvals)
 
-    with open("bz.dat", "w") as w:
-        for i, (e, wt, rk) in enumerate(zip(all_eigenvals, all_weights, all_kpoints)):
-            print(
-                f"{i + 1} {e:.6f} {wt:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]",
-                file=w,
-            )
-
     _plot_eigenvalues_in_BZ(
         all_kpoints,
         all_weights,
         np.linalg.inv(cell.cell),
         title=f"mu={_mu:.6f} eV, temperature={_temperature:.1f} K",
     )
+
+    return all_eigenvals, all_weights, all_kpoints
 
 
 def _plot_eigenvalues_in_BZ(

@@ -216,7 +216,8 @@ VASP input files were generated in "transport".
 #### `velph transport plot transport`
 
 The following command opens a graphical window that contains plots of transport
-properties in `vaspout.h5`.
+properties.  By default, it uses the `transport/vaspout.h5` file unless a
+different file is specified as the first argument.
 
 ```bash
 % velph transport plot transport
@@ -224,10 +225,12 @@ properties in `vaspout.h5`.
 
 #### `velph transport plot eigenvalues`
 
-The following command opens a graphical window that displays eigenvalues in the
-Brillouin zone with non-zero and non-one occupations. These eigenvalues are
-obtained from `vaspout.h5`, and their occupations are computed based on the
-temperature and Fermi level specified through the command options.
+The following command opens a graphical window to display eigenvalues in the
+Brillouin zone with occupations that are neither zero nor one. By default, these
+eigenvalues are extracted from the `transport/vaspout.h5` file unless a
+different file is specified as the first argument. Their occupations are
+determined based on the temperature and Fermi level set through the command-line
+options.
 
 ```bash
 % velph transport plot eigenvalues
@@ -246,7 +249,9 @@ efficiently.
 
 #### `velph transport plot selfenergy`
 
-The following command opens a graphical window that displays Fan self-energies.
+The following command opens a graphical window to display Fan self-energies. By
+default, it uses the `transport/vaspout.h5` file unless a different file is
+specified as the first argument.
 
 ```bash
 % velph transport plot selfenergy
