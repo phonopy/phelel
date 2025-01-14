@@ -105,7 +105,7 @@ class VaspKpoints:
             for p in list(band_path["path"]):
                 for i in range(2):
                     coord = " ".join(
-                        [f'{band_path["point_coords"][p[i]][j]:.8f}' for j in range(3)]
+                        [f"{band_path['point_coords'][p[i]][j]:.8f}" for j in range(3)]
                     )
                     lines.append(f"{coord} {p[i]}")
                 lines.append("")
