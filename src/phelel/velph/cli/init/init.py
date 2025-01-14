@@ -306,11 +306,9 @@ def _collect_init_params(
     # Show parameters specified in velph-toml-template file.
     if template_toml_filepath:
         if len(template_init_params) == 1:
-            click.echo("Following option was found in " f'"{template_toml_filepath}":')
+            click.echo(f'Following option was found in "{template_toml_filepath}":')
         elif len(template_init_params) > 1:
-            click.echo(
-                "Following options were found in " f'"{template_toml_filepath}":'
-            )
+            click.echo(f'Following options were found in "{template_toml_filepath}":')
     if template_init_params:
         click.echo(
             "\n".join(
@@ -1417,7 +1415,7 @@ def _get_displacement_settings_lines(
     lines = []
     toml_dict = velph_dict.get(calc_type, {})
     if "amplitude" in toml_dict:
-        lines.append(f'amplitude = {toml_dict["amplitude"]}')
+        lines.append(f"amplitude = {toml_dict['amplitude']}")
     else:
         lines.append(f"amplitude = {amplitude}")
 

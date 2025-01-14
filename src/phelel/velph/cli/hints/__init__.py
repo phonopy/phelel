@@ -74,7 +74,7 @@ def _show_hints(toml_filename: str):
     click.echo()
     click.echo("# Electron transport calculation")
     click.echo(f'1. Write [vasp.transport] section in "{toml_filename}".')
-    click.echo('2. (optioanl) "velph transport generate": ' "Dry-run to find FFT-mesh.")
+    click.echo('2. (optioanl) "velph transport generate": Dry-run to find FFT-mesh.')
     click.echo("3. (optioanl) Run VASP.")
     click.echo('4. (optioanl) "velph transport check-fft": Check FFT grid.')
     click.echo('5. (optioanl) Modify "fft_mesh" in [phelel] section manually.')
@@ -84,7 +84,7 @@ def _show_hints(toml_filename: str):
     click.echo("# Electron self-energy calculation")
     click.echo(f'1. Modify [vasp.selfenergy] section in "{toml_filename}".')
     click.echo(
-        '2. (optional) "velph selfenergy generate -d": ' "Dry-run to find FFT-mesh."
+        '2. (optional) "velph selfenergy generate -d": Dry-run to find FFT-mesh.'
     )
     click.echo("3. (optional) Run VASP.")
     click.echo('4. (optioanl) "velph selfenergy check-fft": Check FFT grid.')
