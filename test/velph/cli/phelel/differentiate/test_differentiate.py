@@ -27,42 +27,47 @@ def test_run_derivatives():
         assert file_path.exists()
 
         with h5py.File(created_filename) as f:
-            assert set(f) == set(
-                (
-                    "Dij",
-                    "FFT_mesh",
-                    "dDijdu",
-                    "dVdu",
-                    "direct_rotations",
-                    "displacements_atom_indices",
-                    "displacements_vectors",
-                    "dqijdu",
-                    "force_constants",
-                    "grid_point",
-                    "lattice_point",
-                    "p2s_map",
-                    "primitive_lattice",
-                    "primitive_masses",
-                    "primitive_matrix",
-                    "primitive_numbers",
-                    "primitive_positions",
-                    "qij",
-                    "s2p_map",
-                    "shortest_vector_multiplicities",
-                    "shortest_vectors",
-                    "spacegroup_number",
-                    "supercell_lattice",
-                    "supercell_masses",
-                    "supercell_matrix",
-                    "supercell_numbers",
-                    "supercell_positions",
-                    "transformation_matrix",
-                    "unitcell_lattice",
-                    "unitcell_masses",
-                    "unitcell_numbers",
-                    "unitcell_positions",
+            try:
+                assert set(f) == set(
+                    (
+                        "atom_indices_in_derivatives",  # This key is deprecated.
+                        "Dij",
+                        "FFT_mesh",
+                        "dDijdu",
+                        "dVdu",
+                        "direct_rotations",
+                        "displacements_atom_indices",
+                        "displacements_vectors",
+                        "dqijdu",
+                        "force_constants",
+                        "grid_point",
+                        "lattice_point",
+                        "p2s_map",
+                        "primitive_lattice",
+                        "primitive_masses",
+                        "primitive_matrix",
+                        "primitive_numbers",
+                        "primitive_positions",
+                        "qij",
+                        "s2p_map",
+                        "shortest_vector_multiplicities",
+                        "shortest_vectors",
+                        "spacegroup_number",
+                        "supercell_lattice",
+                        "supercell_masses",
+                        "supercell_matrix",
+                        "supercell_numbers",
+                        "supercell_positions",
+                        "transformation_matrix",
+                        "unitcell_lattice",
+                        "unitcell_masses",
+                        "unitcell_numbers",
+                        "unitcell_positions",
+                    )
                 )
-            )
+            except AssertionError as e:
+                file_path.unlink()
+                raise AssertionError(str(e)) from e
         file_path.unlink()
 
 
