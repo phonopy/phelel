@@ -137,14 +137,14 @@ class VaspKpoints:
         if isinstance(mesh[0], int):
             lines.append("Gamma")
             lines.append(" ".join([f"{v:13d}" for v in mesh]))
-            lines.append(" ".join([f"{v:13.9f}" for v in shift]))
+            lines.append(" ".join([f"{v:20.16f}" for v in shift]))
         else:
             lines.append("Reciprocal")
             mesh_inv_t = np.linalg.inv(mesh).T
             mesh_inv_t = np.where(np.abs(mesh_inv_t) < 1e-15, 0, mesh_inv_t)
             for vec in mesh_inv_t:
-                lines.append(" ".join([f"{v:13.9f}" for v in vec]))
-            lines.append(" ".join([f"{v:13.9f}" for v in shift]))
+                lines.append(" ".join([f"{v:20.16f}" for v in vec]))
+            lines.append(" ".join([f"{v:20.16f}" for v in shift]))
         return lines
 
 
