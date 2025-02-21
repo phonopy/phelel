@@ -994,14 +994,15 @@ def _show_kpoints_lines(
         if key in kpoints_dense_dict:
             mesh = kpoints_dense_dict[key].get("mesh")
             if mesh is not None:
-                if "D_diag" in kpoints_dict[key]:
+                if "D_diag" in kpoints_dense_dict[key]:
+                    D_diag = kpoints_dense_dict[key]["D_diag"]
                     line = f"  {key}: {np.array(D_diag)}"
                 else:
                     line = f"  {key}: {np.array(mesh)}"
                 if "kpoints_dense" not in vasp_dict[key]:
                     line += "*"
                 k_mesh_lines.append(line)
-                if "D_diag" in kpoints_dict[key]:
+                if "D_diag" in kpoints_dense_dict[key]:
                     k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
     if k_mesh_lines:
         click.echo("\n".join(k_mesh_lines))
