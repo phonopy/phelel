@@ -16,28 +16,25 @@
     document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
     document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
   </script>
-  <!--
-    this give us a css class that will be invisible only if js is disabled
-  -->
-  <noscript>
-    <style>
-      .pst-js-only { display: none !important; }
-
-    </style>
-  </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=eba8b062" />
   
-  <!-- So that users can add custom icons -->
-  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
     <script src="_static/documentation_options.js?v=7a24fef8"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
@@ -50,7 +47,6 @@
     <link rel="prev" title="velph subcommands" href="velph-subcommands.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.8" />
   </head>
   
   
@@ -66,8 +62,19 @@
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
 
   
-  <dialog id="pst-search-dialog">
-    
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
 <form class="bd-search d-flex align-items-center"
       action="search.html"
       method="get">
@@ -75,6 +82,7 @@
   <input type="search"
          class="form-control"
          name="q"
+         id="search-input"
          placeholder="Search..."
          aria-label="Search..."
          autocomplete="off"
@@ -82,8 +90,8 @@
          autocapitalize="off"
          spellcheck="false"/>
   <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
-</form>
-  </dialog>
+</form></div>
+  </div>
 
   <div class="pst-async-banner-revealer d-none">
   <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
@@ -99,8 +107,7 @@
       
       
       
-      <dialog id="pst-primary-sidebar-modal"></dialog>
-      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+      <div class="bd-sidebar-primary bd-sidebar">
         
 
   
@@ -130,11 +137,15 @@
 </a></div>
         <div class="sidebar-primary-item">
 
-<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
- <i class="fa-solid fa-magnifying-glass"></i>
- <span class="search-button__default-text">Search</span>
- <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
-</button></div>
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         <ul class="current nav bd-sidenav">
@@ -157,14 +168,9 @@
   
   
   <div class="sidebar-primary-items__end sidebar-primary__section">
-      <div class="sidebar-primary-item">
-<div id="ethical-ad-placement"
-      class="flat"
-      data-ea-publisher="readthedocs"
-      data-ea-type="readthedocs-sidebar"
-      data-ea-manual="true">
-</div></div>
   </div>
+  
+  <div id="rtd-footer-container"></div>
 
 
       </div>
@@ -261,16 +267,24 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
 
 
-<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
-</button>
+  </button>
+`);
+</script>
 <button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <span class="fa-solid fa-list"></span>
 </button>
@@ -294,7 +308,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nitisn">NiTiSn</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pbte">PbTe</a></li>
 </ul>
             </nav>
         </div>
@@ -308,40 +322,36 @@
                   
   <section class="tex2jax_ignore mathjax_ignore" id="velph-example">
 <h1><code class="docutils literal notranslate"><span class="pre">velph</span></code> example<a class="headerlink" href="#velph-example" title="Link to this heading">#</a></h1>
-<section id="nitisn">
-<h2>NiTiSn<a class="headerlink" href="#nitisn" title="Link to this heading">#</a></h2>
+<section id="pbte">
+<h2>PbTe<a class="headerlink" href="#pbte" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">POSCAR-unitcell</span></code>, <code class="docutils literal notranslate"><span class="pre">POTCAR</span></code>, and <code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code> are located in the current directory.</p>
 <p>Initial <code class="docutils literal notranslate"><span class="pre">POSCAR-unitcell</span></code>,</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Ti4Sn4Ni4</span>
-<span class="mf">1.0</span>
-<span class="mf">5.906882041566931</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>
-<span class="mf">0.000000000000000</span>   <span class="mf">5.906882041566931</span>   <span class="mf">0.000000000000000</span>
-<span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">5.906882041566931</span>
-<span class="n">Ti</span>   <span class="n">Sn</span>   <span class="n">Ni</span>
-<span class="mi">4</span>   <span class="mi">4</span>   <span class="mi">4</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Pb</span> <span class="n">Te</span>
+   <span class="mf">1.00000000000000</span>
+     <span class="mf">6.4405958992591392</span>    <span class="mf">0.0000000000000000</span>    <span class="mf">0.0000000000000000</span>
+     <span class="mf">0.0000000000000000</span>    <span class="mf">6.4405958992591392</span>    <span class="mf">0.0000000000000000</span>
+     <span class="mf">0.0000000000000000</span>    <span class="mf">0.0000000000000000</span>    <span class="mf">6.4405958992591392</span>
+  <span class="n">Pb</span>              <span class="n">Te</span>
+     <span class="mi">4</span>     <span class="mi">4</span>
 <span class="n">Direct</span>
-<span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>
-<span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>
-<span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>
-<span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>
-<span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.500000000000000</span>
-<span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>
-<span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>   <span class="mf">0.000000000000000</span>
-<span class="mf">0.000000000000000</span>   <span class="mf">0.000000000000000</span>   <span class="mf">0.500000000000000</span>
-<span class="mf">0.250000000000000</span>   <span class="mf">0.250000000000000</span>   <span class="mf">0.250000000000000</span>
-<span class="mf">0.250000000000000</span>   <span class="mf">0.750000000000000</span>   <span class="mf">0.750000000000000</span>
-<span class="mf">0.750000000000000</span>   <span class="mf">0.250000000000000</span>   <span class="mf">0.750000000000000</span>
-<span class="mf">0.750000000000000</span>   <span class="mf">0.750000000000000</span>   <span class="mf">0.250000000000000</span>
+     <span class="mf">0.0000000000000000</span>    <span class="mf">0.0000000000000000</span>    <span class="mf">0.0000000000000000</span>
+     <span class="mf">0.0000000000000000</span>    <span class="mf">0.5000000000000000</span>    <span class="mf">0.5000000000000000</span>
+     <span class="mf">0.5000000000000000</span>    <span class="mf">0.0000000000000000</span>    <span class="mf">0.5000000000000000</span>
+     <span class="mf">0.5000000000000000</span>    <span class="mf">0.5000000000000000</span>    <span class="mf">0.0000000000000000</span>
+     <span class="mf">0.5000000000000000</span>    <span class="mf">0.5000000000000000</span>    <span class="mf">0.5000000000000000</span>
+     <span class="mf">0.5000000000000000</span>    <span class="mf">0.0000000000000000</span>    <span class="mf">0.0000000000000000</span>
+     <span class="mf">0.0000000000000000</span>    <span class="mf">0.5000000000000000</span>    <span class="mf">0.0000000000000000</span>
+     <span class="mf">0.0000000000000000</span>    <span class="mf">0.0000000000000000</span>    <span class="mf">0.5000000000000000</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">velph-tmpl.toml</span></code>,</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[init.options]</span>
-<span class="n">kspacing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1</span>
-<span class="n">kspacing_dense</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span>
+<span class="n">kspacing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.2</span>
+<span class="n">kspacing_dense</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.1</span>
 <span class="n">max_num_atoms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
 
 <span class="k">[vasp.incar]</span>
-<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">520</span>
+<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">400</span>
 <span class="n">ncore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
 
 <span class="k">[vasp.phelel.incar]</span>
@@ -354,30 +364,27 @@
 
 <span class="k">[scheduler]</span>
 <span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
-<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;TiNiSn&quot;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
 <span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
 <span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/vasp/bin/vasp_std&quot;</span>
 <span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
 <span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">source /opt/intel/oneapi/setvars.sh intel64 --config=&quot;/home/togo/.oneapi-config&quot;</span>
+<span class="s1">source /opt/intel/oneapi/setvars.sh</span>
 <span class="s1">&#39;&#39;&#39;</span>
 <span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">POTCAR</span></code> choice,</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">PAW_PBE</span> <span class="n">Ti_sv</span> <span class="mi">26</span><span class="n">Sep2005</span>
-  <span class="n">PAW_PBE</span> <span class="n">Sn_d</span> <span class="mi">06</span><span class="n">Sep2000</span>
-  <span class="n">PAW_PBE</span> <span class="n">Ni</span> <span class="mi">02</span><span class="n">Aug2007</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">PAW_PBE</span> <span class="n">Pb</span> <span class="mi">08</span><span class="n">Apr2002</span>
+  <span class="n">PAW_PBE</span> <span class="n">Te</span> <span class="mi">08</span><span class="n">Apr2002</span>
 </pre></div>
 </div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="n">POSCAR_Ti4Sn4Ni4</span> <span class="n">relax</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
-<span class="n">Crystal</span> <span class="n">structure</span> <span class="n">file</span><span class="p">:</span> <span class="s2">&quot;POSCAR_Ti4Sn4Ni4&quot;</span><span class="o">.</span>
-<span class="n">Velph</span> <span class="n">template</span> <span class="n">file</span><span class="p">:</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="o">.</span>
-<span class="n">Read</span> <span class="n">crystal</span> <span class="n">structure</span> <span class="n">file</span> <span class="s2">&quot;POSCAR_Ti4Sn4Ni4&quot;</span><span class="o">.</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">init</span> <span class="n">POSCAR</span><span class="o">-</span><span class="n">unitcell</span> <span class="n">relax</span> <span class="o">--</span><span class="n">template</span><span class="o">-</span><span class="n">toml</span> <span class="n">velph</span><span class="o">-</span><span class="n">tmpl</span><span class="o">.</span><span class="n">toml</span>
+<span class="n">Read</span> <span class="n">crystal</span> <span class="n">structure</span> <span class="n">file</span> <span class="s2">&quot;POSCAR-unitcell&quot;</span><span class="o">.</span>
 <span class="n">Read</span> <span class="n">velph</span> <span class="n">template</span> <span class="n">file</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="o">.</span>
 <span class="n">Following</span> <span class="n">options</span> <span class="n">were</span> <span class="n">found</span> <span class="ow">in</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="p">:</span>
-  <span class="n">kspacing</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
-  <span class="n">kspacing_dense</span> <span class="o">=</span> <span class="s2">&quot;0.2&quot;</span>
+  <span class="n">kspacing</span> <span class="o">=</span> <span class="s2">&quot;0.2&quot;</span>
+  <span class="n">kspacing_dense</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
   <span class="n">max_num_atoms</span> <span class="o">=</span> <span class="s2">&quot;100&quot;</span>
 <span class="n">The</span> <span class="n">command</span> <span class="n">options</span> <span class="n">were</span> <span class="n">prefered</span> <span class="n">to</span> <span class="p">[</span><span class="n">init</span><span class="o">.</span><span class="n">options</span><span class="p">]</span> <span class="ow">in</span> <span class="s2">&quot;velph-tmpl.toml&quot;</span><span class="o">.</span>
 <span class="n">Found</span> <span class="n">a</span> <span class="n">primitive</span> <span class="n">cell</span> <span class="n">whose</span> <span class="n">transformation</span> <span class="n">matrix</span> <span class="ow">is</span>
@@ -387,52 +394,40 @@
 <span class="n">Supercell</span> <span class="ow">is</span> <span class="n">generated</span> <span class="k">with</span> <span class="n">respect</span> <span class="n">to</span> <span class="n">the</span> <span class="n">cell</span> <span class="n">below</span><span class="o">.</span>
 <span class="o">--------------------------------------------------------------------------------</span>
 <span class="n">lattice</span><span class="p">:</span>
-<span class="o">-</span> <span class="p">[</span>     <span class="mf">5.906882041566931</span><span class="p">,</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">0.000000000000000</span> <span class="p">]</span> <span class="c1"># a</span>
-<span class="o">-</span> <span class="p">[</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">5.906882041566931</span><span class="p">,</span>     <span class="mf">0.000000000000000</span> <span class="p">]</span> <span class="c1"># b</span>
-<span class="o">-</span> <span class="p">[</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">5.906882041566931</span> <span class="p">]</span> <span class="c1"># c</span>
+<span class="o">-</span> <span class="p">[</span>     <span class="mf">6.440595899259139</span><span class="p">,</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">0.000000000000000</span> <span class="p">]</span> <span class="c1"># a</span>
+<span class="o">-</span> <span class="p">[</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">6.440595899259139</span><span class="p">,</span>     <span class="mf">0.000000000000000</span> <span class="p">]</span> <span class="c1"># b</span>
+<span class="o">-</span> <span class="p">[</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">0.000000000000000</span><span class="p">,</span>     <span class="mf">6.440595899259139</span> <span class="p">]</span> <span class="c1"># c</span>
 <span class="n">points</span><span class="p">:</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 1</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Pb</span> <span class="c1"># 1</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 2</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">207.200000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Pb</span> <span class="c1"># 2</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 3</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">207.200000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Pb</span> <span class="c1"># 3</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ti</span> <span class="c1"># 4</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">207.200000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Pb</span> <span class="c1"># 4</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">47.867000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 5</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">207.200000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Te</span> <span class="c1"># 5</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 6</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">127.600000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Te</span> <span class="c1"># 6</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 7</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">127.600000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Te</span> <span class="c1"># 7</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Sn</span> <span class="c1"># 8</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">127.600000</span>
+<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Te</span> <span class="c1"># 8</span>
   <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.000000000000000</span><span class="p">,</span>  <span class="mf">0.500000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">118.710000</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 9</span>
-  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 10</span>
-  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 11</span>
-  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
-<span class="o">-</span> <span class="n">symbol</span><span class="p">:</span> <span class="n">Ni</span> <span class="c1"># 12</span>
-  <span class="n">coordinates</span><span class="p">:</span> <span class="p">[</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.750000000000000</span><span class="p">,</span>  <span class="mf">0.250000000000000</span> <span class="p">]</span>
-  <span class="n">mass</span><span class="p">:</span> <span class="mf">58.693400</span>
+  <span class="n">mass</span><span class="p">:</span> <span class="mf">127.600000</span>
 <span class="o">--------------------------------------------------------------------------------</span>
 <span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">incar</span><span class="p">]</span> <span class="p">(</span><span class="n">basic</span> <span class="n">INCAR</span> <span class="n">settings</span><span class="p">)</span>
   <span class="n">ismear</span> <span class="o">=</span> <span class="mi">0</span>
   <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.01</span>
   <span class="n">ediff</span> <span class="o">=</span> <span class="mf">1e-08</span>
-  <span class="n">encut</span> <span class="o">=</span> <span class="mi">520</span>
+  <span class="n">encut</span> <span class="o">=</span> <span class="mi">400</span>
   <span class="n">prec</span> <span class="o">=</span> <span class="n">accurate</span>
   <span class="n">lreal</span> <span class="o">=</span> <span class="kc">False</span>
   <span class="n">lwave</span> <span class="o">=</span> <span class="kc">False</span>
@@ -440,34 +435,37 @@
   <span class="n">ncore</span> <span class="o">=</span> <span class="mi">4</span>
 <span class="p">[</span><span class="n">phelel</span><span class="p">]</span>
   <span class="n">supercell_dimension</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="mi">2</span> <span class="mi">2</span><span class="p">]</span>
-<span class="p">[</span><span class="n">vasp</span><span class="o">.*.</span><span class="n">kpoints</span><span class="o">.</span><span class="n">mesh</span><span class="p">]</span> <span class="p">(</span><span class="o">*</span><span class="n">kspacing</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
-  <span class="n">selfenergy</span><span class="p">:</span> <span class="p">[</span><span class="mi">18</span> <span class="mi">18</span> <span class="mi">18</span><span class="p">]</span><span class="o">*</span>
-  <span class="n">el_bands</span><span class="p">:</span> <span class="p">[</span><span class="mi">18</span> <span class="mi">18</span> <span class="mi">18</span><span class="p">]</span><span class="o">*</span>
-  <span class="n">phelel</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span> <span class="mi">5</span> <span class="mi">5</span><span class="p">]</span><span class="o">*</span>
-  <span class="n">relax</span><span class="p">:</span> <span class="p">[</span><span class="mi">11</span> <span class="mi">11</span> <span class="mi">11</span><span class="p">]</span><span class="o">*</span>
-  <span class="n">nac</span><span class="p">:</span> <span class="p">[</span><span class="mi">18</span> <span class="mi">18</span> <span class="mi">18</span><span class="p">]</span><span class="o">*</span>
-<span class="p">[</span><span class="n">vasp</span><span class="o">.*.</span><span class="n">kpoints_dense</span><span class="o">.</span><span class="n">mesh</span><span class="p">]</span> <span class="p">(</span><span class="o">*</span><span class="n">kspacing_dense</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
-  <span class="n">selfenergy</span><span class="p">:</span> <span class="p">[</span><span class="mi">9</span> <span class="mi">9</span> <span class="mi">9</span><span class="p">]</span><span class="o">*</span>
-  <span class="n">el_bands</span><span class="p">:</span> <span class="p">[</span><span class="mi">9</span> <span class="mi">9</span> <span class="mi">9</span><span class="p">]</span><span class="o">*</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.*.</span><span class="n">kpoints</span><span class="o">.</span><span class="n">mesh</span><span class="p">]</span> <span class="p">(</span><span class="o">*</span><span class="n">kspacing</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+  <span class="n">selfenergy</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span> <span class="mi">8</span> <span class="mi">8</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">transport</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span> <span class="mi">8</span> <span class="mi">8</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">el_bands</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span> <span class="mi">8</span> <span class="mi">8</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">phonopy</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="mi">2</span> <span class="mi">2</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">phono3py</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="mi">2</span> <span class="mi">2</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">phelel</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="mi">2</span> <span class="mi">2</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">relax</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span> <span class="mi">5</span> <span class="mi">5</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">nac</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span> <span class="mi">8</span> <span class="mi">8</span><span class="p">]</span><span class="o">*</span>
+<span class="p">[</span><span class="n">vasp</span><span class="o">.*.</span><span class="n">kpoints_dense</span><span class="o">.</span><span class="n">mesh</span><span class="p">]</span> <span class="p">(</span><span class="o">*</span><span class="n">kspacing_dense</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+  <span class="n">selfenergy</span><span class="p">:</span> <span class="p">[</span><span class="mi">17</span> <span class="mi">17</span> <span class="mi">17</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">transport</span><span class="p">:</span> <span class="p">[</span><span class="mi">17</span> <span class="mi">17</span> <span class="mi">17</span><span class="p">]</span><span class="o">*</span>
+  <span class="n">el_bands</span><span class="p">:</span> <span class="p">[</span><span class="mi">17</span> <span class="mi">17</span> <span class="mi">17</span><span class="p">]</span><span class="o">*</span>
 <span class="n">Created</span> <span class="n">new</span> <span class="n">folder</span> <span class="s2">&quot;relax&quot;</span><span class="o">.</span>
 <span class="n">Initial</span> <span class="n">settings</span> <span class="n">were</span> <span class="n">written</span> <span class="n">to</span> <span class="s2">&quot;relax/velph.toml&quot;</span><span class="o">.</span>
 <span class="n">Found</span> <span class="s2">&quot;POTCAR&quot;</span><span class="o">.</span>
-  <span class="n">PAW_PBE</span> <span class="n">Ti_sv</span> <span class="mi">26</span><span class="n">Sep2005</span>
-  <span class="n">PAW_PBE</span> <span class="n">Sn_d</span> <span class="mi">06</span><span class="n">Sep2000</span>
-  <span class="n">PAW_PBE</span> <span class="n">Ni</span> <span class="mi">02</span><span class="n">Aug2007</span>
-  <span class="n">Max</span> <span class="n">ENMAX</span> <span class="ow">in</span> <span class="s2">&quot;POTCAR&quot;</span> <span class="ow">is</span> <span class="mf">274.61</span><span class="o">.</span>
+  <span class="n">PAW_PBE</span> <span class="n">Pb</span> <span class="mi">08</span><span class="n">Apr2002</span>
+  <span class="n">PAW_PBE</span> <span class="n">Te</span> <span class="mi">08</span><span class="n">Apr2002</span>
+  <span class="n">Max</span> <span class="n">ENMAX</span> <span class="ow">in</span> <span class="s2">&quot;POTCAR&quot;</span> <span class="ow">is</span> <span class="mf">174.982</span><span class="o">.</span>
 <span class="s2">&quot;POTCAR&quot;</span> <span class="n">was</span> <span class="n">copied</span> <span class="n">to</span> <span class="s2">&quot;relax/POTCAR&quot;</span><span class="o">.</span>
 </pre></div>
 </div>
 <p>A directory <code class="docutils literal notranslate"><span class="pre">relax</span></code> is created and <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is stored in it.</p>
 <p><code class="docutils literal notranslate"><span class="pre">relax/velph.toml</span></code>,</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phelel]</span>
-<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.6.0&quot;</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.8.2&quot;</span>
 <span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
 <span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
-<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <span class="n">plusminus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<span class="n">fft_mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">]</span>
+<span class="n">fft_mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">]</span>
 
 <span class="c1"># ...</span>
 
@@ -481,28 +479,28 @@
 <span class="n">ismear</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
 <span class="n">sigma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.01</span>
 <span class="n">ediff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-08</span>
-<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">520</span>
+<span class="n">encut</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">400</span>
 <span class="n">prec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;accurate&quot;</span>
 <span class="n">lreal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <span class="n">lwave</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <span class="n">lcharg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 <span class="n">ncore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
 <span class="k">[vasp.relax.kpoints]</span>
-<span class="n">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">]</span>
+<span class="n">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">]</span>
 
 <span class="c1"># ...</span>
 
 <span class="k">[scheduler]</span>
 <span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
-<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;TiNiSn&quot;</span>
+<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
 <span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
 <span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/vasp/bin/vasp_std&quot;</span>
 <span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
-<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;source /opt/intel/oneapi/setvars.sh intel64 --config=</span><span class="se">\&quot;</span><span class="s2">/home/togo/.oneapi-config</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span>
+<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;source /opt/intel/oneapi/setvars.sh</span><span class="se">\n</span><span class="s2">&quot;</span>
 <span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
 
 <span class="k">[symmetry]</span>
-<span class="n">spacegroup_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;F-43m&quot;</span>
+<span class="n">spacegroup_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Fm-3m&quot;</span>
 <span class="n">tolerance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-05</span>
 <span class="n">primitive_matrix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">  </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">],</span>
@@ -512,80 +510,67 @@
 
 <span class="k">[unitcell]</span>
 <span class="n">lattice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">5.906882041566931</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># a</span>
-<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">5.906882041566931</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># b</span>
-<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">5.906882041566931</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># c</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">6.440595899259139</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># a</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">6.440595899259139</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># b</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">6.440595899259139</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># c</span>
 <span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 1</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Pb&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 2</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Pb&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 3</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Pb&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 4</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Pb&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 5</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Te&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 6</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Te&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 7</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Te&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 8</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Te&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
-<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 9</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
-<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="w"> </span><span class="p">]</span>
-<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 10</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
-<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="w"> </span><span class="p">]</span>
-<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 11</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
-<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="w"> </span><span class="p">]</span>
-<span class="k">[[unitcell.points]]</span><span class="w">  </span><span class="c1"># 12</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
-<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.750000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[primitive_cell]</span>
 <span class="n">lattice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># a</span>
-<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># b</span>
-<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">2.953441020783465</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># c</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">3.220297949629569</span><span class="p">,</span><span class="w">     </span><span class="mf">3.220297949629569</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># a</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">3.220297949629569</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">     </span><span class="mf">3.220297949629569</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># b</span>
+<span class="w">  </span><span class="p">[</span><span class="w">     </span><span class="mf">3.220297949629569</span><span class="p">,</span><span class="w">     </span><span class="mf">3.220297949629569</span><span class="p">,</span><span class="w">     </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">],</span><span class="w"> </span><span class="c1"># c</span>
 <span class="p">]</span>
 <span class="k">[[primitive_cell.points]]</span><span class="w">  </span><span class="c1"># 1</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ti&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Pb&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.000000000000000</span><span class="w"> </span><span class="p">]</span>
 <span class="k">[[primitive_cell.points]]</span><span class="w">  </span><span class="c1"># 2</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Sn&quot;</span>
+<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Te&quot;</span>
 <span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.500000000000000</span><span class="w"> </span><span class="p">]</span>
-<span class="k">[[primitive_cell.points]]</span><span class="w">  </span><span class="c1"># 3</span>
-<span class="n">symbol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Ni&quot;</span>
-<span class="n">coordinates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="p">,</span><span class="w">  </span><span class="mf">0.250000000000000</span><span class="w"> </span><span class="p">]</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">fft_mesh</span></code> is calculated from <code class="docutils literal notranslate"><span class="pre">encut</span></code> value in the <code class="docutils literal notranslate"><span class="pre">[vasp.selfenergy.incar]</span></code> section.</p>
 <p>Change directory to <code class="docutils literal notranslate"><span class="pre">relax</span></code>.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">relax</span> <span class="n">generate</span>
-<span class="o">%</span> <span class="n">cd</span> <span class="n">relax</span><span class="o">/</span><span class="n">iter1</span>
-<span class="o">%</span> <span class="n">qsub</span> <span class="n">_job</span><span class="o">.</span><span class="n">sh</span>
+<span class="n">VASP</span> <span class="nb">input</span> <span class="n">files</span> <span class="n">were</span> <span class="n">made</span> <span class="ow">in</span> <span class="s2">&quot;relax/iter1&quot;</span><span class="o">.</span>
+<span class="o">%</span> <span class="n">cd</span> <span class="n">relax</span><span class="o">/</span><span class="n">iter1</span> <span class="o">&amp;&amp;</span> <span class="n">qsub</span> <span class="n">_job</span><span class="o">.</span><span class="n">sh</span> <span class="o">&amp;&amp;</span> <span class="n">cd</span> <span class="o">../..</span>
+<span class="o">%</span> <span class="n">velph</span> <span class="n">relax</span> <span class="n">generate</span>
+<span class="s2">&quot;relax/iter1&quot;</span> <span class="n">exists</span><span class="o">.</span>
+<span class="s2">&quot;relax/iter1/CONTCAR&quot;</span> <span class="n">will</span> <span class="n">be</span> <span class="k">as</span> <span class="n">new</span> <span class="s2">&quot;POSCAR&quot;</span><span class="o">.</span>
+<span class="n">VASP</span> <span class="nb">input</span> <span class="n">files</span> <span class="n">were</span> <span class="n">made</span> <span class="ow">in</span> <span class="s2">&quot;relax/iter2&quot;</span><span class="o">.</span>
 </pre></div>
 </div>
-<p>Structure optimization is done until stress becomes less than 0.1kB (0.01GPa).
-Go back to the top directory and start supercell calculation.</p>
+<p>Structure optimizations (iter1, iter2, …) may be repeated until stress becomes
+less than a target value, e.g., 0.1kB (0.01GPa). Then, go back to the top
+directory and start supercell calculation.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>% velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
-Crystal structure file: &quot;relax/relax/iter2/CONTCAR&quot;.
-Velph template file: &quot;velph-tmpl.toml&quot;.
 Read crystal structure file &quot;relax/relax/iter2/CONTCAR&quot;.
 Read velph template file &quot;velph-tmpl.toml&quot;.
 Following options were found in &quot;velph-tmpl.toml&quot;:
-  kspacing = &quot;0.1&quot;
-  kspacing_dense = &quot;0.2&quot;
+  kspacing = &quot;0.2&quot;
+  kspacing_dense = &quot;0.1&quot;
   max_num_atoms = &quot;100&quot;
 The command options were prefered to [init.options] in &quot;velph-tmpl.toml&quot;.
 Found a primitive cell whose transformation matrix is
@@ -595,52 +580,40 @@ Found a primitive cell whose transformation matrix is
 Supercell is generated with respect to the cell below.
 --------------------------------------------------------------------------------
 lattice:
-- [     5.949975748250650,     0.000000000000000,     0.000000000000000 ] # a
-- [     0.000000000000000,     5.949975748250650,    -0.000000000000000 ] # b
-- [     0.000000000000000,     0.000000000000000,     5.949975748250650 ] # c
+- [     6.440595899259139,     0.000000000000000,     0.000000000000000 ] # a
+- [    -0.000000000000000,     6.440595899259139,     0.000000000000000 ] # b
+- [    -0.000000000000000,    -0.000000000000000,     6.440595899259139 ] # c
 points:
-- symbol: Ti # 1
+- symbol: Pb # 1
   coordinates: [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
-  mass: 47.867000
-- symbol: Ti # 2
+  mass: 207.200000
+- symbol: Pb # 2
   coordinates: [  0.000000000000000,  0.500000000000000,  0.500000000000000 ]
-  mass: 47.867000
-- symbol: Ti # 3
+  mass: 207.200000
+- symbol: Pb # 3
   coordinates: [  0.500000000000000,  0.000000000000000,  0.500000000000000 ]
-  mass: 47.867000
-- symbol: Ti # 4
+  mass: 207.200000
+- symbol: Pb # 4
   coordinates: [  0.500000000000000,  0.500000000000000,  0.000000000000000 ]
-  mass: 47.867000
-- symbol: Sn # 5
+  mass: 207.200000
+- symbol: Te # 5
   coordinates: [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
-  mass: 118.710000
-- symbol: Sn # 6
+  mass: 127.600000
+- symbol: Te # 6
   coordinates: [  0.500000000000000,  0.000000000000000,  0.000000000000000 ]
-  mass: 118.710000
-- symbol: Sn # 7
+  mass: 127.600000
+- symbol: Te # 7
   coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
-  mass: 118.710000
-- symbol: Sn # 8
+  mass: 127.600000
+- symbol: Te # 8
   coordinates: [  0.000000000000000,  0.000000000000000,  0.500000000000000 ]
-  mass: 118.710000
-- symbol: Ni # 9
-  coordinates: [  0.250000000000000,  0.250000000000000,  0.250000000000000 ]
-  mass: 58.693400
-- symbol: Ni # 10
-  coordinates: [  0.250000000000000,  0.750000000000000,  0.750000000000000 ]
-  mass: 58.693400
-- symbol: Ni # 11
-  coordinates: [  0.750000000000000,  0.250000000000000,  0.750000000000000 ]
-  mass: 58.693400
-- symbol: Ni # 12
-  coordinates: [  0.750000000000000,  0.750000000000000,  0.250000000000000 ]
-  mass: 58.693400
+  mass: 127.600000
 --------------------------------------------------------------------------------
 [vasp.incar] (basic INCAR settings)
   ismear = 0
   sigma = 0.01
   ediff = 1e-08
-  encut = 520
+  encut = 400
   prec = accurate
   lreal = False
   lwave = False
@@ -648,22 +621,25 @@ points:
   ncore = 4
 [phelel]
   supercell_dimension: [2 2 2]
-[vasp.*.kpoints.mesh] (*kspacing=0.1)
-  selfenergy: [18 18 18]*
-  el_bands: [18 18 18]*
-  phelel: [5 5 5]*
-  relax: [11 11 11]*
-  nac: [18 18 18]*
-[vasp.*.kpoints_dense.mesh] (*kspacing_dense=0.2)
-  selfenergy: [9 9 9]*
-  el_bands: [9 9 9]*
+[vasp.*.kpoints.mesh] (*kspacing=0.2)
+  selfenergy: [8 8 8]*
+  transport: [8 8 8]*
+  el_bands: [8 8 8]*
+  phonopy: [2 2 2]*
+  phono3py: [2 2 2]*
+  phelel: [2 2 2]*
+  relax: [5 5 5]*
+  nac: [8 8 8]*
+[vasp.*.kpoints_dense.mesh] (*kspacing_dense=0.1)
+  selfenergy: [17 17 17]*
+  transport: [17 17 17]*
+  el_bands: [17 17 17]*
 Created new folder &quot;calc&quot;.
 Initial settings were written to &quot;calc/velph.toml&quot;.
 Found &quot;POTCAR&quot;.
-  PAW_PBE Ti_sv 26Sep2005
-  PAW_PBE Sn_d 06Sep2000
-  PAW_PBE Ni 02Aug2007
-  Max ENMAX in &quot;POTCAR&quot; is 274.61.
+  PAW_PBE Pb 08Apr2002
+  PAW_PBE Te 08Apr2002
+  Max ENMAX in &quot;POTCAR&quot; is 174.982.
 &quot;POTCAR&quot; was copied to &quot;calc/POTCAR&quot;.
 </pre></div>
 </div>
@@ -673,12 +649,12 @@ Found &quot;POTCAR&quot;.
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>,</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">phelel</span><span class="p">]</span>
-<span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;0.6.0&quot;</span>
+<span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;0.8.2&quot;</span>
 <span class="n">supercell_dimension</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
 <span class="n">amplitude</span> <span class="o">=</span> <span class="mf">0.03</span>
-<span class="n">diagonal</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">diagonal</span> <span class="o">=</span> <span class="n">false</span>
 <span class="n">plusminus</span> <span class="o">=</span> <span class="n">true</span>
-<span class="n">fft_mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">]</span>
+<span class="n">fft_mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">30</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">30</span><span class="p">]</span>
 
 <span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">phelel</span><span class="o">.</span><span class="n">incar</span><span class="p">]</span>
 <span class="n">lwap</span> <span class="o">=</span> <span class="n">true</span>
@@ -687,14 +663,14 @@ Found &quot;POTCAR&quot;.
 <span class="n">ismear</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.01</span>
 <span class="n">ediff</span> <span class="o">=</span> <span class="mf">1e-08</span>
-<span class="n">encut</span> <span class="o">=</span> <span class="mi">520</span>
+<span class="n">encut</span> <span class="o">=</span> <span class="mi">400</span>
 <span class="n">prec</span> <span class="o">=</span> <span class="s2">&quot;accurate&quot;</span>
 <span class="n">lreal</span> <span class="o">=</span> <span class="n">false</span>
 <span class="n">lwave</span> <span class="o">=</span> <span class="n">false</span>
 <span class="n">lcharg</span> <span class="o">=</span> <span class="n">false</span>
 <span class="n">ncore</span> <span class="o">=</span> <span class="mi">4</span>
 <span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">phelel</span><span class="o">.</span><span class="n">kpoints</span><span class="p">]</span>
-<span class="n">mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+<span class="n">mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
 <span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">phelel</span><span class="o">.</span><span class="n">scheduler</span><span class="p">]</span>
 <span class="n">pe</span> <span class="o">=</span> <span class="s2">&quot;mpi* 48&quot;</span>
 
@@ -707,41 +683,40 @@ Found &quot;POTCAR&quot;.
 <span class="n">ismear</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.01</span>
 <span class="n">ediff</span> <span class="o">=</span> <span class="mf">1e-08</span>
-<span class="n">encut</span> <span class="o">=</span> <span class="mi">520</span>
+<span class="n">encut</span> <span class="o">=</span> <span class="mi">400</span>
 <span class="n">prec</span> <span class="o">=</span> <span class="s2">&quot;accurate&quot;</span>
 <span class="n">lreal</span> <span class="o">=</span> <span class="n">false</span>
 <span class="n">lwave</span> <span class="o">=</span> <span class="n">false</span>
 <span class="n">lcharg</span> <span class="o">=</span> <span class="n">false</span>
 <span class="p">[</span><span class="n">vasp</span><span class="o">.</span><span class="n">nac</span><span class="o">.</span><span class="n">kpoints</span><span class="p">]</span>
-<span class="n">mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">18</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">18</span><span class="p">]</span>
+<span class="n">mesh</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">]</span>
 
 <span class="c1"># ...</span>
 </pre></div>
 </div>
-<p>NAC and supercell calculations,</p>
+<p>NAC and phelel calculations,</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>% velph nac generate
-% cd nac; qsub _job.sh; cd ..
+VASP input files were made in &quot;nac&quot;.
+% cd nac &amp;&amp; qsub _job.sh &amp;&amp; cd ..
 % velph phelel init
 Found &quot;nac&quot; directory. Read NAC params.
-&quot;phelel/phelel_disp.yaml&quot; was generated by phelel.
+&quot;phelel/phelel_disp.yaml&quot; was generated.
 VASP input files will be generated by &quot;velph phelel generate&quot;.
-% velph supercell generate
-VASP input files were generated in &quot;supercell/disp-000&quot;.
-VASP input files were generated in &quot;supercell/disp-001&quot;.
-VASP input files were generated in &quot;supercell/disp-002&quot;.
-VASP input files were generated in &quot;supercell/disp-003&quot;.
-VASP input files were generated in &quot;supercell/disp-004&quot;.
-VASP input files were generated in &quot;supercell/disp-005&quot;.
-VASP input files were generated in &quot;supercell/disp-006&quot;.
-% for i in {000..006};do cd phelel/disp-$i; qsub _job.sh; cd ../..;done
+% velph phelel generate
+VASP input files were generated in &quot;phelel/disp-000&quot;.
+VASP input files were generated in &quot;phelel/disp-001&quot;.
+VASP input files were generated in &quot;phelel/disp-002&quot;.
+VASP input files were generated in &quot;phelel/disp-003&quot;.
+VASP input files were generated in &quot;phelel/disp-004&quot;.
+% for i in {000..004};do cd phelel/disp-$i; qsub _job.sh; cd ../..;done
 </pre></div>
 </div>
-<p>Using the VASP results of the supercell calculations, derivatives of properties
+<p>Using the VASP results of the phelel calculations, derivatives of properties
 are computed using the phelel code. The results are stored in a newly created
 file <code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code>. This process creates only
 <code class="docutils literal notranslate"><span class="pre">phelel/phelel_params.hdf5</span></code> and is invoked by the following velph command:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">%</span> <span class="n">velph</span> <span class="n">phelel</span> <span class="n">differentiate</span>
-<span class="n">Running</span> <span class="n">finufft</span> <span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">1.000e-06</span><span class="p">)</span><span class="o">...</span>
+<span class="n">FFT</span> <span class="n">mesh</span><span class="p">:</span> <span class="p">[</span><span class="mi">30</span> <span class="mi">30</span> <span class="mi">30</span><span class="p">]</span><span class="o">.</span>
 <span class="n">Running</span> <span class="n">finufft</span> <span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">1.000e-06</span><span class="p">)</span><span class="o">...</span>
 <span class="n">Running</span> <span class="n">finufft</span> <span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">1.000e-06</span><span class="p">)</span><span class="o">...</span>
 <span class="s2">&quot;phelel/phelel_params.hdf5&quot;</span> <span class="n">has</span> <span class="n">been</span> <span class="n">made</span><span class="o">.</span>
@@ -797,8 +772,7 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
             
             
               
-                <dialog id="pst-secondary-sidebar-modal"></dialog>
-                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
 
   <div class="sidebar-secondary-item">
@@ -807,7 +781,7 @@ store the NAC parameters in <code class="docutils literal notranslate"><span cla
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nitisn">NiTiSn</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pbte">PbTe</a></li>
 </ul>
   </nav></div>
 
@@ -856,8 +830,8 @@ By Atsushi Togo
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script src="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
 
   <footer class="bd-footer">
   </footer>
