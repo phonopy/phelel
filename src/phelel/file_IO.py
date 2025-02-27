@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import os
 import pathlib
+import warnings
 from typing import Optional, Union
 
 import h5py
@@ -253,11 +254,25 @@ def _add_datasets(
             data=np.array(p2s_multiplicities, dtype="long"),
         )
         if atom_indices_in_derivatives is not None:
-            if not np.array_equal(atom_indices_in_derivatives, primitive.p2s_map):
+            if True:
+                warnings.warn(
+                    (
+                        '"atom_indices_in_derivatives" '
+                        'will not be stored in "phelel_params.hdf5"'
+                    ),
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
                 w.create_dataset(
                     "atom_indices_in_derivatives",
                     data=np.array(atom_indices_in_derivatives, dtype="long"),
                 )
+            else:
+                if not np.array_equal(atom_indices_in_derivatives, primitive.p2s_map):
+                    w.create_dataset(
+                        "atom_indices_in_derivatives",
+                        data=np.array(atom_indices_in_derivatives, dtype="long"),
+                    )
     if unitcell is not None:
         w.create_dataset(
             "unitcell_lattice",

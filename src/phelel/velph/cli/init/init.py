@@ -306,11 +306,9 @@ def _collect_init_params(
     # Show parameters specified in velph-toml-template file.
     if template_toml_filepath:
         if len(template_init_params) == 1:
-            click.echo("Following option was found in " f'"{template_toml_filepath}":')
+            click.echo(f'Following option was found in "{template_toml_filepath}":')
         elif len(template_init_params) > 1:
-            click.echo(
-                "Following options were found in " f'"{template_toml_filepath}":'
-            )
+            click.echo(f'Following options were found in "{template_toml_filepath}":')
     if template_init_params:
         click.echo(
             "\n".join(
@@ -978,10 +976,17 @@ def _show_kpoints_lines(
         if key in kpoints_dict:
             mesh = kpoints_dict[key].get("mesh")
             if mesh is not None:
-                line = f"  {key}: {np.array(mesh)}"
+                if "D_diag" in kpoints_dict[key]:
+                    D_diag = kpoints_dict[key]["D_diag"]
+                    line = f"  {key}: {D_diag}"
+                else:
+                    line = f"  {key}: {np.array(mesh)}"
                 if "kpoints" not in _get_dict_by_split_dots(vasp_dict, key):
                     line += "*"
                 k_mesh_lines.append(line)
+                if "D_diag" in kpoints_dict[key]:
+                    k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
+
     k_mesh_lines.append(
         f"[vasp.*.kpoints_dense.mesh] (*kspacing_dense={vip_kspacing_dense})"
     )
@@ -989,10 +994,16 @@ def _show_kpoints_lines(
         if key in kpoints_dense_dict:
             mesh = kpoints_dense_dict[key].get("mesh")
             if mesh is not None:
-                line = f"  {key}: {np.array(mesh)}"
+                if "D_diag" in kpoints_dense_dict[key]:
+                    D_diag = kpoints_dense_dict[key]["D_diag"]
+                    line = f"  {key}: {np.array(D_diag)}"
+                else:
+                    line = f"  {key}: {np.array(mesh)}"
                 if "kpoints_dense" not in vasp_dict[key]:
                     line += "*"
                 k_mesh_lines.append(line)
+                if "D_diag" in kpoints_dense_dict[key]:
+                    k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
     if k_mesh_lines:
         click.echo("\n".join(k_mesh_lines))
 
@@ -1039,29 +1050,39 @@ def _get_kpoints_by_kspacing(
         if gm_super.grid_matrix is None:
             supercell_kpoints = {"mesh": gm_super.D_diag}
         else:
-            supercell_kpoints = {"mesh": gm_super.grid_matrix}
+            supercell_kpoints = {
+                "mesh": gm_super.grid_matrix,
+                "D_diag": gm_super.D_diag,
+            }
     else:
         supercell_kpoints = None
     if gm_phonopy_super is not None:
         if gm_phonopy_super.grid_matrix is None:
             phonopy_supercell_kpoints = {"mesh": gm_phonopy_super.D_diag}
         else:
-            phonopy_supercell_kpoints = {"mesh": gm_phonopy_super.grid_matrix}
+            phonopy_supercell_kpoints = {
+                "mesh": gm_phonopy_super.grid_matrix,
+                "D_diag": gm_phonopy_super.D_diag,
+            }
     else:
         phonopy_supercell_kpoints = None
     if gm_phono3py_super is not None:
         if gm_phono3py_super.grid_matrix is None:
             phono3py_supercell_kpoints = {"mesh": gm_phono3py_super.D_diag}
         else:
-            phono3py_supercell_kpoints = {"mesh": gm_phono3py_super.grid_matrix}
+            phono3py_supercell_kpoints = {
+                "mesh": gm_phono3py_super.grid_matrix,
+                "D_diag": gm_phono3py_super.D_diag,
+            }
+
     else:
         phono3py_supercell_kpoints = None
     if gm_prim.grid_matrix is None:
         selfenergy_kpoints = {"mesh": gm_prim.D_diag}
         el_bands_kpoints = {"mesh": gm_prim.D_diag}
     else:
-        selfenergy_kpoints = {"mesh": gm_prim.grid_matrix}
-        el_bands_kpoints = {"mesh": gm_prim.grid_matrix}
+        selfenergy_kpoints = {"mesh": gm_prim.grid_matrix, "D_diag": gm_prim.D_diag}
+        el_bands_kpoints = {"mesh": gm_prim.grid_matrix, "D_diag": gm_prim.D_diag}
     ph_bands_kpoints = {"mesh": [1, 1, 1]}
 
     # nac
@@ -1074,7 +1095,7 @@ def _get_kpoints_by_kspacing(
     if gm_nac.grid_matrix is None:
         nac_kpoints = {"mesh": gm_nac.D_diag}
     else:
-        nac_kpoints = {"mesh": gm_nac.grid_matrix}
+        nac_kpoints = {"mesh": gm_nac.grid_matrix, "D_diag": gm_nac.D_diag}
 
     # relax
     if cell_for_relax is CellChoice.UNITCELL:
@@ -1086,7 +1107,7 @@ def _get_kpoints_by_kspacing(
     if gm_relax.grid_matrix is None:
         relax_kpoints = {"mesh": gm_relax.D_diag}
     else:
-        relax_kpoints = {"mesh": gm_relax.grid_matrix}
+        relax_kpoints = {"mesh": gm_relax.grid_matrix, "D_diag": gm_relax.D_diag}
 
     # keys are calc_types.
     kpoints_dict = {
@@ -1130,8 +1151,14 @@ def _get_kpoints_by_kspacing_dense(
         selfenergy_kpoints_dense = {"mesh": gm_dense_prim.D_diag}
         el_bands_kpoints_dense = {"mesh": gm_dense_prim.D_diag}
     else:
-        selfenergy_kpoints_dense = {"mesh": gm_dense_prim.grid_matrix}
-        el_bands_kpoints_dense = {"mesh": gm_dense_prim.grid_matrix}
+        selfenergy_kpoints_dense = {
+            "mesh": gm_dense_prim.grid_matrix,
+            "D_diag": gm_dense_prim.D_diag,
+        }
+        el_bands_kpoints_dense = {
+            "mesh": gm_dense_prim.grid_matrix,
+            "D_diag": gm_dense_prim.D_diag,
+        }
 
     if with_phelel:
         return {
@@ -1417,7 +1444,7 @@ def _get_displacement_settings_lines(
     lines = []
     toml_dict = velph_dict.get(calc_type, {})
     if "amplitude" in toml_dict:
-        lines.append(f'amplitude = {toml_dict["amplitude"]}')
+        lines.append(f"amplitude = {toml_dict['amplitude']}")
     else:
         lines.append(f"amplitude = {amplitude}")
 

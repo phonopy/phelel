@@ -268,8 +268,7 @@ class VaspShowData:
         self.V_loc.write_locpot(header)
 
         msg = (
-            'The local potential is written in "locpot.dat" in VASP '
-            "LOCPOT-like format."
+            'The local potential is written in "locpot.dat" in VASP LOCPOT-like format.'
         )
         import textwrap
 
