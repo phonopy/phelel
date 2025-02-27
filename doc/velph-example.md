@@ -119,14 +119,14 @@ points:
 [phelel]
   supercell_dimension: [2 2 2]
 [vasp.*.kpoints.mesh] (*kspacing=0.2)
-  selfenergy: [8 8 8]*
-  transport: [8 8 8]*
-  el_bands: [8 8 8]*
+  selfenergy: [9 9 9]*
+  transport: [9 9 9]*
+  el_bands: [9 9 9]*
   phonopy: [2 2 2]*
   phono3py: [2 2 2]*
   phelel: [2 2 2]*
   relax: [5 5 5]*
-  nac: [8 8 8]*
+  nac: [9 9 9]*
 [vasp.*.kpoints_dense.mesh] (*kspacing_dense=0.1)
   selfenergy: [17 17 17]*
   transport: [17 17 17]*
