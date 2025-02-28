@@ -51,8 +51,8 @@ def test_velph_el_bands_plot_TiNiSn():
     )
     assert labels_at_points == ["G", "X", "U|K", "G", "L", "W", "X"]
 
-    assert len(dos) == 5001
+    assert dos.shape == (1, 5001)
     assert len(energies) == 5001
-    assert pytest.approx(dos[4000], 1e-5) == 1.57397389
+    assert pytest.approx(dos[0, 4000], 1e-5) == 1.57397389
     assert pytest.approx(energies[4000], 1e-5) == 4.63468648
     assert pytest.approx(xmax, 1e-5) == 32.237937064036856

@@ -47,8 +47,15 @@ def cmd_generate(toml_filename: str):
     type=(float, float),
     help="Energy window, emin and emax with respect to Fermi level.",
 )
+@click.option(
+    "--save",
+    "save_plot",
+    is_flag=bool,
+    default=False,
+    help=("Save plot to file."),
+)
 @click.help_option("-h", "--help")
-def cmd_plot(window: tuple[float, float]):
+def cmd_plot(window: tuple[float, float], save_plot: bool):
     """Plot electronic band structure."""
     vaspout_filename_bands = pathlib.Path("el_bands/bands/vaspout.h5")
     vaspout_filename_dos = pathlib.Path("el_bands/dos/vaspout.h5")
@@ -58,4 +65,13 @@ def cmd_plot(window: tuple[float, float]):
         click.echo(f'"{vaspout_filename_dos}" not found.')
 
     if vaspout_filename_bands.exists() and vaspout_filename_dos.exists():
-        plot_el_bandstructures(window, vaspout_filename_bands, vaspout_filename_dos)
+        plot_el_bandstructures(
+            window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
+        )
+
+
+def plot(window: tuple[float, float], save_plot: bool = False):
+    """Plot electronic band structure."""
+    with click.Context(cmd_plot) as ctx:
+        ctx.params = {"window": window, "save_plot": save_plot}
+        cmd_plot.invoke(ctx)
