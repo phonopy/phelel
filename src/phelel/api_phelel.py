@@ -361,8 +361,8 @@ class Phelel:
             self._fft_mesh,
             self._p2s_matrix,
             self._phelel_phonon.supercell,
-            symmetry=self._phelel_phonon.symmetry,
-            atom_indices=self._atom_indices_in_derivatives,
+            symmetry=self.symmetry,
+            atom_indices=self.atom_indices_in_derivatives,
             nufft=self._nufft,
             finufft_eps=self._finufft_eps,
             verbose=self._log_level > 0,
@@ -487,26 +487,26 @@ class Phelel:
     ):
         """Write phelel_params.hdf5."""
         params = {
-            "dVdu": self._dVdu,
-            "dDijdu": self._dDijdu,
-            "supercell_matrix": self._phelel_phonon.supercell_matrix,
-            "primitive_matrix": self._phelel_phonon.primitive_matrix,
-            "primitive": self._phelel_phonon.primitive,
-            "unitcell": self._unitcell,
-            "supercell": self._phelel_phonon.supercell,
+            "dVdu": self.dVdu,
+            "dDijdu": self.dDijdu,
+            "supercell_matrix": self.supercell_matrix,
+            "primitive_matrix": self.primitive_matrix,
+            "primitive": self.primitive,
+            "unitcell": self.unitcell,
+            "supercell": self.supercell,
             "atom_indices_in_derivatives": self._atom_indices_in_derivatives,
-            "disp_dataset": self._phelel_phonon.dataset,
-            "nac_params": self._phelel_phonon.nac_params,
+            "disp_dataset": self.dataset,
+            "nac_params": self.nac_params,
+            "force_constants": self.force_constants,
+            "symmetry_dataset": self.primitive_symmetry.dataset,
             "filename": filename,
         }
         if self._phonon is not None:
             params.update(
                 {
-                    "force_constants": self._phonon.force_constants,
-                    "phonon_supercell_matrix": self._phonon.supercell_matrix,
-                    "phonon_primitive": self._phonon.primitive,
-                    "phonon_supercell": self._phonon.supercell,
-                    "symmetry_dataset": self._phonon.primitive_symmetry.dataset,
+                    "phonon_supercell_matrix": self.phonon_supercell_matrix,
+                    "phonon_primitive": self.phonon_primitive,
+                    "phonon_supercell": self.phonon_supercell,
                 }
             )
         write_phelel_params_hdf5(**params)

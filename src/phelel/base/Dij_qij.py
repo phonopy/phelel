@@ -258,7 +258,7 @@ class DDijQijFit:
     ):
         text = (
             f"Spin {i_spinor + 1}, Disp-Atom {i_eatom + 1}, "
-            f'Atom {i + 1} d{str1}ij/d{"xyz"[j]} {str2} part '
+            f"Atom {i + 1} d{str1}ij/d{'xyz'[j]} {str2} part "
             f"({Dij_shape[0]}, {Dij_shape[1]})\n"
         )
         for xij_l in xij:
@@ -303,7 +303,7 @@ class DDijQijFit:
         sitesyms = self._sitesym_sets[self._i_atom]
         natom = len(self._supercell)
         lmdim = self._delta_Dij_qijs[0].dDij.shape[-2]
-        dtype = f'c{np.dtype("double").itemsize * 2}'
+        dtype = f"c{np.dtype('double').itemsize * 2}"
         ncdij = self._dDijdu.shape[0]
 
         lattice = self._supercell.cell.T

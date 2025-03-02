@@ -48,10 +48,26 @@ def cmd_generate(toml_filename: str):
     default=False,
     help=("Use ordinary frequency instead of angular frequency."),
 )
+@click.option(
+    "--save",
+    "save_plot",
+    is_flag=bool,
+    default=False,
+    help=("Save plot to file."),
+)
 @click.help_option("-h", "--help")
-def cmd_plot(use_ordinary_frequency: bool):
+def cmd_plot(use_ordinary_frequency: bool, save_plot: bool):
     """Plot phonon band structure."""
     vaspout_filename = pathlib.Path("ph_bands/bands/vaspout.h5")
     if not vaspout_filename.exists():
         click.echo(f'"{vaspout_filename}" not found.')
-    plot_ph_bandstructures(vaspout_filename, use_ordinary_frequency)
+    plot_ph_bandstructures(
+        vaspout_filename, use_ordinary_frequency, save_plot=save_plot
+    )
+
+
+def plot(save_plot: bool = False):
+    """Plot phonon band structure."""
+    with click.Context(cmd_plot) as ctx:
+        ctx.params = {"save_plot": save_plot}
+        cmd_plot.invoke(ctx)

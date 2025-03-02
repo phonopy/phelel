@@ -82,7 +82,7 @@ class DeltaLocalPotential:
             _filename = "locpot.dat"
 
         if verbose:
-            print(f'dV_loc is written in "{_filename}" in LOCPOT like ' "format.")
+            print(f'dV_loc is written in "{_filename}" in LOCPOT like format.')
 
         header = "\n".join(get_vasp_structure_lines(supercell))
         locpot = get_CHGCAR(self.dV[0].real, header)  # only cdij=0
@@ -336,7 +336,7 @@ class LocalPotentialInterpolationNUFFT:
         ]
         self._sitesym_sets = sitesym_sets[sitesym_selected_indices]
 
-        dtype = f'c{np.dtype("double").itemsize * 2}'
+        dtype = f"c{np.dtype('double').itemsize * 2}"
         ncdij = self._delta_Vs[0].dV.shape[0]
         self._dVdu = np.zeros(
             (ncdij, len(self._atom_indices_returned), 3, len(self._grid_points)),
@@ -466,7 +466,7 @@ class LocalPotentialInterpolationNUFFT:
     def _init_finufft(self, ncdij: int):
         import finufft
 
-        dtype = f'c{np.dtype("double").itemsize * 2}'
+        dtype = f"c{np.dtype('double').itemsize * 2}"
         self._finufft_plan = [
             finufft.Plan(
                 2, self._delta_Vs[0].dV[i].shape, eps=self._finufft_eps, dtype=dtype
