@@ -19,6 +19,7 @@ def plot_el_bandstructures(
     window: tuple[float, float],
     vaspout_filename_bands: pathlib.Path,
     vaspout_filename_dos: pathlib.Path,
+    save_plot: bool = False,
     plot_filename: pathlib.Path = pathlib.Path("el_bands/el_bands.pdf"),
 ):
     """Plot electronic band structure.
@@ -31,6 +32,8 @@ def plot_el_bandstructures(
         Filename of vaspout.h5 of band structure.
     vaspout_filename_dos : pathlib.Path
         Filename of vaspout.h5 of DOS.
+    save_plot : bool, optional
+        Save plot to file.
     plot_filename : pathlib.Path, optional
         File name of band structure plot.
 
@@ -65,7 +68,9 @@ def plot_el_bandstructures(
         f_h5py_bands["input/kpoints_opt"],
     )
 
-    ax0.plot(distances, eigvals[0, :, :], "ok", markersize=1)
+    lines = ["-k", "--k"]
+    for i, eigvals_spin in enumerate(eigvals):
+        ax0.plot(distances, eigvals_spin[:, :], lines[i], linewidth=1)
     ax0.hlines(efermi, distances[0], distances[-1], "r", linewidth=1)
     for x in points[1:-1]:
         ax0.vlines(x, efermi + emin, efermi + emax, "k", linewidth=1)
@@ -78,24 +83,30 @@ def plot_el_bandstructures(
 
     dos, energies, xmax = _get_dos_data(f_h5py_dos_results, ymin, ymax)
 
-    ax1.plot(dos, energies, "-k", linewidth=1)
+    lines = ["-k", "--k"]
+    for i, dos_spin in enumerate(dos):
+        ax1.plot(dos_spin, energies, lines[i], linewidth=1)
+    if len(dos) == 2:
+        ax1.plot(dos.sum(axis=0), energies, ":k", linewidth=1)
     ax1.hlines(efermi, 0, xmax, "r", linewidth=1)
     ax1.set_xlim(0, xmax)
     ax1.set_ylim(ymin, ymax)
     ax1.yaxis.tick_right()
 
-    plt.rcParams["pdf.fonttype"] = 42
     plt.tight_layout()
-    plt.savefig(plot_filename)
+    if save_plot:
+        plt.rcParams["pdf.fonttype"] = 42
+        plt.savefig(plot_filename)
+        click.echo(f'Electronic band structure plot was saved in "{plot_filename}".')
+    else:
+        plt.show()
     plt.close()
-
-    click.echo(f'Electronic band structure plot was saved in "{plot_filename}".')
 
 
 def _get_bands_data(
     reclat: np.ndarray, f_h5py_bands_results: h5py.Group, f_h5py_bands_input: h5py.Group
 ):
-    eigvals = f_h5py_bands_results["eigenvalues"]
+    eigvals = f_h5py_bands_results["eigenvalues"][:]
 
     # k-points in reduced coordinates
     kpoint_coords = f_h5py_bands_results["kpoint_coords"]
@@ -117,7 +128,7 @@ def _get_bands_data(
 
 
 def _get_dos_data(f_h5py_dos_results: h5py.Group, ymin: float, ymax: float):
-    dos = f_h5py_dos_results["dos"][0, :]
+    dos = f_h5py_dos_results["dos"][:]
     energies = f_h5py_dos_results["energies"][:]
     i_min = 0
     i_max = len(energies)
@@ -127,5 +138,5 @@ def _get_dos_data(f_h5py_dos_results: h5py.Group, ymin: float, ymax: float):
         if val > ymax:
             i_max = i
             break
-    xmax = dos[i_min : i_max + 1].max() * 1.1
+    xmax = dos[:, i_min : i_max + 1].max() * 1.1
     return dos, energies, xmax

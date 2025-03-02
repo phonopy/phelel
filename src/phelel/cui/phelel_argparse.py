@@ -60,9 +60,7 @@ def get_parser(load_phelel_yaml=False):
             dest="supercell_dimension",
             metavar="INT",
             default=None,
-            help=(
-                "Supercell dimensions with three integers or matrix with " "9 integers"
-            ),
+            help=("Supercell dimensions with three integers or matrix with 9 integers"),
         )
         parser.add_argument(
             "--dim-phonon",
