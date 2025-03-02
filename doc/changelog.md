@@ -2,6 +2,11 @@
 
 # Change Log
 
+## Mar-1-2025: Version 0.8.3
+
+- `--save` option was implemented for `velph-el_bands-plot` and
+  `velph-ph_bands-plot`. Without this option, the plot is shown on display.
+
 ## Jan-10-2025: Version 0.8.2
 
 - Collection of small updates of velph command
