@@ -106,6 +106,6 @@ def get_custom_schedular_script(
 
     """
     sched_dict = copy.deepcopy(toml_scheduler_dict)
-    if job_id is not None:
+    if "job_name" in sched_dict and job_id is not None:
         sched_dict["job_name"] += f"-{job_id}"
     return template.format(**sched_dict)
