@@ -5,12 +5,99 @@ from typing import Optional, Union
 
 import h5py
 import numpy as np
+import spglib
 from phono3py.file_IO import get_filename_suffix
+from phono3py.other.kaccum import KappaDOSTHM
+from phono3py.phonon.grid import BZGrid, get_grid_point_from_address, get_ir_grid_points
 from phonopy import Phonopy
 from phonopy.phonon.tetrahedron_mesh import TetrahedronMesh
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.grid_points import GridPoints
 from phonopy.units import THzToEv
+
+
+def get_Eliashberg_function(h5_filename: str):
+    """Get Eliashberg function."""
+    with h5py.File(h5_filename) as f:
+        # [itemp]
+        temps = f["results/electron_phonon/phonons/self_energy_1/temps"][:]
+        # [ikpt, 3]
+        ir_kpoints = f["results/electron_phonon/phonons/self_energy_1/kpoint_coords"][:]
+        lat_scale = f["results/positions/scale"][()]
+        lattice = f["results/positions/lattice_vectors"][:] * lat_scale
+        # ion_types = f["results/positions/ion_types"][:]
+        number_ion_types = f["results/positions/number_ion_types"][:]
+        numbers = []
+        for i, nums in enumerate(number_ion_types):
+            numbers += [i + 1] * nums
+
+        positions = f["results/positions/position_ions"][:]
+        # row vectors in python (and KPOINTS file, too)
+        k_gen_vecs = f[
+            "results/electron_phonon/phonons/self_energy_1/kpoint_generating_vectors"
+        ][:]
+        # [ispin, itemp] in 1/eV
+        dos_at_ef = f["results/electron_phonon/phonons/self_energy_1/dos_at_ef"][:, :]
+        # [ispin, ib, ikpt , 1, temp, (re,im)] in eV
+        gamma = -f["results/electron_phonon/phonons/self_energy_1/selfen_ph"][
+            :, :, :, 0, :, 1
+        ]
+        # [ikpt, ib] in 2piTHz
+        freqs = f["results/electron_phonon/phonons/self_energy_1/phonon_freqs_ibz"][:]
+        # [ispin, itemp, freq_points]
+        a2f_vasp = f["results/electron_phonon/phonons/self_energy_1/a2F"][:]
+        # in 2piTHz
+        freq_points_vasp = f[
+            "results/electron_phonon/phonons/self_energy_1/frequency_grid"
+        ][:]
+
+    sym_dataset = spglib.get_symmetry_dataset((lattice, positions, numbers))
+    mesh = np.linalg.inv(lattice.T @ k_gen_vecs).T
+    mesh = np.rint(mesh).astype(int)
+    bz_grid = BZGrid(mesh, lattice=lattice, symmetry_dataset=sym_dataset)
+    ir_grid_points, ir_grid_weights, ir_grid_map = get_ir_grid_points(bz_grid)
+
+    # ir_gps indices in phonopy are mapped to those in vasp.
+    ir_addresss = np.rint(ir_kpoints @ mesh).astype(int)
+    gps = get_grid_point_from_address(ir_addresss, bz_grid.D_diag)
+    irgp = ir_grid_map[gps]
+    id_map = [np.where(irgp == gp)[0][0] for gp in ir_grid_points]
+
+    a2f_at_qj = np.zeros(freqs.shape + (len(temps),), dtype="double")
+    for itemp, _ in enumerate(temps):
+        a2f_at_qj[:, :, itemp] = (
+            (
+                2
+                * gamma[0, :, :, itemp].T
+                / (freqs * THzToEv / (2 * np.pi))
+                / (dos_at_ef[0, itemp] * 2 * np.pi)
+            )
+            / THzToEv
+            * 2
+            * np.pi
+        )
+    kappados = KappaDOSTHM(
+        a2f_at_qj[None, id_map, :, :],
+        freqs[id_map],
+        bz_grid,
+        ir_grid_points=ir_grid_points,
+        ir_grid_weights=ir_grid_weights,
+        ir_grid_map=ir_grid_map,
+        num_sampling_points=201,
+    )
+    freq_points, a2f = kappados.get_kdos()
+
+    import matplotlib.pyplot as plt
+
+    plt.figure()
+    for itemp, temp in enumerate(temps):
+        plt.plot(freq_points_vasp, a2f_vasp[0, itemp, :], label=f"{temp} K")
+        plt.plot(freq_points, a2f[0, :, 1, itemp], label=f"{temp} K")
+    plt.xlabel("Frequency (2piTHz)")
+    plt.ylabel("a2F")
+    plt.title("a2F vs Frequency")
+    plt.legend()
+    plt.show()
 
 
 class EliashbergFunction:
