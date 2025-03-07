@@ -207,12 +207,22 @@ default_template_dict: dict[str, Any] = {
         },
     },
     "scheduler": {
-        "scheduler_name": "(sge, etc, custom)",
         "job_name": "vasp-elph",
         "mpirun_command": "mpirun",
         "vasp_binary": "vasp_std",
         "prepend_text": "",
         "append_text": "",
-        "custom_template": "",
+        "nodes": 1,
+        "walltime": "96:00:00",
+        "scheduler_template": """#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --nodes={nodes}
+#SBATCH --time={walltime}
+#SBATCH --output=ci_%j.log
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+""",
     },
 }

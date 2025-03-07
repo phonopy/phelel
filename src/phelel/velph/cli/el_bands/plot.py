@@ -138,5 +138,20 @@ def _get_dos_data(f_h5py_dos_results: h5py.Group, ymin: float, ymax: float):
         if val > ymax:
             i_max = i
             break
+
+    # Take only total for non-collinear case.
+    if len(dos) == 4:
+        dos = dos[0][None, :]
+
+    # NaN elements are replaced by 0.
+    if np.isfinite(dos).any():
+        dos = np.nan_to_num(dos, nan=0.0, posinf=0.0, neginf=0.0)
+
     xmax = dos[:, i_min : i_max + 1].max() * 1.1
+
+    # Check unphysical values.
+    if xmax > 10000:
+        dos = np.where(dos > 10000, 0, dos)
+        xmax = dos[:, i_min : i_max + 1].max() * 1.1
+
     return dos, energies, xmax
