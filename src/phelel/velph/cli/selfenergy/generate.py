@@ -108,7 +108,7 @@ def write_selfenergy_input_files(
         kpoints_dict,
     )
 
-    # KPOINTS_DENSE
+    # KPOINTS_ELPH
     kpoints_dense_dict = toml_dict["vasp"][calc_type]["kpoints_dense"]
     assert_kpoints_mesh_symmetry(toml_dict, kpoints_dense_dict, primitive)
     write_kpoints_mesh_mode(
@@ -116,7 +116,7 @@ def write_selfenergy_input_files(
         directory_path,
         f"vasp.{calc_type}.kpoints_dense",
         kpoints_dense_dict,
-        kpoints_filename="KPOINTS_DENSE",
+        kpoints_filename="KPOINTS_ELPH",
         kspacing_name="elph_kspacing",
     )
 
