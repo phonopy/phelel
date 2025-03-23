@@ -50,17 +50,17 @@ class Phelel:
         Phonopy class instance.
     supercell_matrix : ndarray
         Supercell matrix relative to unit cell.
-        dtype='long', shape=(3,3)
+        dtype='int64', shape=(3,3)
     primitive_matrix : ndarray
         Primitive matrix relative to unit cell. Default is None.
         dtype='double', shape=(3,3)
     atom_indices_in_derivatives : ndarray
         Atom indices in supercell used for computing derivatives.
-        dtype='long', shape=(atom_indices_in_derivatives,)
+        dtype='int64', shape=(atom_indices_in_derivatives,)
     fft_mesh : ndarray
         FFT mesh numbers for primitive cell used for generating local potential
         derivative interpolation grid.
-        dtype='long', shape=(3,)
+        dtype='int64', shape=(3,)
     dVdu : DLocalPotential
         A class instance to calculate and store dV/du.
     dDijdu : DDijQij
@@ -110,7 +110,7 @@ class Phelel:
             phonon_supercell_matrix. Default is None.
         fft_mesh : array_like, optional
             FFT mesh numbers for primitive cell. Default is None.
-            dtype='long', shape=(3,)
+            dtype='int64', shape=(3,)
         symprec : float, optional
             Symmetry tolerance used to search crystal symmetry. Default
             is 1e-5.
@@ -144,7 +144,7 @@ class Phelel:
             assert isclose(self._phelel_phonon.primitive, self._phonon.primitive)
 
         p2s_mat_float = np.linalg.inv(self.primitive.primitive_matrix)
-        self._p2s_matrix = np.rint(p2s_mat_float).astype("long")
+        self._p2s_matrix = np.rint(p2s_mat_float).astype("int64")
         assert (abs(self._p2s_matrix - p2s_mat_float) < 1e-5).all()
 
         self._dVdu = None
@@ -356,7 +356,7 @@ class Phelel:
 
     @fft_mesh.setter
     def fft_mesh(self, fft_mesh: Union[Sequence, np.ndarray]):
-        self._fft_mesh = np.array(fft_mesh, dtype="long")
+        self._fft_mesh = np.array(fft_mesh, dtype="int64")
         self._dVdu = DLocalPotential(
             self._fft_mesh,
             self._p2s_matrix,
