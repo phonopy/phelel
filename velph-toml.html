@@ -43,7 +43,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'velph-toml';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="velph init" href="velph-init.html" />
+    <link rel="next" title="velph.toml-[scheduler] section" href="velph-toml-scheduler.html" />
     <link rel="prev" title="velph command" href="velph-command.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -154,6 +154,7 @@
 <li class="toctree-l1"><a class="reference internal" href="phelel-command.html"><code class="docutils literal notranslate"><span class="pre">phelel</span></code> command</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-command.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> command</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="velph-toml-scheduler.html"><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>-<code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-init.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-init-template.html"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> template</a></li>
 <li class="toctree-l1"><a class="reference internal" href="velph-subcommands.html"><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands</a></li>
@@ -312,7 +313,6 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phelel"><code class="docutils literal notranslate"><span class="pre">[phelel]</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#vasp"><code class="docutils literal notranslate"><span class="pre">[vasp]</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-job-script-setting"><code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> : Job script setting</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phono3py"><code class="docutils literal notranslate"><span class="pre">[phono3py]</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy"><code class="docutils literal notranslate"><span class="pre">[phonopy]</span></code></a></li>
 </ul>
             </nav>
@@ -396,77 +396,7 @@ sections, leveraging the VASP INCAR parameters defined in the <a class="referenc
 </section>
 <section id="scheduler-job-script-setting">
 <h2><code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> : Job script setting<a class="headerlink" href="#scheduler-job-script-setting" title="Link to this heading">#</a></h2>
-<p>The parameters used for generating the job submission script are specified as
-strings in <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code>. If <code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE.scheduler]</span></code> is
-specified, <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> settings are overwritten by the settings for
-<code class="docutils literal notranslate"><span class="pre">[vasp.CALC_TYPE]</span></code>. The content in this section operates through <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str.format">Python string
-formatting</a>, using
-replacement fields named after keyword arguments. Each parameter line in the
-<code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section is treated as a keyword argument, which is then inserted
-into the string format.</p>
-<p>In the <code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section, the parameters <code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code> and
-<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> have special roles:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_name</span></code>: Specifies the template type, with options <code class="docutils literal notranslate"><span class="pre">slurm</span></code>, <code class="docutils literal notranslate"><span class="pre">sge</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">custom</span></code>. For <code class="docutils literal notranslate"><span class="pre">slurm</span></code> and <code class="docutils literal notranslate"><span class="pre">sge</span></code>, the template string (i.e.,
-<code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>) is
-<a class="reference external" href="https://github.com/phonopy/phelel/blob/develop/src/phelel/velph/utils/scheduler.py">hard-coded</a>.
-If <code class="docutils literal notranslate"><span class="pre">custom</span></code> is selected, the string provided by <code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code> is used,
-into which the parameters are inserted.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scheduler_template</span></code>: The string template where parameters defined in this
-section are inserted.</p></li>
-</ul>
-<p>An example is shown below.</p>
-<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[scheduler]</span>
-<span class="n">scheduler_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sge&quot;</span>
-<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
-<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpirun&quot;</span>
-<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-1/bin/vasp_std&quot;</span>
-<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vienna 32&quot;</span>
-<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">source /opt/intel/oneapi/setvars.sh --config=&quot;/home/togo/.oneapi-config&quot;</span>
-<span class="s1">&#39;&#39;&#39;</span>
-
-<span class="p">...</span>
-<span class="k">[vasp.phelel.scheduler]</span>
-<span class="n">scheduler_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;#!/bin/bash</span>
-<span class="s1">#QSUB2 core 192</span>
-<span class="s1">#QSUB2 mpi 192</span>
-<span class="s1">#QSUB2 smp 1</span>
-<span class="s1">#QSUB2 wtime 48:00:00</span>
-<span class="s1">#PBS -N {job_name}</span>
-<span class="s1">cd $PBS_O_WORKDIR</span>
-
-<span class="s1">{prepend_text}</span>
-<span class="s1">{mpirun_command} {vasp_binary} | tee vasp_output</span>
-<span class="s1">{append_text}</span>
-<span class="s1">&#39;&#39;&#39;</span>
-<span class="n">job_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PbTe&quot;</span>
-<span class="n">mpirun_command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mpijob&quot;</span>
-<span class="n">vasp_binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/usr/local/cluster-2/bin/vasp_std&quot;</span>
-<span class="n">prepend_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">. /etc/profile.d/modules.sh</span>
-<span class="s1">module load inteloneapi22u3</span>
-<span class="s1">&#39;&#39;&#39;</span>
-<span class="n">append_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
-
-<span class="p">...</span>
-<span class="k">[vasp.phono3py.scheduler]</span>
-<span class="n">pe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;paris 24&quot;</span>
-</pre></div>
-</div>
-</section>
-<section id="phono3py">
-<h2><code class="docutils literal notranslate"><span class="pre">[phono3py]</span></code><a class="headerlink" href="#phono3py" title="Link to this heading">#</a></h2>
-<p>This section contains information specific to the phono3py code and must be
-included to execute the <a class="reference internal" href="velph-subcommands.html#velph-phono3py-subcommand"><span class="std std-ref">velph phono3py</span></a> subcommand.</p>
-<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[phono3py]</span>
-<span class="n">supercell_dimension</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span>
-<span class="n">amplitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span>
-<span class="n">diagonal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<span class="n">plusminus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</pre></div>
-</div>
+<p>See <a class="reference internal" href="velph-toml-scheduler.html#velph-toml-scheduler"><span class="std std-ref">velph.toml-[scheduler] section</span></a>.</p>
 </section>
 <section id="phonopy">
 <h2><code class="docutils literal notranslate"><span class="pre">[phonopy]</span></code><a class="headerlink" href="#phonopy" title="Link to this heading">#</a></h2>
@@ -503,11 +433,11 @@ included to execute the <a class="reference internal" href="velph-subcommands.ht
       </div>
     </a>
     <a class="right-next"
-       href="velph-init.html"
+       href="velph-toml-scheduler.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code></p>
+        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>-<code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> section</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -530,7 +460,6 @@ included to execute the <a class="reference internal" href="velph-subcommands.ht
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phelel"><code class="docutils literal notranslate"><span class="pre">[phelel]</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#vasp"><code class="docutils literal notranslate"><span class="pre">[vasp]</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduler-job-script-setting"><code class="docutils literal notranslate"><span class="pre">[scheduler]</span></code> : Job script setting</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phono3py"><code class="docutils literal notranslate"><span class="pre">[phono3py]</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy"><code class="docutils literal notranslate"><span class="pre">[phonopy]</span></code></a></li>
 </ul>
   </nav></div>
