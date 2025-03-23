@@ -67,7 +67,7 @@ def load(
         FFT mesh numbers for primitive cell used for generating local potential
         derivative interpolation grid. This has to be set to run displacement
         derivative calculations not only dV/du, but also dDij/du. Default is None.
-        dtype='long', shape=(3,)
+        dtype='int64', shape=(3,)
     unitcell : PhonopyAtoms, optional
         Input unit cell. Default is None.
     supercell : PhonopyAtoms, optional
