@@ -2,6 +2,11 @@
 
 # Change Log
 
+# Mar-23-2025: Version 0.9.0
+
+- Numpy arraies of `dtype='long'` were changed to those of `dtype='int64'`.
+- Collection of updates in velph commands.
+
 ## Mar-1-2025: Version 0.8.3
 
 - `--save` option was implemented for `velph-el_bands-plot` and
