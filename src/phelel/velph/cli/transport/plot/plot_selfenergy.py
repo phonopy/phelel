@@ -48,7 +48,10 @@ def plot_selfenergy(
     for i in range(len(selfens)):
         selfen = selfens[i + 1]
         lines += _get_text_lines(selfen, i + 1)
-        _plot(axs[i], selfen)
+        if len(selfens) == 1:
+            _plot(axs, selfen)
+        else:
+            _plot(axs[i], selfen)
 
     with open(dir_name / "selfenergy.txt", "w") as w:
         print("\n".join(lines), file=w)
