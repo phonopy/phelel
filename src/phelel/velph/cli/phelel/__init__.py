@@ -128,7 +128,6 @@ def cmd_differentiate(
 
     if "phelel" not in toml_dict or "fft_mesh" not in toml_dict["phelel"]:
         click.echo('"fft_mesh" has to be specified in [phelel] section.', err=True)
-        click.echo("See velph-hints.", err=True)
         return None
 
     is_symmetry = True
