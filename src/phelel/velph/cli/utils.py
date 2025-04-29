@@ -21,6 +21,7 @@ import numpy as np
 import spglib
 from phono3py.phonon.grid import BZGrid
 from phonopy.interface.vasp import VasprunxmlExpat, sort_positions_by_symbols
+from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms, atom_data, parse_cell_dict
 from phonopy.structure.cells import (
     get_primitive,
@@ -28,7 +29,6 @@ from phonopy.structure.cells import (
     get_reduced_bases,
 )
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
-from phonopy.units import Bohr, Hartree
 from phonopy.utils import get_dot_access_dataset
 
 from phelel.velph.utils.scheduler import (
@@ -530,7 +530,7 @@ def get_nac_params(
 
     nac_params = {
         "born": borns_,
-        "factor": Hartree * Bohr,
+        "factor": get_physical_units().Hartree * get_physical_units().Bohr,
         "dielectric": epsilon_,
     }
     return nac_params

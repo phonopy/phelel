@@ -15,7 +15,7 @@ from phonopy.cui.phonopy_script import (
     print_version,
     store_nac_params,
 )
-from phonopy.interface.calculator import get_default_physical_units
+from phonopy.interface.calculator import get_calculator_physical_units
 from phonopy.structure.cells import print_cell
 
 from phelel import Phelel
@@ -70,7 +70,7 @@ def finalize_phelel(
         _calculator = phelel.calculator
     else:
         _calculator = None
-    _physical_units = get_default_physical_units(_calculator)
+    _physical_units = get_calculator_physical_units(_calculator)
 
     yaml_settings = {"force_sets": False, "displacements": displacements_mode}
 
