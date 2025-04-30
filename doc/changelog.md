@@ -2,6 +2,10 @@
 
 # Change Log
 
+# May-1-2025: Version 0.9.1
+
+- Update following the change of phonopy.
+
 # Mar-23-2025: Version 0.9.0
 
 - Numpy arraies of `dtype='long'` were changed to those of `dtype='int64'`.
