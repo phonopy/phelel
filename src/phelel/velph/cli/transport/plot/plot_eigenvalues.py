@@ -7,9 +7,9 @@ from typing import Optional
 import click
 import h5py
 import numpy as np
+from phonopy.physical_units import get_physical_units
 from phonopy.structure.brillouin_zone import get_qpoints_in_Brillouin_zone
 from phonopy.structure.cells import get_reduced_bases
-from phonopy.units import Kb
 from scipy.spatial import Voronoi
 
 from phelel.velph.cli.utils import get_symmetry_dataset
@@ -23,7 +23,7 @@ def fermi_dirac_distribution(energy: np.ndarray, temperature: float) -> np.ndarr
     temperature in K
 
     """
-    de = energy / (Kb * temperature)
+    de = energy / (get_physical_units().KB * temperature)
     de = np.where(de < 100, de, 100.0)  # To avoid overflow
     de = np.where(de > -100, de, -100.0)  # To avoid underflow
     return 1 / (1 + np.exp(de))
