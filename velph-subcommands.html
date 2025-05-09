@@ -451,11 +451,11 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 </section>
 <section id="velph-el-bands-plot">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">el_bands</span> <span class="pre">plot</span></code><a class="headerlink" href="#velph-el-bands-plot" title="Link to this heading">#</a></h3>
-<p>The electronic band structure and density of states are plotted and saved in the
-<code class="docutils literal notranslate"><span class="pre">el_bands.pdf</span></code> file. The energy range must be specified using the <code class="docutils literal notranslate"><span class="pre">--windows</span></code>
-option, with the first and second arguments representing the range below and
-above the Fermi energy in eV, respectively.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>el_bands<span class="w"> </span>plot<span class="w"> </span>--window<span class="w"> </span>-5<span class="w"> </span><span class="m">9</span>
+<p>The electronic band structure and density of states are plotted. The energy
+range must be specified using the <code class="docutils literal notranslate"><span class="pre">--windows</span></code> option, with the first and second
+arguments representing the range below and above the Fermi energy in eV,
+respectively. With <code class="docutils literal notranslate"><span class="pre">--save</span></code> option, the plot is save in the <code class="docutils literal notranslate"><span class="pre">el_bands.pdf</span></code> file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>el_bands<span class="w"> </span>plot<span class="w"> </span>--window<span class="w"> </span>-5<span class="w"> </span><span class="m">9</span><span class="w"> </span>--save
 Electronic<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>plot<span class="w"> </span>was<span class="w"> </span>saved<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;el_bands/el_bands.pdf&quot;</span>.
 </pre></div>
 </div>
@@ -619,8 +619,9 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 </section>
 <section id="velph-ph-bands-plot">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">ph_bands</span> <span class="pre">plot</span></code><a class="headerlink" href="#velph-ph-bands-plot" title="Link to this heading">#</a></h3>
-<p>The phonon band structure is plotted and saved in the <code class="docutils literal notranslate"><span class="pre">ph_bands.pdf</span></code> file.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>ph_bands<span class="w"> </span>plot
+<p>The phonon band structure is plotted. With <code class="docutils literal notranslate"><span class="pre">--save</span></code> option, the plot is saved in
+the <code class="docutils literal notranslate"><span class="pre">ph_bands.pdf</span></code> file.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>ph_bands<span class="w"> </span>plot<span class="w"> </span>--save
 Phonon<span class="w"> </span>band<span class="w"> </span>structure<span class="w"> </span>plot<span class="w"> </span>was<span class="w"> </span>saved<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;ph_bands/ph_bands.pdf&quot;</span>.
 </pre></div>
 </div>
