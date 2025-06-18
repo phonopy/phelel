@@ -1,5 +1,7 @@
 """Command line option handler."""
 
+from __future__ import annotations
+
 import argparse
 import os
 
