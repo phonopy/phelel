@@ -6,10 +6,13 @@ import io
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 from phonopy import Phonopy
+from phonopy.exception import ForcesetsNotFoundError
+from phonopy.harmonic.dynamical_matrix import DynamicalMatrix
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
 from phonopy.structure.symmetry import Symmetry
@@ -24,13 +27,13 @@ from phelel.version import __version__
 class PhelelDataset:
     """Data structure of input data to run derivatives."""
 
-    local_potentials: list[np.ndarray]
-    Dijs: list[np.ndarray]
-    qijs: list[np.ndarray]
+    local_potentials: list[NDArray]
+    Dijs: list[NDArray]
+    qijs: list[NDArray]
     lm_channels: list[dict]
-    dataset: Optional[dict] = None
-    phonon_dataset: Optional[dict] = None
-    forces: Optional[np.ndarray] = None
+    dataset: dict | None = None
+    phonon_dataset: dict | None = None
+    forces: NDArray | None = None
 
 
 class Phelel:
@@ -71,17 +74,15 @@ class Phelel:
     def __init__(
         self,
         unitcell: PhonopyAtoms,
-        supercell_matrix: Optional[Union[Sequence, np.ndarray]] = None,
-        primitive_matrix: Optional[Union[str, Sequence, np.ndarray]] = None,
-        phonon_supercell_matrix: Optional[
-            Union[int, float, Sequence, np.ndarray]
-        ] = None,
-        fft_mesh: Optional[Union[Sequence, np.ndarray]] = None,
+        supercell_matrix: ArrayLike | None = None,
+        primitive_matrix: str | ArrayLike | None = None,
+        phonon_supercell_matrix: ArrayLike | None = None,
+        fft_mesh: ArrayLike | None = None,
         symprec: float = 1e-5,
         is_symmetry: bool = True,
-        calculator: Optional[str] = None,
-        nufft: Optional[str] = None,
-        finufft_eps: Optional[float] = None,
+        calculator: str | None = None,
+        nufft: str | None = None,
+        finufft_eps: float | None = None,
         log_level: int = 0,
     ):
         """Init method.
@@ -280,7 +281,7 @@ class Phelel:
         self._phonon.dataset = phonon_dataset
 
     @property
-    def nac_params(self) -> Optional[dict]:
+    def nac_params(self) -> dict | None:
         """Setter and getter of parameters for non-analytical term correction.
 
         dict
@@ -350,12 +351,12 @@ class Phelel:
             return self._phonon.unit_conversion_factor
 
     @property
-    def fft_mesh(self) -> np.ndarray:
+    def fft_mesh(self) -> NDArray | None:
         """Setter and getter of FFT mesh numbers."""
         return self._fft_mesh
 
     @fft_mesh.setter
-    def fft_mesh(self, fft_mesh: Union[Sequence, np.ndarray]):
+    def fft_mesh(self, fft_mesh: ArrayLike):
         self._fft_mesh = np.array(fft_mesh, dtype="int64")
         self._dVdu = DLocalPotential(
             self._fft_mesh,
@@ -369,7 +370,7 @@ class Phelel:
         )
 
     @property
-    def dVdu(self) -> Optional[DLocalPotential]:
+    def dVdu(self) -> DLocalPotential | None:
         """Return DLocalPotential class instance."""
         return self._dVdu
 
@@ -387,7 +388,7 @@ class Phelel:
         self._dDijdu = dDijdu
 
     @property
-    def supercells_with_displacements(self) -> Optional[list[PhonopyAtoms]]:
+    def supercells_with_displacements(self) -> Sequence[PhonopyAtoms] | None:
         """Return supercells with displacements.
 
         list of PhonopyAtoms
@@ -398,7 +399,7 @@ class Phelel:
         return self._phelel_phonon.supercells_with_displacements
 
     @property
-    def phonon_supercells_with_displacements(self) -> Optional[list[PhonopyAtoms]]:
+    def phonon_supercells_with_displacements(self) -> Sequence[PhonopyAtoms] | None:
         """Return supercells with displacements for phonons.
 
         list of PhonopyAtoms
@@ -410,6 +411,11 @@ class Phelel:
             return None
         else:
             return self._phonon.supercells_with_displacements
+
+    @property
+    def dynamical_matrix(self) -> DynamicalMatrix | None:
+        """Return DynamicalMatrix class instance."""
+        return self._phelel_phonon.dynamical_matrix
 
     def generate_displacements(
         self,
@@ -532,17 +538,12 @@ class Phelel:
 
     def _prepare_phonon(
         self,
-        dataset: Optional[dict] = None,
-        forces: Optional[
-            Union[
-                Sequence,
-                np.ndarray,
-            ]
-        ] = None,
-        force_constants: Optional[np.ndarray] = None,
+        dataset: dict | None = None,
+        forces: ArrayLike | None = None,
+        force_constants: ArrayLike | None = None,
         calculate_full_force_constants: bool = True,
-        fc_calculator: Optional[str] = None,
-        fc_calculator_options: Optional[str] = None,
+        fc_calculator: Literal["traditional", "symfc", "alm"] | None = None,
+        fc_calculator_options: str | None = None,
         show_drift: bool = True,
     ):
         """Initialize phonon calculation."""
@@ -554,20 +555,21 @@ class Phelel:
             ph.dataset = dataset
         if forces is not None:
             ph.forces = forces
-        if ph.forces is not None:
+        try:
             ph.produce_force_constants(
                 calculate_full_force_constants=calculate_full_force_constants,
                 fc_calculator=fc_calculator,
                 fc_calculator_options=fc_calculator_options,
                 show_drift=show_drift,
             )
-        elif force_constants is not None:
-            ph.force_constants = force_constants
+        except ForcesetsNotFoundError:
+            if force_constants is not None:
+                ph.force_constants = force_constants
 
     def _get_phonopy(
         self,
-        supercell_matrix: Optional[Union[int, float, Sequence, np.ndarray]],
-        primitive_matrix: Optional[Union[str, Sequence, np.ndarray]],
+        supercell_matrix: ArrayLike | None = None,
+        primitive_matrix: ArrayLike | None = None,
     ) -> Phonopy:
         """Return Phonopy instance."""
         return Phonopy(

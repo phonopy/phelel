@@ -90,13 +90,13 @@ VASP input files were made in "el_bands/dos".
 
 ### `velph el_bands plot`
 
-The electronic band structure and density of states are plotted and saved in the
-`el_bands.pdf` file. The energy range must be specified using the `--windows`
-option, with the first and second arguments representing the range below and
-above the Fermi energy in eV, respectively.
+The electronic band structure and density of states are plotted. The energy
+range must be specified using the `--windows` option, with the first and second
+arguments representing the range below and above the Fermi energy in eV,
+respectively. With `--save` option, the plot is save in the `el_bands.pdf` file.
 
 ```bash
-% velph el_bands plot --window -5 9
+% velph el_bands plot --window -5 9 --save
 Electronic band structure plot was saved in "el_bands/el_bands.pdf".
 ```
 
@@ -275,10 +275,11 @@ VASP input files were made in "ph_bands/bands".
 
 ### `velph ph_bands plot`
 
-The phonon band structure is plotted and saved in the `ph_bands.pdf` file.
+The phonon band structure is plotted. With `--save` option, the plot is saved in
+the `ph_bands.pdf` file.
 
 ```bash
-% velph ph_bands plot
+% velph ph_bands plot --save
 Phonon band structure plot was saved in "ph_bands/ph_bands.pdf".
 ```
 
