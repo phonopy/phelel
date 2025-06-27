@@ -55,8 +55,8 @@ def _compare(filename: pathlib.Path, phe: Phelel):
 
         dVdu = cmplx2real(phe.dVdu.dVdu)
         dDijdu = cmplx2real(phe.dDijdu.dDijdu)
-        np.testing.assert_allclose(dVdu, dVdu_ref, rtol=1e-5, atol=1e-5)
-        np.testing.assert_allclose(dDijdu, dDijdu_ref, rtol=1e-5, atol=1e-5)
+        np.testing.assert_allclose(dVdu, dVdu_ref, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(dDijdu, dDijdu_ref, rtol=1e-4, atol=1e-4)
 
         if "shortest_vectors" in f:
             shortest_vectors_ref = f["shortest_vectors"][:]
