@@ -7,7 +7,6 @@ from phonopy.structure.cells import SNF3x3
 def get_lattice_points(p2s_matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Return lattice points and D (diagonal elements) of SNF."""
     snf = SNF3x3(p2s_matrix)
-    snf.run()
     P_inv = np.rint(np.linalg.inv(snf.P)).astype(int)
     multi = np.diagonal(snf.D)
     lattice_points = np.array(

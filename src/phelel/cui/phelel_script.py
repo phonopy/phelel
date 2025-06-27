@@ -7,7 +7,6 @@ import sys
 from typing import Optional, Union
 
 import numpy as np
-from phonopy.cui.collect_cell_info import collect_cell_info
 from phonopy.cui.phonopy_script import (
     print_end,
     print_error,
@@ -15,11 +14,12 @@ from phonopy.cui.phonopy_script import (
     print_version,
     store_nac_params,
 )
+from phonopy.exception import CellNotFoundError
 from phonopy.interface.calculator import get_calculator_physical_units
 from phonopy.structure.cells import print_cell
 
 from phelel import Phelel
-from phelel.cui.create_supercells import create_phelel_supercells
+from phelel.cui.create_supercells import create_phelel_supercells, get_cell_info
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.settings import PhelelConfParser
 from phelel.interface.phelel_yaml import PhelelYaml
@@ -136,37 +136,35 @@ def main(**argparse_control):
     #####################
     # Initialize phelel #
     #####################
-    cell_info = collect_cell_info(
-        supercell_matrix=settings.supercell_matrix,
-        primitive_matrix=settings.primitive_matrix,
-        interface_mode=None,
-        cell_filename=settings.cell_filename,
-        chemical_symbols=settings.chemical_symbols,
-        phonopy_yaml_cls=PhelelYaml,
-        load_phonopy_yaml=load_phelel_yaml,
-    )
-    if "error_message" in cell_info:
-        print_error_message(cell_info["error_message"])
+    try:
+        cell_info = get_cell_info(
+            settings=settings,
+            cell_filename=settings.cell_filename,
+            log_level=log_level,
+            load_phonopy_yaml=load_phelel_yaml,
+        )
+    except CellNotFoundError as e:
+        print_error_message(str(e))
         if log_level > 0:
             print_error()
         sys.exit(1)
-    unitcell = cell_info["unitcell"]
-    supercell_matrix = cell_info["supercell_matrix"]
-    primitive_matrix = cell_info["primitive_matrix"]
-    unitcell_filename = cell_info["optional_structure_info"][0]
-    cell_info["phonon_supercell_matrix"] = settings.phonon_supercell_matrix
-    phe_yml = cell_info["phonopy_yaml"]
-    if cell_info["phonon_supercell_matrix"] is None and phe_yml:
+
+    unitcell = cell_info.unitcell
+    supercell_matrix = cell_info.supercell_matrix
+    primitive_matrix = cell_info.primitive_matrix
+    unitcell_filename = cell_info.optional_structure_info[0]
+    cell_info.phonon_supercell_matrix = settings.phonon_supercell_matrix
+    phe_yml = cell_info.phelel_yaml
+    if cell_info.phonon_supercell_matrix is None and phe_yml:
         ph_smat = phe_yml.phonon_supercell_matrix
-        cell_info["phonon_supercell_matrix"] = ph_smat
-    phonon_supercell_matrix = cell_info["phonon_supercell_matrix"]
+        cell_info.phonon_supercell_matrix = ph_smat
+    phonon_supercell_matrix = cell_info.phonon_supercell_matrix
 
     if settings.create_displacements:
         phelel = create_phelel_supercells(
             cell_info,
             settings,
             symprec,
-            load_phelel_yaml=load_phelel_yaml,
             log_level=log_level,
         )
         finalize_phelel(
@@ -229,8 +227,8 @@ def main(**argparse_control):
         from phelel.interface.vasp.derivatives import create_derivatives
 
         if phelel.dataset is None or "first_atoms" not in phelel.dataset:
-            if cell_info["phonopy_yaml"] is not None:
-                phe_yml = cell_info["phonopy_yaml"]
+            if cell_info.phelel_yaml is not None:
+                phe_yml = cell_info.phelel_yaml
             else:
                 if log_level:
                     print(
@@ -257,7 +255,7 @@ def main(**argparse_control):
                 store_nac_params(
                     phelel.phonon,
                     settings,
-                    cell_info["phonopy_yaml"],
+                    cell_info.phelel_yaml,
                     unitcell_filename,
                     log_level,
                     load_phonopy_yaml=load_phelel_yaml,
