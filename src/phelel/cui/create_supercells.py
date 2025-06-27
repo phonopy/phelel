@@ -1,5 +1,7 @@
 """Utilities of main CUI script."""
 
+from __future__ import annotations
+
 import dataclasses
 import os
 import pathlib
