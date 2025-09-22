@@ -933,8 +933,7 @@ def _update_kpoints_by_vasp_dict(
     vasp_dict["phelel"]["phonon"] and vasp_dict["phono3py"]["phonon"].
 
     """
-    for key in _get_calc_types(vasp_dict):
-        calc_type_dict = _get_dict_by_split_dots(vasp_dict, key)
+    for key, calc_type_dict in vasp_dict.items():
         if "kpoints" in calc_type_dict:
             kpoints_dict[key] = calc_type_dict["kpoints"]
         if "kpoints_dense" in calc_type_dict:
@@ -943,14 +942,6 @@ def _update_kpoints_by_vasp_dict(
             qpoints_dict[key] = calc_type_dict["qpoints"]
         if "kpoints_opt" in calc_type_dict:
             kpoints_opt_dict[key] = calc_type_dict["kpoints_opt"]
-
-
-def _get_calc_types(vasp_dict: dict) -> list[str]:
-    keys = list(vasp_dict.keys())
-    for key in ["phelel.phonon", "phono3py.phonon"]:
-        if _get_dict_by_split_dots(vasp_dict, key):
-            keys.append(key)
-    return keys
 
 
 def _get_dict_by_split_dots(dict_in: dict, string: str) -> dict:
@@ -970,7 +961,7 @@ def _show_kpoints_lines(
     vip_kspacing_dense: float,
 ):
     k_mesh_lines = [f"[vasp.*.kpoints.mesh] (*kspacing={vip_kspacing})"]
-    for key in _get_calc_types(vasp_dict):
+    for key in vasp_dict:
         if key == "ph_bands":
             continue
         if key in kpoints_dict:
@@ -981,7 +972,7 @@ def _show_kpoints_lines(
                     line = f"  {key}: {D_diag}"
                 else:
                     line = f"  {key}: {np.array(mesh)}"
-                if "kpoints" not in _get_dict_by_split_dots(vasp_dict, key):
+                if "kpoints" not in vasp_dict[key]:
                     line += "*"
                 k_mesh_lines.append(line)
                 if "D_diag" in kpoints_dict[key]:
@@ -1116,7 +1107,8 @@ def _get_kpoints_by_kspacing(
         "phono3py": phono3py_supercell_kpoints,
         "relax": relax_kpoints,
         "nac": nac_kpoints,
-        "el_bands": el_bands_kpoints,
+        "el_bands.dos": el_bands_kpoints,
+        "el_bands.bands": el_bands_kpoints,
         "ph_bands": ph_bands_kpoints,
     }
     if gm_super:
@@ -1164,11 +1156,11 @@ def _get_kpoints_by_kspacing_dense(
         return {
             "selfenergy": selfenergy_kpoints_dense,
             "transport": selfenergy_kpoints_dense,
-            "el_bands": el_bands_kpoints_dense,
+            "el_bands.dos": el_bands_kpoints_dense,
         }
     else:
         return {
-            "el_bands": el_bands_kpoints_dense,
+            "el_bands.dos": el_bands_kpoints_dense,
         }
 
 
@@ -1235,21 +1227,26 @@ def _get_vasp_lines(
         _add_calc_type_scheduler_lines(lines, _vasp_dict, "nac")
         lines.append("")
 
-    if "el_bands" in vasp_dict:
+    for calc_subtype in ("bands", "dos"):
+        if f"el_bands.{calc_subtype}" not in vasp_dict:
+            continue
+
         # primitive cell
-        el_bands_kpoints_dense = kpoints_dense_dict.get("el_bands")
-        el_bands_kpoints_opt = kpoints_opt_dict.get("el_bands")
-        _vasp_dict = vasp_dict["el_bands"]
-        _add_incar_lines(lines, _vasp_dict, incar_commons, "el_bands")
-        lines.append("[vasp.el_bands.kpoints]")
-        _add_kpoints_lines(lines, kpoints_dict["el_bands"])
-        if el_bands_kpoints_opt:
-            lines.append("[vasp.el_bands.kpoints_opt]")
-            _add_kpoints_lines_bands(lines, el_bands_kpoints_opt)
-        if el_bands_kpoints_dense:
-            lines.append("[vasp.el_bands.kpoints_dense]")
-            _add_kpoints_lines(lines, el_bands_kpoints_dense)
-        _add_calc_type_scheduler_lines(lines, _vasp_dict, "el_bands")
+        _vasp_dict = vasp_dict[f"el_bands.{calc_subtype}"]
+        _add_incar_lines(lines, _vasp_dict, incar_commons, f"el_bands.{calc_subtype}")
+        lines.append(f"[vasp.el_bands.{calc_subtype}.kpoints]")
+        _add_kpoints_lines(lines, kpoints_dict[f"el_bands.{calc_subtype}"])
+        if calc_subtype == "bands":
+            el_bands_kpoints_opt = kpoints_opt_dict.get("el_bands.bands")
+            if el_bands_kpoints_opt and "line" in el_bands_kpoints_opt:
+                lines.append("[vasp.el_bands.bands.kpoints_opt]")
+                _add_kpoints_lines_bands(lines, el_bands_kpoints_opt)
+        if calc_subtype == "dos":
+            el_bands_kpoints_dense = kpoints_dense_dict.get("el_bands.dos")
+            if el_bands_kpoints_dense and "mesh" in el_bands_kpoints_dense:
+                lines.append("[vasp.el_bands.dos.kpoints_dense]")
+                _add_kpoints_lines(lines, el_bands_kpoints_dense)
+        _add_calc_type_scheduler_lines(lines, _vasp_dict, f"el_bands.{calc_subtype}")
         lines.append("")
 
     if "ph_bands" in vasp_dict:

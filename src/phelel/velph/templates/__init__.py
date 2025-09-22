@@ -143,8 +143,20 @@ default_template_dict: dict[str, Any] = {
                 "elph_transport_nedos": 501,
             },
         },
-        "el_bands": {
-            "incar": {"ibrion": -1, "nsw": 0, "lorbit": 11, "nedos": 5001},
+        "el_bands.dos": {
+            "incar": {
+                "ibrion": -1,
+                "nsw": 0,
+                "lorbit": 11,
+                "nedos": 5001,
+                "ismear": -5,
+            }
+        },
+        "el_bands.bands": {
+            "incar": {
+                "ibrion": -1,
+                "nsw": 0,
+            },
             "kpoints_opt": {
                 "line": 51,
             },
@@ -179,13 +191,7 @@ default_template_dict: dict[str, Any] = {
         },
         "phelel": {
             "incar": {
-                "lwap": True,
-                "isym": 0,
-            },
-        },
-        "supercell": {  # This is deprecated. Use "phelel" instead.
-            "incar": {
-                "lwap": True,
+                "elph_prepare": True,
                 "isym": 0,
             },
         },
