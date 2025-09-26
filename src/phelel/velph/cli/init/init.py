@@ -326,10 +326,8 @@ def _collect_init_params(
             cmd_params[key] = None
 
     # Show parameters specified by command-line options.
-    if num_active_cmd_params == 1:
-        click.echo("Following option was given by command-line options:")
-    elif num_active_cmd_params > 1:
-        click.echo("Following options were given by command-line options:")
+    if num_active_cmd_params > 0:
+        click.echo("The following command-line options were given:")
 
     for key, value in cmd_params.items():
         if value is None:

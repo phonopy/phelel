@@ -75,24 +75,24 @@ class VelphInitParams:
 
     """
 
-    amplitude: float | None = 0.03
-    cell_for_nac: CellChoice | None = CellChoice.UNSPECIFIED
-    cell_for_relax: CellChoice | None = CellChoice.UNSPECIFIED
-    find_primitive: bool | None = True
-    diagonal: bool | None = False
-    plusminus: bool | None = True
-    kspacing: float | None = 0.1
-    kspacing_dense: float | None = 0.05
+    amplitude: float = 0.03
+    cell_for_nac: CellChoice = CellChoice.UNSPECIFIED
+    cell_for_relax: CellChoice = CellChoice.UNSPECIFIED
+    find_primitive: bool = True
+    diagonal: bool = False
+    plusminus: bool = True
+    kspacing: float = 0.1
+    kspacing_dense: float = 0.05
     magmom: str | None = None
     max_num_atoms: int | None = None
     phonopy_max_num_atoms: int | None = None
     phono3py_max_num_atoms: int | None = None
-    phelel_nosym: bool | None = False
-    primitive_cell_choice: PrimitiveCellChoice | None = PrimitiveCellChoice.STANDARDIZED
+    phelel_nosym: bool = False
+    primitive_cell_choice: PrimitiveCellChoice = PrimitiveCellChoice.STANDARDIZED
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
-    symmetrize_cell: bool | None = False
-    tolerance: float | None = 1e-5
-    use_grg: bool | None = False
+    symmetrize_cell: bool = False
+    tolerance: float = 1e-5
+    use_grg: bool = False
 
 
 @dataclass(frozen=True)
