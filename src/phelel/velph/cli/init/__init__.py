@@ -1,5 +1,7 @@
 """velph command line tool / velph-init."""
 
+from __future__ import annotations
+
 import pathlib
 import shutil
 from typing import Literal
