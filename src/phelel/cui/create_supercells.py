@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import os
 import pathlib
-from typing import cast
+from typing import Literal, cast
 
 from numpy.typing import ArrayLike
 from phono3py.interface.calculator import (
@@ -147,7 +147,7 @@ def generate_phelel_supercells(
     phelel: Phelel,
     interface_mode: str | None = "vasp",
     distance: float | None = None,
-    is_plusminus: str | bool = "auto",
+    is_plusminus: Literal["auto"] | bool = "auto",
     is_diagonal: bool = True,
     log_level: int = 0,
 ):
@@ -162,6 +162,7 @@ def generate_phelel_supercells(
     )
 
     if log_level:
+        assert phelel.supercells_with_displacements is not None
         print("Displacement distance: %s" % _distance)
         print("Number of displacements: %d" % len(phelel.supercells_with_displacements))
 
@@ -170,6 +171,7 @@ def generate_phelel_supercells(
             distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
         )
         if log_level:
+            assert phelel.phonon_supercells_with_displacements is not None
             print(
                 "Number of displacements for phonon: %d"
                 % len(phelel.phonon_supercells_with_displacements)

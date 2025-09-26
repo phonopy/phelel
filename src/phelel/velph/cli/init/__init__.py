@@ -2,7 +2,7 @@
 
 import pathlib
 import shutil
-from typing import Literal, Optional
+from typing import Literal
 
 import click
 
@@ -61,6 +61,33 @@ from phelel.velph.utils.vasp import VaspPotcar
     help=(
         "Generate displacements in diagonal directions or only along axes."
         f"(diagonal: bool, default={VelphInitParams.diagonal})"
+    ),
+)
+@click.option(
+    "--dim",
+    "supercell_dimension",
+    nargs=3,
+    type=int,
+    default=None,
+    help=(
+        "Specify supercell dimensions by three integers like 2 2 2. "
+        "For specifiying nine integers, use --supercell-matrix. "
+        "This option is a shortcut for diagonal supercell matrix, where "
+        "three integers correspond to the diagonal elements. "
+        "(supercell_dimension: tuple[int, int, int], "
+        f"default={VelphInitParams.supercell_matrix})"
+    ),
+)
+@click.option(
+    "--supercell-matrix",
+    "supercell_matrix",
+    nargs=9,
+    type=int,
+    default=None,
+    help=(
+        "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0."
+        "(supercell_matrix: tuple[int, ...], "
+        f"default={VelphInitParams.supercell_matrix})"
     ),
 )
 @click.option(
@@ -246,29 +273,31 @@ from phelel.velph.utils.vasp import VaspPotcar
 )
 @click.help_option("-h", "--help")
 def cmd_init(
-    amplitude: Optional[float],
+    amplitude: float | None,
     cell_filename: str,
-    cell_for_nac: Optional[Literal["primitive", "unitcell"]],
-    cell_for_relax: Optional[Literal["primitive", "unitcell"]],
-    find_primitive: Optional[bool],
-    force_create: Optional[bool],
-    diagonal: Optional[bool],
-    plusminus: Optional[bool],
-    kspacing: Optional[float],
-    kspacing_dense: Optional[float],
-    magmom: Optional[str],
-    max_num_atoms: Optional[int],
+    cell_for_nac: Literal["primitive", "unitcell"] | None,
+    cell_for_relax: Literal["primitive", "unitcell"] | None,
+    find_primitive: bool | None,
+    force_create: bool | None,
+    diagonal: bool | None,
+    plusminus: bool | None,
+    kspacing: float | None,
+    kspacing_dense: float | None,
+    magmom: str | None,
+    max_num_atoms: int | None,
     phelel_dir_name: str,
-    phelel_nosym: Optional[bool],
-    phonopy_max_num_atoms: Optional[int],
-    phono3py_max_num_atoms: Optional[int],
-    primitive_cell_choice: Optional[str],
+    phelel_nosym: bool | None,
+    phonopy_max_num_atoms: int | None,
+    phono3py_max_num_atoms: int | None,
+    primitive_cell_choice: str | None,
     project_folder: str,
-    symmetrize_cell: Optional[bool],
-    template_toml_filename: Optional[str],
-    toml_filename: Optional[str],
-    tolerance: Optional[float],
-    use_grg: Optional[bool],
+    supercell_dimension: tuple[int, int, int] | None,
+    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None,
+    symmetrize_cell: bool | None,
+    template_toml_filename: str | None,
+    toml_filename: str | None,
+    tolerance: float | None,
+    use_grg: bool | None,
 ):
     """Initialize an electron phonon calculation project.
 
@@ -290,6 +319,21 @@ def cmd_init(
         click.echo(f'"{cell_filename}" not found.', err=True)
         return
 
+    if supercell_dimension is not None and supercell_matrix is None:
+        _supercell_matrix = (
+            supercell_dimension[0],
+            0,
+            0,
+            0,
+            supercell_dimension[1],
+            0,
+            0,
+            0,
+            supercell_dimension[2],
+        )
+    else:
+        _supercell_matrix = supercell_matrix
+
     vip_cmd_options = {
         "amplitude": amplitude,
         "cell_for_nac": cell_for_nac,
@@ -305,6 +349,7 @@ def cmd_init(
         "phonopy_max_num_atoms": phonopy_max_num_atoms,
         "phono3py_max_num_atoms": phono3py_max_num_atoms,
         "primitive_cell_choice": primitive_cell_choice,
+        "supercell_matrix": _supercell_matrix,
         "symmetrize_cell": symmetrize_cell,
         "tolerance": tolerance,
         "use_grg": use_grg,
