@@ -6,14 +6,8 @@ import copy
 import dataclasses
 import io
 import os
-import pathlib
 from collections.abc import Sequence
 from typing import Literal, Optional, Union
-
-try:
-    from spglib import SpglibDataset
-except ImportError:
-    from types import SimpleNamespace as SpglibDataset
 
 import click
 import numpy as np
@@ -28,6 +22,7 @@ from phonopy.structure.cells import (
     get_supercell,
     shape_supercell_matrix,
 )
+from spglib import SpglibDataset  # type: ignore
 
 from phelel.velph.cli.utils import (
     CellChoice,
@@ -94,8 +89,8 @@ def run_init(
 def _run_init(
     input_cell: PhonopyAtoms,
     cmd_init_options: dict,
-    velph_template_fp: Optional[Union[str, bytes, os.PathLike, io.IOBase]] = None,
-    template_toml_filepath: Optional[Union[str, bytes, os.PathLike]] = None,
+    velph_template_fp: os.PathLike | io.IOBase | None = None,
+    template_toml_filepath: os.PathLike | None = None,
     phelel_dir_name: str = "phelel",
 ) -> Optional[list[str]]:
     """Run init process and return velph-toml lines.
@@ -271,7 +266,7 @@ def _get_template_init_params(velph_template_dict: Optional[dict]) -> dict:
 def _collect_init_params(
     cmd_init_options: dict,
     template_init_params: dict,
-    template_toml_filepath: Optional[pathlib.Path],
+    template_toml_filepath: os.PathLike | None,
 ) -> VelphInitParams:
     """Merge init params defined different places.
 

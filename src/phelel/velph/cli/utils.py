@@ -8,10 +8,12 @@ import pathlib
 import xml.parsers.expat
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Literal, Optional, Union
+from typing import Literal
+
+from numpy.typing import NDArray
 
 try:
-    from spglib import SpglibDataset
+    from spglib import SpglibDataset  # type: ignore
 except ImportError:
     from types import SimpleNamespace as SpglibDataset
 
@@ -29,7 +31,6 @@ from phonopy.structure.cells import (
     get_reduced_bases,
 )
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
-from phonopy.utils import get_dot_access_dataset
 
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
@@ -74,51 +75,50 @@ class VelphInitParams:
 
     """
 
-    amplitude: Optional[float] = 0.03
-    cell_for_nac: Optional[CellChoice] = CellChoice.UNSPECIFIED
-    cell_for_relax: Optional[CellChoice] = CellChoice.UNSPECIFIED
-    find_primitive: Optional[bool] = True
-    diagonal: Optional[bool] = False
-    plusminus: Optional[bool] = True
-    kspacing: Optional[float] = 0.1
-    kspacing_dense: Optional[float] = 0.05
-    magmom: Optional[str] = None
-    max_num_atoms: Optional[int] = None
-    phonopy_max_num_atoms: Optional[int] = None
-    phono3py_max_num_atoms: Optional[int] = None
-    phelel_nosym: Optional[bool] = False
-    primitive_cell_choice: Optional[PrimitiveCellChoice] = (
-        PrimitiveCellChoice.STANDARDIZED
-    )
-    symmetrize_cell: Optional[bool] = False
-    tolerance: Optional[float] = 1e-5
-    use_grg: Optional[bool] = False
+    amplitude: float | None = 0.03
+    cell_for_nac: CellChoice | None = CellChoice.UNSPECIFIED
+    cell_for_relax: CellChoice | None = CellChoice.UNSPECIFIED
+    find_primitive: bool | None = True
+    diagonal: bool | None = False
+    plusminus: bool | None = True
+    kspacing: float | None = 0.1
+    kspacing_dense: float | None = 0.05
+    magmom: str | None = None
+    max_num_atoms: int | None = None
+    phonopy_max_num_atoms: int | None = None
+    phono3py_max_num_atoms: int | None = None
+    phelel_nosym: bool | None = False
+    primitive_cell_choice: PrimitiveCellChoice | None = PrimitiveCellChoice.STANDARDIZED
+    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
+    symmetrize_cell: bool | None = False
+    tolerance: float | None = 1e-5
+    use_grg: bool | None = False
 
 
 @dataclass(frozen=True)
 class VelphFilePaths:
     """File paths or pointers used in velph-init."""
 
-    cell_filepath: pathlib.Path
-    velph_template_filepath: Optional[pathlib.Path] = None
+    cell_filepath: os.PathLike
+    velph_template_filepath: os.PathLike | None = None
 
 
 def write_incar(
     toml_incar_dict: dict,
-    directory: pathlib.Path,
-    cell: Optional[PhonopyAtoms] = None,
-    incar_filename: Union[str, bytes, os.PathLike] = "INCAR",
+    directory: os.PathLike,
+    cell: PhonopyAtoms | None = None,
+    incar_filename: str | os.PathLike = "INCAR",
 ) -> None:
     """Write INCAR file."""
     incar_dict = copy.deepcopy(toml_incar_dict)
-    if cell.magnetic_moments is not None:
+    if cell is not None and cell.magnetic_moments is not None:
         incar_dict["magmom"] = cell.magnetic_moments.tolist()
-    VaspIncar.write(directory / incar_filename, incar_dict)
+    VaspIncar.write(pathlib.Path(directory) / incar_filename, incar_dict)
 
 
 def write_kpoints_mesh_mode(
     toml_incar_dict: dict,
-    directory: pathlib.Path,
+    directory: os.PathLike,
     tag: str,
     toml_kpoints_dict: dict,
     kpoints_filename="KPOINTS",
@@ -127,7 +127,9 @@ def write_kpoints_mesh_mode(
     """Write KPOINTS file in mesh mode."""
     if toml_incar_dict.get(kspacing_name) is None:
         try:
-            VaspKpoints.write_mesh_mode(directory / kpoints_filename, toml_kpoints_dict)
+            VaspKpoints.write_mesh_mode(
+                pathlib.Path(directory) / kpoints_filename, toml_kpoints_dict
+            )
         except KeyError:
             click.echo(
                 f'Invalid setting of [{tag}]. "{kpoints_filename}" was not made.'
@@ -141,17 +143,19 @@ def write_kpoints_mesh_mode(
 
 def write_kpoints_line_mode(
     cell: PhonopyAtoms,
-    directory: pathlib.Path,
+    directory: os.PathLike,
     tag: str,
     toml_kpoints_dict: dict,
-    kpoints_filename: Union[pathlib.Path, str] = "KPOINTS",
+    kpoints_filename: str | os.PathLike = "KPOINTS",
 ) -> None:
     """Write KPOINTS file in line mode."""
-    VaspKpoints.write_line_mode(directory / kpoints_filename, cell, toml_kpoints_dict)
+    VaspKpoints.write_line_mode(
+        pathlib.Path(directory) / kpoints_filename, cell, toml_kpoints_dict
+    )
 
 
 def write_launch_script(
-    toml_scheduler_dict: dict, directory: pathlib.Path, job_id: Optional[str] = None
+    toml_scheduler_dict: dict, directory: os.PathLike, job_id: str | None = None
 ) -> None:
     """Write scheduler launch script."""
     sched_string = None
@@ -182,7 +186,7 @@ def write_launch_script(
         )
 
     if sched_string:
-        with open(directory / "_job.sh", "w") as w:
+        with open(pathlib.Path(directory) / "_job.sh", "w") as w:
             w.write(sched_string)
 
 
@@ -232,7 +236,7 @@ def choose_cell_in_dict(
     toml_dict: dict,
     toml_filename: str,
     calc_type: Literal["relax", "nac"],
-) -> Optional[PhonopyAtoms]:
+) -> PhonopyAtoms | None:
     """Return unit cell, primitive cell, or Niggli reduced cell from toml_dict.
 
     Unit cell and primitive cell have to exist in velph.toml. But Niggli reduced
@@ -276,8 +280,8 @@ def get_reclat_from_vaspout(fp_vaspout: h5py.File):
     """
     # Basis vectors in direct space in column vectors
     lattice = np.transpose(
-        fp_vaspout["input"]["poscar"]["lattice_vectors"][:]
-        * fp_vaspout["input"]["poscar"]["scale"][()]
+        fp_vaspout["input"]["poscar"]["lattice_vectors"][:]  # type: ignore
+        * fp_vaspout["input"]["poscar"]["scale"][()]  # type: ignore
     )
     # Basis vectors in reciprocal space in row vectors
     reclat = 2 * np.pi * np.linalg.inv(lattice)
@@ -344,9 +348,8 @@ def get_special_points(
 
 def get_symmetry_dataset(cell: PhonopyAtoms, tolerance: float = 1e-5) -> SpglibDataset:
     """Return spglib symmetry dataset."""
-    dataset = get_dot_access_dataset(
-        spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)
-    )
+    dataset = spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)  # type: ignore
+    assert dataset is not None
     return dataset
 
 
@@ -362,7 +365,7 @@ def get_primitive_cell(
     tmat = sym_dataset.transformation_matrix
     centring = sym_dataset.international[0]
     pmat = get_primitive_matrix_by_centring(centring)
-    total_tmat = np.array(np.dot(np.linalg.inv(tmat), pmat), dtype="double", order="C")
+    total_tmat = np.array(np.linalg.inv(tmat) @ pmat, dtype="double", order="C")
 
     return (
         get_primitive(cell, primitive_matrix=total_tmat, symprec=tolerance),
@@ -375,6 +378,7 @@ def get_reduced_cell(
 ) -> PhonopyAtoms:
     """Return a reduced cell of input cell."""
     reduced_lattice = get_reduced_bases(cell.cell, method=method, tolerance=tolerance)
+    assert reduced_lattice is not None
     reduced_positions = cell.scaled_positions @ (
         cell.cell @ np.linalg.inv(reduced_lattice)
     )
@@ -389,7 +393,7 @@ def get_reduced_cell(
 def generate_standardized_cells(
     sym_dataset: SpglibDataset,
     tolerance: float = 1e-5,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, np.ndarray]:
+) -> tuple[PhonopyAtoms, PhonopyAtoms, NDArray]:
     """Return standardized unit cell and primitive cell."""
     click.echo(
         "Crystal structure was standardized based on space-group-type "
@@ -498,11 +502,11 @@ def check_fft(toml_filename: str, calculation_name: str) -> None:
 def get_nac_params(
     toml_dict: dict,
     vasprun_path: pathlib.Path,
-    primitive: Optional[PhonopyAtoms],
+    primitive: PhonopyAtoms | None,
     convcell: PhonopyAtoms,
     is_symmetry: bool,
     symprec: float = 1e-5,
-) -> Optional[dict]:
+) -> dict | None:
     """Collect NAC parameters from vasprun.xml and return them."""
     with open(vasprun_path, "rb") as f:
         try:
@@ -519,6 +523,7 @@ def get_nac_params(
     except KeyError:
         pass
 
+    assert nac_cell is not None
     borns_, epsilon_ = symmetrize_borns_and_epsilon(
         vasprun.born,
         vasprun.epsilon,

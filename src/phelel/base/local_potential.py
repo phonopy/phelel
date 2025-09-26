@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-import io
 import os
 import textwrap
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from phelel.base.Dij_qij import DeltaDijQij
 
 import numpy as np
+from numpy.typing import NDArray
 from phonopy.interface.vasp import get_vasp_structure_lines
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import SNF3x3, determinant, get_supercell
@@ -44,9 +44,7 @@ class DeltaLocalPotential:
 
     """
 
-    def __init__(
-        self, V_loc_per: np.ndarray, V_loc_disp: np.ndarray, displacement: dict
-    ):
+    def __init__(self, V_loc_per: NDArray, V_loc_disp: NDArray, displacement: dict):
         """Init method.
 
         Parameters
@@ -72,7 +70,7 @@ class DeltaLocalPotential:
     def write(
         self,
         supercell: PhonopyAtoms,
-        filename: Optional[Union[str, bytes, os.PathLike, io.IOBase]] = None,
+        filename: str | bytes | os.PathLike | None = None,
         verbose: bool = False,
     ):
         """Write local potential to a text file."""
@@ -138,13 +136,13 @@ class LocalPotentialInterpolationNUFFT:
 
     def __init__(
         self,
-        fft_mesh: Union[int, float, Sequence, np.ndarray],
-        p2s_matrix: np.ndarray,
+        fft_mesh: int | float | Sequence | NDArray,
+        p2s_matrix: NDArray,
         supercell: PhonopyAtoms,
         symmetry: Symmetry,
-        atom_indices: Optional[np.ndarray] = None,
-        nufft: Optional[str] = None,
-        finufft_eps: Optional[float] = None,
+        atom_indices: NDArray | None = None,
+        nufft: str | None = None,
+        finufft_eps: float | None = None,
         verbose: bool = True,
     ):
         """Init method.
@@ -202,14 +200,14 @@ class LocalPotentialInterpolationNUFFT:
         )
         assert 3 == self._grid_points.shape[1]
 
-        self._dVdu = None
-        self._atom_indices_returned = None
+        self._dVdu: NDArray | None = None
+        self._atom_indices_returned: NDArray | None = None
 
         ###########
         # Private #
         ###########
         # Delta local potentials before interpolation
-        self._delta_Vs: Optional[list[DeltaLocalPotential]] = None
+        self._delta_Vs: list[DeltaLocalPotential] | None = None
 
         # counter of equivalent atoms calculations
         self._i_atom = 0
@@ -285,7 +283,7 @@ class LocalPotentialInterpolationNUFFT:
         return self._lattice_points
 
     @property
-    def dVdu(self):
+    def dVdu(self) -> NDArray | None:
         """Return dVdu."""
         return self._dVdu
 
@@ -295,7 +293,7 @@ class LocalPotentialInterpolationNUFFT:
         return self._atom_indices_returned
 
     @property
-    def delta_Vs(self) -> Optional[list[DeltaLocalPotential]]:
+    def delta_Vs(self) -> list[DeltaLocalPotential] | None:
         """Return dVs."""
         return self._delta_Vs
 
@@ -420,8 +418,8 @@ class LocalPotentialInterpolationNUFFT:
         self._finalize_finufft()
 
     def _rotate_dV(
-        self, dV_iFTs: list[np.ndarray], r: np.ndarray, t: np.ndarray
-    ) -> list[np.ndarray]:
+        self, dV_iFTs: list[NDArray], r: NDArray, t: NDArray
+    ) -> list[NDArray]:
         """Rotate dV by rotating coordinates of delta potential passively.
 
         Instead of rotating delta potential, grid points are rotated.
@@ -433,7 +431,7 @@ class LocalPotentialInterpolationNUFFT:
         grid_points -= np.rint(grid_points)
         return self._run_finufft(grid_points, dV_iFTs)
 
-    def _get_iFFT_of_dV(self, dV: np.ndarray) -> np.ndarray:
+    def _get_iFFT_of_dV(self, dV: NDArray) -> NDArray:
         """Inverse FFT."""
         dims = dV.shape
         assert 3 == len(dims)
@@ -441,8 +439,8 @@ class LocalPotentialInterpolationNUFFT:
         return np.array(dV_iFT, dtype=dV_iFT.dtype, order="C")
 
     def _run_finufft(
-        self, grid_points: np.ndarray, dV_iFTs: list[np.ndarray]
-    ) -> list[np.ndarray]:
+        self, grid_points: NDArray, dV_iFTs: list[NDArray]
+    ) -> list[NDArray]:
         """Transform from uniform to non-uniform points.
 
         3D Type-2 transform.
@@ -526,13 +524,13 @@ class DLocalPotential:
 
     def __init__(
         self,
-        fft_mesh: Union[int, float, Sequence, np.ndarray],
-        p2s_matrix: np.ndarray,
+        fft_mesh: int | float | Sequence | NDArray,
+        p2s_matrix: NDArray,
         supercell: PhonopyAtoms,
-        symmetry: Optional[Symmetry] = None,
-        atom_indices: Optional[np.ndarray] = None,
-        nufft: Optional[str] = None,
-        finufft_eps: Optional[float] = None,
+        symmetry: Symmetry | None = None,
+        atom_indices: NDArray | None = None,
+        nufft: str | None = None,
+        finufft_eps: float | None = None,
         verbose: bool = True,
     ):
         """Init method.
@@ -617,7 +615,7 @@ class DLocalPotential:
         return self._dVdu
 
     @dVdu.setter
-    def dVdu(self, dVdu: np.ndarray):
+    def dVdu(self, dVdu: NDArray):
         if dVdu.dtype == "double":
             _dVdu = real2cmplx(dVdu)
         else:
@@ -641,7 +639,7 @@ class DLocalPotential:
         return self._lattice_points
 
     @lattice_points.setter
-    def lattice_points(self, lattice_points: np.ndarray):
+    def lattice_points(self, lattice_points: NDArray):
         multi = determinant(self.p2s_matrix)
         if lattice_points.shape == (multi, 3):
             self._lattice_points = np.array(lattice_points, dtype="int64", order="C")
@@ -661,7 +659,7 @@ class DLocalPotential:
         return self._grid_points
 
     @grid_points.setter
-    def grid_points(self, grid_points: np.ndarray):
+    def grid_points(self, grid_points: NDArray):
         N = np.prod(self.fft_mesh) * determinant(self.p2s_matrix)
         if grid_points.shape == (N, 3):
             self._grid_points = np.array(grid_points, dtype="double", order="C")
@@ -673,8 +671,8 @@ class DLocalPotential:
 
     def run(
         self,
-        V_loc_per: np.ndarray,
-        V_loc_disps: list[np.ndarray],
+        V_loc_per: NDArray,
+        V_loc_disps: list[NDArray],
         displacements: list[dict],
     ):
         """Calculate dV/du.
@@ -773,12 +771,12 @@ class DLocalPotential:
 
 def visualize_distribution(
     pcell: PhonopyAtoms,
-    p2s_matrix: np.ndarray,
-    fft_mesh: Union[int, float, Sequence, np.ndarray],
-    grid_points: np.ndarray,
-    data: np.ndarray,
-    filename: Optional[Union[str, bytes, os.PathLike, io.IOBase]] = None,
-) -> np.ndarray:
+    p2s_matrix: NDArray,
+    fft_mesh: int | float | Sequence | NDArray,
+    grid_points: NDArray,
+    data: NDArray,
+    filename: str | bytes | os.PathLike | None = None,
+) -> NDArray:
     """Visualize scalar distribution in space.
 
     Note
@@ -847,7 +845,7 @@ def visualize_distribution(
 
 def collect_site_symmetry_operations(
     disp_atom: int, symmetry: Symmetry
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[NDArray, NDArray]:
     """Collect site symmetry operations.
 
     Collect symmetry operations from a diplaced atom to symmetrically
@@ -893,10 +891,10 @@ def collect_site_symmetry_operations(
 
 
 def get_displacements_with_rotations(
-    rotations: np.ndarray,
-    lattice: np.ndarray,
-    delta_vals: Union[list[DeltaLocalPotential], list[DeltaDijQij]],
-) -> np.ndarray:
+    rotations: NDArray,
+    lattice: NDArray,
+    delta_vals: list[DeltaLocalPotential] | list[DeltaDijQij],
+) -> NDArray:
     """Rotate displacements by site-symmetry actively.
 
     Displacements are stored in the following order:
@@ -924,8 +922,8 @@ def get_displacements_with_rotations(
 
 
 def rotate_delta_vals_in_spin_space(
-    delta_vals_rotated: list[np.ndarray], r: np.ndarray, lattice: np.ndarray
-) -> list[np.ndarray]:
+    delta_vals_rotated: list[NDArray], r: NDArray, lattice: NDArray
+) -> list[NDArray]:
     r"""Take linear combination of delta vals with spin rotation matrix.
 
     In this method A B A^+ is computed, where A is the 2x2 rotation matrix of
@@ -944,7 +942,7 @@ def rotate_delta_vals_in_spin_space(
 
     Parameters
     ----------
-    delta_vals_rotated : list[np.ndarray]
+    delta_vals_rotated : list[NDArray]
         Rotated delta local potential or delta-Dijqij.
     lattice : ndarray.
         Basis vectors of supercell in column vectors.
@@ -970,8 +968,8 @@ def rotate_delta_vals_in_spin_space(
 
 
 def get_grid_points(
-    fft_mesh: Union[int, float, Sequence, np.ndarray], p2s_matrix: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
+    fft_mesh: int | float | Sequence | NDArray, p2s_matrix: NDArray
+) -> tuple[NDArray, NDArray]:
     """Return grid points with respect to supercell basis vectors.
 
     Parameters
@@ -1034,8 +1032,8 @@ def get_grid_points(
 
 
 def _get_multipliticy_for_visualization(
-    p2s_matrix: np.ndarray, prim_lattice: np.ndarray
-) -> np.ndarray:
+    p2s_matrix: NDArray, prim_lattice: NDArray
+) -> NDArray:
     """Find minimum multiplication of primitive cell that can contain supercell.
 
     Parameters
