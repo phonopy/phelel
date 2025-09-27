@@ -6,13 +6,13 @@ import copy
 import dataclasses
 import io
 import os
-from collections.abc import Sequence
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import click
 import numpy as np
 import tomli
 import tomli_w
+from numpy.typing import NDArray
 from phono3py.phonon.grid import GridMatrix
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.vasp import get_vasp_structure_lines
@@ -42,7 +42,7 @@ from phelel.version import __version__
 
 def run_init(
     cmd_init_options: dict, vfp: VelphFilePaths, phelel_dir_name: str = "phelel"
-) -> Optional[list[str]]:
+) -> list[str] | None:
     """Run velph-init.
 
     Main part of init processes are implemented in the function _run_init.
@@ -89,10 +89,10 @@ def run_init(
 def _run_init(
     input_cell: PhonopyAtoms,
     cmd_init_options: dict,
-    velph_template_fp: os.PathLike | io.IOBase | None = None,
+    velph_template_fp: os.PathLike | io.BytesIO | None = None,
     template_toml_filepath: os.PathLike | None = None,
     phelel_dir_name: str = "phelel",
-) -> Optional[list[str]]:
+) -> list[str] | None:
     """Run init process and return velph-toml lines.
 
     Parameters
@@ -178,10 +178,10 @@ def _run_init(
 
 def _get_supercell_dimension(
     velph_dict_calc_type: dict,
-    max_num_atoms: Optional[int],
+    max_num_atoms: int | None,
     sym_dataset: SpglibDataset,
     find_primitive: bool,
-) -> Optional[np.ndarray]:
+) -> NDArray | None:
     """Return supercell dimension.
 
     This function is used to determine supercell dimension for velph-init.
@@ -248,7 +248,7 @@ def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict:
     return cell_choices
 
 
-def _get_template_init_params(velph_template_dict: Optional[dict]) -> dict:
+def _get_template_init_params(velph_template_dict: dict | None) -> dict:
     """Collect init params in [init.options] in velph-toml-template file."""
     template_init_params = {}
     if velph_template_dict:
@@ -377,7 +377,7 @@ def _get_cells(
     symmetrize_cell: bool,
     find_primitive: bool,
     primitive_cell_choice: PrimitiveCellChoice,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, dict]:
+) -> tuple[PhonopyAtoms, PhonopyAtoms, SpglibDataset]:
     """Return unit cell, primitive cell, and symmetry dataset.
 
     This function is complicated due to complicated requests.
@@ -485,19 +485,19 @@ def _get_cells(
 
 
 def _parse_velph_template(
-    velph_template_fp: Optional[Union[str, bytes, os.PathLike, io.IOBase]],
-) -> Optional[dict]:
+    velph_template_fp: os.PathLike | io.BytesIO | None,
+) -> dict | None:
     """Read velph-toml template file.
 
-    The types str, bytes, and os.PathLike are used to represent file names,
-    while toml_str does not serve this purpose. If there is a need to pass
-    toml_str, it can be achieved by using io.BytesIO(toml_str.encode('utf-8')).
+    The type PathLike is used to represent file name, while toml_str does not
+    serve this purpose. If there is a need to pass toml_str, it can be achieved
+    by using io.BytesIO(toml_str.encode('utf-8')).
 
     """
     if velph_template_fp is None:
         return None
 
-    if isinstance(velph_template_fp, io.IOBase):
+    if isinstance(velph_template_fp, io.BytesIO):
         return tomli.load(velph_template_fp)
     else:
         with open(velph_template_fp, "rb") as f:
@@ -508,7 +508,7 @@ def _parse_velph_template(
 
 
 def _get_velph_dict(
-    template_dict: Optional[dict],
+    template_dict: dict | None,
 ) -> dict:
     """Return velph_dict.
 
@@ -601,9 +601,9 @@ def _get_toml_lines(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     cell_choices: dict,
-    sym_dataset: dict,
+    sym_dataset: SpglibDataset,
     phelel_dir_name: str = "phelel",
-) -> list[str]:
+) -> list[str] | None:
     """Return velph-toml lines."""
     # Parse [phelel] section for supercell dimension
     supercell_dimension = _get_supercell_dimension(
@@ -643,13 +643,48 @@ def _get_toml_lines(
         and phonopy_supercell_dimension is None
         and phono3py_supercell_dimension is None
     ):
-        click.echo("", err=True)
-        click.echo("Error | Supercell size could not be determined.", err=True)
-        click.echo(
-            "      | Specify --max-num-atoms or [phelel.supercell_dimension].",
-            err=True,
-        )
-        return None
+        if "phelel" in velph_dict and supercell_dimension is None:
+            click.echo("", err=True)
+            click.echo(
+                "Error | Supercell size for phelel could not be determined.", err=True
+            )
+            click.echo(
+                "      | Specify --max-num-atoms or [phelel.supercell_dimension].",
+                err=True,
+            )
+            return None
+
+        if (
+            "phonopy" in velph_dict
+            and supercell_dimension is None
+            and phonopy_supercell_dimension is None
+        ):
+            click.echo("", err=True)
+            click.echo(
+                "Error | Supercell size for phonopy could not be determined.", err=True
+            )
+            click.echo(
+                "      | Specify --max-num-atoms, --phonopy-max-num-atoms or "
+                "[phonopy.supercell_dimension].",
+                err=True,
+            )
+            return None
+
+        if (
+            "phono3py" in velph_dict
+            and supercell_dimension is None
+            and phono3py_supercell_dimension is None
+        ):
+            click.echo("", err=True)
+            click.echo(
+                "Error | Supercell size for phono3py could not be determined.", err=True
+            )
+            click.echo(
+                "      | Specify --max-num-atoms, --phono3py-max-num-atoms or "
+                "[phono3py.supercell_dimension].",
+                err=True,
+            )
+            return None
 
     (
         kpoints_dict,
@@ -765,7 +800,7 @@ def _get_toml_lines(
     return lines
 
 
-def _get_fft_mesh(velph_dict: dict, primitive: PhonopyAtoms) -> Optional[np.ndarray]:
+def _get_fft_mesh(velph_dict: dict, primitive: PhonopyAtoms) -> NDArray | None:
     """FFT mesh is computed from encut and prec in INCAR dict.
 
     Two possiblity of encut sourse, [vasp.selfenergy.incar] and [vasp.incar].
@@ -815,9 +850,9 @@ def _get_kpoints_dict(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     sym_dataset: SpglibDataset,
-    supercell_dimension: np.ndarray,
-    phonopy_supercell_dimension: Optional[np.ndarray],
-    phono3py_supercell_dimension: Optional[np.ndarray],
+    supercell_dimension: NDArray | None,
+    phonopy_supercell_dimension: NDArray | None,
+    phono3py_supercell_dimension: NDArray | None,
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
     phelel_dir_name: str = "phelel",
@@ -996,8 +1031,8 @@ def _get_kpoints_by_kspacing(
     gm: GridMatrix,
     gm_prim: GridMatrix,
     gm_super: GridMatrix,
-    gm_phonopy_super: Optional[GridMatrix],
-    gm_phono3py_super: Optional[GridMatrix],
+    gm_phonopy_super: NDArray | None,
+    gm_phono3py_super: NDArray | None,
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
     phelel_dir_name: str = "phelel",
@@ -1282,11 +1317,11 @@ def _merge_incar_commons(incar: dict, incar_commons: dict):
 
 def _get_phelel_lines(
     velph_dict: dict,
-    supercell_dimension: np.ndarray,
+    supercell_dimension: NDArray,
     primitive: PhonopyAtoms,
-    amplitude: Optional[float],
-    diagonal: Optional[bool],
-    plusminus: Optional[bool],
+    amplitude: float | None,
+    diagonal: bool | None,
+    plusminus: bool | None,
     phelel_nosym: bool,
 ) -> list:
     lines = []
@@ -1395,7 +1430,7 @@ def _get_cell_toml_lines(
     return lines
 
 
-def _show_supercell_dimension(dim: np.ndarray) -> None:
+def _show_supercell_dimension(dim: NDArray) -> None:
     key = "supercell_dimension"
     if np.array_equal(dim, np.diag(dim.diagonal())):
         click.echo(f"  {key}: {dim.diagonal()}")
@@ -1406,7 +1441,7 @@ def _show_supercell_dimension(dim: np.ndarray) -> None:
 
 
 def _get_supercell_dimension_lines(
-    supercell_dimension: Union[np.ndarray, Sequence],
+    supercell_dimension: NDArray,
 ) -> list:
     lines = []
     if (np.diag(np.diag(supercell_dimension)) == supercell_dimension).all():
@@ -1427,9 +1462,9 @@ def _get_supercell_dimension_lines(
 def _get_displacement_settings_lines(
     velph_dict: dict,
     calc_type: Literal["phelel", "phonopy", "phono3py"],
-    amplitude: Optional[float],
-    diagonal: Optional[bool],
-    plusminus: Optional[bool],
+    amplitude: float | None,
+    diagonal: bool | None,
+    plusminus: bool | None,
 ) -> list:
     lines = []
     toml_dict = velph_dict.get(calc_type, {})
