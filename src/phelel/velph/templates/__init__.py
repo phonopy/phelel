@@ -20,7 +20,7 @@ dictionary structure.
     "incar" sections of all VASP calculation types if those default INCAR
     settings are not available in each section. To prevent from writing
     default INCAR settings, i.e., avoiding unnecessary INCAR settings in a
-    specific VASP calculation type, INCAR tag with the value of ``None`` has to
+    specific VASP calculation type, INCAR tag with empty dictionary `{}` has to
     be explicitly described (see "ph_bands" section.)
 
     In each VASP calculation following settings are specified.
@@ -166,12 +166,12 @@ default_template_dict: dict[str, Any] = {
                 "ibrion": -1,
                 "nsw": 0,
                 "elph_run": True,
-                "ismear": None,
-                "sigma": None,
-                "ediff": None,
-                "lreal": None,
-                "lwave": None,
-                "lcharg": None,
+                "ismear": {},
+                "sigma": {},
+                "ediff": {},
+                "lreal": {},
+                "lwave": {},
+                "lcharg": {},
             },
             "qpoints": {
                 "line": 51,
@@ -206,9 +206,9 @@ default_template_dict: dict[str, Any] = {
         "nac": {
             "incar": {
                 "lepsilon": True,
-                "npar": None,
-                "ncore": None,
-                "kpar": None,
+                "npar": {},
+                "ncore": {},
+                "kpar": {},
             },
         },
     },
