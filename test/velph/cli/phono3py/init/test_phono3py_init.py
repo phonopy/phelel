@@ -44,6 +44,7 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
         tomli.loads(phelel_str + phono3py_str + unitcell_str),
     ):
         ph3 = run_init(toml_dict, number_of_snapshots=10)
+        assert ph3 is not None
         np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([2, 2, 1]))
 
         assert len(ph3.supercell) == 8

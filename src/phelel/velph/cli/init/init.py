@@ -1030,9 +1030,9 @@ def _show_kpoints_lines(
 def _get_kpoints_by_kspacing(
     gm: GridMatrix,
     gm_prim: GridMatrix,
-    gm_super: GridMatrix,
-    gm_phonopy_super: NDArray | None,
-    gm_phono3py_super: NDArray | None,
+    gm_super: GridMatrix | None,
+    gm_phonopy_super: GridMatrix | None,
+    gm_phono3py_super: GridMatrix | None,
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
     phelel_dir_name: str = "phelel",
@@ -1308,16 +1308,20 @@ def _get_incar_commons(vasp_dict: dict) -> dict:
 
 def _merge_incar_commons(incar: dict, incar_commons: dict):
     """Merge INCAR parameters in template and common INCAR parameters."""
-    incar_copy = copy.deepcopy(incar)
-    for key in incar_commons:
+    incar_copy = {key.lower(): copy.deepcopy(value) for key, value in incar.items()}
+    for key in [key.lower() for key in incar_commons]:
         if key not in incar_copy:
             incar_copy[key] = incar_commons[key]
-    return {key: value for key, value in incar_copy.items() if value is not None}
+    return {
+        key: value
+        for key, value in incar_copy.items()
+        if not isinstance(value, dict) or value
+    }
 
 
 def _get_phelel_lines(
     velph_dict: dict,
-    supercell_dimension: NDArray,
+    supercell_dimension: NDArray | None,
     primitive: PhonopyAtoms,
     amplitude: float | None,
     diagonal: bool | None,

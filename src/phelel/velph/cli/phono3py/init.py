@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional, Union
+from typing import Literal
 
 import click
 import numpy as np
@@ -17,8 +17,8 @@ from phelel.velph.cli.utils import get_nac_params
 def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
-    number_of_snapshots: Optional[int] = None,
-) -> Optional[Phono3py]:
+    number_of_snapshots: int | None = None,
+) -> Phono3py | None:
     """Generate displacements and write phono3py_disp.yaml.
 
     current_directory : Path
@@ -28,10 +28,16 @@ def run_init(
     if "phono3py" not in toml_dict:
         raise RuntimeError("[phono3py] section not found in toml file.")
 
+    if "unitcell" not in toml_dict:
+        raise RuntimeError("[unitcell] section not found in toml file.")
+
     convcell = parse_cell_dict(toml_dict["unitcell"])
+    assert convcell is not None
+
     supercell_matrix = toml_dict["phono3py"].get("supercell_dimension", None)
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
+        assert primitive is not None
         primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
     else:
         primitive = convcell
@@ -92,11 +98,11 @@ def run_init(
 def _generate_phono3py_supercells(
     phono3py: Phono3py,
     interface_mode: str = "vasp",
-    distance: Optional[float] = None,
-    is_plusminus: Union[str, bool] = "auto",
+    distance: float | None = None,
+    is_plusminus: Literal["auto"] | bool = "auto",
     is_diagonal: bool = True,
-    number_of_snapshots: Optional[int] = None,
-    number_of_snapshots_fc2: Optional[int] = None,
+    number_of_snapshots: int | None = None,
+    number_of_snapshots_fc2: int | None = None,
 ):
     """Generate phelel supercells."""
     if distance is None:
