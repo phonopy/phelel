@@ -1,11 +1,13 @@
 """Tests CLIs."""
 
+from __future__ import annotations
+
 import dataclasses
 import io
 import itertools
 import pathlib
 from collections.abc import Callable
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import pytest
@@ -59,9 +61,12 @@ def test_run_init_read_cell(
     }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     unitcell = load_phonopy_yaml(velph_dict["unitcell"]).unitcell
+    assert unitcell is not None
     pcell = load_phonopy_yaml(velph_dict["primitive_cell"]).unitcell
+    assert pcell is not None
     cell_ref, _ = read_crystal_structure(cell_filepath, interface_mode="vasp")
     if symmetrize_cell and find_primitive:
         helper_methods.compare_cells(unitcell, cell_ref)
@@ -86,9 +91,14 @@ def test_run_init_read_cell_and_magmom():
     cmd_init_options = {"find_primitive": True, "max_num_atoms": 120, "magmom": magmom}
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     unitcell = load_phonopy_yaml(velph_dict["unitcell"]).unitcell
+    assert unitcell is not None
+    assert unitcell.magnetic_moments is not None
     pcell = load_phonopy_yaml(velph_dict["primitive_cell"]).unitcell
+    assert pcell is not None
+    assert pcell.magnetic_moments is not None
     np.testing.assert_allclose(unitcell.magnetic_moments, [1, 1, 1, 1, -1, -1, -1, -1])
     np.testing.assert_allclose(pcell.magnetic_moments, [1, -1])
 
@@ -124,6 +134,7 @@ def test_get_toml_lines_minimum(nacl_cell: PhonopyAtoms):
         cell_choices,
         sym_dataset,
     )
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
 
@@ -158,6 +169,7 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
         cell_choices,
         sym_dataset,
     )
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
 
@@ -166,7 +178,8 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
     itertools.product(["primitive", "unitcell", None], repeat=2),
 )
 def test_run_init_cmd_option_cell_choices(
-    cell_for_relax: Optional[str], cell_for_nac: Optional[str]
+    cell_for_relax: Literal["primitive", "unitcell"] | None,
+    cell_for_nac: Literal["primitive", "unitcell"] | None,
 ):
     """Simple test of cell_for_nac and cell_for_relax from cmd-line options.
 
@@ -174,13 +187,14 @@ def test_run_init_cmd_option_cell_choices(
 
     """
     cell_filepath = cwd / "POSCAR_NaCl"
-    cmd_init_options = {"max_num_atoms": 120}
+    cmd_init_options: dict = {"max_num_atoms": 120}
     if cell_for_relax:
         cmd_init_options["cell_for_relax"] = cell_for_relax
     if cell_for_nac:
         cmd_init_options["cell_for_nac"] = cell_for_nac
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
     _test_velph_dict_cell_choices(velph_dict, "relax", cell_for_relax)
@@ -192,7 +206,9 @@ def test_run_init_cmd_option_cell_choices(
     itertools.product(["primitive", "unitcell", None], repeat=2),
 )
 def test_run_init_template_init_options_cell_choices(
-    nacl_cell: PhonopyAtoms, cell_for_relax: Optional[str], cell_for_nac: Optional[str]
+    nacl_cell: PhonopyAtoms,
+    cell_for_relax: Literal["primitive", "unitcell"] | None,
+    cell_for_nac: Literal["primitive", "unitcell"] | None,
 ):
     """Test of cell_for_nac and cell_for_relax from [init.options].
 
@@ -208,6 +224,7 @@ def test_run_init_template_init_options_cell_choices(
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(input_cell, {}, velph_template_fp=velph_template_fp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
     _test_velph_dict_cell_choices(velph_dict, "relax", cell_for_relax)
@@ -219,7 +236,9 @@ def test_run_init_template_init_options_cell_choices(
     itertools.product(["primitive", "unitcell", None], repeat=2),
 )
 def test_run_init_template_vasp_calc_cell_cell_choices(
-    nacl_cell: PhonopyAtoms, cell_for_relax: Optional[str], cell_for_nac: Optional[str]
+    nacl_cell: PhonopyAtoms,
+    cell_for_relax: Literal["primitive", "unitcell"] | None,
+    cell_for_nac: Literal["primitive", "unitcell"] | None,
 ):
     """Test of cell_for_nac and cell_for_relax from [vasp.*.cell].
 
@@ -235,6 +254,7 @@ def test_run_init_template_vasp_calc_cell_cell_choices(
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(input_cell, {}, velph_template_fp=velph_template_fp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
     _test_velph_dict_cell_choices(velph_dict, "relax", cell_for_relax)
@@ -249,7 +269,13 @@ def test_run_init_template_vasp_calc_cell_cell_choices(
     ),
 )
 def test_run_init_combination_relax_options_and_tag_cell_choices(
-    nacl_cell: PhonopyAtoms, calc_type: str, cell_choices: Optional[str]
+    nacl_cell: PhonopyAtoms,
+    calc_type: Literal["relax", "nac"],
+    cell_choices: tuple[
+        Literal["primitive", "unitcell"] | None,
+        Literal["primitive", "unitcell"] | None,
+        Literal["primitive", "unitcell"] | None,
+    ],
 ):
     """Test for three ways and their combinations to specify cell_for-calcs.
 
@@ -271,7 +297,7 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
         template_lines += [f'cell = "{vasp_calc_cell}"']
     velph_template_fp = io.BytesIO("\n".join(template_lines).encode("utf-8"))
 
-    cmd_init_options = {"max_num_atoms": 120}
+    cmd_init_options: dict = {"max_num_atoms": 120}
     if cell_for_calc_cmd:
         cmd_init_options[f"cell_for_{calc_type}"] = cell_for_calc_cmd
     toml_lines = _run_init(
@@ -279,6 +305,7 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
         cmd_init_options,
         velph_template_fp=velph_template_fp,
     )
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
     if cell_for_calc_cmd:
@@ -288,7 +315,7 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
     elif vasp_calc_cell and cell_for_calc is None and cell_for_calc_cmd is None:
         assert velph_dict["vasp"][f"{calc_type}"]["cell"] == vasp_calc_cell
     else:
-        _test_velph_dict_cell_choices(velph_dict, calc_type, False)
+        _test_velph_dict_cell_choices(velph_dict, calc_type, None)
 
 
 @pytest.mark.parametrize("symmetrize_cell", [True, False])
@@ -298,6 +325,7 @@ def test_run_init_show_toml(symmetrize_cell: bool):
     vip = {"symmetrize_cell": symmetrize_cell, "max_num_atoms": 120}
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(vip, vfp)
+    assert toml_lines is not None
     print("\n".join(toml_lines))
 
 
@@ -329,6 +357,7 @@ def test_run_init_template_amplitude(
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(input_cell, cmd_options, velph_template_fp=velph_template_fp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     if in_phelel:
         np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.05)
@@ -362,6 +391,7 @@ def test_run_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
     }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(command_options, vfp)
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     assert velph_dict["phelel"]["diagonal"] is diagonal
     if plusminus:
@@ -393,6 +423,7 @@ def test_run_init_with_use_grg(
         input_cell, {"use_grg": True, "kspacing": kspacing, "max_num_atoms": 120}
     )
     # print("\n".join(toml_lines))
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     for calc in ("relax", "nac"):
         try:
@@ -428,6 +459,7 @@ def test_run_init_with_primitive_cell_choice(
         input_cell,
         {"primitive_cell_choice": primitive_cell_choice, "max_num_atoms": 12},
     )
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
     # Check lenghts of basis vectors.
@@ -448,7 +480,7 @@ def test_run_init_with_primitive_cell_choice(
 
 @pytest.mark.parametrize("encut", [300, 400, None])
 def test_run_init_template_with_vasp_incar(
-    nacl_cell: PhonopyAtoms, encut: Optional[float]
+    nacl_cell: PhonopyAtoms, encut: float | None
 ):
     """Test of [vasp.incar] settings."""
     input_cell = nacl_cell
@@ -461,6 +493,7 @@ def test_run_init_template_with_vasp_incar(
     toml_lines = _run_init(
         input_cell, {"max_num_atoms": 120}, velph_template_fp=velph_template_fp
     )
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     for key in velph_dict["vasp"]:
         try:
@@ -484,6 +517,7 @@ def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms
     toml_lines = _run_init(
         input_cell, {"max_num_atoms": 120}, velph_template_fp=velph_template_fp
     )
+    assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     assert "scheduler" in velph_dict["vasp"]["selfenergy"]
     scheduler_dict = velph_dict["vasp"]["selfenergy"]["scheduler"]
@@ -492,7 +526,7 @@ def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms
 
 
 def _test_velph_dict_cell_choices(
-    velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: bool
+    velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):
     if cell_for_calc:
         assert velph_dict["vasp"][f"{calc_type}"]["cell"] == cell_for_calc
