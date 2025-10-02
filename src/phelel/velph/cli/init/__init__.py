@@ -12,6 +12,7 @@ from phelel.velph.cli import cmd_root
 from phelel.velph.cli.init.init import run_init
 from phelel.velph.cli.utils import (
     DefaultCellChoices,
+    DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
     VelphInitParams,
@@ -173,7 +174,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     help=(
         "Determine supercell dimension so that number of atoms in supercell "
         "is less than this number. "
-        f"(phelel_max_num_atoms: int, default={VelphInitParams.phelel_max_num_atoms})"
+        f"(phelel_max_num_atoms: int, default={DisplacementOptions.max_num_atoms})"
     ),
 )
 @click.option(
@@ -197,7 +198,7 @@ from phelel.velph.utils.vasp import VaspPotcar
         "for phonopy is less than this number if different dimension from "
         "that of electron-phonon (phelel) is expected. "
         "(phonopy_max_num_atoms: int, "
-        f"default={VelphInitParams.phono3py_max_num_atoms})"
+        f"default={DisplacementOptions.max_num_atoms})"
     ),
 )
 @click.option(
@@ -211,7 +212,7 @@ from phelel.velph.utils.vasp import VaspPotcar
         "for phono3py is less than this number if different dimension from "
         "that of electron-phonon (phelel) is expected. "
         "(phono3py_max_num_atoms: int, "
-        f"default={VelphInitParams.phono3py_max_num_atoms})"
+        f"default={DisplacementOptions.max_num_atoms})"
     ),
 )
 @click.option(

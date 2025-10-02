@@ -617,9 +617,13 @@ def _get_toml_lines(
         _show_supercell_dimension(supercell_dimension)
 
     # Parse [phonopy] section for supercell dimension
+    if vip.phonopy_displacement_options is None:
+        max_num_atoms = vip.max_num_atoms
+    else:
+        max_num_atoms = vip.phonopy_displacement_options.max_num_atoms
     phonopy_supercell_dimension = _get_supercell_dimension(
         velph_dict.get("phonopy", {}),
-        vip.phonopy_max_num_atoms,
+        max_num_atoms,
         sym_dataset,
         vip.find_primitive,
     )
@@ -628,9 +632,13 @@ def _get_toml_lines(
         _show_supercell_dimension(phonopy_supercell_dimension)
 
     # Parse [phono3py] section for supercell dimension
+    if vip.phono3py_displacement_options is None:
+        max_num_atoms = vip.max_num_atoms
+    else:
+        max_num_atoms = vip.phono3py_displacement_options.max_num_atoms
     phono3py_supercell_dimension = _get_supercell_dimension(
         velph_dict.get("phono3py", {}),
-        vip.phono3py_max_num_atoms,
+        max_num_atoms,
         sym_dataset,
         vip.find_primitive,
     )

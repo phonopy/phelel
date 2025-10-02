@@ -71,6 +71,7 @@ class DisplacementOptions:
     number_of_snapshots: int | None = None
     diagonal: bool = False
     plusminus: bool | Literal["auto"] = True
+    max_num_atoms: int | None = None
 
 
 @dataclass(frozen=True)
@@ -95,9 +96,9 @@ class VelphInitParams:
     kspacing_dense: float = 0.05
     magmom: str | None = None
     max_num_atoms: int | None = None
-    phelel_max_num_atoms: int | None = None
-    phonopy_max_num_atoms: int | None = None
-    phono3py_max_num_atoms: int | None = None
+    phelel_displacement_options: DisplacementOptions | None = None
+    phonopy_displacement_options: DisplacementOptions | None = None
+    phono3py_displacement_options: DisplacementOptions | None = None
     phelel_nosym: bool = False
     primitive_cell_choice: PrimitiveCellChoice = PrimitiveCellChoice.STANDARDIZED
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
