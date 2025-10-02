@@ -165,6 +165,18 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
+    "--phelel-max-num-atoms",
+    "phelel_max_num_atoms",
+    nargs=1,
+    default=None,
+    type=int,
+    help=(
+        "Determine supercell dimension so that number of atoms in supercell "
+        "is less than this number. "
+        f"(phelel_max_num_atoms: int, default={VelphInitParams.phelel_max_num_atoms})"
+    ),
+)
+@click.option(
     "--phelel-nosym",
     "phelel_nosym",
     is_flag=True,
@@ -287,6 +299,7 @@ def cmd_init(
     kspacing_dense: float | None,
     magmom: str | None,
     max_num_atoms: int | None,
+    phelel_max_num_atoms: int | None,
     phelel_dir_name: str,
     phelel_nosym: bool | None,
     phonopy_max_num_atoms: int | None,
@@ -347,6 +360,7 @@ def cmd_init(
         "kspacing_dense": kspacing_dense,
         "magmom": magmom,
         "max_num_atoms": max_num_atoms,
+        "phelel_max_num_atoms": phelel_max_num_atoms,
         "phelel_nosym": phelel_nosym,
         "phonopy_max_num_atoms": phonopy_max_num_atoms,
         "phono3py_max_num_atoms": phono3py_max_num_atoms,

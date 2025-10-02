@@ -1,5 +1,7 @@
 """Implementation of velph-phelel-differentiate."""
 
+from __future__ import annotations
+
 import pathlib
 
 import click
@@ -38,6 +40,8 @@ def create_phonopy_yaml(
         is_symmetry=is_symmetry,
     )
     dir_names = []
+
+    assert phe.supercells_with_displacements is not None
     nd = get_num_digits(phe.supercells_with_displacements)
     for i, _ in enumerate(
         [
@@ -49,6 +53,7 @@ def create_phonopy_yaml(
         dir_names.append(pathlib.Path(f"{dir_name}/disp-{id_number}"))
 
     if phe.phonon_supercell_matrix is not None:
+        assert phe.phonon_supercells_with_displacements is not None
         nd = get_num_digits(phe.phonon_supercells_with_displacements)
         for i, _ in enumerate(
             [
@@ -67,6 +72,7 @@ def create_phonopy_yaml(
         supercell = phe.supercell
     else:
         supercell = phe.phonon_supercell
+    assert supercell is not None
     forces = read_forces_from_vasprunxmls(
         [d / "vasprun.xml" for d in dir_names],
         supercell,

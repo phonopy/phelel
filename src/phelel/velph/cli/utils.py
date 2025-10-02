@@ -64,6 +64,16 @@ class DefaultCellChoices:
 
 
 @dataclass(frozen=True)
+class DisplacementOptions:
+    """Options for generating displacements."""
+
+    amplitude: float = 0.03
+    number_of_snapshots: int | None = None
+    diagonal: bool = False
+    plusminus: bool | Literal["auto"] = True
+
+
+@dataclass(frozen=True)
 class VelphInitParams:
     """Basic init parameters of velph.
 
@@ -85,6 +95,7 @@ class VelphInitParams:
     kspacing_dense: float = 0.05
     magmom: str | None = None
     max_num_atoms: int | None = None
+    phelel_max_num_atoms: int | None = None
     phonopy_max_num_atoms: int | None = None
     phono3py_max_num_atoms: int | None = None
     phelel_nosym: bool = False
