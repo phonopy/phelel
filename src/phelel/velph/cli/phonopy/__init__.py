@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional
 
 import click
 import tomli
@@ -30,19 +29,8 @@ def cmd_phonopy():
     type=click.Path(),
     default="velph.toml",
 )
-@click.option(
-    "--rd",
-    "random_displacements",
-    nargs=1,
-    default=None,
-    type=int,
-    help="Number of snapshots of supercells with random directional displacement.",
-)
 @click.help_option("-h", "--help")
-def cmd_init(
-    toml_filename: str,
-    random_displacements: Optional[int],
-):
+def cmd_init(toml_filename: str):
     """Generate displacements and write phonopy_disp.yaml."""
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
@@ -51,10 +39,7 @@ def cmd_init(
         click.echo(f'[phonopy] section not found in "{toml_filename}" file.', err=True)
         return
 
-    ph = run_init(
-        toml_dict,
-        number_of_snapshots=random_displacements,
-    )
+    ph = run_init(toml_dict)
 
     phonopy_yaml_filename = pathlib.Path("phonopy/phonopy_disp.yaml")
     phonopy_yaml_filename.parent.mkdir(parents=True, exist_ok=True)

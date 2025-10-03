@@ -12,6 +12,7 @@ from phelel.velph.cli import cmd_root
 from phelel.velph.cli.init.init import run_init
 from phelel.velph.cli.utils import (
     DefaultCellChoices,
+    DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
     VelphInitParams,
@@ -32,7 +33,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Distance of displacements in Angstrom. "
-        f"(amplitude: float, default={VelphInitParams.amplitude})"
+        f"(amplitude: float, default={DisplacementOptions.amplitude})"
     ),
 )
 @click.option(
@@ -62,7 +63,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Generate displacements in diagonal directions or only along axes."
-        f"(diagonal: bool, default={VelphInitParams.diagonal})"
+        f"(diagonal: bool, default={DisplacementOptions.diagonal})"
     ),
 )
 @click.option(
@@ -77,7 +78,7 @@ from phelel.velph.utils.vasp import VaspPotcar
         "This option is a shortcut for diagonal supercell matrix, where "
         "three integers correspond to the diagonal elements. "
         "(supercell_dimension: tuple[int, int, int], "
-        f"default={VelphInitParams.supercell_matrix})"
+        f"default={DisplacementOptions.supercell_matrix})"
     ),
 )
 @click.option(
@@ -89,7 +90,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     help=(
         "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0."
         "(supercell_matrix: tuple[int, ...], "
-        f"default={VelphInitParams.supercell_matrix})"
+        f"default={DisplacementOptions.supercell_matrix})"
     ),
 )
 @click.option(
@@ -140,7 +141,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     help=(
         "Determine supercell dimension so that number of atoms in supercell "
         "is less than this number. "
-        f"(max_num_atoms: int, default={VelphInitParams.max_num_atoms})"
+        f"(max_num_atoms: int, default={DisplacementOptions.max_num_atoms})"
     ),
 )
 @click.option(
@@ -175,41 +176,13 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
-    "--phonopy-max-num-atoms",
-    "phonopy_max_num_atoms",
-    nargs=1,
-    default=None,
-    type=int,
-    help=(
-        "Determine phonopy supercell dimension so that number of atoms in supercell "
-        "for phonopy is less than this number if different dimension from "
-        "that of electron-phonon (phelel) is expected. "
-        "(phonopy_max_num_atoms: int, "
-        f"default={VelphInitParams.phono3py_max_num_atoms})"
-    ),
-)
-@click.option(
-    "--phono3py-max-num-atoms",
-    "phono3py_max_num_atoms",
-    nargs=1,
-    default=None,
-    type=int,
-    help=(
-        "Determine phono3py supercell dimension so that number of atoms in supercell "
-        "for phono3py is less than this number if different dimension from "
-        "that of electron-phonon (phelel) is expected. "
-        "(phono3py_max_num_atoms: int, "
-        f"default={VelphInitParams.phono3py_max_num_atoms})"
-    ),
-)
-@click.option(
     "--plusminus/--auto",
     "plusminus",
     type=bool,
     default=None,
     help=(
         "Plus-minus displacements in supercell, otherwise auto. "
-        f"(plusminus: bool, default={VelphInitParams.plusminus})"
+        f"(plusminus: bool, default={DisplacementOptions.plusminus})"
     ),
 )
 @click.option(
@@ -289,8 +262,6 @@ def cmd_init(
     max_num_atoms: int | None,
     phelel_dir_name: str,
     phelel_nosym: bool | None,
-    phonopy_max_num_atoms: int | None,
-    phono3py_max_num_atoms: int | None,
     primitive_cell_choice: str | None,
     project_folder: str,
     supercell_dimension: tuple[int, int, int] | None,
@@ -336,22 +307,25 @@ def cmd_init(
     else:
         _supercell_matrix = supercell_matrix
 
-    vip_cmd_options = {
+    # DisplacementOptions
+    displacement_options = {
         "amplitude": amplitude,
-        "cell_for_nac": cell_for_nac,
-        "cell_for_relax": cell_for_relax,
-        "find_primitive": find_primitive,
         "diagonal": diagonal,
         "plusminus": plusminus,
+        "max_num_atoms": max_num_atoms,
+        "supercell_matrix": _supercell_matrix,
+    }
+
+    vip_cmd_options = {
+        "cell_for_nac": cell_for_nac,
+        "cell_for_relax": cell_for_relax,
+        "displacement_options": displacement_options,
+        "find_primitive": find_primitive,
         "kspacing": kspacing,
         "kspacing_dense": kspacing_dense,
         "magmom": magmom,
-        "max_num_atoms": max_num_atoms,
         "phelel_nosym": phelel_nosym,
-        "phonopy_max_num_atoms": phonopy_max_num_atoms,
-        "phono3py_max_num_atoms": phono3py_max_num_atoms,
         "primitive_cell_choice": primitive_cell_choice,
-        "supercell_matrix": _supercell_matrix,
         "symmetrize_cell": symmetrize_cell,
         "tolerance": tolerance,
         "use_grg": use_grg,

@@ -387,7 +387,7 @@ class Phelel:
         self._dDijdu = dDijdu
 
     @property
-    def supercells_with_displacements(self) -> Sequence[PhonopyAtoms] | None:
+    def supercells_with_displacements(self) -> list[PhonopyAtoms] | None:
         """Return supercells with displacements.
 
         list of PhonopyAtoms
@@ -398,7 +398,7 @@ class Phelel:
         return self._phelel_phonon.supercells_with_displacements
 
     @property
-    def phonon_supercells_with_displacements(self) -> Sequence[PhonopyAtoms] | None:
+    def phonon_supercells_with_displacements(self) -> list[PhonopyAtoms] | None:
         """Return supercells with displacements for phonons.
 
         list of PhonopyAtoms
@@ -520,10 +520,10 @@ class Phelel:
 
     def save_phonon(
         self,
-        filename="phonopy_params.yaml",
-        settings=None,
-        hdf5_settings=None,
-        compression: Union[str, bool] = False,
+        filename: str | os.PathLike = "phonopy_params.yaml",
+        settings: dict | None = None,
+        hdf5_settings: dict | None = None,
+        compression: str | bool = False,
     ):
         """Save phonon in yaml format."""
         if self._phonon is None:

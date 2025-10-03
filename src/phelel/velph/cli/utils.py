@@ -64,6 +64,18 @@ class DefaultCellChoices:
 
 
 @dataclass(frozen=True)
+class DisplacementOptions:
+    """Options for generating displacements."""
+
+    amplitude: float = 0.03
+    diagonal: bool = False
+    max_num_atoms: int | None = None
+    number_of_snapshots: int | None = None
+    plusminus: bool | Literal["auto"] = True
+    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
+
+
+@dataclass(frozen=True)
 class VelphInitParams:
     """Basic init parameters of velph.
 
@@ -75,21 +87,18 @@ class VelphInitParams:
 
     """
 
-    amplitude: float = 0.03
     cell_for_nac: CellChoice = CellChoice.UNSPECIFIED
     cell_for_relax: CellChoice = CellChoice.UNSPECIFIED
     find_primitive: bool = True
-    diagonal: bool = False
-    plusminus: bool = True
+    displacement_options: DisplacementOptions = DisplacementOptions()
     kspacing: float = 0.1
     kspacing_dense: float = 0.05
     magmom: str | None = None
-    max_num_atoms: int | None = None
-    phonopy_max_num_atoms: int | None = None
-    phono3py_max_num_atoms: int | None = None
+    phelel_displacement_options: DisplacementOptions | None = None
+    phonopy_displacement_options: DisplacementOptions | None = None
+    phono3py_displacement_options: DisplacementOptions | None = None
     phelel_nosym: bool = False
     primitive_cell_choice: PrimitiveCellChoice = PrimitiveCellChoice.STANDARDIZED
-    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
     symmetrize_cell: bool = False
     tolerance: float = 1e-5
     use_grg: bool = False

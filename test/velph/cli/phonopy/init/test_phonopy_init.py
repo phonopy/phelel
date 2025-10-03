@@ -21,6 +21,7 @@ fft_mesh = [18, 18, 28]
     phonopy_str = f"""[phonopy]
 supercell_dimension = [2, 2, 1]
 amplitude = {distance}
+number_of_snapshots = 10
 """
 
     unitcell_str = """
@@ -43,9 +44,10 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
         tomli.loads(phonopy_str + unitcell_str),
         tomli.loads(phelel_str + phonopy_str + unitcell_str),
     ):
-        ph = run_init(toml_dict, number_of_snapshots=10)
+        ph = run_init(toml_dict)
         np.testing.assert_array_equal(ph.supercell_matrix, np.diag([2, 2, 1]))
 
         assert len(ph.supercell) == 8
+        assert isinstance(ph.displacements, np.ndarray)
         assert ph.displacements.shape == (10, 8, 3)
         np.testing.assert_allclose(np.linalg.norm(ph.displacements, axis=2), distance)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional, Union
+from typing import Literal
 
 import click
 import numpy as np
@@ -17,8 +17,7 @@ from phelel.velph.cli.utils import get_nac_params
 def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
-    number_of_snapshots: Optional[int] = None,
-) -> Optional[Phonopy]:
+) -> Phonopy:
     """Generate displacements and write phonopy_disp.yaml.
 
     current_directory : Path
@@ -29,9 +28,11 @@ def run_init(
         raise RuntimeError("[phonopy] section not found in toml file.")
 
     convcell = parse_cell_dict(toml_dict["unitcell"])
+    assert convcell is not None
     supercell_matrix = toml_dict["phonopy"].get("supercell_dimension", None)
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
+        assert primitive is not None
         primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
     else:
         primitive = convcell
@@ -53,12 +54,13 @@ def run_init(
     )
 
     amplitude = toml_dict["phonopy"].get("amplitude", None)
-    if number_of_snapshots is None:
+    number_of_snapshots = toml_dict["phonopy"].get("number_of_snapshots", {})
+    is_diagonal = False
+    is_plusminus = False
+    if not number_of_snapshots:
         is_diagonal = toml_dict["phonopy"].get("diagonal", True)
         is_plusminus = toml_dict["phonopy"].get("plusminus", "auto")
-    else:
-        is_diagonal = False
-        is_plusminus = False
+        number_of_snapshots = None
 
     _generate_phonopy_supercells(
         ph,
@@ -92,10 +94,10 @@ def run_init(
 def _generate_phonopy_supercells(
     phonopy: Phonopy,
     interface_mode: str = "vasp",
-    distance: Optional[float] = None,
-    is_plusminus: Union[str, bool] = "auto",
+    distance: float | None = None,
+    is_plusminus: Literal["auto"] | bool = "auto",
     is_diagonal: bool = True,
-    number_of_snapshots: Optional[int] = None,
+    number_of_snapshots: int | None = None,
 ):
     """Generate phelel supercells."""
     if distance is None:
@@ -109,5 +111,6 @@ def _generate_phonopy_supercells(
         is_diagonal=is_diagonal,
         number_of_snapshots=number_of_snapshots,
     )
+    assert phonopy.supercells_with_displacements is not None
     click.echo(f"Displacement distance: {_distance}")
     click.echo(f"Number of displacements: {len(phonopy.supercells_with_displacements)}")
