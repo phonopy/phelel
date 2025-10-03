@@ -6,6 +6,7 @@ import copy
 import dataclasses
 import io
 import os
+import typing
 from typing import Literal
 
 import click
@@ -27,6 +28,7 @@ from spglib import SpglibDataset  # type: ignore
 from phelel.velph.cli.utils import (
     CellChoice,
     DefaultCellChoices,
+    DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
     VelphInitParams,
@@ -89,8 +91,8 @@ def run_init(
 def _run_init(
     input_cell: PhonopyAtoms,
     cmd_init_options: dict,
-    velph_template_fp: os.PathLike | io.BytesIO | None = None,
-    template_toml_filepath: os.PathLike | None = None,
+    velph_template_fp: str | os.PathLike | typing.IO | None = None,
+    template_toml_filepath: str | os.PathLike | None = None,
     phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Run init process and return velph-toml lines.
@@ -101,13 +103,10 @@ def _run_init(
         Input crystal structure.
     cmd_init_options : dict
         Parameters provided by velph-init command options.
-    velph_template_fp : str, bytes, os.PathLike, io.IOBase, or None
+    velph_template_fp : str, os.PathLike, io.IOBase, or None
         velph toml template path. The parameter in str, bytes, or os.PathLike
         represents file name.
-    scheduler_template_fp : str, bytes, os.PathLike, io.IOBase, or None
-        Scheduler toml template path. The parameter in str, bytes, or os.PathLike
-        represents file name.
-    template_toml_filepath : str, bytes, os.PathLike
+    template_toml_filepath : str, os.PathLike
         File name of velph-toml-template.
     phelel_dir_name : str, optional
         Directory name for [vasp.{phelel_dir_name}]. The default is "phelel",
@@ -250,23 +249,29 @@ def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict:
 
 def _get_template_init_params(velph_template_dict: dict | None) -> dict:
     """Collect init params in [init.options] in velph-toml-template file."""
+    if not velph_template_dict:
+        return {}
+
+    try:
+        vip_keys = velph_template_dict["init"]["options"].keys()
+    except KeyError:
+        return {}
+
     template_init_params = {}
-    if velph_template_dict:
-        if "init" in velph_template_dict and "options" in velph_template_dict["init"]:
-            vip_keys = velph_template_dict["init"]["options"].keys()
-            for field in dataclasses.fields(VelphInitParams):
-                key = field.name
-                if key in vip_keys:
-                    template_init_params[key] = velph_template_dict["init"]["options"][
-                        key
-                    ]
+    for _dataclass in (VelphInitParams, DisplacementOptions):
+        for field in dataclasses.fields(_dataclass):
+            key = field.name
+            if key not in vip_keys:
+                continue
+            template_init_params[key] = velph_template_dict["init"]["options"][key]
+
     return template_init_params
 
 
 def _collect_init_params(
     cmd_init_options: dict,
     template_init_params: dict,
-    template_toml_filepath: os.PathLike | None,
+    template_toml_filepath: str | os.PathLike | None,
 ) -> VelphInitParams:
     """Merge init params defined different places.
 
@@ -282,12 +287,17 @@ def _collect_init_params(
         Init parameters.
 
     """
-    # Set default parameters.
+    displacement_options_keys = [
+        field.name for field in dataclasses.fields(DisplacementOptions)
+    ]
     vip_dict = {}
+    displacement_options = {}
 
     # Set parameters specified in velph-toml-template file.
     for key, value in template_init_params.items():
-        if key in ("cell_for_nac", "cell_for_relax"):
+        if key in displacement_options_keys:
+            displacement_options.update({key: value})
+        elif key in ("cell_for_nac", "cell_for_relax"):
             for cell_choice in CellChoice:
                 if value.lower() == cell_choice.value:
                     vip_dict[key] = cell_choice
@@ -299,36 +309,47 @@ def _collect_init_params(
             vip_dict[key] = value
 
     # Show parameters specified in velph-toml-template file.
-    if template_toml_filepath:
-        if len(template_init_params) == 1:
-            click.echo(f'Following option was found in "{template_toml_filepath}":')
-        elif len(template_init_params) > 1:
-            click.echo(f'Following options were found in "{template_toml_filepath}":')
     if template_init_params:
+        click.echo("Following init-options were found", nl=False)
+        if template_toml_filepath:
+            click.echo(f" in {template_toml_filepath}", nl=False)
+        click.echo(":")
         click.echo(
             "\n".join(
-                [f'  {key} = "{value}"' for key, value in template_init_params.items()]
+                [f"  {key} = {value}" for key, value in template_init_params.items()]
             )
         )
 
     # Collect parameters specified by command-line options.
     # Filling by None for all keys in VelphInitParams is for test mimicing
     # the behaviour of command-line-options that would already fill so.
-    cmd_params = {}
-    num_active_cmd_params = 0
-    for key in dataclasses.asdict(VelphInitParams()):
+    cmd_displacement_options = {}
+    for key in displacement_options_keys:
+        if key in cmd_init_options:
+            value = cmd_init_options[key]
+            if value is not None:
+                cmd_displacement_options.update({key: value})
+
+    if cmd_displacement_options:
+        num_active_cmd_params = 1
+        displacement_options.update(cmd_displacement_options)
+    else:
+        num_active_cmd_params = 0
+
+    cmd_params: dict = {}
+    for field in dataclasses.fields(VelphInitParams):
+        key = field.name
         if key in cmd_init_options:
             value = cmd_init_options[key]
             if value is not None:
                 num_active_cmd_params += 1
-            cmd_params[key] = value
-        else:
-            cmd_params[key] = None
+                cmd_params.update({key: value})
 
     # Show parameters specified by command-line options.
     if num_active_cmd_params > 0:
         click.echo("The following command-line options were given:")
-
+    for key, value in cmd_displacement_options.items():
+        click.echo(f"  {key} = {value}")
     for key, value in cmd_params.items():
         if value is None:
             continue
@@ -338,13 +359,13 @@ def _collect_init_params(
                     continue
                 if value.lower() == cell_choice.value:
                     cmd_params[key] = cell_choice
-                    click.echo(f'  {key} = "{value.lower()}"')
+                    click.echo(f"  {key} = {value.lower()}")
         elif key == "primitive_cell_choice":
             for primitive_cell_choice in PrimitiveCellChoice:
                 if value.lower() == primitive_cell_choice.value:
                     cmd_params[key] = primitive_cell_choice
         else:
-            click.echo(f'  {key} = "{value}"')
+            click.echo(f"  {key} = {value}")
 
     shared_params = [
         key_c == key_t for key_t in template_init_params for key_c in cmd_params
@@ -367,7 +388,12 @@ def _collect_init_params(
         if value is not None:
             vip_dict[key] = value
 
+    # DisplacementOptions is treated specially.
+    if displacement_options:
+        vip_dict["displacement_options"] = DisplacementOptions(**displacement_options)
+
     vip = VelphInitParams(**vip_dict)
+
     return vip
 
 
@@ -485,7 +511,7 @@ def _get_cells(
 
 
 def _parse_velph_template(
-    velph_template_fp: os.PathLike | io.BytesIO | None,
+    velph_template_fp: str | os.PathLike | typing.IO | None,
 ) -> dict | None:
     """Read velph-toml template file.
 
@@ -500,11 +526,12 @@ def _parse_velph_template(
     if isinstance(velph_template_fp, io.BytesIO):
         return tomli.load(velph_template_fp)
     else:
+        assert isinstance(velph_template_fp, (str, os.PathLike))
         with open(velph_template_fp, "rb") as f:
             template_dict = tomli.load(f)
 
-        click.echo(f'Read velph template file "{velph_template_fp}".')
-        return template_dict
+    click.echo(f'Read velph template file "{velph_template_fp}".')
+    return template_dict
 
 
 def _get_velph_dict(
@@ -606,9 +633,10 @@ def _get_toml_lines(
 ) -> list[str] | None:
     """Return velph-toml lines."""
     # Parse [phelel] section for supercell dimension
+    assert vip.displacement_options is not None
     supercell_dimension = _get_supercell_dimension(
         velph_dict.get("phelel", {}),
-        vip.max_num_atoms,
+        vip.displacement_options.max_num_atoms,
         sym_dataset,
         vip.find_primitive,
     )
@@ -618,7 +646,7 @@ def _get_toml_lines(
 
     # Parse [phonopy] section for supercell dimension
     if vip.phonopy_displacement_options is None:
-        max_num_atoms = vip.max_num_atoms
+        max_num_atoms = vip.displacement_options.max_num_atoms
     else:
         max_num_atoms = vip.phonopy_displacement_options.max_num_atoms
     phonopy_supercell_dimension = _get_supercell_dimension(
@@ -633,7 +661,7 @@ def _get_toml_lines(
 
     # Parse [phono3py] section for supercell dimension
     if vip.phono3py_displacement_options is None:
-        max_num_atoms = vip.max_num_atoms
+        max_num_atoms = vip.displacement_options.max_num_atoms
     else:
         max_num_atoms = vip.phono3py_displacement_options.max_num_atoms
     phono3py_supercell_dimension = _get_supercell_dimension(
@@ -742,9 +770,9 @@ def _get_toml_lines(
             velph_dict,
             supercell_dimension,
             primitive,
-            vip.amplitude,
-            vip.diagonal,
-            vip.plusminus,
+            vip.displacement_options.amplitude,
+            vip.displacement_options.diagonal,
+            vip.displacement_options.plusminus,
             vip.phelel_nosym,
         )
 
@@ -753,7 +781,11 @@ def _get_toml_lines(
         lines += ["[phonopy]"]
         lines += _get_supercell_dimension_lines(phonopy_supercell_dimension)
         lines += _get_displacement_settings_lines(
-            velph_dict, "phonopy", vip.amplitude, vip.diagonal, vip.plusminus
+            velph_dict,
+            "phonopy",
+            vip.displacement_options.amplitude,
+            vip.displacement_options.diagonal,
+            vip.displacement_options.plusminus,
         )
         lines.append("")
 
@@ -762,7 +794,11 @@ def _get_toml_lines(
         lines += ["[phono3py]"]
         lines += _get_supercell_dimension_lines(phono3py_supercell_dimension)
         lines += _get_displacement_settings_lines(
-            velph_dict, "phono3py", vip.amplitude, vip.diagonal, vip.plusminus
+            velph_dict,
+            "phono3py",
+            vip.displacement_options.amplitude,
+            vip.displacement_options.diagonal,
+            vip.displacement_options.plusminus,
         )
         lines.append("")
 
@@ -1331,9 +1367,9 @@ def _get_phelel_lines(
     velph_dict: dict,
     supercell_dimension: NDArray | None,
     primitive: PhonopyAtoms,
-    amplitude: float | None,
-    diagonal: bool | None,
-    plusminus: bool | None,
+    amplitude: float,
+    diagonal: bool,
+    plusminus: Literal["auto"] | bool,
     phelel_nosym: bool,
 ) -> list:
     lines = []
@@ -1474,9 +1510,9 @@ def _get_supercell_dimension_lines(
 def _get_displacement_settings_lines(
     velph_dict: dict,
     calc_type: Literal["phelel", "phonopy", "phono3py"],
-    amplitude: float | None,
-    diagonal: bool | None,
-    plusminus: bool | None,
+    amplitude: float,
+    diagonal: bool,
+    plusminus: Literal["auto"] | bool,
 ) -> list:
     lines = []
     toml_dict = velph_dict.get(calc_type, {})

@@ -32,6 +32,7 @@ from phelel.velph.cli.init.init import (
 from phelel.velph.cli.utils import (
     CellChoice,
     DefaultCellChoices,
+    DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
     VelphInitParams,
@@ -124,7 +125,7 @@ def test_get_toml_lines_minimum(nacl_cell: PhonopyAtoms):
     unitcell, primitive, sym_dataset = _get_cells(
         input_cell, 1e-5, True, True, PrimitiveCellChoice.STANDARDIZED
     )
-    vip = VelphInitParams(max_num_atoms=100)
+    vip = VelphInitParams(displacement_options=DisplacementOptions(max_num_atoms=100))
     cell_choices = dataclasses.asdict(DefaultCellChoices())
     toml_lines = _get_toml_lines(
         velph_dict,
