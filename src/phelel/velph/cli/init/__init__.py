@@ -307,25 +307,20 @@ def cmd_init(
     else:
         _supercell_matrix = supercell_matrix
 
-    # DisplacementOptions
-    displacement_options = {
-        "amplitude": amplitude,
-        "diagonal": diagonal,
-        "plusminus": plusminus,
-        "max_num_atoms": max_num_atoms,
-        "supercell_matrix": _supercell_matrix,
-    }
-
     vip_cmd_options = {
+        "amplitude": amplitude,
         "cell_for_nac": cell_for_nac,
         "cell_for_relax": cell_for_relax,
-        "displacement_options": displacement_options,
+        "diagonal": diagonal,
         "find_primitive": find_primitive,
         "kspacing": kspacing,
         "kspacing_dense": kspacing_dense,
         "magmom": magmom,
+        "max_num_atoms": max_num_atoms,
         "phelel_nosym": phelel_nosym,
+        "plusminus": plusminus,
         "primitive_cell_choice": primitive_cell_choice,
+        "supercell_matrix": _supercell_matrix,
         "symmetrize_cell": symmetrize_cell,
         "tolerance": tolerance,
         "use_grg": use_grg,
