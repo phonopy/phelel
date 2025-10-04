@@ -315,11 +315,12 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-options"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> options</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize-cell"><code class="docutils literal notranslate"><span class="pre">--symmetrize-cell</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#dim"><code class="docutils literal notranslate"><span class="pre">--dim</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#supercell-matrix"><code class="docutils literal notranslate"><span class="pre">--supercell-matrix</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>
@@ -361,14 +362,14 @@ template hard coded in velph code.</p>
 <section id="tolerance">
 <h3><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code><a class="headerlink" href="#tolerance" title="Link to this heading">#</a></h3>
 <p>This is used for the symmetry check tolerance in Angstrom. Symmetry is searched
-always even without <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>.</p>
+always even without <code class="docutils literal notranslate"><span class="pre">--symmetrize-cell</span></code>.</p>
 </section>
-<section id="symmetrize">
-<h3><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code><a class="headerlink" href="#symmetrize" title="Link to this heading">#</a></h3>
+<section id="symmetrize-cell">
+<h3><code class="docutils literal notranslate"><span class="pre">--symmetrize-cell</span></code><a class="headerlink" href="#symmetrize-cell" title="Link to this heading">#</a></h3>
 <p>By default (no-symmetrize), the input POSCAR-type structure is simply used as
-the unit cell. With <code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code>, input POSCAR-type structure is symmetrized
-and standardized conventional unit cell and primitive cell (“unitcell” and
-“primitive_cell”, respectively) are written in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>.</p>
+the unit cell. With <code class="docutils literal notranslate"><span class="pre">--symmetrize-cell</span></code>, input POSCAR-type structure is
+symmetrized and standardized conventional unit cell and primitive cell
+(“unitcell” and “primitive_cell”, respectively) are written in <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code>.</p>
 </section>
 <section id="no-find-primitive">
 <h3><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code><a class="headerlink" href="#no-find-primitive" title="Link to this heading">#</a></h3>
@@ -383,12 +384,18 @@ VASP <code class="docutils literal notranslate"><span class="pre">KSPACING</span
 <section id="max-num-atoms">
 <h3><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code><a class="headerlink" href="#max-num-atoms" title="Link to this heading">#</a></h3>
 <p>Supercell shape is determined so that its number of atoms is equal or less than
-this number respecting the crystallographic point group.</p>
+this number respecting the crystallographic point group. Use of this option
+requires <code class="docutils literal notranslate"><span class="pre">--symmetrize-cell</span></code>.</p>
 </section>
-<section id="phonopy-max-num-atoms-and-phono3py-max-num-atoms">
-<h3><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code><a class="headerlink" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms" title="Link to this heading">#</a></h3>
-<p>Supercell shapes for phonopy and phono3py are determined in the same manner as
-<code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code>.</p>
+<section id="dim">
+<h3><code class="docutils literal notranslate"><span class="pre">--dim</span></code><a class="headerlink" href="#dim" title="Link to this heading">#</a></h3>
+<p>Supercell shape is determined by three integer values that extend along a, b,
+and c axes of the unit cell, respectively. See also <code class="docutils literal notranslate"><span class="pre">--supercell-matrix</span></code>.</p>
+</section>
+<section id="supercell-matrix">
+<h3><code class="docutils literal notranslate"><span class="pre">--supercell-matrix</span></code><a class="headerlink" href="#supercell-matrix" title="Link to this heading">#</a></h3>
+<p>Supercell shape is determined by nine integer values (v1, …, v9) that
+corresponds to a 3x3 matrix [[v1, v2, v3], [v4, v5, v6], [v7, v8, v9]].</p>
 </section>
 <section id="cell-for-relax">
 <h3><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code><a class="headerlink" href="#cell-for-relax" title="Link to this heading">#</a></h3>
@@ -470,11 +477,12 @@ asterisk symbol (<code class="docutils literal notranslate"><span class="pre">*<
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#velph-init-options"><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">init</span></code> options</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#template-toml"><code class="docutils literal notranslate"><span class="pre">--template-toml</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tolerance"><code class="docutils literal notranslate"><span class="pre">--tolerance</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize"><code class="docutils literal notranslate"><span class="pre">--symmetrize</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#symmetrize-cell"><code class="docutils literal notranslate"><span class="pre">--symmetrize-cell</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#no-find-primitive"><code class="docutils literal notranslate"><span class="pre">--no-find-primitive</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kspacing-and-kspacing-dense"><code class="docutils literal notranslate"><span class="pre">--kspacing</span></code> and <code class="docutils literal notranslate"><span class="pre">--kspacing-dense</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--max-num-atoms</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#phonopy-max-num-atoms-and-phono3py-max-num-atoms"><code class="docutils literal notranslate"><span class="pre">--phonopy-max-num-atoms</span></code> and <code class="docutils literal notranslate"><span class="pre">--phono3py-max-num-atoms</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#dim"><code class="docutils literal notranslate"><span class="pre">--dim</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#supercell-matrix"><code class="docutils literal notranslate"><span class="pre">--supercell-matrix</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-relax"><code class="docutils literal notranslate"><span class="pre">--cell-for-relax</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cell-for-nac"><code class="docutils literal notranslate"><span class="pre">--cell-for-nac</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#primitive-cell-choice"><code class="docutils literal notranslate"><span class="pre">--primitive-cell-choice</span></code></a></li>

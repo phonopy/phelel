@@ -370,8 +370,8 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="velph-subcommands">
 <span id="id1"></span><h1><code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands<a class="headerlink" href="#velph-subcommands" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands, except for <a class="reference internal" href="velph-init.html#velph-init"><span class="std std-ref">velph init</span></a> and <span class="xref std std-ref">velph_hints</span>,
-are explained on this page.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">velph</span></code> subcommands, except for <a class="reference internal" href="velph-init.html#velph-init"><span class="std std-ref">velph init</span></a>, are explained on this
+page.</p>
 <p>The following subcommands must be executed in the directory containing the
 <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> file. This ensures that the directories and files generated are
 properly organized relative to the current directory where <code class="docutils literal notranslate"><span class="pre">velph.toml</span></code> is
@@ -693,9 +693,9 @@ configurations for supercell and displacements can be specified directly in the
 </div>
 <section id="velph-phonopy-init">
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">phonopy</span> <span class="pre">init</span></code><a class="headerlink" href="#velph-phonopy-init" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phonopy<span class="w"> </span>init<span class="w"> </span>--rd<span class="w"> </span><span class="m">10</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phonopy<span class="w"> </span>init
 Displacement<span class="w"> </span>distance:<span class="w"> </span><span class="m">0</span>.03
-Number<span class="w"> </span>of<span class="w"> </span>displacements:<span class="w"> </span><span class="m">10</span>
+Number<span class="w"> </span>of<span class="w"> </span>displacements:<span class="w"> </span><span class="m">4</span>
 Found<span class="w"> </span><span class="s2">&quot;nac&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Read<span class="w"> </span>NAC<span class="w"> </span>params.
 <span class="s2">&quot;phonopy/phonopy_disp.yaml&quot;</span><span class="w"> </span>was<span class="w"> </span>generated.
 VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>generated<span class="w"> </span>by<span class="w"> </span><span class="s2">&quot;velph phonopy generate&quot;</span>.
@@ -707,13 +707,15 @@ VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> <
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>phonopy<span class="w"> </span>generate
 VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-000&quot;</span>.
 VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-001&quot;</span>.
-...
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-002&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-003&quot;</span>.
+VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;phonopy/disp-004&quot;</span>.
 </pre></div>
 </div>
 <p>After completing supercell force calculations using the VASP code, the
 <code class="docutils literal notranslate"><span class="pre">phonopy_params.yaml</span></code> file can be created with the following command:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>phonopy
-%<span class="w"> </span>phonopy<span class="w"> </span>--fz<span class="w"> </span>disp-<span class="o">{</span><span class="m">00000</span>..00010<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
+%<span class="w"> </span>phonopy<span class="w"> </span>--fz<span class="w"> </span>disp-<span class="o">{</span><span class="m">000</span>..004<span class="o">}</span>/vasprun.xml<span class="w"> </span>--sp
 </pre></div>
 </div>
 </section>
