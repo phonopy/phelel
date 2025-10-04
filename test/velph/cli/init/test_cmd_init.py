@@ -51,14 +51,14 @@ def test_run_init_read_cell(
 ):
     """Test combinatons of symmetrize_cell and find_primitive options in run_init .
 
-    Command options: --symmetrize --no-find-primitive
+    Command options: --symmetrize-cell --no-find-primitive
 
     """
     cell_filepath = cwd / "POSCAR_NaCl"
     cmd_init_options = {
         "symmetrize_cell": symmetrize_cell,
         "find_primitive": find_primitive,
-        "max_num_atoms": 120,
+        "supercell_dimension": [2, 2, 2],
     }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
@@ -89,7 +89,11 @@ def test_run_init_read_cell_and_magmom():
     """Test read_magmom."""
     cell_filepath = cwd / "POSCAR_NaCl"
     magmom = "1 1 1 1 -1 -1 -1 -1"
-    cmd_init_options = {"find_primitive": True, "max_num_atoms": 120, "magmom": magmom}
+    cmd_init_options = {
+        "find_primitive": True,
+        "supercell_dimension": [2, 2, 2],
+        "magmom": magmom,
+    }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
     assert toml_lines is not None
@@ -111,7 +115,11 @@ def test_run_init_without_max_num_atoms(
     template_str = "\n".join([]).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(nacl_cell, {}, velph_template_fp=velph_template_fp)
-    assert toml_lines is None
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert "phelel" in velph_dict
+    assert "supercell_dimension" not in velph_dict["phelel"]
+    assert "supercell_matrix" not in velph_dict["phelel"]
 
 
 def test_get_toml_lines_minimum(nacl_cell: PhonopyAtoms):
@@ -150,10 +158,11 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
     velph_dict = _get_velph_dict(velph_template_dict)
     template_init_params = _get_template_init_params(velph_template_dict)
     vip = _collect_init_params(
-        cmd_init_options={"max_num_atoms": 120},
+        cmd_init_options={"supercell_dimension": [2, 2, 2]},
         template_init_params=template_init_params,
         template_toml_filepath=pathlib.Path(""),
     )
+    assert vip is not None
     unitcell, primitive, sym_dataset = _get_cells(
         input_cell,
         vip.tolerance,
@@ -188,7 +197,7 @@ def test_run_init_cmd_option_cell_choices(
 
     """
     cell_filepath = cwd / "POSCAR_NaCl"
-    cmd_init_options: dict = {"max_num_atoms": 120}
+    cmd_init_options: dict = {"supercell_dimension": [2, 2, 2]}
     if cell_for_relax:
         cmd_init_options["cell_for_relax"] = cell_for_relax
     if cell_for_nac:
@@ -217,7 +226,7 @@ def test_run_init_template_init_options_cell_choices(
 
     """
     input_cell = nacl_cell
-    template_lines = ["[init.options]", "max_num_atoms = 120"]
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
     if cell_for_relax:
         template_lines += [f'cell_for_relax = "{cell_for_relax}"']
     if cell_for_nac:
@@ -247,7 +256,7 @@ def test_run_init_template_vasp_calc_cell_cell_choices(
 
     """
     input_cell = nacl_cell
-    template_lines = ["[init.options]", "max_num_atoms = 120"]
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
     if cell_for_relax:
         template_lines += ["[vasp.relax]", f'cell = "{cell_for_relax}"']
     if cell_for_nac:
@@ -290,7 +299,7 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
     input_cell = nacl_cell
     velph_template_fp = None
 
-    template_lines = ["[init.options]", "max_num_atoms = 120"]
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
     if cell_for_calc:
         template_lines += [f'cell_for_{calc_type} = "{cell_for_calc}"']
     if vasp_calc_cell:
@@ -298,7 +307,7 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
         template_lines += [f'cell = "{vasp_calc_cell}"']
     velph_template_fp = io.BytesIO("\n".join(template_lines).encode("utf-8"))
 
-    cmd_init_options: dict = {"max_num_atoms": 120}
+    cmd_init_options: dict = {"supercell_dimension": (2, 2, 2)}
     if cell_for_calc_cmd:
         cmd_init_options[f"cell_for_{calc_type}"] = cell_for_calc_cmd
     toml_lines = _run_init(
@@ -326,8 +335,11 @@ def test_run_init_show_toml(symmetrize_cell: bool):
     vip = {"symmetrize_cell": symmetrize_cell, "max_num_atoms": 120}
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(vip, vfp)
-    assert toml_lines is not None
-    print("\n".join(toml_lines))
+    if symmetrize_cell:
+        assert toml_lines is not None
+        print("\n".join(toml_lines))
+    else:
+        assert toml_lines is None
 
 
 @pytest.mark.parametrize(
@@ -347,7 +359,7 @@ def test_run_init_template_amplitude(
 
     """
     input_cell = nacl_cell
-    template_lines = ["[init.options]", "max_num_atoms = 120"]
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
     cmd_options = {}
     if in_template:
         template_lines += ["amplitude = 0.06"]
@@ -389,6 +401,7 @@ def test_run_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
         "diagonal": diagonal,
         "amplitude": 0.05,
         "max_num_atoms": 80,
+        "symmetrize_cell": True,
     }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(command_options, vfp)
@@ -421,7 +434,13 @@ def test_run_init_with_use_grg(
     )
     input_cell = tio2_prim_cell
     toml_lines = _run_init(
-        input_cell, {"use_grg": True, "kspacing": kspacing, "max_num_atoms": 120}
+        input_cell,
+        {
+            "use_grg": True,
+            "kspacing": kspacing,
+            "max_num_atoms": 120,
+            "symmetrize_cell": True,
+        },
     )
     # print("\n".join(toml_lines))
     assert toml_lines is not None
@@ -458,7 +477,11 @@ def test_run_init_with_primitive_cell_choice(
     input_cell = bi2te3_prim_cell
     toml_lines = _run_init(
         input_cell,
-        {"primitive_cell_choice": primitive_cell_choice, "max_num_atoms": 12},
+        {
+            "primitive_cell_choice": primitive_cell_choice,
+            "max_num_atoms": 12,
+            "symmetrize_cell": True,
+        },
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
@@ -492,7 +515,9 @@ def test_run_init_template_with_vasp_incar(
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(
-        input_cell, {"max_num_atoms": 120}, velph_template_fp=velph_template_fp
+        input_cell,
+        {"max_num_atoms": 120, "symmetrize_cell": True},
+        velph_template_fp=velph_template_fp,
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
@@ -516,7 +541,9 @@ def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(
-        input_cell, {"max_num_atoms": 120}, velph_template_fp=velph_template_fp
+        input_cell,
+        {"max_num_atoms": 120, "symmetrize_cell": True},
+        velph_template_fp=velph_template_fp,
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))

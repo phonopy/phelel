@@ -1,8 +1,8 @@
 (velph_subcommands)=
 # `velph` subcommands
 
-The `velph` subcommands, except for {ref}`velph_init` and {ref}`velph_hints`,
-are explained on this page.
+The `velph` subcommands, except for {ref}`velph_init`, are explained on this
+page.
 
 The following subcommands must be executed in the directory containing the
 `velph.toml` file. This ensures that the directories and files generated are

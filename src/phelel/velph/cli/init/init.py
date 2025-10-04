@@ -130,6 +130,8 @@ def _run_init(
     vip = _collect_init_params(
         cmd_init_options, template_init_params, template_toml_filepath
     )
+    if vip is None:
+        return None
 
     #
     # Set magnetic moments
@@ -175,13 +177,34 @@ def _run_init(
     return toml_lines
 
 
-def _get_supercell_dimension(
+def _get_supercell_matrix(
+    vip: VelphInitParams,
+    velph_dict: dict,
+    sym_dataset: SpglibDataset,
+    calc_type: Literal["phelel", "phonopy", "phono3py"],
+) -> NDArray | None:
+    displacement_options = getattr(vip, f"{calc_type}_displacement_options")
+    if displacement_options is None:
+        displacement_options = vip.displacement_options
+    return _select_supercell_matrix(
+        velph_dict.get(calc_type, {}),
+        sym_dataset,
+        vip.find_primitive,
+        max_num_atoms=displacement_options.max_num_atoms,
+        supercell_dimension=displacement_options.supercell_dimension,
+        supercell_matrix=displacement_options.supercell_matrix,
+    )
+
+
+def _select_supercell_matrix(
     velph_dict_calc_type: dict,
-    max_num_atoms: int | None,
     sym_dataset: SpglibDataset,
     find_primitive: bool,
+    max_num_atoms: int | None = None,
+    supercell_dimension: tuple[int, int, int] | None = None,
+    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None,
 ) -> NDArray | None:
-    """Return supercell dimension.
+    """Return 3x3 supercell matrix.
 
     This function is used to determine supercell dimension for velph-init.
 
@@ -189,13 +212,18 @@ def _get_supercell_dimension(
     ----------
     velph_dict_calc_type : dict
         velph-toml data of calc_type.
-    max_num_atoms : int, optional
-        Maximum number of atoms in the supercell. Supercell is constructed
-        to preserve the point group of the lattice.
     sym_dataset : SpglibDataset
         Symmetry dataset of the input cell.
     find_primitive : bool
         When True, supercell is constructured
+    max_num_atoms : int, optional
+        Maximum number of atoms in the supercell. Supercell is constructed to
+        preserve the point group of the lattice.
+    supercell_dimension : tuple of 3 int, optional
+        Supercell dimension. If this is given, it is used as diagonal elements
+        of the supercell matrix.
+    supercell_matrix : tuple of 9 int, optional
+        Supercell matrix. If this is given, it is used as the supercell matrix.
 
     """
     if max_num_atoms is not None:
@@ -205,18 +233,20 @@ def _get_supercell_dimension(
             ).astype(int)
         else:
             _max_num_atoms = max_num_atoms
-        supercell_dimension = shape_supercell_matrix(
+        _supercell_matrix = shape_supercell_matrix(
             estimate_supercell_matrix(sym_dataset, max_num_atoms=_max_num_atoms)
         )
+    elif supercell_dimension is not None:
+        _supercell_matrix = shape_supercell_matrix(supercell_dimension)
+    elif supercell_matrix is not None:
+        _supercell_matrix = shape_supercell_matrix(supercell_matrix)
     else:
-        try:
-            supercell_dimension = shape_supercell_matrix(
-                velph_dict_calc_type["supercell_dimension"]
-            )
-        except KeyError:
-            return None
+        _supercell_matrix = None
+        for key in ("supercell_dimension", "supercell_matrix"):
+            if key in velph_dict_calc_type:
+                _supercell_matrix = shape_supercell_matrix(velph_dict_calc_type[key])
 
-    return supercell_dimension
+    return _supercell_matrix
 
 
 def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict:
@@ -272,7 +302,7 @@ def _collect_init_params(
     cmd_init_options: dict,
     template_init_params: dict,
     template_toml_filepath: str | os.PathLike | None,
-) -> VelphInitParams:
+) -> VelphInitParams | None:
     """Merge init params defined different places.
 
     Init parameters were collected in the following order. For the same
@@ -391,6 +421,18 @@ def _collect_init_params(
     # DisplacementOptions is treated specially.
     if displacement_options:
         vip_dict["displacement_options"] = DisplacementOptions(**displacement_options)
+
+    # Treatment of correlation among parameters
+    if "max_num_atoms" in displacement_options:
+        if "symmetrize_cell" not in vip_dict or vip_dict["symmetrize_cell"] is False:
+            msg = """
+------------------------------- ERROR -------------------------------
+"max_num_atoms" requires "symmetrize_cell=true" (--symmetrize-cell).
+For "symmetrize_cell=false", use "supercell_dimension" (--dim) or
+"supercell_matrix" (--supercell-matrix).
+---------------------------------------------------------------------"""
+            click.echo(msg, err=True)
+            return None
 
     vip = VelphInitParams(**vip_dict)
 
@@ -632,95 +674,18 @@ def _get_toml_lines(
     phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Return velph-toml lines."""
-    # Parse [phelel] section for supercell dimension
     assert vip.displacement_options is not None
-    supercell_dimension = _get_supercell_dimension(
-        velph_dict.get("phelel", {}),
-        vip.displacement_options.max_num_atoms,
-        sym_dataset,
-        vip.find_primitive,
-    )
-    if supercell_dimension is not None:
-        click.echo("[phelel]")
-        _show_supercell_dimension(supercell_dimension)
-
-    # Parse [phonopy] section for supercell dimension
-    if vip.phonopy_displacement_options is None:
-        max_num_atoms = vip.displacement_options.max_num_atoms
-    else:
-        max_num_atoms = vip.phonopy_displacement_options.max_num_atoms
-    phonopy_supercell_dimension = _get_supercell_dimension(
-        velph_dict.get("phonopy", {}),
-        max_num_atoms,
-        sym_dataset,
-        vip.find_primitive,
-    )
-    if phonopy_supercell_dimension is not None:
-        click.echo("[phonopy]")
-        _show_supercell_dimension(phonopy_supercell_dimension)
-
-    # Parse [phono3py] section for supercell dimension
-    if vip.phono3py_displacement_options is None:
-        max_num_atoms = vip.displacement_options.max_num_atoms
-    else:
-        max_num_atoms = vip.phono3py_displacement_options.max_num_atoms
-    phono3py_supercell_dimension = _get_supercell_dimension(
-        velph_dict.get("phono3py", {}),
-        max_num_atoms,
-        sym_dataset,
-        vip.find_primitive,
-    )
-    if phono3py_supercell_dimension is not None:
-        click.echo("[phono3py]")
-        _show_supercell_dimension(phono3py_supercell_dimension)
-
-    if (
-        supercell_dimension is None
-        and phonopy_supercell_dimension is None
-        and phono3py_supercell_dimension is None
-    ):
-        if "phelel" in velph_dict and supercell_dimension is None:
-            click.echo("", err=True)
-            click.echo(
-                "Error | Supercell size for phelel could not be determined.", err=True
-            )
-            click.echo(
-                "      | Specify --max-num-atoms or [phelel.supercell_dimension].",
-                err=True,
-            )
-            return None
-
-        if (
-            "phonopy" in velph_dict
-            and supercell_dimension is None
-            and phonopy_supercell_dimension is None
-        ):
-            click.echo("", err=True)
-            click.echo(
-                "Error | Supercell size for phonopy could not be determined.", err=True
-            )
-            click.echo(
-                "      | Specify --max-num-atoms, --phonopy-max-num-atoms or "
-                "[phonopy.supercell_dimension].",
-                err=True,
-            )
-            return None
-
-        if (
-            "phono3py" in velph_dict
-            and supercell_dimension is None
-            and phono3py_supercell_dimension is None
-        ):
-            click.echo("", err=True)
-            click.echo(
-                "Error | Supercell size for phono3py could not be determined.", err=True
-            )
-            click.echo(
-                "      | Specify --max-num-atoms, --phono3py-max-num-atoms or "
-                "[phono3py.supercell_dimension].",
-                err=True,
-            )
-            return None
+    supercell_matrices = {}
+    for calc_type in ("phelel", "phonopy", "phono3py"):
+        supercell_matrices[calc_type] = _get_supercell_matrix(
+            vip,
+            velph_dict,
+            sym_dataset,
+            calc_type,
+        )
+        click.echo(f"[{calc_type}]")
+        if supercell_matrices[calc_type] is not None:
+            _show_supercell_dimension(supercell_matrices[calc_type])
 
     (
         kpoints_dict,
@@ -735,9 +700,7 @@ def _get_toml_lines(
         unitcell,
         primitive,
         sym_dataset,
-        supercell_dimension,
-        phonopy_supercell_dimension,
-        phono3py_supercell_dimension,
+        supercell_matrices,
         cell_choices["nac"],
         cell_choices["relax"],
         phelel_dir_name=phelel_dir_name,
@@ -768,7 +731,7 @@ def _get_toml_lines(
     if "phelel" in velph_dict:
         lines += _get_phelel_lines(
             velph_dict,
-            supercell_dimension,
+            supercell_matrices["phelel"],
             primitive,
             vip.displacement_options.amplitude,
             vip.displacement_options.diagonal,
@@ -776,31 +739,22 @@ def _get_toml_lines(
             vip.phelel_nosym,
         )
 
-    # [phonopy]
-    if phonopy_supercell_dimension is not None:
-        lines += ["[phonopy]"]
-        lines += _get_supercell_dimension_lines(phonopy_supercell_dimension)
-        lines += _get_displacement_settings_lines(
-            velph_dict,
-            "phonopy",
-            vip.displacement_options.amplitude,
-            vip.displacement_options.diagonal,
-            vip.displacement_options.plusminus,
-        )
-        lines.append("")
-
-    # [phono3py]
-    if phono3py_supercell_dimension is not None:
-        lines += ["[phono3py]"]
-        lines += _get_supercell_dimension_lines(phono3py_supercell_dimension)
-        lines += _get_displacement_settings_lines(
-            velph_dict,
-            "phono3py",
-            vip.displacement_options.amplitude,
-            vip.displacement_options.diagonal,
-            vip.displacement_options.plusminus,
-        )
-        lines.append("")
+    # [phonopy], [phono3py]
+    for calc_type in ("phonopy", "phono3py"):
+        displacement_options = getattr(vip, f"{calc_type}_displacement_options")
+        if displacement_options is None:
+            displacement_options = vip.displacement_options
+        if supercell_matrices[calc_type] is not None:
+            lines += [f"[{calc_type}]"]
+            lines += _get_supercell_matrix_lines(supercell_matrices[calc_type])
+            lines += _get_displacement_settings_lines(
+                velph_dict,
+                calc_type,
+                displacement_options.amplitude,
+                displacement_options.diagonal,
+                displacement_options.plusminus,
+            )
+            lines.append("")
 
     # [vasp.*]
     if "vasp" in velph_dict:
@@ -817,8 +771,18 @@ def _get_toml_lines(
 
     # [scheduler]
     if "scheduler" in velph_dict:
+        scheduler_dict = {
+            key: val
+            for key, val in velph_dict["scheduler"].items()
+            if key != "scheduler_template"
+        }
+        scheduler_template_str = velph_dict["scheduler"].get("scheduler_template")
         lines.append("[scheduler]")
-        lines.append(tomli_w.dumps(velph_dict["scheduler"]))
+        lines.append(tomli_w.dumps(scheduler_dict).strip())
+        if scheduler_template_str is not None:
+            lines.append('scheduler_template = """\\')
+            lines.append(f'{scheduler_template_str}"""')
+        lines.append("")
 
     # [symmetry]
     if sym_dataset is not None:
@@ -894,9 +858,7 @@ def _get_kpoints_dict(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     sym_dataset: SpglibDataset,
-    supercell_dimension: NDArray | None,
-    phonopy_supercell_dimension: NDArray | None,
-    phono3py_supercell_dimension: NDArray | None,
+    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
     phelel_dir_name: str = "phelel",
@@ -922,47 +884,19 @@ def _get_kpoints_dict(
     )
 
     # Grid matrix for supercell
-    if supercell_dimension is not None:
-        supercell = get_supercell(unitcell, supercell_dimension)
-        sym_dataset_super = get_symmetry_dataset(supercell, tolerance=vip_tolerance)
-        gm_super = GridMatrix(
-            2 * np.pi / vip_kspacing,
-            lattice=supercell.cell,
-            symmetry_dataset=sym_dataset_super,
-            use_grg=False,
-        )
-    else:
-        gm_super = None
-
-    # Grid matrix for phonopy supercell
-    if phonopy_supercell_dimension is not None:
-        phonopy_supercell = get_supercell(unitcell, phonopy_supercell_dimension)
-        sym_dataset_super = get_symmetry_dataset(
-            phonopy_supercell, tolerance=vip_tolerance
-        )
-        gm_phonopy_super = GridMatrix(
-            2 * np.pi / vip_kspacing,
-            lattice=phonopy_supercell.cell,
-            symmetry_dataset=sym_dataset_super,
-            use_grg=False,
-        )
-    else:
-        gm_phonopy_super = gm_super
-
-    # Grid matrix for phono3py supercell
-    if phono3py_supercell_dimension is not None:
-        phono3py_supercell = get_supercell(unitcell, phono3py_supercell_dimension)
-        sym_dataset_super = get_symmetry_dataset(
-            phono3py_supercell, tolerance=vip_tolerance
-        )
-        gm_phono3py_super = GridMatrix(
-            2 * np.pi / vip_kspacing,
-            lattice=phono3py_supercell.cell,
-            symmetry_dataset=sym_dataset_super,
-            use_grg=False,
-        )
-    else:
-        gm_phono3py_super = gm_super
+    supercell_grid_matrices = {}
+    for calc_type in ("phelel", "phonopy", "phono3py"):
+        if supercell_matrices[calc_type] is not None:
+            _supercell = get_supercell(unitcell, supercell_matrices[calc_type])
+            _sym_dataset = get_symmetry_dataset(_supercell, tolerance=vip_tolerance)
+            supercell_grid_matrices[calc_type] = GridMatrix(
+                2 * np.pi / vip_kspacing,
+                lattice=_supercell.cell,
+                symmetry_dataset=_sym_dataset,
+                use_grg=False,
+            )
+        else:
+            supercell_grid_matrices[calc_type] = None
 
     # Dense grid matrix for primitive cell
     gm_dense_prim = GridMatrix(
@@ -976,9 +910,7 @@ def _get_kpoints_dict(
     kpoints_dict = _get_kpoints_by_kspacing(
         gm,
         gm_prim,
-        gm_super,
-        gm_phonopy_super,
-        gm_phono3py_super,
+        supercell_grid_matrices,
         cell_for_nac,
         cell_for_relax,
         phelel_dir_name=phelel_dir_name,
@@ -1014,15 +946,6 @@ def _update_kpoints_by_vasp_dict(
             qpoints_dict[key] = calc_type_dict["qpoints"]
         if "kpoints_opt" in calc_type_dict:
             kpoints_opt_dict[key] = calc_type_dict["kpoints_opt"]
-
-
-def _get_dict_by_split_dots(dict_in: dict, string: str) -> dict:
-    """Return dict by splitting string."""
-    keys = string.split(".")
-    _dict_in = dict_in
-    for key in keys:
-        _dict_in = _dict_in.get(key, {})
-    return _dict_in
 
 
 def _show_kpoints_lines(
@@ -1074,9 +997,7 @@ def _show_kpoints_lines(
 def _get_kpoints_by_kspacing(
     gm: GridMatrix,
     gm_prim: GridMatrix,
-    gm_super: GridMatrix | None,
-    gm_phonopy_super: GridMatrix | None,
-    gm_phono3py_super: GridMatrix | None,
+    supercell_grid_matrices: dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
     phelel_dir_name: str = "phelel",
@@ -1089,12 +1010,8 @@ def _get_kpoints_by_kspacing(
         Grid matrix of unit cell.
     gm_prim : GridMatrix
         Grid matrix of primitive cell. The primitive cell can be a reduced cell.
-    gm_super : GridMatrix
-        Grid matrix of phelel supercell.
-    gm_phonopy_super : GridMatrix
-        Grid matrix of phonopy supercell.
-    gm_phono3py_super : GridMatrix
-        Grid matrix of phono3py supercell.
+    supercell_grid_matrices : dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix]
+        Grid matrices of phelel, phonopy, and phono3py supercells.
     cell_for_nac : CellChoice
         Cell choice for NAC calculation among unit cell or primitive cell. The
         primitive cell can be a reduced cell.
@@ -1109,37 +1026,20 @@ def _get_kpoints_by_kspacing(
         be calc_type names such as "phelel", "phelel.phonon", "selfenergy", etc.
 
     """
-    if gm_super is not None:
-        if gm_super.grid_matrix is None:
-            supercell_kpoints = {"mesh": gm_super.D_diag}
+    kpoints_of_supercells = {}
+    for calc_type in ("phelel", "phonopy", "phono3py"):
+        gm_super = supercell_grid_matrices[calc_type]
+        if gm_super is not None:
+            if gm_super.grid_matrix is None:
+                kpoints_of_supercells[calc_type] = {"mesh": gm_super.D_diag}
+            else:
+                kpoints_of_supercells[calc_type] = {
+                    "mesh": gm_super.grid_matrix,
+                    "D_diag": gm_super.D_diag,
+                }
         else:
-            supercell_kpoints = {
-                "mesh": gm_super.grid_matrix,
-                "D_diag": gm_super.D_diag,
-            }
-    else:
-        supercell_kpoints = None
-    if gm_phonopy_super is not None:
-        if gm_phonopy_super.grid_matrix is None:
-            phonopy_supercell_kpoints = {"mesh": gm_phonopy_super.D_diag}
-        else:
-            phonopy_supercell_kpoints = {
-                "mesh": gm_phonopy_super.grid_matrix,
-                "D_diag": gm_phonopy_super.D_diag,
-            }
-    else:
-        phonopy_supercell_kpoints = None
-    if gm_phono3py_super is not None:
-        if gm_phono3py_super.grid_matrix is None:
-            phono3py_supercell_kpoints = {"mesh": gm_phono3py_super.D_diag}
-        else:
-            phono3py_supercell_kpoints = {
-                "mesh": gm_phono3py_super.grid_matrix,
-                "D_diag": gm_phono3py_super.D_diag,
-            }
+            kpoints_of_supercells[calc_type] = None
 
-    else:
-        phono3py_supercell_kpoints = None
     if gm_prim.grid_matrix is None:
         selfenergy_kpoints = {"mesh": gm_prim.D_diag}
         el_bands_kpoints = {"mesh": gm_prim.D_diag}
@@ -1174,9 +1074,9 @@ def _get_kpoints_by_kspacing(
 
     # keys are calc_types.
     kpoints_dict = {
-        phelel_dir_name: supercell_kpoints,
-        "phonopy": phonopy_supercell_kpoints,
-        "phono3py": phono3py_supercell_kpoints,
+        phelel_dir_name: kpoints_of_supercells["phelel"],
+        "phonopy": kpoints_of_supercells["phonopy"],
+        "phono3py": kpoints_of_supercells["phono3py"],
         "relax": relax_kpoints,
         "nac": nac_kpoints,
         "el_bands.dos": el_bands_kpoints,
@@ -1365,7 +1265,7 @@ def _merge_incar_commons(incar: dict, incar_commons: dict):
 
 def _get_phelel_lines(
     velph_dict: dict,
-    supercell_dimension: NDArray | None,
+    supercell_matrix: NDArray | None,
     primitive: PhonopyAtoms,
     amplitude: float,
     diagonal: bool,
@@ -1376,8 +1276,8 @@ def _get_phelel_lines(
     lines.append("[phelel]")
     lines.append(f'version = "{__version__}"')
 
-    if supercell_dimension is not None:
-        lines += _get_supercell_dimension_lines(supercell_dimension)
+    if supercell_matrix is not None:
+        lines += _get_supercell_matrix_lines(supercell_matrix)
         lines += _get_displacement_settings_lines(
             velph_dict, "phelel", amplitude, diagonal, plusminus
         )
@@ -1479,16 +1379,15 @@ def _get_cell_toml_lines(
 
 
 def _show_supercell_dimension(dim: NDArray) -> None:
-    key = "supercell_dimension"
     if np.array_equal(dim, np.diag(dim.diagonal())):
-        click.echo(f"  {key}: {dim.diagonal()}")
+        click.echo(f"  supercell_dimension: {dim.diagonal()}")
     else:
-        click.echo(f"  {key}:")
+        click.echo("  supercell_matrix:")
         for v in dim:
             click.echo(f"    {v}")
 
 
-def _get_supercell_dimension_lines(
+def _get_supercell_matrix_lines(
     supercell_dimension: NDArray,
 ) -> list:
     lines = []
@@ -1500,7 +1399,7 @@ def _get_supercell_dimension_lines(
         )
     else:
         fmt_str = (
-            "supercell_dimension = "
+            "supercell_matrix = "
             "[[{:d}, {:d}, {:d}], [{:d}, {:d}, {:d}], [{:d}, {:d}, {:d}]]"
         )
         lines.append(fmt_str.format(*np.ravel(supercell_dimension)))
@@ -1515,14 +1414,14 @@ def _get_displacement_settings_lines(
     plusminus: Literal["auto"] | bool,
 ) -> list:
     lines = []
-    toml_dict = velph_dict.get(calc_type, {})
-    if "amplitude" in toml_dict:
-        lines.append(f"amplitude = {toml_dict['amplitude']}")
+    calc_dict = velph_dict.get(calc_type, {})
+    if "amplitude" in calc_dict:
+        lines.append(f"amplitude = {calc_dict['amplitude']}")
     else:
         lines.append(f"amplitude = {amplitude}")
 
-    if "diagonal" in toml_dict:
-        _diagonal = toml_dict["diagonal"]
+    if "diagonal" in calc_dict:
+        _diagonal = calc_dict["diagonal"]
     else:
         _diagonal = diagonal
     assert isinstance(_diagonal, bool)
@@ -1531,8 +1430,8 @@ def _get_displacement_settings_lines(
     else:
         lines.append("diagonal = false")
 
-    if "plusminus" in toml_dict:
-        _plusminus = toml_dict["plusminus"]
+    if "plusminus" in calc_dict:
+        _plusminus = calc_dict["plusminus"]
     else:
         if plusminus is False:
             _plusminus = "auto"

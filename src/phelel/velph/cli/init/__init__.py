@@ -82,18 +82,6 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
-    "--supercell-matrix",
-    "supercell_matrix",
-    nargs=9,
-    type=int,
-    default=None,
-    help=(
-        "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0."
-        "(supercell_matrix: tuple[int, ...], "
-        f"default={DisplacementOptions.supercell_matrix})"
-    ),
-)
-@click.option(
     "--force",
     "force_create",
     is_flag=True,
@@ -140,7 +128,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     type=int,
     help=(
         "Determine supercell dimension so that number of atoms in supercell "
-        "is less than this number. "
+        "is less than this number. This must be used with --symmmetrize-cell. "
         f"(max_num_atoms: int, default={DisplacementOptions.max_num_atoms})"
     ),
 )
@@ -194,6 +182,18 @@ from phelel.velph.utils.vasp import VaspPotcar
         'Primitive cell choice, "standardized" or "reduced" '
         "(primitive_cell_choice: str, "
         f'default="{PrimitiveCellChoice.STANDARDIZED.value}")'
+    ),
+)
+@click.option(
+    "--supercell-matrix",
+    "supercell_matrix",
+    nargs=9,
+    type=int,
+    default=None,
+    help=(
+        "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0."
+        "(supercell_matrix: tuple[int, ...], "
+        f"default={DisplacementOptions.supercell_matrix})"
     ),
 )
 @click.option(
@@ -292,21 +292,6 @@ def cmd_init(
         click.echo(f'"{cell_filename}" not found.', err=True)
         return
 
-    if supercell_dimension is not None and supercell_matrix is None:
-        _supercell_matrix = (
-            supercell_dimension[0],
-            0,
-            0,
-            0,
-            supercell_dimension[1],
-            0,
-            0,
-            0,
-            supercell_dimension[2],
-        )
-    else:
-        _supercell_matrix = supercell_matrix
-
     vip_cmd_options = {
         "amplitude": amplitude,
         "cell_for_nac": cell_for_nac,
@@ -320,7 +305,8 @@ def cmd_init(
         "phelel_nosym": phelel_nosym,
         "plusminus": plusminus,
         "primitive_cell_choice": primitive_cell_choice,
-        "supercell_matrix": _supercell_matrix,
+        "supercell_dimension": supercell_dimension,
+        "supercell_matrix": supercell_matrix,
         "symmetrize_cell": symmetrize_cell,
         "tolerance": tolerance,
         "use_grg": use_grg,
@@ -339,7 +325,8 @@ def cmd_init(
             click.echo(f'Project directory: "{project_folder}".')
         else:
             click.echo(f'File or folder "{project_folder}" already exists.')
-            return
+            if not force_create:
+                return
 
     if template_toml_filename is not None:
         velph_tmpl_filepath = pathlib.Path(template_toml_filename)

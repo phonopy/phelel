@@ -72,6 +72,7 @@ class DisplacementOptions:
     max_num_atoms: int | None = None
     number_of_snapshots: int | None = None
     plusminus: bool | Literal["auto"] = True
+    supercell_dimension: tuple[int, int, int] | None = None
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
 
 
