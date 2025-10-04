@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional
 
 import click
 import numpy as np
@@ -17,7 +16,7 @@ from phelel.velph.cli.utils import get_nac_params
 def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
-) -> Optional[Phelel]:
+) -> Phelel:
     """Generate supercell and displacements.
 
     current_directory : Path
@@ -25,12 +24,18 @@ def run_init(
 
     """
     convcell = parse_cell_dict(toml_dict["unitcell"])
-    supercell_matrix = toml_dict["phelel"].get("supercell_dimension", None)
-    phonon_supercell_matrix = toml_dict["phelel"].get(
-        "phonon_supercell_dimension", None
-    )
+    assert convcell is not None
+    supercell_matrix = None
+    phonon_supercell_matrix = None
+    for key in ("supercell_dimension", "supercell_matrix"):
+        if key in toml_dict["phelel"]:
+            supercell_matrix = toml_dict["phelel"][key]
+    for key in ("phonon_supercell_dimension", "phonon_supercell_matrix"):
+        if key in toml_dict["phelel"]:
+            phonon_supercell_matrix = toml_dict["phelel"][key]
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
+        assert primitive is not None
         primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
     else:
         primitive = convcell

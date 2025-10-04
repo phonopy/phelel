@@ -29,7 +29,10 @@ def run_init(
 
     convcell = parse_cell_dict(toml_dict["unitcell"])
     assert convcell is not None
-    supercell_matrix = toml_dict["phonopy"].get("supercell_dimension", None)
+    supercell_matrix = None
+    for key in ("supercell_dimension", "supercell_matrix"):
+        if key in toml_dict["phonopy"]:
+            supercell_matrix = toml_dict["phonopy"][key]
     if "primitive_cell" in toml_dict:
         primitive = parse_cell_dict(toml_dict["primitive_cell"])
         assert primitive is not None
