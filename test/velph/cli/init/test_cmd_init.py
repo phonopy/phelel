@@ -35,6 +35,7 @@ from phelel.velph.cli.utils import (
     DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
+    VelphInitOptions,
     VelphInitParams,
     get_symmetry_dataset,
 )
@@ -55,11 +56,13 @@ def test_run_init_read_cell(
 
     """
     cell_filepath = cwd / "POSCAR_NaCl"
-    cmd_init_options = {
-        "symmetrize_cell": symmetrize_cell,
-        "find_primitive": find_primitive,
-        "supercell_dimension": [2, 2, 2],
-    }
+    cmd_init_options = VelphInitOptions(
+        **{
+            "symmetrize_cell": symmetrize_cell,
+            "find_primitive": find_primitive,
+            "supercell_dimension": [2, 2, 2],
+        }
+    )
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
     assert toml_lines is not None
@@ -89,11 +92,11 @@ def test_run_init_read_cell_and_magmom():
     """Test read_magmom."""
     cell_filepath = cwd / "POSCAR_NaCl"
     magmom = "1 1 1 1 -1 -1 -1 -1"
-    cmd_init_options = {
-        "find_primitive": True,
-        "supercell_dimension": [2, 2, 2],
-        "magmom": magmom,
-    }
+    cmd_init_options = VelphInitOptions(
+        find_primitive=True,
+        supercell_dimension=(2, 2, 2),
+        magmom=magmom,
+    )
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(cmd_init_options, vfp)
     assert toml_lines is not None
@@ -114,7 +117,9 @@ def test_run_init_without_max_num_atoms(
     """Test run_init without max_num_atoms."""
     template_str = "\n".join([]).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
-    toml_lines = _run_init(nacl_cell, {}, velph_template_fp=velph_template_fp)
+    toml_lines = _run_init(
+        nacl_cell, VelphInitOptions(), velph_template_fp=velph_template_fp
+    )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     assert "phelel" in velph_dict
@@ -156,9 +161,9 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
     input_cell = nacl_cell
     velph_template_dict = _parse_velph_template(velph_template_fp=io.BytesIO(b""))
     velph_dict = _get_velph_dict(velph_template_dict)
-    template_init_params = _get_template_init_params(velph_template_dict)
+    template_init_params = _get_template_init_params(velph_template_dict, None)
     vip = _collect_init_params(
-        cmd_init_options={"supercell_dimension": [2, 2, 2]},
+        cmd_init_options=VelphInitOptions(supercell_dimension=(2, 2, 2)),
         template_init_params=template_init_params,
         template_toml_filepath=pathlib.Path(""),
     )
@@ -197,13 +202,13 @@ def test_run_init_cmd_option_cell_choices(
 
     """
     cell_filepath = cwd / "POSCAR_NaCl"
-    cmd_init_options: dict = {"supercell_dimension": [2, 2, 2]}
+    cmd_init_options: dict = {"supercell_dimension": (2, 2, 2)}
     if cell_for_relax:
         cmd_init_options["cell_for_relax"] = cell_for_relax
     if cell_for_nac:
         cmd_init_options["cell_for_nac"] = cell_for_nac
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
-    toml_lines = run_init(cmd_init_options, vfp)
+    toml_lines = run_init(VelphInitOptions(**cmd_init_options), vfp)
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
@@ -233,7 +238,9 @@ def test_run_init_template_init_options_cell_choices(
         template_lines += [f'cell_for_nac = "{cell_for_nac}"']
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
-    toml_lines = _run_init(input_cell, {}, velph_template_fp=velph_template_fp)
+    toml_lines = _run_init(
+        input_cell, VelphInitOptions(), velph_template_fp=velph_template_fp
+    )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
@@ -263,7 +270,9 @@ def test_run_init_template_vasp_calc_cell_cell_choices(
         template_lines += ["[vasp.nac]", f'cell = "{cell_for_nac}"']
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
-    toml_lines = _run_init(input_cell, {}, velph_template_fp=velph_template_fp)
+    toml_lines = _run_init(
+        input_cell, VelphInitOptions(), velph_template_fp=velph_template_fp
+    )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
 
@@ -312,7 +321,7 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
         cmd_init_options[f"cell_for_{calc_type}"] = cell_for_calc_cmd
     toml_lines = _run_init(
         input_cell,
-        cmd_init_options,
+        VelphInitOptions(**cmd_init_options),
         velph_template_fp=velph_template_fp,
     )
     assert toml_lines is not None
@@ -332,9 +341,9 @@ def test_run_init_combination_relax_options_and_tag_cell_choices(
 def test_run_init_show_toml(symmetrize_cell: bool):
     """Show toml."""
     cell_filepath = cwd / "POSCAR_NaCl"
-    vip = {"symmetrize_cell": symmetrize_cell, "max_num_atoms": 120}
+    vio = VelphInitOptions(**{"symmetrize_cell": symmetrize_cell, "max_num_atoms": 120})
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
-    toml_lines = run_init(vip, vfp)
+    toml_lines = run_init(vio, vfp)
     if symmetrize_cell:
         assert toml_lines is not None
         print("\n".join(toml_lines))
@@ -369,7 +378,9 @@ def test_run_init_template_amplitude(
         template_lines += ["[phelel]", "amplitude = 0.05"]
     template_str = "\n".join(template_lines).encode("utf-8")
     velph_template_fp = io.BytesIO(template_str)
-    toml_lines = _run_init(input_cell, cmd_options, velph_template_fp=velph_template_fp)
+    toml_lines = _run_init(
+        input_cell, VelphInitOptions(**cmd_options), velph_template_fp=velph_template_fp
+    )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     if in_phelel:
@@ -404,7 +415,7 @@ def test_run_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
         "symmetrize_cell": True,
     }
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
-    toml_lines = run_init(command_options, vfp)
+    toml_lines = run_init(VelphInitOptions(**command_options), vfp)
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     assert velph_dict["phelel"]["diagonal"] is diagonal
@@ -435,12 +446,12 @@ def test_run_init_with_use_grg(
     input_cell = tio2_prim_cell
     toml_lines = _run_init(
         input_cell,
-        {
-            "use_grg": True,
-            "kspacing": kspacing,
-            "max_num_atoms": 120,
-            "symmetrize_cell": True,
-        },
+        VelphInitOptions(
+            use_grg=True,
+            kspacing=kspacing,
+            max_num_atoms=120,
+            symmetrize_cell=True,
+        ),
     )
     # print("\n".join(toml_lines))
     assert toml_lines is not None
@@ -477,11 +488,13 @@ def test_run_init_with_primitive_cell_choice(
     input_cell = bi2te3_prim_cell
     toml_lines = _run_init(
         input_cell,
-        {
-            "primitive_cell_choice": primitive_cell_choice,
-            "max_num_atoms": 12,
-            "symmetrize_cell": True,
-        },
+        VelphInitOptions(
+            **{
+                "primitive_cell_choice": primitive_cell_choice,
+                "max_num_atoms": 12,
+                "symmetrize_cell": True,
+            }
+        ),
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
@@ -516,7 +529,7 @@ def test_run_init_template_with_vasp_incar(
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(
         input_cell,
-        {"max_num_atoms": 120, "symmetrize_cell": True},
+        VelphInitOptions(**{"max_num_atoms": 120, "symmetrize_cell": True}),
         velph_template_fp=velph_template_fp,
     )
     assert toml_lines is not None
@@ -542,7 +555,7 @@ def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms
     velph_template_fp = io.BytesIO(template_str)
     toml_lines = _run_init(
         input_cell,
-        {"max_num_atoms": 120, "symmetrize_cell": True},
+        VelphInitOptions(**{"max_num_atoms": 120, "symmetrize_cell": True}),
         velph_template_fp=velph_template_fp,
     )
     assert toml_lines is not None

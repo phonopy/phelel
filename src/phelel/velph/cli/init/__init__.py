@@ -15,6 +15,7 @@ from phelel.velph.cli.utils import (
     DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
+    VelphInitOptions,
     VelphInitParams,
 )
 from phelel.velph.utils.vasp import VaspPotcar
@@ -252,16 +253,16 @@ def cmd_init(
     cell_filename: str,
     cell_for_nac: Literal["primitive", "unitcell"] | None,
     cell_for_relax: Literal["primitive", "unitcell"] | None,
+    diagonal: bool | None,
     find_primitive: bool | None,
     force_create: bool | None,
-    diagonal: bool | None,
-    plusminus: bool | None,
     kspacing: float | None,
     kspacing_dense: float | None,
     magmom: str | None,
     max_num_atoms: int | None,
     phelel_dir_name: str,
     phelel_nosym: bool | None,
+    plusminus: bool | None,
     primitive_cell_choice: str | None,
     project_folder: str,
     supercell_dimension: tuple[int, int, int] | None,
@@ -292,25 +293,27 @@ def cmd_init(
         click.echo(f'"{cell_filename}" not found.', err=True)
         return
 
-    vip_cmd_options = {
-        "amplitude": amplitude,
-        "cell_for_nac": cell_for_nac,
-        "cell_for_relax": cell_for_relax,
-        "diagonal": diagonal,
-        "find_primitive": find_primitive,
-        "kspacing": kspacing,
-        "kspacing_dense": kspacing_dense,
-        "magmom": magmom,
-        "max_num_atoms": max_num_atoms,
-        "phelel_nosym": phelel_nosym,
-        "plusminus": plusminus,
-        "primitive_cell_choice": primitive_cell_choice,
-        "supercell_dimension": supercell_dimension,
-        "supercell_matrix": supercell_matrix,
-        "symmetrize_cell": symmetrize_cell,
-        "tolerance": tolerance,
-        "use_grg": use_grg,
-    }
+    vip_cmd_options = VelphInitOptions(
+        **{
+            "amplitude": amplitude,
+            "cell_for_nac": cell_for_nac,
+            "cell_for_relax": cell_for_relax,
+            "diagonal": diagonal,
+            "find_primitive": find_primitive,
+            "kspacing": kspacing,
+            "kspacing_dense": kspacing_dense,
+            "magmom": magmom,
+            "max_num_atoms": max_num_atoms,
+            "phelel_nosym": phelel_nosym,
+            "plusminus": plusminus,
+            "primitive_cell_choice": primitive_cell_choice,
+            "supercell_dimension": supercell_dimension,
+            "supercell_matrix": supercell_matrix,
+            "symmetrize_cell": symmetrize_cell,
+            "tolerance": tolerance,
+            "use_grg": use_grg,
+        }
+    )
 
     cell_filepath = pathlib.Path(cell_filename)
     if cell_filepath.exists():
