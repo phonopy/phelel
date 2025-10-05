@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import os
 import pathlib
 import xml.parsers.expat
-from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Literal
+from typing import Any, Iterator, Literal
 
 from numpy.typing import NDArray
 
@@ -55,7 +55,7 @@ class PrimitiveCellChoice(Enum):
     REDUCED = "reduced"
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class DefaultCellChoices:
     """Default cell choices."""
 
@@ -63,7 +63,7 @@ class DefaultCellChoices:
     relax: CellChoice = CellChoice.UNITCELL
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class DisplacementOptions:
     """Options for generating displacements."""
 
@@ -76,7 +76,7 @@ class DisplacementOptions:
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class VelphInitParams:
     """Basic init parameters of velph.
 
@@ -104,8 +104,50 @@ class VelphInitParams:
     tolerance: float = 1e-5
     use_grg: bool = False
 
+    def __contains__(self, key) -> bool:  # noqa: D105
+        return hasattr(self, key)
 
-@dataclass(frozen=True)
+    def __getitem__(self, key) -> Any:  # noqa: D105
+        return getattr(self, key)
+
+
+@dataclasses.dataclass(frozen=True)
+class VelphInitOptions:
+    """Options for velph-init command.
+
+    This is shared in velph-init options and [init.options] in template-toml.
+
+    """
+
+    amplitude: float | None = None
+    cell_for_nac: Literal["primitive", "unitcell"] | None = None
+    cell_for_relax: Literal["primitive", "unitcell"] | None = None
+    diagonal: bool | None = None
+    find_primitive: bool | None = None
+    kspacing: float | None = None
+    kspacing_dense: float | None = None
+    magmom: str | None = None
+    max_num_atoms: int | None = None
+    phelel_nosym: bool | None = None
+    plusminus: bool | None = None
+    primitive_cell_choice: Literal["standardized", "reduced"] | None = None
+    supercell_dimension: tuple[int, int, int] | None = None
+    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
+    symmetrize_cell: bool | None = None
+    tolerance: float | None = None
+    use_grg: bool | None = None
+
+    def __getitem__(self, key) -> Any:  # noqa: D105
+        return getattr(self, key)
+
+    def __iter__(self) -> Iterator[str]:  # noqa: D105
+        return (f.name for f in dataclasses.fields(self))
+
+    def items(self) -> Iterator[tuple[str, Any]]:  # noqa: D102
+        return ((f.name, getattr(self, f.name)) for f in dataclasses.fields(self))
+
+
+@dataclasses.dataclass(frozen=True)
 class VelphFilePaths:
     """File paths or pointers used in velph-init."""
 
@@ -266,10 +308,10 @@ def choose_cell_in_dict(
             click.echo(msg, err=True)
             return None
     else:
-        if asdict(DefaultCellChoices())[calc_type] is CellChoice.PRIMITIVE:
+        if dataclasses.asdict(DefaultCellChoices())[calc_type] is CellChoice.PRIMITIVE:
             cell = parse_cell_dict(toml_dict["primitive_cell"])
             click.echo(f"Primitive cell was used for {calc_type}.")
-        elif asdict(DefaultCellChoices())[calc_type] is CellChoice.UNITCELL:
+        elif dataclasses.asdict(DefaultCellChoices())[calc_type] is CellChoice.UNITCELL:
             cell = parse_cell_dict(toml_dict["unitcell"])
             click.echo(f"Unitcell was used for {calc_type}.")
         else:
