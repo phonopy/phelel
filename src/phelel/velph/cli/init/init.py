@@ -23,7 +23,7 @@ from phonopy.structure.cells import (
     get_supercell,
     shape_supercell_matrix,
 )
-from spglib import SpglibDataset  # type: ignore
+from spglib import SpglibDataset, SpglibMagneticDataset, get_spacegroup_type
 
 from phelel.velph.cli.utils import (
     CellChoice,
@@ -34,6 +34,7 @@ from phelel.velph.cli.utils import (
     VelphInitOptions,
     VelphInitParams,
     generate_standardized_cells,
+    get_hall_number_of_MSG_reference_SPG,
     get_primitive_cell,
     get_reduced_cell,
     get_symmetry_dataset,
@@ -185,7 +186,7 @@ def _run_init(
 def _get_supercell_matrix(
     vip: VelphInitParams,
     velph_dict: dict,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     calc_type: Literal["phelel", "phonopy", "phono3py"],
 ) -> NDArray | None:
     displacement_options = vip[f"{calc_type}_displacement_options"]
@@ -203,7 +204,7 @@ def _get_supercell_matrix(
 
 def _select_supercell_matrix(
     velph_dict_calc_type: dict,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     find_primitive: bool,
     max_num_atoms: int | None = None,
     supercell_dimension: tuple[int, int, int] | None = None,
@@ -454,7 +455,7 @@ def _get_cells(
     symmetrize_cell: bool,
     find_primitive: bool,
     primitive_cell_choice: PrimitiveCellChoice,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, SpglibDataset]:
+) -> tuple[PhonopyAtoms, PhonopyAtoms, SpglibDataset | SpglibMagneticDataset]:
     """Return unit cell, primitive cell, and symmetry dataset.
 
     This function is complicated due to complicated requests.
@@ -498,6 +499,16 @@ def _get_cells(
 
     """
     sym_dataset = get_symmetry_dataset(input_cell, tolerance=tolerance)
+    if isinstance(sym_dataset, SpglibDataset):
+        click.echo(f"Space-group: {sym_dataset.international}")
+    else:
+        hall_number = get_hall_number_of_MSG_reference_SPG(sym_dataset.uni_number)
+        spg_type = get_spacegroup_type(hall_number)
+        assert spg_type is not None
+        click.echo(f"Magnetic-space-group type-{sym_dataset.msg_type}")
+        click.echo(f"  Uni-number: {sym_dataset.uni_number}")
+        click.echo(f"  Reference space-group-type: {spg_type.international_short}")
+
     if symmetrize_cell:
         unitcell, _primitive, tmat = generate_standardized_cells(
             sym_dataset, tolerance=tolerance
@@ -679,7 +690,7 @@ def _get_toml_lines(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     cell_choices: dict,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Return velph-toml lines."""
@@ -796,8 +807,11 @@ def _get_toml_lines(
     # [symmetry]
     if sym_dataset is not None:
         lines.append("[symmetry]")
-        spg_type = sym_dataset.international
-        lines.append(f'spacegroup_type = "{spg_type}"')
+        if isinstance(sym_dataset, SpglibDataset):
+            spg_type = sym_dataset.international
+            lines.append(f'spacegroup_type = "{spg_type}"')
+        else:
+            lines.append(f"uni_number = {sym_dataset.uni_number}")
         lines.append(f"tolerance = {vip.tolerance}")
         if len(unitcell) != len(primitive):
             pmat = (primitive.cell @ np.linalg.inv(unitcell.cell)).T
@@ -866,7 +880,7 @@ def _get_kpoints_dict(
     vip_tolerance: float,
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,

@@ -243,7 +243,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     is_flag=True,
     default=None,
     help=(
-        "Use generalized regular grid. "
+        "Use generalized regular grid when needed. "
         f"(use_grg: bool, default={VelphInitParams.use_grg})"
     ),
 )

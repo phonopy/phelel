@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pathlib
 import shutil
-from typing import Union
 
 import click
 import tomli
@@ -48,7 +47,7 @@ def write_supercell_input_files(
 
 
 def write_supercells(
-    phe: Union[Phelel, Phonopy, Phono3py], toml_dict: dict, dir_name: str = "phelel"
+    phe: Phelel | Phonopy | Phono3py, toml_dict: dict, dir_name: str = "phelel"
 ):
     """Write VASP input for supercells.
 
@@ -63,6 +62,7 @@ def write_supercells(
                 symmetry_dataset.international
                 == toml_dict["symmetry"]["spacegroup_type"]
             )
+    assert phe.supercells_with_displacements is not None
     nd = get_num_digits(phe.supercells_with_displacements)
 
     for i, cell in enumerate(
@@ -93,7 +93,7 @@ def write_supercells(
 
 
 def write_phonon_supercells(
-    phe: Union[Phelel, Phono3py], toml_dict: dict, dir_name: str = "phelel"
+    phe: Phelel | Phono3py, toml_dict: dict, dir_name: str = "phelel"
 ):
     """Write VASP input for phonon supercells.
 
@@ -101,6 +101,7 @@ def write_phonon_supercells(
 
     """
     kpoints_dict = toml_dict["vasp"][dir_name]["phonon"]["kpoints"]
+    assert phe.phonon_supercells_with_displacements is not None
     nd = get_num_digits(phe.phonon_supercells_with_displacements)
 
     for i, cell in enumerate(

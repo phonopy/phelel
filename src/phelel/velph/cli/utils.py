@@ -7,20 +7,15 @@ import dataclasses
 import os
 import pathlib
 import xml.parsers.expat
+from collections.abc import Sequence
 from enum import Enum
 from typing import Any, Iterator, Literal
-
-from numpy.typing import NDArray
-
-try:
-    from spglib import SpglibDataset  # type: ignore
-except ImportError:
-    from types import SimpleNamespace as SpglibDataset
 
 import click
 import h5py
 import numpy as np
 import spglib
+from numpy.typing import NDArray
 from phono3py.phonon.grid import BZGrid
 from phonopy.interface.vasp import VasprunxmlExpat, sort_positions_by_symbols
 from phonopy.physical_units import get_physical_units
@@ -31,6 +26,7 @@ from phonopy.structure.cells import (
     get_reduced_bases,
 )
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
+from spglib import SpglibDataset, SpglibMagneticDataset, get_magnetic_spacegroup_type
 
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
@@ -102,7 +98,7 @@ class VelphInitParams:
     primitive_cell_choice: PrimitiveCellChoice = PrimitiveCellChoice.STANDARDIZED
     symmetrize_cell: bool = False
     tolerance: float = 1e-5
-    use_grg: bool = False
+    use_grg: bool = True
 
     def __contains__(self, key) -> bool:  # noqa: D105
         return hasattr(self, key)
@@ -277,16 +273,24 @@ def assert_kpoints_mesh_symmetry(
     """Check if mesh grid respects crystallographic point group or not."""
     if "kspacing" in kpoints_dict:
         symmetry_dataset = kspacing_to_mesh(kpoints_dict, primitive)
-        if "symmetry" in toml_dict and "spacegroup_type" in toml_dict["symmetry"]:
-            assert (
-                symmetry_dataset.international
-                == toml_dict["symmetry"]["spacegroup_type"]
-            )
+        if "symmetry" in toml_dict:
+            if isinstance(symmetry_dataset, SpglibDataset):
+                if "spacegroup_type" in toml_dict["symmetry"]:
+                    assert (
+                        symmetry_dataset.international
+                        == toml_dict["symmetry"]["spacegroup_type"]
+                    )
+            else:
+                if "uni_number" in toml_dict["symmetry"]:
+                    assert (
+                        symmetry_dataset.uni_number
+                        == toml_dict["symmetry"]["uni_number"]
+                    )
 
 
 def choose_cell_in_dict(
     toml_dict: dict,
-    toml_filename: str,
+    toml_filename: pathlib.Path,
     calc_type: Literal["relax", "nac"],
 ) -> PhonopyAtoms | None:
     """Return unit cell, primitive cell, or Niggli reduced cell from toml_dict.
@@ -398,16 +402,27 @@ def get_special_points(
     return points, labels_at_points
 
 
-def get_symmetry_dataset(cell: PhonopyAtoms, tolerance: float = 1e-5) -> SpglibDataset:
+def get_symmetry_dataset(
+    cell: PhonopyAtoms, tolerance: float = 1e-5
+) -> SpglibDataset | SpglibMagneticDataset:
     """Return spglib symmetry dataset."""
-    dataset = spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)  # type: ignore
+    if cell.magnetic_moments is None:
+        dataset = spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)
+    else:
+        dataset = spglib.get_magnetic_symmetry_dataset(
+            cell.totuple(), symprec=tolerance
+        )
+
     assert dataset is not None
+
     return dataset
 
 
 def get_primitive_cell(
-    cell: PhonopyAtoms, sym_dataset: SpglibDataset, tolerance: float = 1e-5
-) -> tuple[PhonopyAtoms, np.ndarray]:
+    cell: PhonopyAtoms,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    tolerance: float = 1e-5,
+) -> tuple[PhonopyAtoms, NDArray]:
     """Return primitive cell and transformation matrix.
 
     This primitive cell is generated from the input cell without
@@ -415,7 +430,10 @@ def get_primitive_cell(
 
     """
     tmat = sym_dataset.transformation_matrix
-    centring = sym_dataset.international[0]
+    if isinstance(sym_dataset, SpglibDataset):
+        centring = sym_dataset.international[0]
+    else:
+        centring = get_MSG_centering_symbol(sym_dataset.uni_number)
     pmat = get_primitive_matrix_by_centring(centring)
     total_tmat = np.array(np.linalg.inv(tmat) @ pmat, dtype="double", order="C")
 
@@ -443,16 +461,25 @@ def get_reduced_cell(
 
 
 def generate_standardized_cells(
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     tolerance: float = 1e-5,
 ) -> tuple[PhonopyAtoms, PhonopyAtoms, NDArray]:
     """Return standardized unit cell and primitive cell."""
-    click.echo(
-        "Crystal structure was standardized based on space-group-type "
-        f"{sym_dataset.international}."
-    )
+    if isinstance(sym_dataset, SpglibDataset):
+        click.echo(
+            "Crystal structure was standardized based on space-group-type "
+            f"{sym_dataset.international}."
+        )
+    else:
+        click.echo(
+            "Crystal structure was standardized based on magnetic-space-group-type "
+            f"UNI No.{sym_dataset.uni_number}."
+        )
     convcell = get_standardized_unitcell(sym_dataset)
-    centring = sym_dataset.international[0]
+    if isinstance(sym_dataset, SpglibDataset):
+        centring = sym_dataset.international[0]
+    else:
+        centring = get_MSG_centering_symbol(sym_dataset.uni_number)
     pmat = get_primitive_matrix_by_centring(centring)
     if centring == "P":
         primitive = convcell
@@ -462,7 +489,9 @@ def generate_standardized_cells(
     return convcell, primitive, pmat
 
 
-def get_standardized_unitcell(dataset: SpglibDataset) -> PhonopyAtoms:
+def get_standardized_unitcell(
+    dataset: SpglibDataset | SpglibMagneticDataset,
+) -> PhonopyAtoms:
     """Return conventional unit cell.
 
     This conventional unit cell can include rigid rotation with respect to
@@ -484,15 +513,22 @@ def get_standardized_unitcell(dataset: SpglibDataset) -> PhonopyAtoms:
     std_positions = dataset.std_positions
     std_types = dataset.std_types
     _, _, _, perm = sort_positions_by_symbols(std_types, std_positions)
-    convcell = PhonopyAtoms(
-        cell=dataset.std_lattice,
-        scaled_positions=std_positions[perm],
-        symbols=[atom_data[n][1] for n in std_types[perm]],
-    )
-    return convcell
+    if isinstance(dataset, SpglibDataset):
+        return PhonopyAtoms(
+            cell=dataset.std_lattice,
+            scaled_positions=std_positions[perm],
+            symbols=[atom_data[n][1] for n in std_types[perm]],
+        )
+    else:
+        return PhonopyAtoms(
+            cell=dataset.std_lattice,
+            scaled_positions=std_positions[perm],
+            symbols=[atom_data[n][1] for n in std_types[perm]],
+            magnetic_moments=dataset.std_tensors[perm],
+        )
 
 
-def get_num_digits(sequence, min_length=3):
+def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:
     """Return number of digits of sequence."""
     nd = len(str(len(sequence)))
     if nd < min_length:
@@ -501,8 +537,8 @@ def get_num_digits(sequence, min_length=3):
 
 
 def kspacing_to_mesh(
-    kpoints_dict: dict, unitcell: PhonopyAtoms, use_grg: bool = False
-) -> SpglibDataset:
+    kpoints_dict: dict, unitcell: PhonopyAtoms, use_grg: bool = True
+) -> SpglibDataset | SpglibMagneticDataset:
     """Update kpoints_dict by mesh corresponding to kspacing.
 
     Parameters
@@ -521,16 +557,16 @@ def kspacing_to_mesh(
     """
     kspacing = kpoints_dict["kspacing"]
     symmetry_dataset = get_symmetry_dataset(unitcell)
-    bzgrid = BZGrid(
+    gm = BZGrid(
         2 * np.pi / kspacing,
         lattice=unitcell.cell,
         symmetry_dataset=symmetry_dataset,
         use_grg=use_grg,
     )
-    if bzgrid.grid_matrix is None:
-        kpoints_dict["mesh"] = bzgrid.D_diag.tolist()
+    if gm.grid_matrix is None:
+        kpoints_dict["mesh"] = gm.D_diag.tolist()
     else:
-        kpoints_dict["mesh"] = bzgrid.grid_matrix.tolist()
+        kpoints_dict["mesh"] = gm.grid_matrix.tolist()
     return symmetry_dataset
 
 
@@ -591,3 +627,77 @@ def get_nac_params(
         "dielectric": epsilon_,
     }
     return nac_params
+
+
+def get_hall_number_of_MSG_reference_SPG(uni_number: int):
+    """Return Hall number of SPG of MSG reference."""
+    msg_type = get_magnetic_spacegroup_type(uni_number)
+    assert msg_type is not None
+
+    for i in range(1, 531):
+        spg_type = spglib.get_spacegroup_type(i)
+        assert spg_type is not None
+        if spg_type.number == msg_type.number:
+            return i
+
+    raise RuntimeError("Hall number not found.")
+
+
+def get_MSG_centering_symbol(uni_number: int) -> str:
+    """Return MSG centering symbol by P, A, C, R, I, F.
+
+    Generated by
+    ```
+    import textwrap
+
+    import spglib
+
+    spg_symbols = {}
+    for i in range(1, 531):
+        spg_symbols.setdefault(
+            spglib.get_spacegroup_type(i).number,
+            spglib.get_spacegroup_type(i).international_short,
+        )
+
+    msg2centering = []
+    for i in range(1, 1652):
+        number = spglib.get_magnetic_spacegroup_type(i).number
+        msg2centering.append(spg_symbols[number][0])
+
+    print(textwrap.wrap("".join(msg2centering), width=60))
+
+    ```
+
+    """
+    return "".join(
+        [
+            "PPPPPPPPPPPPPPPPPPPCCCCCPPPPPPPPPPPPPPCCCCCCCCCCPPPPPPPPPPPP",
+            "PPPPCCCCCCCPPPPPPPPPPPPPPPPPPPPCCCCCCCPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPCCCCCCCCCCCCCCFFFFIIIIIIIIPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPCCCCCCCCCCCCCCCCCCCCCCAAAAAAAAAAAAAAAA",
+            "AAAAAAAAAAAAAAAAFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+            "CCCCCCCCCCCCCCCCCCFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+            "PPPPPPPPPPPPPPPPPPPPPPPPIIIIIIIIPPPPPPIIIIPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPIIIIIIIIIIIIPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPIIIIIIIIIIIIPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPIIIIIIIIIIIIII",
+            "IIIIIIIIIIPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPIIIIIIIIIIIIIIIIIIIIIIIIPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPIIIIIIIIII",
+            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIPPPPPPPPPRRRPPPPRRRRPPPPPPPPPP",
+            "PPPPPPPPPPPPPPRRRRPPPPPPPPPPPPPPPPRRRRRRRRPPPPPPPPPPPPPPPPPP",
+            "PPPPPPRRRRRRRRRRRRPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+            "PPPPPFFFIIPPPIIPPPPPPPPFFFFFFFFIIIPPPPIIIPPPPPPPPFFFFFFFFIII",
+            "PPPPPPPPIIIPPPPFFFFIIIPPPPFFFFIIIPPPPPPPPPPPPPPPPPPPPPPPPFFF",
+            "FFFFFFFFFFFFFFFFFFFFFIIIIIIIIII",
+        ]
+    )[uni_number - 1]
