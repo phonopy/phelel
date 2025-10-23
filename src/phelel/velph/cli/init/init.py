@@ -11,6 +11,7 @@ from typing import Literal
 
 import click
 import numpy as np
+import spglib
 import tomli
 import tomli_w
 from numpy.typing import NDArray
@@ -23,7 +24,7 @@ from phonopy.structure.cells import (
     get_supercell,
     shape_supercell_matrix,
 )
-from spglib import SpglibDataset, SpglibMagneticDataset, get_spacegroup_type
+from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel.velph.cli.utils import (
     CellChoice,
@@ -34,7 +35,6 @@ from phelel.velph.cli.utils import (
     VelphInitOptions,
     VelphInitParams,
     generate_standardized_cells,
-    get_hall_number_of_MSG_reference_SPG,
     get_primitive_cell,
     get_reduced_cell,
     get_symmetry_dataset,
@@ -502,8 +502,7 @@ def _get_cells(
     if isinstance(sym_dataset, SpglibDataset):
         click.echo(f"Space-group: {sym_dataset.international}")
     else:
-        hall_number = get_hall_number_of_MSG_reference_SPG(sym_dataset.uni_number)
-        spg_type = get_spacegroup_type(hall_number)
+        spg_type = spglib.get_spacegroup_type(sym_dataset.hall_number)
         assert spg_type is not None
         click.echo(f"Magnetic-space-group type-{sym_dataset.msg_type}")
         click.echo(f"  Uni-number: {sym_dataset.uni_number}")
@@ -891,20 +890,10 @@ def _get_kpoints_dict(
     sym_dataset_prim = get_symmetry_dataset(primitive, tolerance=vip_tolerance)
 
     # Grid matrix for unitcell
-    gm = GridMatrix(
-        2 * np.pi / vip_kspacing,
-        lattice=unitcell.cell,
-        symmetry_dataset=sym_dataset,
-        use_grg=use_grg_unitcell,
-    )
+    gm = _get_grid_matrix(vip_kspacing, unitcell, sym_dataset, use_grg_unitcell)
 
     # Grid matrix for primitive cell
-    gm_prim = GridMatrix(
-        2 * np.pi / vip_kspacing,
-        lattice=primitive.cell,
-        symmetry_dataset=sym_dataset_prim,
-        use_grg=vip_use_grg,
-    )
+    gm_prim = _get_grid_matrix(vip_kspacing, primitive, sym_dataset_prim, vip_use_grg)
 
     # Grid matrix for supercell
     supercell_grid_matrices = {}
@@ -912,21 +901,18 @@ def _get_kpoints_dict(
         if supercell_matrices[calc_type] is not None:
             _supercell = get_supercell(unitcell, supercell_matrices[calc_type])
             _sym_dataset = get_symmetry_dataset(_supercell, tolerance=vip_tolerance)
-            supercell_grid_matrices[calc_type] = GridMatrix(
-                2 * np.pi / vip_kspacing,
-                lattice=_supercell.cell,
-                symmetry_dataset=_sym_dataset,
+            supercell_grid_matrices[calc_type] = _get_grid_matrix(
+                vip_kspacing,
+                _supercell,
+                _sym_dataset,
                 use_grg=False,
             )
         else:
             supercell_grid_matrices[calc_type] = None
 
     # Dense grid matrix for primitive cell
-    gm_dense_prim = GridMatrix(
-        2 * np.pi / vip_kspacing_dense,
-        lattice=primitive.cell,
-        symmetry_dataset=sym_dataset_prim,
-        use_grg=vip_use_grg,
+    gm_dense_prim = _get_grid_matrix(
+        vip_kspacing_dense, primitive, sym_dataset_prim, vip_use_grg
     )
 
     # Build return values
@@ -945,6 +931,37 @@ def _get_kpoints_dict(
     kpoints_opt_dict: dict = {}
 
     return kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict
+
+
+def _get_grid_matrix(
+    kspacing: float,
+    primitive: PhonopyAtoms,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    use_grg: bool,
+) -> GridMatrix:
+    try:
+        gm = GridMatrix(
+            2 * np.pi / kspacing,
+            lattice=primitive.cell,
+            symmetry_dataset=sym_dataset,
+            use_grg=use_grg,
+        )
+    except RuntimeError as e:
+        if "Grid symmetry is broken." in str(e):
+            click.echo(
+                "Warning: Grid symmetry is broken. "
+                "Switching to use_grg=True for the primitive cell."
+            )
+            gm = GridMatrix(
+                2 * np.pi / kspacing,
+                lattice=primitive.cell,
+                symmetry_dataset=sym_dataset,
+                use_grg=True,
+            )
+        else:
+            raise e
+
+    return gm
 
 
 def _update_kpoints_by_vasp_dict(
