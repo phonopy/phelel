@@ -2,6 +2,12 @@
 
 # Change Log
 
+# Oct-24-2025: Version 0.11.0
+
+- Default INCAR tags are removed by setting empty table {} in velph template
+  toml.
+- Use generalized regular grid when k-point grid symmetry is broken.
+
 # Jun-27-2025: Version 0.10.0
 
 - Update following the change of phonopy.
