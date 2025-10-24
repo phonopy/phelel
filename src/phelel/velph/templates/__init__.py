@@ -20,7 +20,7 @@ dictionary structure.
     "incar" sections of all VASP calculation types if those default INCAR
     settings are not available in each section. To prevent from writing
     default INCAR settings, i.e., avoiding unnecessary INCAR settings in a
-    specific VASP calculation type, INCAR tag with the value of ``None`` has to
+    specific VASP calculation type, INCAR tag with empty dictionary `{}` has to
     be explicitly described (see "ph_bands" section.)
 
     In each VASP calculation following settings are specified.
@@ -143,8 +143,20 @@ default_template_dict: dict[str, Any] = {
                 "elph_transport_nedos": 501,
             },
         },
-        "el_bands": {
-            "incar": {"ibrion": -1, "nsw": 0, "lorbit": 11, "nedos": 5001},
+        "el_bands.dos": {
+            "incar": {
+                "ibrion": -1,
+                "nsw": 0,
+                "lorbit": 11,
+                "nedos": 5001,
+                "ismear": -5,
+            }
+        },
+        "el_bands.bands": {
+            "incar": {
+                "ibrion": -1,
+                "nsw": 0,
+            },
             "kpoints_opt": {
                 "line": 51,
             },
@@ -154,12 +166,12 @@ default_template_dict: dict[str, Any] = {
                 "ibrion": -1,
                 "nsw": 0,
                 "elph_run": True,
-                "ismear": None,
-                "sigma": None,
-                "ediff": None,
-                "lreal": None,
-                "lwave": None,
-                "lcharg": None,
+                "ismear": {},
+                "sigma": {},
+                "ediff": {},
+                "lreal": {},
+                "lwave": {},
+                "lcharg": {},
             },
             "qpoints": {
                 "line": 51,
@@ -179,13 +191,7 @@ default_template_dict: dict[str, Any] = {
         },
         "phelel": {
             "incar": {
-                "lwap": True,
-                "isym": 0,
-            },
-        },
-        "supercell": {  # This is deprecated. Use "phelel" instead.
-            "incar": {
-                "lwap": True,
+                "elph_prepare": True,
                 "isym": 0,
             },
         },
@@ -200,9 +206,9 @@ default_template_dict: dict[str, Any] = {
         "nac": {
             "incar": {
                 "lepsilon": True,
-                "npar": None,
-                "ncore": None,
-                "kpar": None,
+                "npar": {},
+                "ncore": {},
+                "kpar": {},
             },
         },
     },

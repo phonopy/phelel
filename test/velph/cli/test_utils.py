@@ -16,16 +16,16 @@ from phelel.velph.templates import default_template_dict
 def test_get_scheduler_dict():
     """Test get_scheduler_dict."""
     toml_dict = copy.deepcopy(default_template_dict)
-    scheduler_dict = get_scheduler_dict(toml_dict, "supercell")
+    scheduler_dict = get_scheduler_dict(toml_dict, "phelel")
     assert scheduler_dict["vasp_binary"] == "vasp_std"
 
-    phonon_dict = copy.deepcopy(toml_dict["vasp"]["supercell"])
-    toml_dict["vasp"]["supercell"]["phonon"] = phonon_dict
-    scheduler_dict = get_scheduler_dict(toml_dict, "supercell.phonon")
+    phonon_dict = copy.deepcopy(toml_dict["vasp"]["phelel"])
+    toml_dict["vasp"]["phelel"]["phonon"] = phonon_dict
+    scheduler_dict = get_scheduler_dict(toml_dict, "phelel.phonon")
     assert scheduler_dict["vasp_binary"] == "vasp_std"
 
-    toml_dict["vasp"]["supercell"]["scheduler"] = {"vasp_binary": "vasp_gam"}
-    scheduler_dict = get_scheduler_dict(toml_dict, "supercell")
+    toml_dict["vasp"]["phelel"]["scheduler"] = {"vasp_binary": "vasp_gam"}
+    scheduler_dict = get_scheduler_dict(toml_dict, "phelel")
     assert scheduler_dict["vasp_binary"] == "vasp_gam"
 
 

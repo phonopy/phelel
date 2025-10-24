@@ -149,7 +149,6 @@ class Phelel:
         assert (abs(self._p2s_matrix - p2s_mat_float) < 1e-5).all()
 
         self._dVdu = None
-        self._dDijdu = None
 
         if fft_mesh is None:
             self._fft_mesh = None
@@ -174,7 +173,7 @@ class Phelel:
         return __version__
 
     @property
-    def calculator(self) -> str:
+    def calculator(self) -> str | None:
         """Return calculator interface name.
 
         str
@@ -204,7 +203,7 @@ class Phelel:
         return self._p2s_matrix
 
     @property
-    def dataset(self) -> dict:
+    def dataset(self) -> dict | None:
         """Setter and getter of potential dataset."""
         return self._phelel_phonon.dataset
 
@@ -336,7 +335,7 @@ class Phelel:
             self._phonon.forces = _forces
 
     @property
-    def unit_conversion_factor(self) -> float:
+    def unit_conversion_factor(self) -> float | None:
         """Return phonon frequency unit conversion factor.
 
         float
@@ -388,7 +387,7 @@ class Phelel:
         self._dDijdu = dDijdu
 
     @property
-    def supercells_with_displacements(self) -> Sequence[PhonopyAtoms] | None:
+    def supercells_with_displacements(self) -> list[PhonopyAtoms] | None:
         """Return supercells with displacements.
 
         list of PhonopyAtoms
@@ -399,7 +398,7 @@ class Phelel:
         return self._phelel_phonon.supercells_with_displacements
 
     @property
-    def phonon_supercells_with_displacements(self) -> Sequence[PhonopyAtoms] | None:
+    def phonon_supercells_with_displacements(self) -> list[PhonopyAtoms] | None:
         """Return supercells with displacements for phonons.
 
         list of PhonopyAtoms
@@ -419,9 +418,9 @@ class Phelel:
 
     def generate_displacements(
         self,
-        distance=0.01,
-        is_plusminus="auto",
-        is_diagonal=True,
+        distance: float | None = 0.01,
+        is_plusminus: Literal["auto"] | bool = "auto",
+        is_diagonal: bool = True,
     ):
         """Generate displacement dataset."""
         self._phelel_phonon.generate_displacements(
@@ -430,9 +429,9 @@ class Phelel:
 
     def generate_phonon_displacements(
         self,
-        distance=0.01,
-        is_plusminus="auto",
-        is_diagonal=True,
+        distance: float | None = 0.01,
+        is_plusminus: Literal["auto"] | bool = "auto",
+        is_diagonal: bool = True,
     ):
         """Generate displacement dataset."""
         if self._phonon is None:
@@ -476,6 +475,8 @@ class Phelel:
                 forces=phe_input.forces,
                 calculate_full_force_constants=True,
             )
+        assert self._phelel_phonon.dataset is not None
+        assert self._dVdu is not None
         self._dVdu.run(
             loc_pots[0], loc_pots[1:], self._phelel_phonon.dataset["first_atoms"]
         )
@@ -519,10 +520,10 @@ class Phelel:
 
     def save_phonon(
         self,
-        filename="phonopy_params.yaml",
-        settings=None,
-        hdf5_settings=None,
-        compression: Union[str, bool] = False,
+        filename: str | os.PathLike = "phonopy_params.yaml",
+        settings: dict | None = None,
+        hdf5_settings: dict | None = None,
+        compression: str | bool = False,
     ):
         """Save phonon in yaml format."""
         if self._phonon is None:

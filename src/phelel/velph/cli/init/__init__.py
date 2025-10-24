@@ -1,8 +1,10 @@
 """velph command line tool / velph-init."""
 
+from __future__ import annotations
+
 import pathlib
 import shutil
-from typing import Literal, Optional
+from typing import Literal
 
 import click
 
@@ -10,8 +12,10 @@ from phelel.velph.cli import cmd_root
 from phelel.velph.cli.init.init import run_init
 from phelel.velph.cli.utils import (
     DefaultCellChoices,
+    DisplacementOptions,
     PrimitiveCellChoice,
     VelphFilePaths,
+    VelphInitOptions,
     VelphInitParams,
 )
 from phelel.velph.utils.vasp import VaspPotcar
@@ -30,7 +34,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Distance of displacements in Angstrom. "
-        f"(amplitude: float, default={VelphInitParams.amplitude})"
+        f"(amplitude: float, default={DisplacementOptions.amplitude})"
     ),
 )
 @click.option(
@@ -60,7 +64,22 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Generate displacements in diagonal directions or only along axes."
-        f"(diagonal: bool, default={VelphInitParams.diagonal})"
+        f"(diagonal: bool, default={DisplacementOptions.diagonal})"
+    ),
+)
+@click.option(
+    "--dim",
+    "supercell_dimension",
+    nargs=3,
+    type=int,
+    default=None,
+    help=(
+        "Specify supercell dimensions by three integers like 2 2 2. "
+        "For specifiying nine integers, use --supercell-matrix. "
+        "This option is a shortcut for diagonal supercell matrix, where "
+        "three integers correspond to the diagonal elements. "
+        "(supercell_dimension: tuple[int, int, int], "
+        f"default={DisplacementOptions.supercell_matrix})"
     ),
 )
 @click.option(
@@ -110,8 +129,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     type=int,
     help=(
         "Determine supercell dimension so that number of atoms in supercell "
-        "is less than this number. "
-        f"(max_num_atoms: int, default={VelphInitParams.max_num_atoms})"
+        "is less than this number. This must be used with --symmmetrize-cell. "
+        f"(max_num_atoms: int, default={DisplacementOptions.max_num_atoms})"
     ),
 )
 @click.option(
@@ -146,41 +165,13 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
-    "--phonopy-max-num-atoms",
-    "phonopy_max_num_atoms",
-    nargs=1,
-    default=None,
-    type=int,
-    help=(
-        "Determine phonopy supercell dimension so that number of atoms in supercell "
-        "for phonopy is less than this number if different dimension from "
-        "that of electron-phonon (phelel) is expected. "
-        "(phonopy_max_num_atoms: int, "
-        f"default={VelphInitParams.phono3py_max_num_atoms})"
-    ),
-)
-@click.option(
-    "--phono3py-max-num-atoms",
-    "phono3py_max_num_atoms",
-    nargs=1,
-    default=None,
-    type=int,
-    help=(
-        "Determine phono3py supercell dimension so that number of atoms in supercell "
-        "for phono3py is less than this number if different dimension from "
-        "that of electron-phonon (phelel) is expected. "
-        "(phono3py_max_num_atoms: int, "
-        f"default={VelphInitParams.phono3py_max_num_atoms})"
-    ),
-)
-@click.option(
     "--plusminus/--auto",
     "plusminus",
     type=bool,
     default=None,
     help=(
         "Plus-minus displacements in supercell, otherwise auto. "
-        f"(plusminus: bool, default={VelphInitParams.plusminus})"
+        f"(plusminus: bool, default={DisplacementOptions.plusminus})"
     ),
 )
 @click.option(
@@ -192,6 +183,18 @@ from phelel.velph.utils.vasp import VaspPotcar
         'Primitive cell choice, "standardized" or "reduced" '
         "(primitive_cell_choice: str, "
         f'default="{PrimitiveCellChoice.STANDARDIZED.value}")'
+    ),
+)
+@click.option(
+    "--supercell-matrix",
+    "supercell_matrix",
+    nargs=9,
+    type=int,
+    default=None,
+    help=(
+        "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0."
+        "(supercell_matrix: tuple[int, ...], "
+        f"default={DisplacementOptions.supercell_matrix})"
     ),
 )
 @click.option(
@@ -240,35 +243,35 @@ from phelel.velph.utils.vasp import VaspPotcar
     is_flag=True,
     default=None,
     help=(
-        "Use generalized regular grid. "
+        "Use generalized regular grid when needed. "
         f"(use_grg: bool, default={VelphInitParams.use_grg})"
     ),
 )
 @click.help_option("-h", "--help")
 def cmd_init(
-    amplitude: Optional[float],
+    amplitude: float | None,
     cell_filename: str,
-    cell_for_nac: Optional[Literal["primitive", "unitcell"]],
-    cell_for_relax: Optional[Literal["primitive", "unitcell"]],
-    find_primitive: Optional[bool],
-    force_create: Optional[bool],
-    diagonal: Optional[bool],
-    plusminus: Optional[bool],
-    kspacing: Optional[float],
-    kspacing_dense: Optional[float],
-    magmom: Optional[str],
-    max_num_atoms: Optional[int],
+    cell_for_nac: Literal["primitive", "unitcell"] | None,
+    cell_for_relax: Literal["primitive", "unitcell"] | None,
+    diagonal: bool | None,
+    find_primitive: bool | None,
+    force_create: bool | None,
+    kspacing: float | None,
+    kspacing_dense: float | None,
+    magmom: str | None,
+    max_num_atoms: int | None,
     phelel_dir_name: str,
-    phelel_nosym: Optional[bool],
-    phonopy_max_num_atoms: Optional[int],
-    phono3py_max_num_atoms: Optional[int],
-    primitive_cell_choice: Optional[str],
+    phelel_nosym: bool | None,
+    plusminus: bool | None,
+    primitive_cell_choice: str | None,
     project_folder: str,
-    symmetrize_cell: Optional[bool],
-    template_toml_filename: Optional[str],
-    toml_filename: Optional[str],
-    tolerance: Optional[float],
-    use_grg: Optional[bool],
+    supercell_dimension: tuple[int, int, int] | None,
+    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None,
+    symmetrize_cell: bool | None,
+    template_toml_filename: str | None,
+    toml_filename: str | None,
+    tolerance: float | None,
+    use_grg: bool | None,
 ):
     """Initialize an electron phonon calculation project.
 
@@ -290,25 +293,27 @@ def cmd_init(
         click.echo(f'"{cell_filename}" not found.', err=True)
         return
 
-    vip_cmd_options = {
-        "amplitude": amplitude,
-        "cell_for_nac": cell_for_nac,
-        "cell_for_relax": cell_for_relax,
-        "find_primitive": find_primitive,
-        "diagonal": diagonal,
-        "plusminus": plusminus,
-        "kspacing": kspacing,
-        "kspacing_dense": kspacing_dense,
-        "magmom": magmom,
-        "max_num_atoms": max_num_atoms,
-        "phelel_nosym": phelel_nosym,
-        "phonopy_max_num_atoms": phonopy_max_num_atoms,
-        "phono3py_max_num_atoms": phono3py_max_num_atoms,
-        "primitive_cell_choice": primitive_cell_choice,
-        "symmetrize_cell": symmetrize_cell,
-        "tolerance": tolerance,
-        "use_grg": use_grg,
-    }
+    vip_cmd_options = VelphInitOptions(
+        **{
+            "amplitude": amplitude,
+            "cell_for_nac": cell_for_nac,
+            "cell_for_relax": cell_for_relax,
+            "diagonal": diagonal,
+            "find_primitive": find_primitive,
+            "kspacing": kspacing,
+            "kspacing_dense": kspacing_dense,
+            "magmom": magmom,
+            "max_num_atoms": max_num_atoms,
+            "phelel_nosym": phelel_nosym,
+            "plusminus": plusminus,
+            "primitive_cell_choice": primitive_cell_choice,
+            "supercell_dimension": supercell_dimension,
+            "supercell_matrix": supercell_matrix,
+            "symmetrize_cell": symmetrize_cell,
+            "tolerance": tolerance,
+            "use_grg": use_grg,
+        }
+    )
 
     cell_filepath = pathlib.Path(cell_filename)
     if cell_filepath.exists():
@@ -323,7 +328,8 @@ def cmd_init(
             click.echo(f'Project directory: "{project_folder}".')
         else:
             click.echo(f'File or folder "{project_folder}" already exists.')
-            return
+            if not force_create:
+                return
 
     if template_toml_filename is not None:
         velph_tmpl_filepath = pathlib.Path(template_toml_filename)

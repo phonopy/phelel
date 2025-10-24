@@ -1,5 +1,7 @@
 """Implementation of velph-selfenergy-generate."""
 
+from __future__ import annotations
+
 import pathlib
 import shutil
 from typing import Literal, Optional
@@ -8,6 +10,7 @@ import click
 import h5py
 import numpy as np
 import tomli
+from numpy.typing import NDArray
 from phonopy.interface.calculator import write_crystal_structure
 from phonopy.structure.atoms import parse_cell_dict
 
@@ -22,23 +25,27 @@ from phelel.velph.cli.utils import (
 
 def write_input_files(toml_filepath: pathlib.Path, dry_run: bool):
     """Generate el-ph input files."""
-    write_selfenergy_input_files(toml_filepath, dry_run, calc_type="selfenergy")
+    write_selfenergy_input_files(toml_filepath, dry_run, "selfenergy")
 
 
 def write_selfenergy_input_files(
     toml_filepath: pathlib.Path,
     dry_run: bool,
-    calc_type: Optional[Literal["transport", "selfenergy"]] = None,
-    current_directory: pathlib.Path = pathlib.Path(""),
+    calc_type: Literal["transport", "selfenergy"],
+    estimate_elph_selfen_band_stop: bool = False,
     energy_threshold: float = 0.5,
+    current_directory: pathlib.Path = pathlib.Path(""),
 ) -> None:
     """Generate el-ph input files.
 
-    current_directory : Path
-        Used for test.
+    estimate_elph_selfen_band_stop : bool
+        Estimate elph_selfen_band_stop automatically and the value is set in
+        INCAR. This is only available for calc_type="transport".
     energy_threshold : float
         Energy threshold (gap) to estimate elph_selfen_band_stop used for
         calc_type="transport".
+    current_directory : Path
+        Used for test.
 
     """
     directory_path = pathlib.Path(calc_type)
@@ -84,7 +91,7 @@ def write_selfenergy_input_files(
         toml_incar_dict["elph_run"] = False
 
     # Automatic elph_selfen_band_stop setting for transport.
-    if calc_type == "transport":
+    if calc_type == "transport" and estimate_elph_selfen_band_stop:
         # Here toml_incar_dict is updated for setting elph_selfen_band_stop
         band_index = _find_elph_selfen_band_stop(current_directory, energy_threshold)
         if band_index is not None:
@@ -93,6 +100,7 @@ def write_selfenergy_input_files(
 
     # POSCAR
     primitive = parse_cell_dict(toml_dict["primitive_cell"])
+    assert primitive is not None
     write_crystal_structure(directory_path / "POSCAR", primitive)
 
     # INCAR
@@ -139,7 +147,7 @@ def write_selfenergy_input_files(
 
 def _find_elph_selfen_band_stop(
     current_directory: pathlib.Path, energy_threshold: float
-) -> int:
+) -> int | None:
     dos_directory = current_directory / "el_bands" / "dos"
     if dos_directory.exists():
         click.echo('Found "el_bands/dos" directory. Estimate elph_selfen_band_stop.')
@@ -184,10 +192,12 @@ def _estimate_elph_selfen_band_stop(
 
     """
     with h5py.File(vaspout_path) as f:
-        eigenvalues = f["results"]["electron_eigenvalues_kpoints_opt"]["eigenvalues"][:]
-        occupations = f["results"]["electron_eigenvalues_kpoints_opt"]["fermiweights"][
-            :
-        ]
+        eigenvalues: NDArray = f[
+            "results/electron_eigenvalues_kpoints_opt/eigenvalues"
+        ][:]  # type: ignore
+        occupations: NDArray = f[
+            "results/electron_eigenvalues_kpoints_opt/fermiweights"
+        ][:]  # type: ignore
 
     nbands = eigenvalues.shape[2]
     unoccupied_band_index = None

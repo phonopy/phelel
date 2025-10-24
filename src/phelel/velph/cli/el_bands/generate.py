@@ -38,53 +38,46 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
         write_crystal_structure(directory / "POSCAR", primitive)
 
         # INCAR
-        if calc_type == "bands":
-            incar_dict = copy.deepcopy(toml_dict["vasp"]["el_bands"]["incar"])
-            for key in toml_dict["vasp"]["el_bands"]["incar"]:
-                if key.lower().strip() in ("lorbit", "nedos"):
-                    del incar_dict[key]
-            write_incar(incar_dict, directory, cell=primitive)
-        elif calc_type == "dos":
-            write_incar(
-                toml_dict["vasp"]["el_bands"]["incar"], directory, cell=primitive
-            )
+        incar_dict = copy.deepcopy(toml_dict["vasp"]["el_bands"][calc_type]["incar"])
+        write_incar(incar_dict, directory, cell=primitive)
 
         # KPOINTS
-        kpoints_dict = toml_dict["vasp"]["el_bands"]["kpoints"]
+        kpoints_dict = toml_dict["vasp"]["el_bands"][calc_type]["kpoints"]
         assert_kpoints_mesh_symmetry(toml_dict, kpoints_dict, primitive)
         write_kpoints_mesh_mode(
-            toml_dict["vasp"]["el_bands"]["incar"],
+            toml_dict["vasp"]["el_bands"][calc_type]["incar"],
             directory,
-            "vasp.el_bands.kpoints",
-            toml_dict["vasp"]["el_bands"]["kpoints"],
+            f"vasp.el_bands.{calc_type}.kpoints",
+            toml_dict["vasp"]["el_bands"][calc_type]["kpoints"],
         )
 
         # KPOINTS_OPT
         if calc_type == "bands":
-            if "path" in toml_dict["vasp"]["el_bands"]["kpoints_opt"]:
+            if "path" in toml_dict["vasp"]["el_bands"][calc_type]["kpoints_opt"]:
                 click.echo(
                     "Seek-path (https://github.com/giovannipizzi/seekpath) is used."
                 )
-
             write_kpoints_line_mode(
                 primitive,
                 directory,
-                "vasp.el_bands.kpoints_opt",
-                toml_dict["vasp"]["el_bands"]["kpoints_opt"],
+                "vasp.el_bands.bands.kpoints_opt",
+                toml_dict["vasp"]["el_bands"][calc_type]["kpoints_opt"],
                 kpoints_filename="KPOINTS_OPT",
             )
         elif calc_type == "dos":
-            if "kpoints_dense" not in toml_dict["vasp"]["el_bands"]:
+            if "kpoints_dense" not in toml_dict["vasp"]["el_bands"][calc_type]:
                 raise RuntimeError(
-                    "[vasp.el_bands.kpoints_dense] section is necessary "
+                    "[vasp.el_bands.dos.kpoints_dense] section is necessary "
                     "for electronic DOS calculation."
                 )
-            kpoints_dense_dict = toml_dict["vasp"]["el_bands"]["kpoints_dense"]
+            kpoints_dense_dict = toml_dict["vasp"]["el_bands"][calc_type][
+                "kpoints_dense"
+            ]
             assert_kpoints_mesh_symmetry(toml_dict, kpoints_dense_dict, primitive)
             write_kpoints_mesh_mode(
-                toml_dict["vasp"]["el_bands"]["incar"],
+                toml_dict["vasp"]["el_bands"][calc_type]["incar"],
                 directory,
-                "vasp.el_bands.kpoints",
+                "vasp.el_bands.dos.kpoints_dense",
                 kpoints_dense_dict,
                 kpoints_filename="KPOINTS_OPT",
             )
