@@ -28,6 +28,7 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
 
     # POSCAR
     cell = choose_cell_in_dict(toml_dict, toml_filename, "nac")
+    assert cell is not None
     write_crystal_structure(directory / "POSCAR", cell)
 
     # INCAR

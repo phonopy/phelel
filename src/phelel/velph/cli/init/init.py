@@ -11,6 +11,7 @@ from typing import Literal
 
 import click
 import numpy as np
+import spglib
 import tomli
 import tomli_w
 from numpy.typing import NDArray
@@ -23,7 +24,7 @@ from phonopy.structure.cells import (
     get_supercell,
     shape_supercell_matrix,
 )
-from spglib import SpglibDataset  # type: ignore
+from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel.velph.cli.utils import (
     CellChoice,
@@ -185,7 +186,7 @@ def _run_init(
 def _get_supercell_matrix(
     vip: VelphInitParams,
     velph_dict: dict,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     calc_type: Literal["phelel", "phonopy", "phono3py"],
 ) -> NDArray | None:
     displacement_options = vip[f"{calc_type}_displacement_options"]
@@ -203,7 +204,7 @@ def _get_supercell_matrix(
 
 def _select_supercell_matrix(
     velph_dict_calc_type: dict,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     find_primitive: bool,
     max_num_atoms: int | None = None,
     supercell_dimension: tuple[int, int, int] | None = None,
@@ -454,7 +455,7 @@ def _get_cells(
     symmetrize_cell: bool,
     find_primitive: bool,
     primitive_cell_choice: PrimitiveCellChoice,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, SpglibDataset]:
+) -> tuple[PhonopyAtoms, PhonopyAtoms, SpglibDataset | SpglibMagneticDataset]:
     """Return unit cell, primitive cell, and symmetry dataset.
 
     This function is complicated due to complicated requests.
@@ -498,6 +499,15 @@ def _get_cells(
 
     """
     sym_dataset = get_symmetry_dataset(input_cell, tolerance=tolerance)
+    if isinstance(sym_dataset, SpglibDataset):
+        click.echo(f"Space-group: {sym_dataset.international}")
+    else:
+        spg_type = spglib.get_spacegroup_type(sym_dataset.hall_number)
+        assert spg_type is not None
+        click.echo(f"Magnetic-space-group type-{sym_dataset.msg_type}")
+        click.echo(f"  Uni-number: {sym_dataset.uni_number}")
+        click.echo(f"  Reference space-group-type: {spg_type.international_short}")
+
     if symmetrize_cell:
         unitcell, _primitive, tmat = generate_standardized_cells(
             sym_dataset, tolerance=tolerance
@@ -679,7 +689,7 @@ def _get_toml_lines(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     cell_choices: dict,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Return velph-toml lines."""
@@ -796,8 +806,11 @@ def _get_toml_lines(
     # [symmetry]
     if sym_dataset is not None:
         lines.append("[symmetry]")
-        spg_type = sym_dataset.international
-        lines.append(f'spacegroup_type = "{spg_type}"')
+        if isinstance(sym_dataset, SpglibDataset):
+            spg_type = sym_dataset.international
+            lines.append(f'spacegroup_type = "{spg_type}"')
+        else:
+            lines.append(f"uni_number = {sym_dataset.uni_number}")
         lines.append(f"tolerance = {vip.tolerance}")
         if len(unitcell) != len(primitive):
             pmat = (primitive.cell @ np.linalg.inv(unitcell.cell)).T
@@ -866,7 +879,7 @@ def _get_kpoints_dict(
     vip_tolerance: float,
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
-    sym_dataset: SpglibDataset,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
     supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
@@ -877,20 +890,10 @@ def _get_kpoints_dict(
     sym_dataset_prim = get_symmetry_dataset(primitive, tolerance=vip_tolerance)
 
     # Grid matrix for unitcell
-    gm = GridMatrix(
-        2 * np.pi / vip_kspacing,
-        lattice=unitcell.cell,
-        symmetry_dataset=sym_dataset,
-        use_grg=use_grg_unitcell,
-    )
+    gm = _get_grid_matrix(vip_kspacing, unitcell, sym_dataset, use_grg_unitcell)
 
     # Grid matrix for primitive cell
-    gm_prim = GridMatrix(
-        2 * np.pi / vip_kspacing,
-        lattice=primitive.cell,
-        symmetry_dataset=sym_dataset_prim,
-        use_grg=vip_use_grg,
-    )
+    gm_prim = _get_grid_matrix(vip_kspacing, primitive, sym_dataset_prim, vip_use_grg)
 
     # Grid matrix for supercell
     supercell_grid_matrices = {}
@@ -898,21 +901,18 @@ def _get_kpoints_dict(
         if supercell_matrices[calc_type] is not None:
             _supercell = get_supercell(unitcell, supercell_matrices[calc_type])
             _sym_dataset = get_symmetry_dataset(_supercell, tolerance=vip_tolerance)
-            supercell_grid_matrices[calc_type] = GridMatrix(
-                2 * np.pi / vip_kspacing,
-                lattice=_supercell.cell,
-                symmetry_dataset=_sym_dataset,
+            supercell_grid_matrices[calc_type] = _get_grid_matrix(
+                vip_kspacing,
+                _supercell,
+                _sym_dataset,
                 use_grg=False,
             )
         else:
             supercell_grid_matrices[calc_type] = None
 
     # Dense grid matrix for primitive cell
-    gm_dense_prim = GridMatrix(
-        2 * np.pi / vip_kspacing_dense,
-        lattice=primitive.cell,
-        symmetry_dataset=sym_dataset_prim,
-        use_grg=vip_use_grg,
+    gm_dense_prim = _get_grid_matrix(
+        vip_kspacing_dense, primitive, sym_dataset_prim, vip_use_grg
     )
 
     # Build return values
@@ -931,6 +931,37 @@ def _get_kpoints_dict(
     kpoints_opt_dict: dict = {}
 
     return kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict
+
+
+def _get_grid_matrix(
+    kspacing: float,
+    primitive: PhonopyAtoms,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    use_grg: bool,
+) -> GridMatrix:
+    try:
+        gm = GridMatrix(
+            2 * np.pi / kspacing,
+            lattice=primitive.cell,
+            symmetry_dataset=sym_dataset,
+            use_grg=use_grg,
+        )
+    except RuntimeError as e:
+        if "Grid symmetry is broken." in str(e):
+            click.echo(
+                "Warning: Grid symmetry is broken. "
+                "Switching to use_grg=True for the primitive cell."
+            )
+            gm = GridMatrix(
+                2 * np.pi / kspacing,
+                lattice=primitive.cell,
+                symmetry_dataset=sym_dataset,
+                use_grg=True,
+            )
+        else:
+            raise e
+
+    return gm
 
 
 def _update_kpoints_by_vasp_dict(
