@@ -169,6 +169,30 @@ def _run_init(
     cell_choices = _determine_cell_choices(vip, velph_dict)
 
     #
+    # Determine supercell matrices.
+    #
+    supercell_matrices = _get_supercell_matrices(vip, velph_dict, sym_dataset)
+
+    #
+    # Determine k-point meshes.
+    #
+    (
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
+    ) = _get_kpoints_dict(
+        vip,
+        velph_dict,
+        unitcell,
+        primitive,
+        sym_dataset,
+        supercell_matrices,
+        cell_choices,
+        phelel_dir_name=phelel_dir_name,
+    )
+
+    #
     # Create velph-toml lines.
     #
     toml_lines = _get_toml_lines(
@@ -177,6 +201,11 @@ def _run_init(
         unitcell,
         primitive,
         cell_choices,
+        supercell_matrices,
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
         sym_dataset,
         phelel_dir_name=phelel_dir_name,
     )
@@ -618,6 +647,77 @@ def _get_velph_dict(
     return velph_dict
 
 
+def _get_kpoints_dict(
+    vip: VelphInitParams,
+    velph_dict: dict,
+    unitcell: PhonopyAtoms,
+    primitive: PhonopyAtoms,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    cell_choices: dict[str, CellChoice],
+    phelel_dir_name: str = "phelel",
+) -> tuple[
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+]:
+    (
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
+    ) = _get_kpoints_dict_by_kspacing(
+        vip.kspacing,
+        vip.kspacing_dense,
+        vip.use_grg,
+        vip.tolerance,
+        unitcell,
+        primitive,
+        sym_dataset,
+        supercell_matrices,
+        cell_choices["nac"],
+        cell_choices["relax"],
+        phelel_dir_name=phelel_dir_name,
+    )
+
+    if "vasp" in velph_dict:
+        _update_kpoints_by_vasp_dict(
+            kpoints_dict,
+            kpoints_dense_dict,
+            qpoints_dict,
+            kpoints_opt_dict,
+            velph_dict["vasp"],
+        )
+        _show_kpoints_lines(
+            kpoints_dict,
+            kpoints_dense_dict,
+            velph_dict["vasp"],
+            vip.kspacing,
+            vip.kspacing_dense,
+        )
+    return (kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict)
+
+
+def _get_supercell_matrices(
+    vip: VelphInitParams,
+    velph_dict: dict,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+) -> dict[Literal["phelel", "phonopy", "phono3py"], NDArray]:
+    supercell_matrices = {}
+    for calc_type in ("phelel", "phonopy", "phono3py"):
+        supercell_matrices[calc_type] = _get_supercell_matrix(
+            vip,
+            velph_dict,
+            sym_dataset,
+            calc_type,
+        )
+        click.echo(f"[{calc_type}]")
+        if supercell_matrices[calc_type] is not None:
+            _show_supercell_dimension(supercell_matrices[calc_type])
+    return supercell_matrices
+
+
 def _update_velph_dict_by_template_dict(velph_dict: dict, template_dict: dict):
     """Update velph_dict by template dict.
 
@@ -690,57 +790,16 @@ def _get_toml_lines(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     cell_choices: dict,
+    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    kpoints_dict: dict[str, KpointsData],
+    kpoints_dense_dict: dict[str, KpointsData],
+    qpoints_dict: dict[str, KpointsData],
+    kpoints_opt_dict: dict[str, KpointsData],
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
     phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Return velph-toml lines."""
     assert vip.displacement_options is not None
-    supercell_matrices = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
-        supercell_matrices[calc_type] = _get_supercell_matrix(
-            vip,
-            velph_dict,
-            sym_dataset,
-            calc_type,
-        )
-        click.echo(f"[{calc_type}]")
-        if supercell_matrices[calc_type] is not None:
-            _show_supercell_dimension(supercell_matrices[calc_type])
-
-    (
-        kpoints_dict,
-        kpoints_dense_dict,
-        qpoints_dict,
-        kpoints_opt_dict,
-    ) = _get_kpoints_dict(
-        vip.kspacing,
-        vip.kspacing_dense,
-        vip.use_grg,
-        vip.tolerance,
-        unitcell,
-        primitive,
-        sym_dataset,
-        supercell_matrices,
-        cell_choices["nac"],
-        cell_choices["relax"],
-        phelel_dir_name=phelel_dir_name,
-    )
-
-    if "vasp" in velph_dict:
-        _update_kpoints_by_vasp_dict(
-            kpoints_dict,
-            kpoints_dense_dict,
-            qpoints_dict,
-            kpoints_opt_dict,
-            velph_dict["vasp"],
-        )
-        _show_kpoints_lines(
-            kpoints_dict,
-            kpoints_dense_dict,
-            velph_dict["vasp"],
-            vip.kspacing,
-            vip.kspacing_dense,
-        )
 
     #
     # velph.toml
@@ -873,7 +932,7 @@ def _get_incar_dict_with_encut(velph_dict: dict, nested_keys: list[str]) -> dict
     }
 
 
-def _get_kpoints_dict(
+def _get_kpoints_dict_by_kspacing(
     vip_kspacing: float,
     vip_kspacing_dense: float,
     vip_use_grg: bool,

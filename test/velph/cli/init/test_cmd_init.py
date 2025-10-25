@@ -22,6 +22,8 @@ from phelel.velph.cli.init.init import (
     _collect_init_params,
     _determine_cell_choices,
     _get_cells,
+    _get_kpoints_dict,
+    _get_supercell_matrices,
     _get_template_init_params,
     _get_toml_lines,
     _get_velph_dict,
@@ -140,12 +142,33 @@ def test_get_toml_lines_minimum(nacl_cell: PhonopyAtoms):
     )
     vip = VelphInitParams(displacement_options=DisplacementOptions(max_num_atoms=100))
     cell_choices = dataclasses.asdict(DefaultCellChoices())
+
+    supercell_matrices = _get_supercell_matrices(vip, velph_dict, sym_dataset)
+    (
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
+    ) = _get_kpoints_dict(
+        vip,
+        velph_dict,
+        unitcell,
+        primitive,
+        sym_dataset,
+        supercell_matrices,
+        cell_choices,
+    )
     toml_lines = _get_toml_lines(
         velph_dict,
         vip,
         unitcell,
         primitive,
         cell_choices,
+        supercell_matrices,
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
         sym_dataset,
     )
     assert toml_lines is not None
@@ -176,12 +199,32 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
         vip.primitive_cell_choice,
     )
     cell_choices = _determine_cell_choices(vip, velph_dict)
+    supercell_matrices = _get_supercell_matrices(vip, velph_dict, sym_dataset)
+    (
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
+    ) = _get_kpoints_dict(
+        vip,
+        velph_dict,
+        unitcell,
+        primitive,
+        sym_dataset,
+        supercell_matrices,
+        cell_choices,
+    )
     toml_lines = _get_toml_lines(
         velph_dict,
         vip,
         unitcell,
         primitive,
         cell_choices,
+        supercell_matrices,
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
         sym_dataset,
     )
     assert toml_lines is not None
