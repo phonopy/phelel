@@ -151,6 +151,20 @@ class VelphFilePaths:
     velph_template_filepath: os.PathLike | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class KpointsData:
+    """K-points data for VASP calculations."""
+
+    mesh: NDArray | None = None
+    D_diag: NDArray | None = None
+    shift: NDArray | None = None
+    line: int | None = None
+    path: (
+        tuple[tuple[tuple[float, float, float], tuple[float, float, float]]] | None
+    ) = None
+    label: tuple[tuple[str, str]] | None = None
+
+
 def write_incar(
     toml_incar_dict: dict,
     directory: os.PathLike,
