@@ -46,9 +46,7 @@ from phelel.version import __version__
 
 
 def run_init(
-    cmd_init_options: VelphInitOptions,
-    vfp: VelphFilePaths,
-    phelel_dir_name: str = "phelel",
+    cmd_init_options: VelphInitOptions, vfp: VelphFilePaths
 ) -> list[str] | None:
     """Run velph-init.
 
@@ -67,10 +65,6 @@ def run_init(
     vfp : VelphFilePaths
         Input and output file names required for velph init. Default path to
         scheduler-toml-template file is defined in VelphFilePaths.
-    phelel_dir_name : str, optional
-        Directory name for [vasp.{phelel_dir_name}]. The default is "phelel",
-        which used to be "supercell". This parameter exists for backward
-        compatibility.
 
     Returns
     -------
@@ -89,7 +83,6 @@ def run_init(
         cmd_init_options,
         velph_template_fp=vfp.velph_template_filepath,
         template_toml_filepath=vfp.velph_template_filepath,
-        phelel_dir_name=phelel_dir_name,
     )
 
 
@@ -98,7 +91,6 @@ def _run_init(
     cmd_init_options: VelphInitOptions,
     velph_template_fp: str | os.PathLike | typing.IO | None = None,
     template_toml_filepath: str | os.PathLike | None = None,
-    phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Run init process and return velph-toml lines.
 
@@ -113,10 +105,6 @@ def _run_init(
         represents file name.
     template_toml_filepath : str, os.PathLike
         File name of velph-toml-template.
-    phelel_dir_name : str, optional
-        Directory name for [vasp.{phelel_dir_name}]. The default is "phelel",
-        which used to be "supercell". This parameter exists for backward
-        compatibility.
 
     """
     #
@@ -189,7 +177,6 @@ def _run_init(
         sym_dataset,
         supercell_matrices,
         cell_choices,
-        phelel_dir_name=phelel_dir_name,
     )
 
     #
@@ -207,7 +194,6 @@ def _run_init(
         qpoints_dict,
         kpoints_opt_dict,
         sym_dataset,
-        phelel_dir_name=phelel_dir_name,
     )
 
     return toml_lines
@@ -655,7 +641,6 @@ def _get_kpoints_dict(
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
     supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
     cell_choices: dict[str, CellChoice],
-    phelel_dir_name: str = "phelel",
 ) -> tuple[
     dict[str, KpointsData],
     dict[str, KpointsData],
@@ -678,7 +663,6 @@ def _get_kpoints_dict(
         supercell_matrices,
         cell_choices["nac"],
         cell_choices["relax"],
-        phelel_dir_name=phelel_dir_name,
     )
 
     if "vasp" in velph_dict:
@@ -703,9 +687,10 @@ def _get_supercell_matrices(
     vip: VelphInitParams,
     velph_dict: dict,
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> dict[Literal["phelel", "phonopy", "phono3py"], NDArray]:
     supercell_matrices = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         supercell_matrices[calc_type] = _get_supercell_matrix(
             vip,
             velph_dict,
@@ -796,7 +781,6 @@ def _get_toml_lines(
     qpoints_dict: dict[str, KpointsData],
     kpoints_opt_dict: dict[str, KpointsData],
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Return velph-toml lines."""
     assert vip.displacement_options is not None
@@ -845,7 +829,6 @@ def _get_toml_lines(
             qpoints_dict,
             cell_choices["nac"],
             cell_choices["relax"],
-            phelel_dir_name=phelel_dir_name,
         )
 
     # [scheduler]
@@ -943,7 +926,7 @@ def _get_kpoints_dict_by_kspacing(
     supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    phelel_dir_name: str = "phelel",
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> tuple[
     dict[str, KpointsData],
     dict[str, KpointsData],
@@ -962,7 +945,7 @@ def _get_kpoints_dict_by_kspacing(
 
     # Grid matrix for supercell
     supercell_grid_matrices = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         if supercell_matrices[calc_type] is not None:
             _supercell = get_supercell(unitcell, supercell_matrices[calc_type])
             _sym_dataset = get_symmetry_dataset(_supercell, tolerance=vip_tolerance)
@@ -987,10 +970,9 @@ def _get_kpoints_dict_by_kspacing(
         supercell_grid_matrices,
         cell_for_nac,
         cell_for_relax,
-        phelel_dir_name=phelel_dir_name,
     )
     kpoints_dense_dict = _get_kpoints_by_kspacing_dense(
-        gm_dense_prim, with_phelel=phelel_dir_name in kpoints_dict
+        gm_dense_prim, with_phelel=("phelel" in kpoints_dict)
     )
     qpoints_dict: dict = {}
     kpoints_opt_dict: dict = {"el_bands.band": KpointsData(line=51)}
@@ -1105,7 +1087,7 @@ def _get_kpoints_by_kspacing(
     supercell_grid_matrices: dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    phelel_dir_name: str = "phelel",
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> dict[str, KpointsData]:
     """Return kpoints dict.
 
@@ -1132,7 +1114,7 @@ def _get_kpoints_by_kspacing(
 
     """
     kpoints_of_supercells = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         gm_super = supercell_grid_matrices[calc_type]
         if gm_super is not None:
             if gm_super.grid_matrix is None:
@@ -1180,7 +1162,7 @@ def _get_kpoints_by_kspacing(
 
     # keys are calc_types.
     kpoints_dict = {
-        phelel_dir_name: kpoints_of_supercells["phelel"],
+        "phelel": kpoints_of_supercells["phelel"],
         "phonopy": kpoints_of_supercells["phonopy"],
         "phono3py": kpoints_of_supercells["phono3py"],
         "relax": relax_kpoints,
@@ -1249,13 +1231,13 @@ def _get_vasp_lines(
     qpoints_dict: dict[str, KpointsData],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    phelel_dir_name: str = "phelel",
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> list:
     incar_commons = _get_incar_commons(vasp_dict)
 
     lines = []
 
-    for calc_type in (phelel_dir_name, "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         if calc_type in vasp_dict and calc_type in kpoints_dict:
             if kpoints_dict[calc_type].mesh is not None:
                 _vasp_dict = vasp_dict[calc_type]
