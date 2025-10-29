@@ -551,12 +551,8 @@ properties based on electron-phonon interactions.</p>
 <h3><code class="docutils literal notranslate"><span class="pre">velph</span> <span class="pre">transport</span> <span class="pre">generate</span></code><a class="headerlink" href="#velph-transport-generate" title="Link to this heading">#</a></h3>
 <p>The VASP input files are prepared for transport property calculations. Users
 should review the generated <code class="docutils literal notranslate"><span class="pre">INCAR</span></code> tags and modify them as necessary for the
-target material. If results from <code class="docutils literal notranslate"><span class="pre">el_bands/dos</span></code> calculations are available, the
-maximum band index for the self-energy calculation is estimated and written into
-the <code class="docutils literal notranslate"><span class="pre">INCAR</span></code> file.</p>
+target material.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w"> </span>velph<span class="w"> </span>transport<span class="w"> </span>generate
-Found<span class="w"> </span><span class="s2">&quot;el_bands/dos&quot;</span><span class="w"> </span>directory.<span class="w"> </span>Estimate<span class="w"> </span>elph_selfen_band_stop.
-<span class="w">  </span><span class="s2">&quot;elph_selfen_band_stop=5&quot;</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>INCAR<span class="w"> </span>is<span class="w"> </span>set.
 VASP<span class="w"> </span>input<span class="w"> </span>files<span class="w"> </span>were<span class="w"> </span>generated<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;transport&quot;</span>.
 </pre></div>
 </div>

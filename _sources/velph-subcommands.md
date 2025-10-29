@@ -200,14 +200,10 @@ properties based on electron-phonon interactions.
 
 The VASP input files are prepared for transport property calculations. Users
 should review the generated `INCAR` tags and modify them as necessary for the
-target material. If results from `el_bands/dos` calculations are available, the
-maximum band index for the self-energy calculation is estimated and written into
-the `INCAR` file.
+target material.
 
 ```bash
 % velph transport generate
-Found "el_bands/dos" directory. Estimate elph_selfen_band_stop.
-  "elph_selfen_band_stop=5" in INCAR is set.
 VASP input files were generated in "transport".
 ```
 
