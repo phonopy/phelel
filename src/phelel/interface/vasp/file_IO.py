@@ -1,7 +1,8 @@
 """VASP file IO functions."""
 
+from __future__ import annotations
+
 import os
-from typing import Union
 
 import h5py
 import numpy as np
@@ -24,7 +25,7 @@ def read_bin_stream(filename, dtype=None):
 
 
 def read_inwap_vaspouth5(
-    filename: Union[str, bytes, os.PathLike] = "vaspout.h5",
+    filename: str | os.PathLike = "vaspout.h5",
 ) -> dict:
     """Read inwap-like information in vaspout.h5."""
     inwap = {}
@@ -81,7 +82,7 @@ def read_inwap_vaspouth5(
     return inwap
 
 
-def read_inwap_yaml(filename: Union[str, bytes, os.PathLike] = "inwap.yaml") -> dict:
+def read_inwap_yaml(filename: str | os.PathLike = "inwap.yaml") -> dict:
     """Read inwap.yaml."""
     inwap = {}
     with open(filename) as f:
@@ -145,7 +146,9 @@ def read_PAW_Dij_qij(inwap, filename, is_Rij=False):
     return data_complex.reshape(shape)
 
 
-def read_local_potential_vaspouth5(inwap, filename="vaspout.h5"):
+def read_local_potential_vaspouth5(
+    inwap: dict, filename: str | os.PathLike = "vaspout.h5"
+):
     """Read local potentials in vaspout.h5.
 
     For spin unpolarized calculations the potential is real but we convert it to
@@ -182,7 +185,9 @@ def read_local_potential_vaspouth5(inwap, filename="vaspout.h5"):
         return pot
 
 
-def read_local_potential(inwap, filename="LOCAL-POTENTIAL.bin"):
+def read_local_potential(
+    inwap: dict, filename: str | os.PathLike = "LOCAL-POTENTIAL.bin"
+):
     """Read LOCAL-POTENTIAL.bin.
 
     Normally local potential (SV) is real in VASP. But non-collinear version, it

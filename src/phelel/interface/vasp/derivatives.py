@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import pathlib
 from collections.abc import Sequence
-from typing import Optional, Union
 
 import numpy as np
 from phonopy.file_IO import get_born_parameters
@@ -28,8 +27,8 @@ from phelel.interface.vasp.file_IO import (
 
 def read_files(
     phelel: Phelel,
-    dir_names: Sequence[str],
-    phonon_dir_names: Optional[Sequence[str]] = None,
+    dir_names: Sequence[str | os.PathLike],
+    phonon_dir_names: Sequence[str | os.PathLike] | None = None,
     subtract_rfs: bool = False,
     log_level: int = 0,
 ) -> PhelelDataset:
@@ -65,6 +64,7 @@ def read_files(
         supercell = phelel.phonon_supercell
     else:
         supercell = phelel.supercell
+    assert supercell is not None
     forces = read_forces_from_vasprunxmls(
         vasprun_filenames,
         supercell,
@@ -86,7 +86,7 @@ def read_files(
     if nac_params:
         phelel.nac_params = nac_params
         if phelel.phonon_supercell_matrix is not None:
-            phelel.phonon.nac_params = nac_params
+            phelel.nac_params = nac_params
 
     return PhelelDataset(
         local_potentials=loc_pots,
@@ -150,10 +150,10 @@ def read_Rij(dir_name, inwap_per):
 
 
 def read_forces_from_vasprunxmls(
-    vasprun_filenames: Union[list, tuple],
+    vasprun_filenames: list | tuple,
     supercell: PhonopyAtoms,
-    subtract_rfs=False,
-    log_level=0,
+    subtract_rfs: bool = False,
+    log_level: int = 0,
 ):
     """Read forces from vasprun.xml's and read NAC params from BORN."""
     calc_dataset = parse_set_of_forces(len(supercell), vasprun_filenames, verbose=False)
@@ -195,9 +195,14 @@ def _read_born(primitive: Primitive, primitive_symmetry: Symmetry, log_level: in
 
 def _get_datasets(phelel: Phelel) -> tuple:
     """Return inwap dataset and phonopy dataset."""
+    assert phelel.dataset is not None
     if "first_atoms" in phelel.dataset:
         dataset = phelel.dataset
-        if phelel.phonon_supercell_matrix and "first_atoms" in phelel.phonon_dataset:
+        if (
+            phelel.phonon_supercell_matrix
+            and phelel.phonon_dataset is not None
+            and "first_atoms" in phelel.phonon_dataset
+        ):
             phonon_dataset = phelel.phonon_dataset
         else:
             phonon_dataset = dataset
@@ -208,7 +213,7 @@ def _get_datasets(phelel: Phelel) -> tuple:
 
 
 def _read_local_potentials(
-    dir_names: Union[str, bytes, os.PathLike], inwap_per: dict, log_level: int = 0
+    dir_names: Sequence[str | os.PathLike], inwap_per: dict, log_level: int = 0
 ) -> list[np.ndarray]:
     loc_pots = []
     for dir_name in dir_names:

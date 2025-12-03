@@ -73,10 +73,13 @@ class Phelel:
     def __init__(
         self,
         unitcell: PhonopyAtoms,
-        supercell_matrix: ArrayLike | None = None,
-        primitive_matrix: str | ArrayLike | None = None,
-        phonon_supercell_matrix: ArrayLike | None = None,
-        fft_mesh: ArrayLike | None = None,
+        supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
+        | Sequence[Sequence[float]]
+        | NDArray
+        | None = None,
+        phonon_supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        fft_mesh: Sequence[int] | NDArray | None = None,
         symprec: float = 1e-5,
         is_symmetry: bool = True,
         calculator: str | None = None,
@@ -273,7 +276,7 @@ class Phelel:
             return self._phonon.dataset
 
     @phonon_dataset.setter
-    def phonon_dataset(self, phonon_dataset):
+    def phonon_dataset(self, phonon_dataset: dict | None):
         if self._phonon is None:
             raise RuntimeError("Phonon instance is not initialized.")
         self._phonon.dataset = phonon_dataset
@@ -566,8 +569,11 @@ class Phelel:
 
     def _get_phonopy(
         self,
-        supercell_matrix: ArrayLike | None = None,
-        primitive_matrix: ArrayLike | None = None,
+        supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
+        | Sequence[Sequence[float]]
+        | NDArray
+        | None = None,
     ) -> Phonopy:
         """Return Phonopy instance."""
         return Phonopy(
