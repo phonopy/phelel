@@ -5,9 +5,10 @@ from __future__ import annotations
 import dataclasses
 import os
 import pathlib
+from collections.abc import Sequence
 from typing import Literal, cast
 
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 from phono3py.interface.calculator import (
     get_additional_info_to_write_fc2_supercells,
     get_additional_info_to_write_supercells,
@@ -33,7 +34,7 @@ class PhelelCellInfoResult(CellInfoResult):
     """
 
     phelel_yaml: PhelelYaml | None = None
-    phonon_supercell_matrix: ArrayLike | None = None
+    phonon_supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None
 
 
 def get_cell_info(

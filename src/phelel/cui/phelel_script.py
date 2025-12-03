@@ -259,7 +259,7 @@ def main(**argparse_control):
             if phe_yml.phonon_dataset is not None:
                 phelel.phonon_dataset = phe_yml.phonon_dataset
 
-            if pathlib.Path("BORN").exists() or phe_yml.nac_params:
+            if pathlib.Path("BORN").is_file() or phe_yml.nac_params:
                 store_nac_params(
                     cast(Phonopy, phelel),
                     settings,
