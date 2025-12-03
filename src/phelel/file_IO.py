@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import io
 import os
 import pathlib
 import warnings
-from typing import Optional, Union
 
 import h5py
 import numpy as np
+from numpy.typing import NDArray
 from phonopy.structure.atoms import PhonopyAtoms, atom_data
 from phonopy.structure.cells import Primitive, dense_to_sparse_svecs
 from phonopy.structure.symmetry import Symmetry
+from spglib import SpglibDataset
 
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
@@ -21,22 +21,22 @@ from phelel.utils.lattice_points import get_lattice_points
 
 
 def write_phelel_params_hdf5(
-    dVdu: Optional["DLocalPotential"] = None,
-    dDijdu: Optional["DDijQij"] = None,
+    dVdu: DLocalPotential | None = None,
+    dDijdu: DDijQij | None = None,
     # Rij=None,
-    supercell_matrix=None,
-    primitive_matrix=None,
-    primitive: Optional[Primitive] = None,
-    unitcell: Optional[PhonopyAtoms] = None,
-    supercell: Optional[PhonopyAtoms] = None,
-    atom_indices_in_derivatives=None,
-    disp_dataset=None,
-    force_constants=None,
-    phonon_supercell_matrix=None,
-    phonon_primitive: Optional[Primitive] = None,
-    phonon_supercell: Optional[PhonopyAtoms] = None,
-    nac_params=None,
-    symmetry_dataset=None,
+    supercell_matrix: NDArray | None = None,
+    primitive_matrix: NDArray | None = None,
+    primitive: Primitive | None = None,
+    unitcell: PhonopyAtoms | None = None,
+    supercell: PhonopyAtoms | None = None,
+    atom_indices_in_derivatives: NDArray | None = None,
+    disp_dataset: dict | None = None,
+    force_constants: NDArray | None = None,
+    phonon_supercell_matrix: NDArray | None = None,
+    phonon_primitive: Primitive | None = None,
+    phonon_supercell: PhonopyAtoms | None = None,
+    nac_params: dict | None = None,
+    symmetry_dataset: SpglibDataset | None = None,
     filename="phelel_params.hdf5",
 ):
     """Write phelel_params.hdf5."""
@@ -84,7 +84,7 @@ def write_dVdu_hdf5(
 
 
 def read_phelel_params_hdf5(
-    filename: Union[str, bytes, os.PathLike, io.IOBase] = "phelel_params.hdf5",
+    filename: str | os.PathLike = "phelel_params.hdf5",
     log_level: int = 0,
 ) -> tuple[DLocalPotential, DDijQij, np.ndarray, np.ndarray]:
     """Read dV/du and dDij/du from phelel_params.hdf5.
@@ -192,22 +192,22 @@ def read_dDijdu_hdf5(f):
 
 def _add_datasets(
     w,
-    dVdu: Optional["DLocalPotential"] = None,
-    dDijdu: Optional["DDijQij"] = None,
-    Rij=None,
-    supercell_matrix=None,
-    primitive_matrix=None,
-    primitive: Optional[Primitive] = None,
-    unitcell: Optional[PhonopyAtoms] = None,
-    supercell: Optional[PhonopyAtoms] = None,
-    atom_indices_in_derivatives=None,
-    disp_dataset=None,
-    force_constants=None,
-    phonon_supercell_matrix=None,
-    phonon_primitive: Optional[Primitive] = None,
-    phonon_supercell: Optional[PhonopyAtoms] = None,
-    nac_params=None,
-    symmetry_dataset=None,
+    dVdu: DLocalPotential | None = None,
+    dDijdu: DDijQij | None = None,
+    Rij: NDArray | None = None,
+    supercell_matrix: NDArray | None = None,
+    primitive_matrix: NDArray | None = None,
+    primitive: Primitive | None = None,
+    unitcell: PhonopyAtoms | None = None,
+    supercell: PhonopyAtoms | None = None,
+    atom_indices_in_derivatives: NDArray | None = None,
+    disp_dataset: dict | None = None,
+    force_constants: NDArray | None = None,
+    phonon_supercell_matrix: NDArray | None = None,
+    phonon_primitive: Primitive | None = None,
+    phonon_supercell: PhonopyAtoms | None = None,
+    nac_params: dict | None = None,
+    symmetry_dataset: SpglibDataset | None = None,
 ):
     if dVdu is not None:
         w.create_dataset("dVdu", data=cmplx2real(dVdu.dVdu))
