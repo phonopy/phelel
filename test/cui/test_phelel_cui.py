@@ -40,17 +40,32 @@ class MockArgs:
 
 
 @pytest.mark.parametrize(
-    "filename",
+    "filename,with_BORN_file",
     [
-        pathlib.Path("..") / "phelel_disp_C111.yaml",
-        pathlib.Path("phelel_disp_C111_nac.yaml"),
+        (pathlib.Path("..") / "phelel_disp_C111.yaml", False),
+        (pathlib.Path("..") / "phelel_disp_C111.yaml", True),
+        (pathlib.Path("phelel_disp_C111_nac.yaml"), False),
     ],
 )
-def test_phelel_script(filename: pathlib.Path):
+def test_phelel_script(filename: pathlib.Path, with_BORN_file: bool):
     """Test phelel command."""
+    born_str = """4.399652
+5.7 0 0 0 5.7 0 0 0 5.7
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0"""
+
     with tempfile.TemporaryDirectory() as temp_dir:
         original_cwd = pathlib.Path.cwd()
         os.chdir(temp_dir)
+
+        if with_BORN_file:
+            born_file = pathlib.Path("BORN")
+            with born_file.open("w", encoding="utf-8") as f:
+                f.write(born_str)
+        else:
+            # Test not to read BORN directory.
+            born_dir = pathlib.Path("BORN")
+            os.mkdir(born_dir)
 
         try:
             # Check sys.exit(0)
@@ -59,6 +74,11 @@ def test_phelel_script(filename: pathlib.Path):
             with pytest.raises(SystemExit) as excinfo:
                 main(**argparse_control)
             assert excinfo.value.code == 0
+
+            if with_BORN_file:
+                born_file.unlink()
+            else:
+                born_dir.rmdir()
 
             # Clean files created by phonopy-load script.
             for created_filename in ("phelel.yaml",):
@@ -195,3 +215,9 @@ def _get_phelel_load_args(
     # See phonopy-load script.
     argparse_control = {"args": mockargs}
     return argparse_control
+
+
+def _ls():
+    current_dir = pathlib.Path(".")
+    for file in current_dir.iterdir():
+        print(file.name)
