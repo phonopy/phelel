@@ -460,9 +460,9 @@ def get_primitive_matrix_from_dataset(
     if isinstance(sym_dataset, SpglibDataset):
         centring = sym_dataset.international[0]
     else:
-        centring = spglib.get_spacegroup_type(
-            sym_dataset.hall_number
-        ).international_short[0]
+        spg_type = spglib.get_spacegroup_type(sym_dataset.hall_number)
+        assert spg_type is not None
+        centring = spg_type.international_short[0]
     return get_primitive_matrix_by_centring(centring)
 
 

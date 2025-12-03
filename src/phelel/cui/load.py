@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
-from typing import Optional, Union
+from typing import Literal, cast
 
 import numpy as np
 import phonopy.cui.load_helper as phonopy_load_helper
+from numpy.typing import NDArray
+from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import get_primitive_matrix
 
@@ -18,20 +20,23 @@ from phelel.interface.vasp.derivatives import read_files
 
 
 def load(
-    phonopy_yaml: Optional[Union[str, bytes, os.PathLike]] = None,
-    supercell_matrix: Optional[Union[Sequence, np.ndarray]] = None,
-    primitive_matrix: Optional[Union[str, Sequence, np.ndarray]] = None,
-    phonon_supercell_matrix: Optional[Union[Sequence, np.ndarray]] = None,
+    phonopy_yaml: str | os.PathLike | None = None,
+    supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+    primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
+    | Sequence[Sequence[float]]
+    | NDArray
+    | None = None,
+    phonon_supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
     is_nac: bool = True,
-    fft_mesh: Optional[Union[Sequence, np.ndarray]] = None,
-    unitcell: Optional[PhonopyAtoms] = None,
-    supercell: Optional[PhonopyAtoms] = None,
-    dir_names: Optional[Sequence[Union[str, bytes, os.PathLike]]] = None,
-    phonon_dir_names: Optional[Sequence[Union[str, bytes, os.PathLike]]] = None,
-    unitcell_filename: Optional[Union[str, bytes, os.PathLike]] = None,
-    supercell_filename: Optional[Union[str, bytes, os.PathLike]] = None,
-    force_sets_filename: Optional[Union[str, bytes, os.PathLike]] = None,
-    force_constants_filename: Optional[Union[str, bytes, os.PathLike]] = None,
+    fft_mesh: Sequence[int] | NDArray | None = None,
+    unitcell: PhonopyAtoms | None = None,
+    supercell: PhonopyAtoms | None = None,
+    dir_names: Sequence[str | os.PathLike] | None = None,
+    phonon_dir_names: Sequence[str | os.PathLike] | None = None,
+    unitcell_filename: str | os.PathLike | None = None,
+    supercell_filename: str | os.PathLike | None = None,
+    force_sets_filename: str | os.PathLike | None = None,
+    force_constants_filename: str | os.PathLike | None = None,
     subtract_rfs: bool = True,
     symprec: float = 1e-5,
     is_symmetry: bool = True,
@@ -128,6 +133,7 @@ def load(
         phonon_dataset = None
         _nac_params = None
 
+    assert cell is not None
     phelel = Phelel(
         cell,
         supercell_matrix=smat,
@@ -170,12 +176,17 @@ def load(
         )
         if phelel.fft_mesh is not None:
             phelel.run_derivatives(phe_input)
-    elif force_constants_filename is not None or force_sets_filename is not None:
-        phonopy_load_helper.set_dataset_and_force_constants(
-            phelel.phonon,
-            None,
-            None,
+    elif force_constants_filename is not None:
+        _fc = phonopy_load_helper.select_and_extract_force_constants(
+            cast(Phonopy, phelel),
             force_constants_filename=force_constants_filename,
+            log_level=log_level,
+        )
+        if _fc is not None:
+            phelel.force_constants = _fc
+    elif force_sets_filename is not None:
+        phelel.phonon_dataset = phonopy_load_helper.select_and_load_dataset(
+            len(phelel.supercell),
             force_sets_filename=force_sets_filename,
             log_level=log_level,
         )
