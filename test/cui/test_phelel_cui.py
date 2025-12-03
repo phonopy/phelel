@@ -7,7 +7,6 @@ import pathlib
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
-from typing import Optional
 
 import pytest
 
@@ -21,15 +20,15 @@ cwd_called = pathlib.Path.cwd()
 class MockArgs:
     """Mock args of ArgumentParser."""
 
-    filename: Optional[Sequence[str]] = None
-    conf_filename: Optional[str] = None
-    log_level: Optional[int] = None
-    cell_filename: Optional[str] = None
-    supercell_dimension: Optional[str] = None
-    create_derivatives: Optional[Sequence[str]] = None
+    filename: Sequence[str] | None = None
+    conf_filename: str | None = None
+    log_level: int | None = None
+    cell_filename: str | None = None
+    supercell_dimension: str | None = None
+    create_derivatives: Sequence[str] | None = None
     is_displacement: bool = False
     is_plusminus_displacements: bool = False
-    fft_mesh_numbers: Optional[str] = None
+    fft_mesh_numbers: str | None = None
 
     def __iter__(self):
         """Make self iterable to support in."""
@@ -40,7 +39,14 @@ class MockArgs:
         return item in (field.name for field in fields(self))
 
 
-def test_phelel_script():
+@pytest.mark.parametrize(
+    "filename",
+    [
+        pathlib.Path("..") / "phelel_disp_C111.yaml",
+        pathlib.Path("phelel_disp_C111_nac.yaml"),
+    ],
+)
+def test_phelel_script(filename: pathlib.Path):
     """Test phelel command."""
     with tempfile.TemporaryDirectory() as temp_dir:
         original_cwd = pathlib.Path.cwd()
@@ -48,7 +54,7 @@ def test_phelel_script():
 
         try:
             # Check sys.exit(0)
-            cell_filename = str(cwd / ".." / "phelel_disp_C111.yaml")
+            cell_filename = str(cwd / filename)
             argparse_control = _get_phelel_load_args(cell_filename=cell_filename)
             with pytest.raises(SystemExit) as excinfo:
                 main(**argparse_control)
@@ -167,12 +173,12 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
 
 
 def _get_phelel_load_args(
-    cell_filename: Optional[str] = None,
-    supercell_dimenstion: Optional[str] = None,
-    create_derivatives: Optional[Sequence[str]] = None,
+    cell_filename: str | None = None,
+    supercell_dimenstion: str | None = None,
+    create_derivatives: Sequence[str] | None = None,
     is_displacement: bool = False,
     is_plusminus_displacements: bool = False,
-    fft_mesh_numbers: Optional[str] = None,
+    fft_mesh_numbers: str | None = None,
 ):
     # Mock of ArgumentParser.args.
     mockargs = MockArgs(

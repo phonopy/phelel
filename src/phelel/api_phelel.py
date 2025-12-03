@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import io
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -139,7 +138,7 @@ class Phelel:
         self._phelel_phonon = self._get_phonopy(supercell_matrix, primitive_matrix)
         self._atom_indices_in_derivatives = self._phelel_phonon.primitive.p2s_map
 
-        self._phonon: Optional[Phonopy] = None
+        self._phonon: Phonopy | None = None
         if phonon_supercell_matrix is not None:
             self._phonon = self._get_phonopy(phonon_supercell_matrix, primitive_matrix)
             assert isclose(self._phelel_phonon.primitive, self._phonon.primitive)
@@ -212,7 +211,7 @@ class Phelel:
         self._phelel_phonon.dataset = dataset
 
     @property
-    def atom_indices_in_derivatives(self) -> np.ndarray:
+    def atom_indices_in_derivatives(self) -> NDArray:
         """Return atom indices used for calculation of derivatives."""
         return self._atom_indices_in_derivatives
 
@@ -227,17 +226,17 @@ class Phelel:
         return self._phelel_phonon.primitive_symmetry
 
     @property
-    def supercell_matrix(self) -> np.ndarray:
+    def supercell_matrix(self) -> NDArray:
         """Return supercell matrix."""
         return self._phelel_phonon.supercell_matrix
 
     @property
-    def primitive_matrix(self) -> Optional[np.ndarray]:
+    def primitive_matrix(self) -> NDArray | None:
         """Return primitive matrix."""
         return self._phelel_phonon.primitive_matrix
 
     @property
-    def phonon_supercell_matrix(self) -> Optional[np.ndarray]:
+    def phonon_supercell_matrix(self) -> NDArray | None:
         """Return supercell matrix used for phonon calculation.
 
         If ``phonon_supercell_matrix`` is not specified at instantiation of
@@ -250,7 +249,7 @@ class Phelel:
             return self._phonon.supercell_matrix
 
     @property
-    def phonon_supercell(self) -> Optional[Supercell]:
+    def phonon_supercell(self) -> Supercell | None:
         """Return phonon supercell."""
         if self._phonon is None:
             return None
@@ -258,7 +257,7 @@ class Phelel:
             return self._phonon.supercell
 
     @property
-    def phonon_primitive(self) -> Optional[Primitive]:
+    def phonon_primitive(self) -> Primitive | None:
         """Return phonon primitive cell."""
         if self._phonon is None:
             return None
@@ -266,7 +265,7 @@ class Phelel:
             return self._phonon.primitive
 
     @property
-    def phonon_dataset(self) -> Optional[dict]:
+    def phonon_dataset(self) -> dict | None:
         """Setter and getter of phonon dataset."""
         if self._phonon is None:
             return None
@@ -304,7 +303,7 @@ class Phelel:
             self._phonon.nac_params = nac_params
 
     @property
-    def force_constants(self) -> Optional[np.ndarray]:
+    def force_constants(self) -> NDArray | None:
         """Return force constants."""
         if self._phonon is None:
             return self._phelel_phonon.force_constants
@@ -312,14 +311,14 @@ class Phelel:
             return self._phonon.force_constants
 
     @force_constants.setter
-    def force_constants(self, force_constants: np.ndarray):
+    def force_constants(self, force_constants: NDArray):
         if self._phonon is None:
             self._phelel_phonon.force_constants = force_constants
         else:
             self._phonon.force_constants = force_constants
 
     @property
-    def forces(self) -> np.ndarray:
+    def forces(self) -> NDArray:
         """Setter and getter of forces of supercells."""
         if self._phonon is None:
             return self._phelel_phonon.forces
@@ -327,7 +326,7 @@ class Phelel:
             return self._phonon.forces
 
     @forces.setter
-    def forces(self, forces: Union[Sequence, np.ndarray]):
+    def forces(self, forces: Sequence | NDArray):
         _forces = np.array(forces, dtype="double", order="C")
         if self._phonon is None:
             self._phelel_phonon.forces = _forces
@@ -489,9 +488,7 @@ class Phelel:
             phe_input.lm_channels,
         )
 
-    def save_hdf5(
-        self, filename: Union[str, bytes, os.PathLike, io.IOBase] = "phelel_params.hdf5"
-    ):
+    def save_hdf5(self, filename: str | os.PathLike = "phelel_params.hdf5"):
         """Write phelel_params.hdf5."""
         params = {
             "dVdu": self.dVdu,

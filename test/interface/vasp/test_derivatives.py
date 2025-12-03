@@ -1,5 +1,7 @@
 """Test for force constants creation."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
