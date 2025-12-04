@@ -80,12 +80,12 @@ def read_files(
 
     phelel.forces = forces
 
-    nac_params = _read_born(
-        phelel.primitive, phelel.primitive_symmetry, log_level=log_level
-    )
-    if nac_params:
-        phelel.nac_params = nac_params
-        if phelel.phonon_supercell_matrix is not None:
+    if phelel.nac_params is None:
+        # This situation is possible when this function is called from cui/load.
+        nac_params = _read_born(
+            phelel.primitive, phelel.primitive_symmetry, log_level=log_level
+        )
+        if nac_params:
             phelel.nac_params = nac_params
 
     return PhelelDataset(
@@ -182,8 +182,10 @@ def _get_vasprun_filenames(dir_names, log_level=0):
     return vasprun_filenames
 
 
-def _read_born(primitive: Primitive, primitive_symmetry: Symmetry, log_level: int = 0):
-    if pathlib.Path("BORN").exists():
+def _read_born(
+    primitive: Primitive, primitive_symmetry: Symmetry, log_level: int = 0
+) -> dict | None:
+    if pathlib.Path("BORN").is_file():
         with open("BORN", "r") as f:
             nac_params = get_born_parameters(f, primitive, primitive_symmetry)
             if log_level:
