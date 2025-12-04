@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 import pathlib
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
 
+import h5py
 import pytest
 
 from phelel.cui.phelel_script import main
@@ -51,7 +53,6 @@ def test_phelel_script(filename: pathlib.Path, with_BORN_file: bool):
     """Test phelel command."""
     born_str = """4.399652
 5.7 0 0 0 5.7 0 0 0 5.7
-0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0"""
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -85,12 +86,17 @@ def test_phelel_script(filename: pathlib.Path, with_BORN_file: bool):
                 file_path = pathlib.Path(created_filename)
                 assert file_path.exists()
                 file_path.unlink()
+
+            _check_no_files()
+
         finally:
             os.chdir(original_cwd)
 
 
-@pytest.mark.parametrize("use_poscar", [True, False])
-def test_phelel_script_create_derivatives(use_poscar: bool):
+@pytest.mark.parametrize(
+    "use_poscar,with_BORN_file", itertools.product([True, False], [True, False])
+)
+def test_phelel_script_create_derivatives(use_poscar: bool, with_BORN_file: bool):
     """Test phelel command.
 
     With POSCAR as input structure, ``phelel_disp.yaml`` has to be
@@ -101,9 +107,22 @@ def test_phelel_script_create_derivatives(use_poscar: bool):
     the computation will suceeded and ``phelel_params`` is created.
 
     """
+    born_str = """4.399652
+5.7 0 0 0 5.7 0 0 0 5.7
+0 0 0 0 0 0 0 0 0"""
+
     with tempfile.TemporaryDirectory() as temp_dir:
         original_cwd = pathlib.Path.cwd()
         os.chdir(temp_dir)
+
+        if with_BORN_file:
+            born_file = pathlib.Path("BORN")
+            with born_file.open("w", encoding="utf-8") as f:
+                f.write(born_str)
+        else:
+            # Test not to read BORN directory.
+            born_dir = pathlib.Path("BORN")
+            os.mkdir(born_dir)
 
         try:
             # Check sys.exit(0)
@@ -133,10 +152,101 @@ def test_phelel_script_create_derivatives(use_poscar: bool):
                     main(**argparse_control)
                 assert excinfo.value.code == 0
 
+                if with_BORN_file:
+                    # extra keys: 'born_effective_charges' and 'dielectric_constant'
+                    ref_keys = set(
+                        [
+                            "Dij",
+                            "FFT_mesh",
+                            "atom_indices_in_derivatives",
+                            "born_effective_charges",
+                            "dDijdu",
+                            "dVdu",
+                            "dielectric_constant",
+                            "direct_rotations",
+                            "displacements_atom_indices",
+                            "displacements_vectors",
+                            "dqijdu",
+                            "force_constants",
+                            "grid_point",
+                            "lattice_point",
+                            "p2s_map",
+                            "primitive_lattice",
+                            "primitive_masses",
+                            "primitive_matrix",
+                            "primitive_numbers",
+                            "primitive_positions",
+                            "qij",
+                            "s2p_map",
+                            "shortest_vector_multiplicities",
+                            "shortest_vectors",
+                            "spacegroup_number",
+                            "supercell_lattice",
+                            "supercell_masses",
+                            "supercell_matrix",
+                            "supercell_numbers",
+                            "supercell_positions",
+                            "transformation_matrix",
+                            "unitcell_lattice",
+                            "unitcell_masses",
+                            "unitcell_numbers",
+                            "unitcell_positions",
+                        ]
+                    )
+                else:
+                    ref_keys = set(
+                        [
+                            "Dij",
+                            "FFT_mesh",
+                            "atom_indices_in_derivatives",
+                            "dDijdu",
+                            "dVdu",
+                            "direct_rotations",
+                            "displacements_atom_indices",
+                            "displacements_vectors",
+                            "dqijdu",
+                            "force_constants",
+                            "grid_point",
+                            "lattice_point",
+                            "p2s_map",
+                            "primitive_lattice",
+                            "primitive_masses",
+                            "primitive_matrix",
+                            "primitive_numbers",
+                            "primitive_positions",
+                            "qij",
+                            "s2p_map",
+                            "shortest_vector_multiplicities",
+                            "shortest_vectors",
+                            "spacegroup_number",
+                            "supercell_lattice",
+                            "supercell_masses",
+                            "supercell_matrix",
+                            "supercell_numbers",
+                            "supercell_positions",
+                            "transformation_matrix",
+                            "unitcell_lattice",
+                            "unitcell_masses",
+                            "unitcell_numbers",
+                            "unitcell_positions",
+                        ]
+                    )
+
+                with h5py.File("phelel_params.hdf5") as f:
+                    assert set(f) == ref_keys
+
                 for created_filename in ("phelel_params.hdf5",):
                     file_path = pathlib.Path(created_filename)
                     assert file_path.exists()
                     file_path.unlink()
+
+            if with_BORN_file:
+                born_file.unlink()
+            else:
+                born_dir.rmdir()
+
+            _check_no_files()
+
         finally:
             os.chdir(original_cwd)
 
@@ -221,3 +331,7 @@ def _ls():
     current_dir = pathlib.Path(".")
     for file in current_dir.iterdir():
         print(file.name)
+
+
+def _check_no_files():
+    assert not list(pathlib.Path(".").iterdir())
