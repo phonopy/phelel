@@ -12,6 +12,7 @@ from dataclasses import dataclass, fields
 import h5py
 import pytest
 
+from phelel import load
 from phelel.cui.phelel_script import main
 
 cwd = pathlib.Path(__file__).parent
@@ -152,88 +153,7 @@ def test_phelel_script_create_derivatives(use_poscar: bool, with_BORN_file: bool
                     main(**argparse_control)
                 assert excinfo.value.code == 0
 
-                if with_BORN_file:
-                    # extra keys: 'born_effective_charges' and 'dielectric_constant'
-                    ref_keys = set(
-                        [
-                            "Dij",
-                            "FFT_mesh",
-                            "atom_indices_in_derivatives",
-                            "born_effective_charges",
-                            "dDijdu",
-                            "dVdu",
-                            "dielectric_constant",
-                            "direct_rotations",
-                            "displacements_atom_indices",
-                            "displacements_vectors",
-                            "dqijdu",
-                            "force_constants",
-                            "grid_point",
-                            "lattice_point",
-                            "p2s_map",
-                            "primitive_lattice",
-                            "primitive_masses",
-                            "primitive_matrix",
-                            "primitive_numbers",
-                            "primitive_positions",
-                            "qij",
-                            "s2p_map",
-                            "shortest_vector_multiplicities",
-                            "shortest_vectors",
-                            "spacegroup_number",
-                            "supercell_lattice",
-                            "supercell_masses",
-                            "supercell_matrix",
-                            "supercell_numbers",
-                            "supercell_positions",
-                            "transformation_matrix",
-                            "unitcell_lattice",
-                            "unitcell_masses",
-                            "unitcell_numbers",
-                            "unitcell_positions",
-                        ]
-                    )
-                else:
-                    ref_keys = set(
-                        [
-                            "Dij",
-                            "FFT_mesh",
-                            "atom_indices_in_derivatives",
-                            "dDijdu",
-                            "dVdu",
-                            "direct_rotations",
-                            "displacements_atom_indices",
-                            "displacements_vectors",
-                            "dqijdu",
-                            "force_constants",
-                            "grid_point",
-                            "lattice_point",
-                            "p2s_map",
-                            "primitive_lattice",
-                            "primitive_masses",
-                            "primitive_matrix",
-                            "primitive_numbers",
-                            "primitive_positions",
-                            "qij",
-                            "s2p_map",
-                            "shortest_vector_multiplicities",
-                            "shortest_vectors",
-                            "spacegroup_number",
-                            "supercell_lattice",
-                            "supercell_masses",
-                            "supercell_matrix",
-                            "supercell_numbers",
-                            "supercell_positions",
-                            "transformation_matrix",
-                            "unitcell_lattice",
-                            "unitcell_masses",
-                            "unitcell_numbers",
-                            "unitcell_positions",
-                        ]
-                    )
-
-                with h5py.File("phelel_params.hdf5") as f:
-                    assert set(f) == ref_keys
+                _check_create_params_file(with_BORN_file)
 
                 for created_filename in ("phelel_params.hdf5",):
                     file_path = pathlib.Path(created_filename)
@@ -279,6 +199,7 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
                 created_filenames = (
                     "phelel_disp.yaml",
                     "SPOSCAR",
+                    "POSCAR-001",
                     "POSCAR-002",
                 )
                 for created_filename in ("POSCAR-003", "POSCAR_PH-003"):
@@ -298,8 +219,139 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
                 file_path = pathlib.Path(created_filename)
                 assert file_path.exists()
                 file_path.unlink()
+
+            _check_no_files()
+
         finally:
             os.chdir(original_cwd)
+
+
+@pytest.mark.parametrize("with_BORN_file", [True, False])
+def test_phelel_loader_with_reading_BORN(with_BORN_file: bool):
+    """Test phelel loader with reading BORN file."""
+    born_str = """4.399652
+5.7 0 0 0 5.7 0 0 0 5.7
+0 0 0 0 0 0 0 0 0"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        if with_BORN_file:
+            born_file = pathlib.Path("BORN")
+            with born_file.open("w", encoding="utf-8") as f:
+                f.write(born_str)
+
+        dirname = cwd / ".." / "interface" / "vasp"
+        cell_filename = str(dirname / "phelel_disp_C111.yaml")
+        dispdirs = [str(dirname / "C111_disp-000"), str(dirname / "C111_disp-001")]
+        phe = load(cell_filename, dir_names=dispdirs, fft_mesh=[1, 1, 1], log_level=2)
+
+        if with_BORN_file:
+            assert phe.nac_params is not None
+            assert "born" in phe.nac_params
+        else:
+            assert phe.nac_params is None
+
+        phe.save_hdf5(filename="phelel_params.hdf5")
+        _check_create_params_file(with_BORN_file)
+
+        file_path = pathlib.Path("phelel_params.hdf5")
+        assert file_path.exists()
+        file_path.unlink()
+
+        if with_BORN_file:
+            born_file.unlink()
+
+        _check_no_files()
+
+        os.chdir(original_cwd)
+
+
+def _check_create_params_file(with_BORN_file: bool):
+    """Check created phelel_params.hdf5 file."""
+    if with_BORN_file:
+        # extra keys: 'born_effective_charges' and 'dielectric_constant'
+        ref_keys = set(
+            [
+                "Dij",
+                "FFT_mesh",
+                "atom_indices_in_derivatives",
+                "born_effective_charges",
+                "dDijdu",
+                "dVdu",
+                "dielectric_constant",
+                "direct_rotations",
+                "displacements_atom_indices",
+                "displacements_vectors",
+                "dqijdu",
+                "force_constants",
+                "grid_point",
+                "lattice_point",
+                "p2s_map",
+                "primitive_lattice",
+                "primitive_masses",
+                "primitive_matrix",
+                "primitive_numbers",
+                "primitive_positions",
+                "qij",
+                "s2p_map",
+                "shortest_vector_multiplicities",
+                "shortest_vectors",
+                "spacegroup_number",
+                "supercell_lattice",
+                "supercell_masses",
+                "supercell_matrix",
+                "supercell_numbers",
+                "supercell_positions",
+                "transformation_matrix",
+                "unitcell_lattice",
+                "unitcell_masses",
+                "unitcell_numbers",
+                "unitcell_positions",
+            ]
+        )
+    else:
+        ref_keys = set(
+            [
+                "Dij",
+                "FFT_mesh",
+                "atom_indices_in_derivatives",
+                "dDijdu",
+                "dVdu",
+                "direct_rotations",
+                "displacements_atom_indices",
+                "displacements_vectors",
+                "dqijdu",
+                "force_constants",
+                "grid_point",
+                "lattice_point",
+                "p2s_map",
+                "primitive_lattice",
+                "primitive_masses",
+                "primitive_matrix",
+                "primitive_numbers",
+                "primitive_positions",
+                "qij",
+                "s2p_map",
+                "shortest_vector_multiplicities",
+                "shortest_vectors",
+                "spacegroup_number",
+                "supercell_lattice",
+                "supercell_masses",
+                "supercell_matrix",
+                "supercell_numbers",
+                "supercell_positions",
+                "transformation_matrix",
+                "unitcell_lattice",
+                "unitcell_masses",
+                "unitcell_numbers",
+                "unitcell_positions",
+            ]
+        )
+
+    with h5py.File("phelel_params.hdf5") as f:
+        assert set(f) == ref_keys
 
 
 def _get_phelel_load_args(
