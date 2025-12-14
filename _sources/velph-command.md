@@ -31,7 +31,7 @@ C --> D[velph-nac]
 C --> E[velph-el_bands]
 F[velph-phelel]
 D --> F
-E --> F
+D --> H[velph-phono3py]
 F --> G[velph-transport]
 ```
 
