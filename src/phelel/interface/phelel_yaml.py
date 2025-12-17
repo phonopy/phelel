@@ -34,49 +34,37 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import annotations
+
 import dataclasses
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
+from phonopy import Phonopy
 from phonopy.interface.phonopy_yaml import (
     PhonopyYaml,
+    PhonopyYamlData,
     PhonopyYamlDumper,
     PhonopyYamlLoader,
     load_yaml,
-    phonopy_yaml_property_factory,
 )
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
-from phonopy.structure.symmetry import Symmetry
 
 if TYPE_CHECKING:
     from phelel import Phelel
 
 
 @dataclasses.dataclass
-class PhelelYamlData:
-    """PhonopyYaml data structure."""
+class PhelelYamlData(PhonopyYamlData):
+    """PhelelYaml data structure."""
 
-    configuration: Optional[dict] = None
-    calculator: Optional[str] = None
-    physical_units: Optional[dict] = None
-    unitcell: Optional[PhonopyAtoms] = None
-    primitive: Optional[Primitive] = None
-    supercell: Optional[Supercell] = None
-    dataset: Optional[dict] = None
-    supercell_matrix: Optional[np.ndarray] = None
-    primitive_matrix: Optional[np.ndarray] = None
-    nac_params: Optional[dict] = None
-    force_constants: Optional[np.ndarray] = None
-    symmetry: Optional[Symmetry] = None  # symmetry of supercell
-    frequency_unit_conversion_factor: Optional[float] = None
-    version: Optional[str] = None
     command_name: str = "phelel"
-
-    phonon_supercell_matrix: Optional[np.ndarray] = None
-    phonon_dataset: Optional[dict] = None
-    phonon_supercell: Optional[Supercell] = None
-    phonon_primitive: Optional[Primitive] = None
+    phonon_supercell_matrix: NDArray | None = None
+    phonon_dataset: dict | None = None
+    phonon_supercell: Supercell | PhonopyAtoms | None = None
+    phonon_primitive: Primitive | PhonopyAtoms | None = None
 
 
 class PhelelYamlLoader(PhonopyYamlLoader):
@@ -98,6 +86,11 @@ class PhelelYamlLoader(PhonopyYamlLoader):
             calculator=calculator,
             physical_units=physical_units,
         )
+
+    @property
+    def data(self) -> PhelelYamlData:
+        """Return PhelelYamlData instance."""
+        return self._data
 
     def parse(self):
         """Yaml dict is parsed. See docstring of this class."""
@@ -168,6 +161,7 @@ class PhelelYamlDumper(PhonopyYamlDumper):
         lines = []
         if self._data.phonon_supercell_matrix is not None:
             lines.append("phonon_supercell_matrix:")
+            assert self._data.supercell_matrix is not None
             for v in self._data.supercell_matrix:
                 lines.append("- [ %3d, %3d, %3d ]" % tuple(v))
             lines.append("")
@@ -190,6 +184,7 @@ class PhelelYamlDumper(PhonopyYamlDumper):
 
         """
         if self._data.phonon_primitive is not None:
+            assert self._data.primitive is not None
             assert isclose(self._data.primitive, self._data.phonon_primitive)
         return super()._nac_yaml_lines()
 
@@ -239,28 +234,6 @@ class PhelelYaml(PhonopyYaml):
     default_filenames = ("phelel_disp.yaml", "phelel.yaml")
     command_name = "phelel"
 
-    configuration = phonopy_yaml_property_factory("configuration")
-    calculator = phonopy_yaml_property_factory("calculator")
-    physical_units = phonopy_yaml_property_factory("physical_units")
-    unitcell = phonopy_yaml_property_factory("unitcell")
-    primitive = phonopy_yaml_property_factory("primitive")
-    supercell = phonopy_yaml_property_factory("supercell")
-    dataset = phonopy_yaml_property_factory("dataset")
-    supercell_matrix = phonopy_yaml_property_factory("supercell_matrix")
-    primitive_matrix = phonopy_yaml_property_factory("primitive_matrix")
-    nac_params = phonopy_yaml_property_factory("nac_params")
-    force_constants = phonopy_yaml_property_factory("force_constants")
-    symmetry = phonopy_yaml_property_factory("symmetry")
-    frequency_unit_conversion_factor = phonopy_yaml_property_factory(
-        "frequency_unit_conversion_factor"
-    )
-    version = phonopy_yaml_property_factory("version")
-
-    phonon_supercell_matrix = phonopy_yaml_property_factory("phonon_supercell_matrix")
-    phonon_dataset = phonopy_yaml_property_factory("phonon_dataset")
-    phonon_supercell = phonopy_yaml_property_factory("phonon_supercell")
-    phonon_primitive = phonopy_yaml_property_factory("phonon_primitive")
-
     def __init__(
         self, configuration=None, calculator=None, physical_units=None, settings=None
     ):
@@ -271,6 +244,46 @@ class PhelelYaml(PhonopyYaml):
             physical_units=physical_units,
         )
         self._dumper_settings = settings
+
+    @property
+    def phonon_primitive(self) -> PhonopyAtoms | None:
+        """Return phonon primitive cell of phonopy calculation."""
+        return self._data.phonon_primitive
+
+    @phonon_primitive.setter
+    def phonon_primitive(self, value: PhonopyAtoms):
+        """Set phonon primitive cell of phonopy calculation."""
+        self._data.phonon_primitive = value
+
+    @property
+    def phonon_supercell(self) -> PhonopyAtoms | None:
+        """Return phonon supercell of phonopy calculation."""
+        return self._data.phonon_supercell
+
+    @phonon_supercell.setter
+    def phonon_supercell(self, value: PhonopyAtoms):
+        """Set phonon supercell of phonopy calculation."""
+        self._data.phonon_supercell = value
+
+    @property
+    def phonon_dataset(self) -> dict | None:
+        """Return phonon dataset of phonopy calculation."""
+        return self._data.phonon_dataset
+
+    @phonon_dataset.setter
+    def phonon_dataset(self, value: dict):
+        """Set phonon dataset of phonopy calculation."""
+        self._data.phonon_dataset = value
+
+    @property
+    def phonon_supercell_matrix(self) -> NDArray | None:
+        """Return phonon supercell matrix of phonopy calculation."""
+        return self._data.phonon_supercell_matrix
+
+    @phonon_supercell_matrix.setter
+    def phonon_supercell_matrix(self, value: ArrayLike):
+        """Set supercell matrix of phonopy calculation."""
+        self._data.phonon_supercell_matrix = np.array(value, dtype="intc", order="C")
 
     def __str__(self):
         """Return string text of yaml output."""
@@ -291,7 +304,7 @@ class PhelelYaml(PhonopyYaml):
 
     def set_phelel_info(self, phelel: "Phelel"):
         """Store data in Phelel instance in this instance."""
-        super().set_phonon_info(phelel)
+        super().set_phonon_info(cast(Phonopy, phelel))
         self._data.phonon_supercell_matrix = phelel.phonon_supercell_matrix
         self._data.phonon_dataset = phelel.phonon_dataset
         self._data.phonon_primitive = phelel.phonon_primitive
