@@ -570,7 +570,7 @@ def kspacing_to_mesh(
 
     Returns
     -------
-    SpglibDataset
+    SpglibDataset, SpglibMagneticDataset
         Symmetry dataset of spglib.
 
     """

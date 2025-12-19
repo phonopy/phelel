@@ -234,7 +234,7 @@ def _select_supercell_matrix(
     ----------
     velph_dict_calc_type : dict
         velph-toml data of calc_type.
-    sym_dataset : SpglibDataset
+    sym_dataset : SpglibDataset, SpglibMagneticDataset
         Symmetry dataset of the input cell.
     find_primitive : bool
         When True, supercell is constructured

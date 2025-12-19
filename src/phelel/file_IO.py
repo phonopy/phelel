@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from phonopy.structure.atoms import PhonopyAtoms, atom_data
 from phonopy.structure.cells import Primitive, dense_to_sparse_svecs
 from phonopy.structure.symmetry import Symmetry
-from spglib import SpglibDataset
+from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
@@ -36,7 +36,7 @@ def write_phelel_params_hdf5(
     phonon_primitive: Primitive | None = None,
     phonon_supercell: PhonopyAtoms | None = None,
     nac_params: dict | None = None,
-    symmetry_dataset: SpglibDataset | None = None,
+    symmetry_dataset: SpglibDataset | SpglibMagneticDataset | None = None,
     filename="phelel_params.hdf5",
 ):
     """Write phelel_params.hdf5."""
@@ -207,7 +207,7 @@ def _add_datasets(
     phonon_primitive: Primitive | None = None,
     phonon_supercell: PhonopyAtoms | None = None,
     nac_params: dict | None = None,
-    symmetry_dataset: SpglibDataset | None = None,
+    symmetry_dataset: SpglibDataset | SpglibMagneticDataset | None = None,
 ):
     if dVdu is not None:
         w.create_dataset("dVdu", data=cmplx2real(dVdu.dVdu))
