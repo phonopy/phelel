@@ -76,6 +76,11 @@ def run_init(
     # Parse files.
     #
     input_cell, _ = read_crystal_structure(vfp.cell_filepath, interface_mode="vasp")
+    if input_cell is None:
+        click.echo(
+            f'Crystal structure file "{vfp.cell_filepath}" could not be read.', err=True
+        )
+        return None
     click.echo(f'Read crystal structure file "{vfp.cell_filepath}".')
 
     return _run_init(
@@ -1530,10 +1535,7 @@ def _get_displacement_settings_lines(
     if "plusminus" in calc_dict:
         _plusminus = calc_dict["plusminus"]
     else:
-        if plusminus is False:
-            _plusminus = "auto"
-        else:
-            _plusminus = True
+        _plusminus = plusminus
     if isinstance(_plusminus, bool):
         if _plusminus:
             lines.append("plusminus = true")

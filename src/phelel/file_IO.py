@@ -9,7 +9,7 @@ import warnings
 import h5py
 import numpy as np
 from numpy.typing import NDArray
-from phonopy.structure.atoms import PhonopyAtoms, atom_data
+from phonopy.structure.atoms import PhonopyAtoms, get_atomic_data
 from phonopy.structure.cells import Primitive, dense_to_sparse_svecs
 from phonopy.structure.symmetry import Symmetry
 from spglib import SpglibDataset, SpglibMagneticDataset
@@ -113,7 +113,9 @@ def read_phelel_params_hdf5(
             supercell = PhonopyAtoms(
                 cell=f["supercell_lattice"][:].T,
                 scaled_positions=f["supercell_positions"][:],
-                symbols=[atom_data[n][1] for n in f["supercell_numbers"][:]],
+                symbols=[
+                    get_atomic_data().atom_data[n][1] for n in f["supercell_numbers"][:]
+                ],
                 masses=f["supercell_masses"][:],
             )
             symmetry = Symmetry(supercell)

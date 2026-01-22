@@ -440,15 +440,12 @@ def test_run_init_template_amplitude(
 
 @pytest.mark.parametrize(
     "plusminus,diagonal",
-    itertools.product([True, False], repeat=2),
+    itertools.product([True, False, "auto", None], [True, False, None]),
 )
-def test_run_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
-    """Test of plusminus and diagonal command line options.
-
-    plusminus is True -> True
-    plusminus is False -> "auto"
-
-    """
+def test_run_init_plusminus_diagonal(
+    plusminus: bool | Literal["auto"] | None, diagonal: bool | None
+):
+    """Test of plusminus and diagonal command line options."""
     cell_filepath = cwd / "POSCAR_Ti"
     command_options = {
         "plusminus": plusminus,
@@ -457,15 +454,26 @@ def test_run_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
         "max_num_atoms": 80,
         "symmetrize_cell": True,
     }
+    default_values = DisplacementOptions()
     vfp = VelphFilePaths(cell_filepath=cell_filepath)
     toml_lines = run_init(VelphInitOptions(**command_options), vfp)
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
-    assert velph_dict["phelel"]["diagonal"] is diagonal
-    if plusminus:
-        assert velph_dict["phelel"]["plusminus"] is True
+    if diagonal is None:
+        _diagonal = default_values.diagonal
     else:
-        assert velph_dict["phelel"]["plusminus"] == "auto"
+        _diagonal = diagonal
+    assert velph_dict["phelel"]["diagonal"] is _diagonal
+    if plusminus == "auto":
+        _plusminus = "auto"
+    elif plusminus is None:
+        _plusminus = default_values.plusminus
+    else:
+        _plusminus = plusminus
+    if isinstance(_plusminus, str):
+        assert velph_dict["phelel"]["plusminus"] == _plusminus
+    else:
+        assert velph_dict["phelel"]["plusminus"] is _plusminus
     np.testing.assert_almost_equal(velph_dict["phelel"]["amplitude"], 0.05)
     np.testing.assert_array_equal(
         velph_dict["phelel"]["supercell_dimension"], [4, 4, 2]
