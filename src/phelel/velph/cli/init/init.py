@@ -1452,7 +1452,7 @@ def _get_cell_toml_lines(
     if cell_name:
         lines = [f"[{cell_name}]"]
     lines.append("lattice = [")
-    for v, a in zip(unitcell.cell, ("a", "b", "c")):
+    for v, a in zip(unitcell.cell, ("a", "b", "c"), strict=True):
         lines.append("  [ %21.15f, %21.15f, %21.15f ], # %s" % (v[0], v[1], v[2], a))
     lines.append("]")
     if unitcell.masses is None:
@@ -1464,7 +1464,13 @@ def _get_cell_toml_lines(
     else:
         magnetic_moments = unitcell.magnetic_moments
     for i, (s, v, m, mag) in enumerate(
-        zip(unitcell.symbols, unitcell.scaled_positions, masses, magnetic_moments)
+        zip(
+            unitcell.symbols,
+            unitcell.scaled_positions,
+            masses,
+            magnetic_moments,
+            strict=True,
+        )
     ):
         lines.append(f"[[{cell_name}.points]]  # {i + 1}")
         lines.append(f'symbol = "{s}"')

@@ -93,7 +93,7 @@ def plot_eigenvalues(
     all_kpoints = []
     all_weights = []
     all_eigenvals = []
-    for i, (e, wt) in enumerate(zip(eigenvals[ind], weights[ind])):
+    for i, (e, wt) in enumerate(zip(eigenvals[ind], weights[ind], strict=True)):
         k = kpoints[ind[1][i]]
         if wt < cutoff_occupancy or wt > 1 - cutoff_occupancy:
             continue
@@ -190,7 +190,9 @@ def _plot_Brillouin_zone(bz_lattice: np.ndarray, ax: "plt.Axes"):  # noqa: F821
     distances_to_origin = np.linalg.norm(points, axis=1)
     origin_point_index = np.argmin(distances_to_origin)
 
-    for ridge_points, ridge_cells in zip(vor.ridge_vertices, vor.ridge_points):
+    for ridge_points, ridge_cells in zip(
+        vor.ridge_vertices, vor.ridge_points, strict=True
+    ):
         if -1 in ridge_points:
             continue
 

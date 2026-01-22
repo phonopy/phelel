@@ -14,7 +14,9 @@ def test_DeltaDijQij(
     """Test DeltaDijQij."""
     phe_in = phelel_input_CdAs2_111
     displacements = phelel_empty_CdAs2_111.dataset["first_atoms"]
-    for i, (Dij_disp, qij_disp) in enumerate(zip(phe_in.Dijs[1:], phe_in.qijs[1:])):
+    for i, (Dij_disp, qij_disp) in enumerate(
+        zip(phe_in.Dijs[1:], phe_in.qijs[1:], strict=True)
+    ):
         DeltaDijQij(
             phe_in.Dijs[0],
             Dij_disp,
@@ -34,7 +36,9 @@ def test_DDijQijFit(
     displacements = phe.dataset["first_atoms"]
 
     delta_Dij_qijs = []
-    for i, (Dij_disp, qij_disp) in enumerate(zip(phe_in.Dijs[1:], phe_in.qijs[1:])):
+    for i, (Dij_disp, qij_disp) in enumerate(
+        zip(phe_in.Dijs[1:], phe_in.qijs[1:], strict=True)
+    ):
         delta_Dij_qijs.append(
             DeltaDijQij(
                 phe_in.Dijs[0],

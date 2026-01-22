@@ -216,10 +216,10 @@ class DDijQijFit:
         text = ""
         Dij_shape = self._dDijdu.shape[-2:]
         for i_spinor, (Dij_spinor, qij_spinor) in enumerate(
-            zip(self._dDijdu, self._dqijdu)
+            zip(self._dDijdu, self._dqijdu, strict=True)
         ):
             for i_eatom, (Dij_eatom, qij_eatom) in enumerate(
-                zip(Dij_spinor, qij_spinor)
+                zip(Dij_spinor, qij_spinor, strict=True)
             ):
                 for i in range(len(self._supercell)):
                     for j in range(3):
@@ -330,7 +330,7 @@ class DDijQijFit:
 
         count = 0
         for delta_Dij_qij in self._delta_Dij_qijs:
-            for r, perm in zip(rotations, atomic_permutations):
+            for r, perm in zip(rotations, atomic_permutations, strict=True):
                 dDij_rotated, dqij_rotated = self._rotate_Dij_qij(
                     ncdij, delta_Dij_qij, perm, r
                 )
@@ -393,6 +393,7 @@ class DDijQijFit:
                 delta_Dij_qij.dDij[i_spinor],
                 delta_Dij_qij.dqij[i_spinor],
                 delta_Dij_qij.lm_channels,
+                strict=True,
             )
         ):
             bigDelta = self._get_big_Delta(shr.Delta, lm_channels, dDij)

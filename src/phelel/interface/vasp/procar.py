@@ -214,7 +214,7 @@ class Procar(Projector):
     def _get_l_overlap(self, proj_lm, lm_to_l, channels, channel_pairs, i_atom):
         """Compute <wf-char_m>^* qtot_mm' <wf-char_m'>."""
         p_sum = np.zeros(9, dtype=proj_lm.dtype)
-        for lm, c_pair in zip(channels, channel_pairs):
+        for lm, c_pair in zip(channels, channel_pairs, strict=True):
             # print(str(c_pair) + " " + str(lm))
             ll = lm_to_l[c_pair[0]]
             lp = lm_to_l[c_pair[1]]

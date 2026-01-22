@@ -403,7 +403,7 @@ def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> Phono
     ion_types = f_vaspout_h5[f"{group}/ion_types"][:]
 
     symbols = []
-    for symbol, number in zip(ion_types, number_ion_types):
+    for symbol, number in zip(ion_types, number_ion_types, strict=True):
         symbols += [symbol.decode()] * number
 
     if not direct:
