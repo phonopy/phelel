@@ -321,7 +321,7 @@ def write_mesh_electron_hdf5(dirnames, mesh):
     dprojs = np.empty((np.sum(nkpts), nbtot, 1, 1, nions, lmdim, 4), dtype=dtype)
     eigenvalues = np.empty((np.sum(nkpts), nbtot, 1), dtype="double")
     idx = 0
-    for dname, iwp, nk in zip(dirnames, inwaps, nkpts):
+    for dname, iwp, nk in zip(dirnames, inwaps, nkpts, strict=True):
         # waves[idx:(idx + nk)] = read_waves(
         #     iwp, "%s/%s" % (dname, "WAVES.bin"))
         dprojs[idx : (idx + nk)] = read_dprojectors(
@@ -344,7 +344,7 @@ def write_mesh_electron_hdf5(dirnames, mesh):
     with h5py.File("electron%s.hdf5" % suffix, "a") as w:
         waves = w.create_dataset("waves", waves_shape, dtype=dtype)
         idx = 0
-        for dname, iwp, nk in zip(dirnames, inwaps, nkpts):
+        for dname, iwp, nk in zip(dirnames, inwaps, nkpts, strict=True):
             waves[idx : (idx + nk)] = read_waves(iwp, "%s/%s" % (dname, "WAVES.bin"))
             idx += nk
 

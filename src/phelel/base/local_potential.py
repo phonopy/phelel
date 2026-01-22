@@ -399,7 +399,7 @@ class LocalPotentialInterpolationNUFFT:
         count = 0
         for delta_V in self._delta_Vs:
             dVs_iFT = [self._get_iFFT_of_dV(dV) for dV in delta_V.dV]
-            for r, t in zip(rotations, translations):
+            for r, t in zip(rotations, translations, strict=True):
                 dVs_rotated = self._rotate_dV(dVs_iFT, r, t)
                 if ncdij == 4:  # Need to rotate in spin space, too.
                     dVs_spinor_rotated = rotate_delta_vals_in_spin_space(

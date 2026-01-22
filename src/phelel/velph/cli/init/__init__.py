@@ -161,7 +161,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Plus-minus displacements in supercell, otherwise auto. "
-        f"(plusminus: bool, default={DisplacementOptions.plusminus})"
+        f"(plusminus: bool or 'auto', default={DisplacementOptions.plusminus})"
     ),
 )
 @click.option(
@@ -282,6 +282,13 @@ def cmd_init(
         click.echo(f'"{cell_filename}" not found.', err=True)
         return
 
+    if plusminus is True:
+        _plusminus = True
+    elif plusminus is False:
+        _plusminus = "auto"
+    else:
+        _plusminus = None
+
     vip_cmd_options = VelphInitOptions(
         amplitude=amplitude,
         cell_for_nac=cell_for_nac,
@@ -293,7 +300,7 @@ def cmd_init(
         magmom=magmom,
         max_num_atoms=max_num_atoms,
         phelel_nosym=phelel_nosym,
-        plusminus=plusminus,
+        plusminus=_plusminus,
         primitive_cell_choice=primitive_cell_choice,
         supercell_dimension=supercell_dimension,
         supercell_matrix=supercell_matrix,

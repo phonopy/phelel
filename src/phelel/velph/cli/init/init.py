@@ -76,6 +76,11 @@ def run_init(
     # Parse files.
     #
     input_cell, _ = read_crystal_structure(vfp.cell_filepath, interface_mode="vasp")
+    if input_cell is None:
+        click.echo(
+            f'Crystal structure file "{vfp.cell_filepath}" could not be read.', err=True
+        )
+        return None
     click.echo(f'Read crystal structure file "{vfp.cell_filepath}".')
 
     return _run_init(
@@ -1447,7 +1452,7 @@ def _get_cell_toml_lines(
     if cell_name:
         lines = [f"[{cell_name}]"]
     lines.append("lattice = [")
-    for v, a in zip(unitcell.cell, ("a", "b", "c")):
+    for v, a in zip(unitcell.cell, ("a", "b", "c"), strict=True):
         lines.append("  [ %21.15f, %21.15f, %21.15f ], # %s" % (v[0], v[1], v[2], a))
     lines.append("]")
     if unitcell.masses is None:
@@ -1459,7 +1464,13 @@ def _get_cell_toml_lines(
     else:
         magnetic_moments = unitcell.magnetic_moments
     for i, (s, v, m, mag) in enumerate(
-        zip(unitcell.symbols, unitcell.scaled_positions, masses, magnetic_moments)
+        zip(
+            unitcell.symbols,
+            unitcell.scaled_positions,
+            masses,
+            magnetic_moments,
+            strict=True,
+        )
     ):
         lines.append(f"[[{cell_name}.points]]  # {i + 1}")
         lines.append(f'symbol = "{s}"')
@@ -1530,10 +1541,7 @@ def _get_displacement_settings_lines(
     if "plusminus" in calc_dict:
         _plusminus = calc_dict["plusminus"]
     else:
-        if plusminus is False:
-            _plusminus = "auto"
-        else:
-            _plusminus = True
+        _plusminus = plusminus
     if isinstance(_plusminus, bool):
         if _plusminus:
             lines.append("plusminus = true")

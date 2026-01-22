@@ -118,7 +118,7 @@ def _plot(
         else:
             label_property_names.append(prop_name)
 
-    for key, label_prop_name in zip(property_names, label_property_names):
+    for key, label_prop_name in zip(property_names, label_property_names, strict=True):
         if label_prop_name == "e_resistivity":
             properties.append([3 / np.trace(tensor) for tensor in transport[key][:]])
         else:
@@ -128,7 +128,9 @@ def _plot(
     labels = []
     click.echo(
         f"{index + 1}. "
-        + " / ".join([f"{name} {int(i)}" for name, i in zip(names, transport_idx)])
+        + " / ".join(
+            [f"{name} {int(i)}" for name, i in zip(names, transport_idx, strict=True)]
+        )
     )
     for i, name in enumerate(names):
         if last_transport_idx[i] > 1:
@@ -137,7 +139,7 @@ def _plot(
 
     with open(dat_filename, "w") as w:
         print("# temperature", *label_property_names, file=w)
-        for temp, props in zip(temps, np.transpose(properties)):
+        for temp, props in zip(temps, np.transpose(properties), strict=True):
             print(temp, *props, file=w)
         click.echo(f'Transport data {index + 1} was saved in "{dat_filename}".')
 

@@ -45,7 +45,7 @@ def test_get_n_and_rotation_order():
             [0.0, 0.0, 4.767746862166],
         ]
     )
-    for r, ref in zip(rots, ref_data):
+    for r, ref in zip(rots, ref_data, strict=True):
         n, r_order, detR = get_n_and_rotation_order(r, L)
         # print(f"({n.tolist()}, {r_order}, {detR}),")
         np.testing.assert_array_almost_equal(n, ref[0])
@@ -84,5 +84,5 @@ def test_SHRotationMatrices():
             shr = SHRotationMatrices(r, L, lxlylz)
             shr.run()
 
-            for delta_ea, delta in zip(shr_ea.Delta, shr.Delta):
+            for delta_ea, delta in zip(shr_ea.Delta, shr.Delta, strict=True):
                 np.testing.assert_array_almost_equal(delta_ea, delta)
