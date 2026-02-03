@@ -601,6 +601,10 @@ def _parse_velph_template(
     serve this purpose. If there is a need to pass toml_str, it can be achieved
     by using io.BytesIO(toml_str.encode('utf-8')).
 
+    In template_dict, [vasp.el_bands.dos] and [vasp.el_bands.bands] in toml are
+    converted to ['vasp']['el_bands.dos'] and ['vasp']['el_bands.bands']
+    respectively.
+
     """
     if velph_template_fp is None:
         return None
@@ -611,6 +615,13 @@ def _parse_velph_template(
         assert isinstance(velph_template_fp, (str, os.PathLike))
         with open(velph_template_fp, "rb") as f:
             template_dict = tomli.load(f)
+
+    if "vasp" in template_dict and "el_bands" in template_dict["vasp"]:
+        for key in ("dos", "bands"):
+            template_dict["vasp"][f"el_bands.{key}"] = template_dict["vasp"][
+                "el_bands"
+            ][key]
+        del template_dict["vasp"]["el_bands"]
 
     click.echo(f'Read velph template file "{velph_template_fp}".')
     return template_dict
