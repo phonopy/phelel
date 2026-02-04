@@ -618,9 +618,10 @@ def _parse_velph_template(
 
     if "vasp" in template_dict and "el_bands" in template_dict["vasp"]:
         for key in ("dos", "bands"):
-            template_dict["vasp"][f"el_bands.{key}"] = template_dict["vasp"][
-                "el_bands"
-            ][key]
+            if key in template_dict["vasp"]["el_bands"]:
+                template_dict["vasp"][f"el_bands.{key}"] = template_dict["vasp"][
+                    "el_bands"
+                ][key]
         del template_dict["vasp"]["el_bands"]
 
     click.echo(f'Read velph template file "{velph_template_fp}".')
