@@ -256,6 +256,10 @@ def _read_local_potentials(
                 )
             except KeyError:
                 return None
+            except FileNotFoundError:
+                if log_level:
+                    print('Note that Meta-GGA is only supported with "vaspout.h5".')
+                return None
             if log_level:
                 print(f'Kinetic potential was read from "{kinpot_path}".')
     return loc_pots
