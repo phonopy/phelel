@@ -18,6 +18,7 @@ from phonopy.structure.symmetry import Symmetry
 from phelel import Phelel
 from phelel.api_phelel import PhelelDataset
 from phelel.interface.vasp.file_IO import (
+    read_forces_vaspouth5,
     read_inwap_vaspouth5,
     read_inwap_yaml,
     read_local_potential,
@@ -68,19 +69,33 @@ def read_files(
         _dir_names = dir_names
     else:
         _dir_names = phonon_dir_names
-    vasprun_filenames = _get_vasprun_filenames(_dir_names)
 
     if phelel.phonon_supercell_matrix:
         supercell = phelel.phonon_supercell
     else:
         supercell = phelel.supercell
     assert supercell is not None
-    forces = read_forces_from_vasprunxmls(
-        vasprun_filenames,
-        supercell,
-        subtract_rfs=subtract_rfs,
-        log_level=log_level,
-    )
+
+    vaspout5_exists = True
+    vaspout_filenames = []
+    for dir_name in _dir_names:
+        try:
+            vaspout_filenames.append(next(pathlib.Path(dir_name).glob("vaspout.h5*")))
+        except StopIteration:
+            vaspout5_exists = False
+            break
+    if vaspout5_exists:
+        forces = _read_forces_from_vaspout_h5(
+            vaspout_filenames, subtract_rfs=subtract_rfs, log_level=log_level
+        )
+    else:
+        vasprun_filenames = _get_vasprun_filenames(_dir_names)
+        forces = read_forces_from_vasprunxmls(
+            vasprun_filenames,
+            supercell,
+            subtract_rfs=subtract_rfs,
+            log_level=log_level,
+        )
 
     if forces[0].shape[0] != len(supercell):
         raise ValueError(
@@ -164,7 +179,7 @@ def read_forces_from_vasprunxmls(
     subtract_rfs: bool = False,
     log_level: int = 0,
 ) -> list[NDArray]:
-    """Read forces from vasprun.xml's and read NAC params from BORN."""
+    """Read forces from vasprun.xml's."""
     if log_level:
         for filename in vasprun_filenames:
             print(f'Forces were read from "{filename}".')
@@ -172,6 +187,12 @@ def read_forces_from_vasprunxmls(
     calc_dataset = parse_set_of_forces(len(supercell), vasprun_filenames, verbose=False)
     forces = calc_dataset["forces"]
 
+    return _subtract_residual_forces(forces, subtract_rfs, log_level)
+
+
+def _subtract_residual_forces(
+    forces: list[NDArray], subtract_rfs: bool, log_level: int
+) -> list[NDArray]:
     if subtract_rfs:
         _forces = [fset - forces[0] for fset in forces[1:]]
         if log_level:
@@ -191,6 +212,21 @@ def _get_vasprun_filenames(dir_names):
         filename = next(pathlib.Path(dir_name).glob("vasprun.xml*"))
         vasprun_filenames.append(filename)
     return vasprun_filenames
+
+
+def _read_forces_from_vaspout_h5(
+    vaspout_filenames: list | tuple,
+    subtract_rfs: bool = False,
+    log_level: int = 0,
+) -> list[NDArray]:
+    """Read forces from vaspout.h5's."""
+    forces = []
+    for filename in vaspout_filenames:
+        if log_level:
+            print(f'Forces were read from "{filename}".')
+        forces.append(read_forces_vaspouth5(filename))
+
+    return _subtract_residual_forces(forces, subtract_rfs, log_level)
 
 
 def _read_born(
@@ -230,48 +266,69 @@ def _read_local_potentials(
     inwap_per: dict,
     key: Literal["total", "xcmu"] = "total",
     log_level: int = 0,
-) -> list[np.ndarray] | None:
+) -> list[NDArray] | None:
     loc_pots = []
+    vaspout5_exists = True
     for dir_name in dir_names:
-        # Note glob returns a generator.
-        if key == "total":
-            possible_locpot_paths = list(
-                pathlib.Path(dir_name).glob("LOCAL-POTENTIAL.bin*")
+        try:
+            locpot_path = next(pathlib.Path(dir_name).glob("vaspout.h5*"))
+        except StopIteration:
+            vaspout5_exists = False
+            break
+
+        try:
+            loc_pots.append(
+                read_local_potential_vaspouth5(filename=locpot_path, key=key)
             )
-            if possible_locpot_paths:
-                locpot_path = possible_locpot_paths[0]
-                loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
-            else:
-                locpot_path = pathlib.Path(dir_name) / "vaspout.h5"
-                loc_pots.append(
-                    read_local_potential_vaspouth5(filename=locpot_path, key=key)
-                )
-            if log_level:
-                print(f'Local potential was read from "{locpot_path}".')
-        elif key == "xcmu":
-            kinpot_path = pathlib.Path(dir_name) / "vaspout.h5"
-            try:
-                loc_pots.append(
-                    read_local_potential_vaspouth5(filename=kinpot_path, key=key)
-                )
-            except KeyError:
-                return None
-            except FileNotFoundError:
-                if log_level:
-                    print('Note that Meta-GGA is only supported with "vaspout.h5".')
-                return None
-            if log_level:
-                print(f'Kinetic potential was read from "{kinpot_path}".')
+        except KeyError:
+            return None
+
+        if log_level:
+            print(f'Local potential was read from "{locpot_path}".')
+
+    if vaspout5_exists:
+        return loc_pots
+
+    # Old way for LOCAL-POTENTIAL.bin.
+    # Meta-GGA kinetic potential is not available.
+    if key == "xcmu":
+        return None
+
+    for dir_name in dir_names:
+        try:
+            locpot_path = next(pathlib.Path(dir_name).glob("LOCAL-POTENTIAL.bin*"))
+            loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
+        except StopIteration as e:
+            raise RuntimeError(
+                f'"LOCAL-POTENTIAL.bin" not found in "{dir_name}".'
+            ) from e
     return loc_pots
 
 
 def _read_PAW_strength_and_overlap(
     dir_names, inwap_per, log_level=0
-) -> tuple[list[np.ndarray], list[np.ndarray]]:
+) -> tuple[list[NDArray], list[NDArray]]:
     Dijs = []
     qijs = []
+    vaspout5_exists = True
     for dir_name in dir_names:
-        # Note glob returns a generator.
+        try:
+            Dij_qij_path = next(pathlib.Path(dir_name).glob("vaspout.h5*"))
+        except StopIteration:
+            vaspout5_exists = False
+            break
+
+        dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
+        Dijs.append(dij)
+        qijs.append(qij)
+        if log_level:
+            print(f'Dijs and qjis were read from "{Dij_qij_path}".')
+
+    if vaspout5_exists:
+        return Dijs, qijs
+
+    # Old way for PAW-*.bin.
+    for dir_name in dir_names:
         possible_Dij_path = list(pathlib.Path(dir_name).glob("PAW-STRENGTH.bin*"))
         possible_qij_path = list(pathlib.Path(dir_name).glob("PAW-OVERLAP.bin*"))
         if possible_Dij_path and possible_qij_path:
@@ -281,11 +338,5 @@ def _read_PAW_strength_and_overlap(
             qijs.append(read_PAW_Dij_qij(inwap_per, qij_path))
             if log_level:
                 print(f'"{Dij_path}" and "{qij_path}" were read.')
-        else:
-            Dij_qij_path = pathlib.Path(dir_name) / "vaspout.h5"
-            dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
-            Dijs.append(dij)
-            qijs.append(qij)
-            if log_level:
-                print(f'Dijs and qjis were read from "{Dij_qij_path}".')
+
     return Dijs, qijs

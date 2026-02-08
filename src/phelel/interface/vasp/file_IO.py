@@ -108,6 +108,15 @@ def read_inwap_yaml(filename: str | os.PathLike = "inwap.yaml") -> dict:
     return inwap
 
 
+def read_forces_vaspouth5(
+    filename: str | os.PathLike = "vaspout.h5",
+) -> NDArray:
+    """Read forces from vaspout.h5's."""
+    with h5py.File(filename) as h5:
+        forces: NDArray = h5["intermediate/ion_dynamics/forces"][0]  # type: ignore
+        return forces
+
+
 def read_PAW_Dij_qij_vaspouth5(
     filename: str | os.PathLike = "vaspout.h5",
 ) -> tuple[NDArray, NDArray]:

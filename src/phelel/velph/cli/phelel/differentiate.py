@@ -68,28 +68,18 @@ def run_derivatives(
 
 
 def _check_files_exist(filepath: pathlib.Path) -> bool:
-    if not _check_file_exists(filepath, "vasprun.xml"):
-        click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
-        return False
-    if _check_four_files_exist(filepath):
+    if (filepath / "vaspout.h5").exists():
+        click.echo(f'Found "{filepath}/vaspout.h5".', err=True)
         return True
     else:
-        if (filepath / "vaspout.h5").exists():
-            click.echo(f'Found "{filepath}/vaspout.h5".', err=True)
-            return True
-        else:
-            for filename in (
-                "inwap.yaml",
-                "LOCAL-POTENTIAL.bin",
-                "PAW-STRENGTH.bin",
-                "PAW-OVERLAP.bin",
-            ):
-                if not _check_file_exists(filepath, filename):
-                    click.echo(f'"{filepath}/{filename}" not found.', err=True)
+        if not _check_file_exists(filepath, "vasprun.xml"):
+            click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
             return False
+        return _check_four_files_exist(filepath)
 
 
 def _check_four_files_exist(filepath: pathlib.Path) -> bool:
+    four_files_exist = True
     for filename in (
         "inwap.yaml",
         "LOCAL-POTENTIAL.bin",
@@ -97,8 +87,9 @@ def _check_four_files_exist(filepath: pathlib.Path) -> bool:
         "PAW-OVERLAP.bin",
     ):
         if not _check_file_exists(filepath, filename):
-            return False
-    return True
+            click.echo(f'"{filepath}/{filename}" not found.', err=True)
+            four_files_exist = False
+    return four_files_exist
 
 
 def _check_file_exists(filepath: pathlib.Path, filename: str) -> bool:
