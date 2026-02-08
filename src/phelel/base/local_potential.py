@@ -751,13 +751,12 @@ class DLocalPotential:
             xyz = "xyz"[i_dir]
             # spin 1 only
             multi = visualize_distribution(
+                "locpot_viz-%03d-%s.dat" % (self._atom_indices[i_atom] + 1, xyz),
                 pcell,
                 self._p2s_matrix,
                 self._fft_mesh,
                 self._grid_points,
                 self._dVdu[0, i_atom, i_dir],
-                filename="locpot_viz-%03d-%s.dat"
-                % (self._atom_indices[i_atom] + 1, xyz),
             )
 
         if self._verbose:
@@ -789,12 +788,12 @@ class DLocalPotential:
 
 
 def visualize_distribution(
+    filename: str | os.PathLike,
     pcell: PhonopyAtoms,
     p2s_matrix: NDArray,
     fft_mesh: int | float | Sequence | NDArray,
     grid_points: NDArray,
     data: NDArray,
-    filename: str | os.PathLike | None = None,
 ) -> NDArray:
     """Visualize scalar distribution in space.
 
@@ -854,7 +853,7 @@ def visualize_distribution(
     scell = get_supercell(pcell, np.diag(multiplicity))
     header = "\n".join(get_vasp_structure_lines(scell))
     locpot = get_CHGCAR(dV_viz.real, header)  # type: ignore
-    assert filename is not None
+
     with open(filename, "w") as w:
         w.write(locpot)
 
