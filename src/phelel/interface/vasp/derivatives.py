@@ -5,8 +5,10 @@ from __future__ import annotations
 import os
 import pathlib
 from collections.abc import Sequence
+from typing import Literal
 
 import numpy as np
+from numpy.typing import NDArray
 from phonopy.file_IO import get_born_parameters
 from phonopy.interface.vasp import parse_set_of_forces
 from phonopy.structure.atoms import PhonopyAtoms
@@ -51,6 +53,10 @@ def read_files(
         print(f'"{inwap_path}" was read.')
     dataset, _ = _get_datasets(phelel)
     loc_pots = _read_local_potentials(dir_names, inwap_per, log_level=log_level)
+    assert loc_pots is not None
+    kin_pots = _read_local_potentials(
+        dir_names, inwap_per, key="xcmu", log_level=log_level
+    )
     Dijs, qijs = _read_PAW_strength_and_overlap(
         dir_names, inwap_per, log_level=log_level
     )
@@ -90,6 +96,7 @@ def read_files(
 
     return PhelelDataset(
         local_potentials=loc_pots,
+        kinetic_potentials=kin_pots,
         Dijs=Dijs,
         qijs=qijs,
         lm_channels=inwap_per["lm_orbitals"],
@@ -101,8 +108,8 @@ def read_files(
 def create_derivatives(
     phelel: Phelel,
     dir_names: Sequence,
-    subtract_rfs=False,
-    log_level=0,
+    subtract_rfs: bool = False,
+    log_level: int = 0,
 ):
     """Calculate derivatives.
 
@@ -144,7 +151,7 @@ def create_derivatives(
     # phelel.Rij = read_Rij(dir_names[0], inwap_per)
 
 
-def read_Rij(dir_name, inwap_per):
+def read_Rij(dir_name: str | os.PathLike, inwap_per: dict) -> NDArray:
     """Read Rij."""
     return read_PAW_Dij_qij(inwap_per, "%s/PAW-Rnij.bin" % dir_name, is_Rij=True)
 
@@ -154,7 +161,7 @@ def read_forces_from_vasprunxmls(
     supercell: PhonopyAtoms,
     subtract_rfs: bool = False,
     log_level: int = 0,
-):
+) -> list[NDArray]:
     """Read forces from vasprun.xml's and read NAC params from BORN."""
     calc_dataset = parse_set_of_forces(len(supercell), vasprun_filenames, verbose=False)
     forces = calc_dataset["forces"]
@@ -215,8 +222,11 @@ def _get_datasets(phelel: Phelel) -> tuple:
 
 
 def _read_local_potentials(
-    dir_names: Sequence[str | os.PathLike], inwap_per: dict, log_level: int = 0
-) -> list[np.ndarray]:
+    dir_names: Sequence[str | os.PathLike],
+    inwap_per: dict,
+    key: Literal["total", "xcmu"] = "total",
+    log_level: int = 0,
+) -> list[np.ndarray] | None:
     loc_pots = []
     for dir_name in dir_names:
         # Note glob returns a generator.
@@ -224,13 +234,18 @@ def _read_local_potentials(
             pathlib.Path(dir_name).glob("LOCAL-POTENTIAL.bin*")
         )
         if possible_locpot_paths:
+            if key == "xcmu":
+                return None
             locpot_path = possible_locpot_paths[0]
             loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
         else:
             locpot_path = pathlib.Path(dir_name) / "vaspout.h5"
-            loc_pots.append(
-                read_local_potential_vaspouth5(inwap_per, filename=locpot_path)
-            )
+            try:
+                loc_pots.append(
+                    read_local_potential_vaspouth5(filename=locpot_path, key=key)
+                )
+            except KeyError:
+                return None
         if log_level:
             print(f'"{locpot_path}" was read.')
     return loc_pots

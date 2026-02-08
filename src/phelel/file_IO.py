@@ -23,6 +23,7 @@ from phelel.utils.lattice_points import get_lattice_points
 def write_phelel_params_hdf5(
     dVdu: DLocalPotential | None = None,
     dDijdu: DDijQij | None = None,
+    dmudu: DLocalPotential | None = None,
     # Rij=None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
@@ -45,6 +46,7 @@ def write_phelel_params_hdf5(
             w,
             dVdu=dVdu,
             dDijdu=dDijdu,
+            dmudu=dmudu,
             supercell_matrix=supercell_matrix,
             primitive_matrix=primitive_matrix,
             primitive=primitive,
@@ -195,6 +197,7 @@ def read_dDijdu_hdf5(f):
 def _add_datasets(
     w,
     dVdu: DLocalPotential | None = None,
+    dmudu: DLocalPotential | None = None,
     dDijdu: DDijQij | None = None,
     Rij: NDArray | None = None,
     supercell_matrix: NDArray | None = None,
@@ -212,14 +215,22 @@ def _add_datasets(
     symmetry_dataset: SpglibDataset | SpglibMagneticDataset | None = None,
 ):
     if dVdu is not None:
+        assert dVdu.dVdu is not None
         w.create_dataset("dVdu", data=cmplx2real(dVdu.dVdu))
         w.create_dataset("grid_point", data=dVdu.grid_points)
         w.create_dataset("lattice_point", data=dVdu.lattice_points)
         w.create_dataset("FFT_mesh", data=dVdu.fft_mesh)
+        if dmudu is not None:
+            assert dmudu.dVdu is not None
+            w.create_dataset("dmudu", data=cmplx2real(dmudu.dVdu))
     if dDijdu is not None:
+        assert dDijdu.dDijdu is not None
         w.create_dataset("dDijdu", data=cmplx2real(dDijdu.dDijdu))
+        assert dDijdu.dqijdu is not None
         w.create_dataset("dqijdu", data=cmplx2real(dDijdu.dqijdu))
+        assert dDijdu.Dij is not None
         w.create_dataset("Dij", data=cmplx2real(dDijdu.Dij))
+        assert dDijdu.qij is not None
         w.create_dataset("qij", data=cmplx2real(dDijdu.qij))
     if Rij is not None:
         w.create_dataset("Rij", data=cmplx2real(Rij))

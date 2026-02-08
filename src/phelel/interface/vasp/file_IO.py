@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
+from typing import Literal
 
 import h5py
 import numpy as np
 import yaml
+from numpy.typing import NDArray
 from phono3py.file_IO import get_filename_suffix
 from phonopy.file_IO import get_io_module_to_decompress
 
@@ -14,7 +17,9 @@ from phonopy.file_IO import get_io_module_to_decompress
 ###########
 # Readers #
 ###########
-def read_bin_stream(filename, dtype=None):
+def read_bin_stream(
+    filename: str | os.PathLike, dtype: np.dtype | None = None
+) -> NDArray:
     """Read binary stream."""
     if dtype is None:
         dtype = np.dtype("double")
@@ -31,17 +36,17 @@ def read_inwap_vaspouth5(
     inwap = {}
     with h5py.File(filename) as h5:
         # dimensions of the potential
-        pot = h5["results/potential/total"]
-        ncdij = pot.shape[0]
-        fft_fine = pot.shape[1:]
+        pot_shape: tuple = h5["results/potential/total"].shape  # type: ignore
+        ncdij = pot_shape[0]
+        fft_fine = pot_shape[1:]
         # electronic structure
-        ispin = h5["/results/electron_eigenvalues/ispin"][()]
-        nbtot = h5["/results/electron_eigenvalues/nb_tot"][()]
-        nkpts = h5["/results/electron_eigenvalues/kpoints"][()]
+        ispin = h5["/results/electron_eigenvalues/ispin"][()]  # type: ignore
+        nbtot = h5["/results/electron_eigenvalues/nb_tot"][()]  # type: ignore
+        nkpts = h5["/results/electron_eigenvalues/kpoints"][()]  # type: ignore
         # number of ions
-        nions = h5["/results/electron_eigenvalues/nions"][()]
+        nions: int = h5["/results/electron_eigenvalues/nions"][()]  # type: ignore
         # kpoint coordinates
-        kpoints = h5["/results/electron_eigenvalues/kpoint_coords"][:]
+        kpoints = h5["/results/electron_eigenvalues/kpoint_coords"][:]  # type: ignore
         inwap["ncdij"] = ncdij
         inwap["nions"] = nions
         inwap["fft_fine"] = fft_fine
@@ -50,15 +55,15 @@ def read_inwap_vaspouth5(
         inwap["nbtot"] = nbtot
         inwap["nrspinors"] = 2 if ncdij == 4 else 1
         inwap["kpoints"] = kpoints
-        lmdim = h5["results/paw/lmdim"][()]
-        ldim = h5["results/paw/ldim"][0]
+        lmdim = h5["results/paw/lmdim"][()]  # type: ignore
+        ldim = h5["results/paw/ldim"][0]  # type: ignore
         inwap["lmdim"] = lmdim  # data["PAW"]["LMDIM"]
         inwap["ldim"] = ldim  # data["PAW"]["LDIM"]
 
         # read required information to generate lm_orbitals
-        nitypes = h5["/input/poscar/number_ion_types"][:]
-        lmax = h5["/results/paw/lmax"][:]
-        lps = h5["/results/paw/lps"][:]
+        nitypes: NDArray = h5["/input/poscar/number_ion_types"][:]  # type: ignore
+        lmax: NDArray = h5["/results/paw/lmax"][:]  # type: ignore
+        lps: NDArray = h5["/results/paw/lps"][:]  # type: ignore
 
         # construct lm_orbitals dictionary here
         itypes = sum([[i] * nityp for i, nityp in enumerate(nitypes)], [])
@@ -103,7 +108,9 @@ def read_inwap_yaml(filename: str | os.PathLike = "inwap.yaml") -> dict:
     return inwap
 
 
-def read_PAW_Dij_qij_vaspouth5(filename):
+def read_PAW_Dij_qij_vaspouth5(
+    filename: str | os.PathLike = "vaspout.h5",
+) -> tuple[NDArray, NDArray]:
     """Read Dij and qij in vaspout.h5.
 
     Dij(ncdij, nions, lmdim, lmdim')
@@ -113,14 +120,16 @@ def read_PAW_Dij_qij_vaspouth5(filename):
 
     """
     with h5py.File(filename) as h5:
-        dij_real = h5["/results/paw/dij"][:]
-        qij_real = h5["/results/paw/qij"][:]
-    dij = dij_real[:, :, :, :, 0] + 1j * dij_real[:, :, :, :, 1]
-    qij = qij_real[:, :, :, :, 0] + 1j * qij_real[:, :, :, :, 1]
+        dij_real = h5["/results/paw/dij"][:]  # type: ignore
+        qij_real = h5["/results/paw/qij"][:]  # type: ignore
+    dij = dij_real[:, :, :, :, 0] + 1j * dij_real[:, :, :, :, 1]  # type: ignore
+    qij = qij_real[:, :, :, :, 0] + 1j * qij_real[:, :, :, :, 1]  # type: ignore
     return dij, qij
 
 
-def read_PAW_Dij_qij(inwap, filename, is_Rij=False):
+def read_PAW_Dij_qij(
+    inwap: dict, filename: str | os.PathLike, is_Rij: bool = False
+) -> NDArray:
     """Read Dij, qij, and Rij.
 
     Dij(ncdij, nions, lmdim, lmdim')
@@ -141,14 +150,15 @@ def read_PAW_Dij_qij(inwap, filename, is_Rij=False):
     dt = "c%d" % (data.itemsize * 2)
     data_complex = data.view(dtype=dt)
     if len(data_complex) != np.prod(shape):
-        print("%s: data size is inconsistent with values in inwap.yaml." % filename)
-        return None
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
     return data_complex.reshape(shape)
 
 
 def read_local_potential_vaspouth5(
-    inwap: dict, filename: str | os.PathLike = "vaspout.h5"
-):
+    filename: str | os.PathLike = "vaspout.h5", key: Literal["total", "xcmu"] = "total"
+) -> NDArray:
     """Read local potentials in vaspout.h5.
 
     For spin unpolarized calculations the potential is real but we convert it to
@@ -157,10 +167,12 @@ def read_local_potential_vaspouth5(
     For non-collinear calculations the potential is written as scalar potential
     + magnetic field potential
 
+    Kinetic energy density (xcmu) is also read by this function in the same way.
+
     """
     with h5py.File(filename) as h5:
         # dimensions of the potential
-        pot_real = h5["/results/potential/total"][:]
+        pot_real: NDArray = h5[f"/results/potential/{key}"][:]  # type: ignore
         ncdij = pot_real.shape[0]
         pot = np.zeros_like(pot_real, dtype=complex)
 
@@ -187,7 +199,7 @@ def read_local_potential_vaspouth5(
 
 def read_local_potential(
     inwap: dict, filename: str | os.PathLike = "LOCAL-POTENTIAL.bin"
-):
+) -> NDArray | None:
     """Read LOCAL-POTENTIAL.bin.
 
     Normally local potential (SV) is real in VASP. But non-collinear version, it
@@ -202,12 +214,15 @@ def read_local_potential(
     dt = "c%d" % (data.itemsize * 2)
     data_complex = data.view(dtype=dt)
     if len(data_complex) != np.prod(shape):
-        print("%s: data size is inconsistent with values in inwap.yaml." % filename)
-        return None
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
     return data_complex.reshape(shape)
 
 
-def read_dprojectors(inwap, filename="DPROJECTORS.bin"):
+def read_dprojectors(
+    inwap: dict, filename: str | os.PathLike = "DPROJECTORS.bin"
+) -> NDArray:
     """Read DPROJECTORS.bin."""
     nbtot = inwap["nbtot"]
     nrspinors = inwap["nrspinors"]
@@ -222,12 +237,13 @@ def read_dprojectors(inwap, filename="DPROJECTORS.bin"):
     dt = "c%d" % (data.itemsize * 2)
     data_complex = data.view(dtype=dt)
     if len(data_complex) != np.prod(shape):
-        print("%s: data size is inconsistent with values in inwap.yaml." % filename)
-        return None
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
     return data_complex.reshape(shape)
 
 
-def read_waves(inwap, filename="WAVES.bin"):
+def read_waves(inwap: dict, filename: str | os.PathLike = "WAVES.bin") -> NDArray:
     """Read WAVES.bin."""
     ispin = inwap["ispin"]
     nkpts = inwap["nkpts"]
@@ -239,12 +255,15 @@ def read_waves(inwap, filename="WAVES.bin"):
     dt = "c%d" % (data.itemsize * 2)
     data_complex = data.view(dtype=dt)
     if len(data_complex) != np.prod(shape):
-        print("%s: data size is inconsistent with values in inwap.yaml." % filename)
-        return None
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
     return data_complex.reshape(shape)
 
 
-def read_eigenvalues(inwap, filename="EIGENVALUE.bin"):
+def read_eigenvalues(
+    inwap: dict, filename: str | os.PathLike = "EIGENVALUE.bin"
+) -> NDArray:
     """Read EIGENVALUE.bin."""
     ispin = inwap["ispin"]
     nkpts = inwap["nkpts"]
@@ -252,27 +271,28 @@ def read_eigenvalues(inwap, filename="EIGENVALUE.bin"):
     shape = (nbtot, nkpts, ispin)
     data = read_bin_stream(filename)
     if len(data) != np.prod(shape):
-        print("%s: data size is inconsistent with values in inwap.yaml." % filename)
-        return None
-
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
     # change shape (nbtot, nkpts, ispin) --> (nkpts, nbtot, ispin)
     ret_data = np.array(data.reshape(shape).swapaxes(0, 1), dtype=data.dtype, order="C")
     return ret_data
 
 
-def read_qtot(inwap, filename="QTOT.bin"):
+def read_qtot(inwap: dict, filename: str | os.PathLike = "QTOT.bin") -> NDArray:
     """Read QTOT.bin."""
     ldim = inwap["ldim"]
     nions = inwap["nions"]
     shape = (nions, ldim, ldim)
     data = read_bin_stream(filename)
     if len(data) != np.prod(shape):
-        print("%s: data size is inconsistent with values in inwap.yaml." % filename)
-        return None
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
     return data.reshape(shape)
 
 
-def get_CHGCAR(charge, header):
+def get_CHGCAR(charge: NDArray, header: str) -> str:
     """Return CHGCAR style text from ndarray."""
     text = header + "\n%5d%5d%5d\n" % charge.shape[::-1]
     count = 0
@@ -290,7 +310,7 @@ def get_CHGCAR(charge, header):
 ###########
 # Writers #
 ###########
-def write_mesh_electron_hdf5(dirnames, mesh):
+def write_mesh_electron_hdf5(dirnames: Sequence, mesh: Sequence | NDArray):
     """Read .bin files and write to hdf5 file.
 
     Note
@@ -347,32 +367,3 @@ def write_mesh_electron_hdf5(dirnames, mesh):
         for dname, iwp, nk in zip(dirnames, inwaps, nkpts, strict=True):
             waves[idx : (idx + nk)] = read_waves(iwp, "%s/%s" % (dname, "WAVES.bin"))
             idx += nk
-
-
-def write_mesh_KPOINTS(filename, num_per_batch=100):
-    """Read grid_address-xxx.hdf5 and write KPOINTS style files.
-
-    The set of k-points is divided into kpoint batches and
-    each batch has num_per_batch kpoints.
-
-    """
-    with h5py.File(filename, "r") as f:
-        mesh = np.array(f["mesh"][:], dtype=float)
-        grid_address = f["grid_address"][:]
-
-    num = num_per_batch
-    w = None
-    for i, kpt in enumerate(grid_address / mesh):
-        if i % num == 0:
-            if i != 0:
-                w.close()
-            w = open("KPOINTS-%03d" % (i // num + 1), "w")
-            if len(grid_address) - i > num:
-                w.write("batch %d-%d\n" % (i + 1, i + num))
-                w.write("%d\n" % num)
-            else:
-                w.write("batch %d-%d\n" % (i + 1, len(grid_address)))
-                w.write("%d\n" % (len(grid_address) - i))
-            w.write("Reciprocal\n")
-        w.write("%12.8f%12.8f%12.8f 1\n" % tuple(kpt))
-    w.close()

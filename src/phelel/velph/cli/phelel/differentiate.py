@@ -1,8 +1,9 @@
 """Implementation of velph-phelel-differentiate."""
 
+from __future__ import annotations
+
 import os
 import pathlib
-from typing import Union
 
 import click
 
@@ -14,10 +15,11 @@ from phelel.velph.cli.utils import get_num_digits
 def run_derivatives(
     phe: Phelel,
     subtract_residual_forces: bool = True,
-    dir_name: Union[str, bytes, os.PathLike] = "phelel",
+    dir_name: str | os.PathLike = "phelel",
 ) -> bool:
     """Calculate derivatives and write phelel_params.hdf5."""
     dir_names = []
+    assert phe.supercells_with_displacements is not None
     nd = get_num_digits(phe.supercells_with_displacements)
     for i, _ in enumerate(
         [
@@ -38,6 +40,7 @@ def run_derivatives(
             return False
 
     if phe.phonon_supercell_matrix is not None:
+        assert phe.phonon_supercells_with_displacements is not None
         nd = get_num_digits(phe.phonon_supercells_with_displacements)
         for i, _ in enumerate(
             [
