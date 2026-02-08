@@ -27,10 +27,10 @@ class PhelelDataset:
     """Data structure of input data to run derivatives."""
 
     local_potentials: list[NDArray]
-    kinetic_potentials: list[NDArray] | None
     Dijs: list[NDArray]
     qijs: list[NDArray]
     lm_channels: list[dict]
+    kinetic_potentials: list[NDArray] | None = None
     dataset: dict | None = None
     phonon_dataset: dict | None = None
     forces: NDArray | None = None

@@ -96,10 +96,10 @@ def read_files(
 
     return PhelelDataset(
         local_potentials=loc_pots,
-        kinetic_potentials=kin_pots,
         Dijs=Dijs,
         qijs=qijs,
         lm_channels=inwap_per["lm_orbitals"],
+        kinetic_potentials=kin_pots,
         dataset=dataset,
         forces=np.array(forces, dtype="double", order="C"),
     )

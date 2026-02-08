@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from collections.abc import Sequence
 
 import numpy as np
+from numpy.typing import NDArray
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import compute_all_sg_permutations
 from phonopy.structure.symmetry import Symmetry
@@ -46,10 +47,10 @@ class DeltaDijQij:
 
     def __init__(
         self,
-        Dij_per: np.ndarray,
-        Dij_disp: np.ndarray,
-        qij_per: np.ndarray,
-        qij_disp: np.ndarray,
+        Dij_per: NDArray,
+        Dij_disp: NDArray,
+        qij_per: NDArray,
+        qij_disp: NDArray,
         displacement: dict,
         lm_channels: list[dict],
     ):
@@ -126,7 +127,7 @@ class DDijQijFit:
         delta_Dij_qijs: list[DeltaDijQij],
         supercell: PhonopyAtoms,
         symmetry: Symmetry,
-        atom_indices: Optional[list[int]] = None,
+        atom_indices: Sequence[int] | NDArray | None = None,
         verbose: bool = True,
     ):
         """Init method.
@@ -163,13 +164,13 @@ class DDijQijFit:
         self._verbose = verbose
         self._atom_indices_in = atom_indices
 
-        self._dDijdu: Optional[np.ndarray] = None
-        self._dqijdu: Optional[np.ndarray] = None
-        self._atom_indices: Optional[np.ndarray] = None
+        self._dDijdu: NDArray | None = None
+        self._dqijdu: NDArray | None = None
+        self._atom_indices: NDArray | None = None
 
         # See comments in LocalPotentialInterpolation for these variables
-        self._i_atom: Optional[int] = None
-        self._sitesym_sets: Optional[np.ndarray] = None
+        self._i_atom: int | None = None
+        self._sitesym_sets: NDArray | None = None
 
         self._setup()
 
@@ -184,7 +185,7 @@ class DDijQijFit:
         return self._dqijdu
 
     @property
-    def atom_indices(self):
+    def atom_indices(self) -> NDArray | None:
         """Return atom indices where dDijdu and dqijdu are stored."""
         return self._atom_indices
 
@@ -194,6 +195,8 @@ class DDijQijFit:
 
     def __next__(self):
         """Iterate over atom_indices."""
+        assert self._atom_indices is not None
+        assert self._i_atom is not None
         if len(self._atom_indices) == self._i_atom:
             raise StopIteration
 
@@ -211,8 +214,10 @@ class DDijQijFit:
         for _ in self:
             pass
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return Dij and qij in str fashion."""
+        assert self._dDijdu is not None
+        assert self._dqijdu is not None
         text = ""
         Dij_shape = self._dDijdu.shape[-2:]
         for i_spinor, (Dij_spinor, qij_spinor) in enumerate(
@@ -247,7 +252,7 @@ class DDijQijFit:
 
     def _str_format(
         self,
-        xij: np.ndarray,
+        xij: NDArray,
         i_spinor: int,
         i_eatom: int,
         i: int,
@@ -255,7 +260,7 @@ class DDijQijFit:
         str1: str,
         str2: str,
         Dij_shape: tuple,
-    ):
+    ) -> str:
         text = (
             f"Spin {i_spinor + 1}, Disp-Atom {i_eatom + 1}, "
             f"Atom {i + 1} d{str1}ij/d{'xyz'[j]} {str2} part "
@@ -300,6 +305,9 @@ class DDijQijFit:
         )
 
     def _run_at_atom(self):
+        assert self._dDijdu is not None
+        assert self._dqijdu is not None
+        assert self._sitesym_sets is not None
         sitesyms = self._sitesym_sets[self._i_atom]
         natom = len(self._supercell)
         lmdim = self._delta_Dij_qijs[0].dDij.shape[-2]
@@ -355,8 +363,8 @@ class DDijQijFit:
         self._dqijdu[:, self._i_atom] = (disps_inv @ dqij_rotated_all).reshape(shape)
 
     def _rotate_Dij_qij(
-        self, ncdij: int, delta_Dij_qij: DeltaDijQij, perm: np.ndarray, r: np.ndarray
-    ) -> list[np.ndarray, np.ndarray]:
+        self, ncdij: int, delta_Dij_qij: DeltaDijQij, perm: NDArray, r: NDArray
+    ) -> tuple[list[NDArray], list[NDArray]]:
         """Rotate Dij and qij.
 
         This rotation is the direct product of rotations of atomic permutation
@@ -378,7 +386,9 @@ class DDijQijFit:
             rot_dqij.append(_rot_dqij[perm_inv].ravel())
         return rot_dDij, rot_dqij
 
-    def _get_inv_rotated_dDij_qij(self, delta_Dij_qij: DeltaDijQij, r, i_spinor):
+    def _get_inv_rotated_dDij_qij(
+        self, delta_Dij_qij: DeltaDijQij, r, i_spinor
+    ) -> tuple[NDArray, NDArray]:
         """Inverse-rotate dDij and dqij."""
         lattice = self._supercell.cell.T
         shr = SHRotationMatrices(r, lattice, LxLyLzMatrices().run())
@@ -402,7 +412,7 @@ class DDijQijFit:
 
         return rot_dDij, rot_dqij
 
-    def _get_big_Delta(self, Delta, lm_channels, dDij):
+    def _get_big_Delta(self, Delta, lm_channels, dDij) -> NDArray:
         """Return orbital rotation matrix.
 
         This matrix combines rotation matrices of different orbitals, and
@@ -459,9 +469,9 @@ class DDijQij:
     def __init__(
         self,
         supercell: PhonopyAtoms,
-        symmetry: Optional[Symmetry] = None,
-        atom_indices=None,
-        verbose=True,
+        symmetry: Symmetry | None = None,
+        atom_indices: Sequence[int] | NDArray | None = None,
+        verbose: bool = True,
     ):
         """Init method.
 
@@ -483,18 +493,18 @@ class DDijQij:
         self._verbose = verbose
 
         if atom_indices is None:
-            self.atom_indices = np.arange(len(self._supercell), dtype="int64")
+            self._atom_indices = np.arange(len(self._supercell), dtype="int64")
         else:
-            self.atom_indices = np.array(np.unique(atom_indices), dtype="int64")
+            self._atom_indices = np.array(np.unique(atom_indices), dtype="int64")
         if symmetry is None:
             self.symmetry = Symmetry(supercell)
         else:
             self.symmetry = symmetry
 
-        self._Dij = None
-        self._qij = None
-        self._dDijdu = None
-        self._dqijdu = None
+        self._Dij: NDArray | None = None
+        self._qij: NDArray | None = None
+        self._dDijdu: NDArray | None = None
+        self._dqijdu: NDArray | None = None
 
     @property
     def dDijdu(self):
@@ -504,7 +514,7 @@ class DDijQij:
     @dDijdu.setter
     def dDijdu(self, dDijdu):
         natom = len(self._supercell)
-        shape = (len(self.atom_indices), 3, natom)
+        shape = (len(self._atom_indices), 3, natom)
         if dDijdu.shape[1:4] == shape:
             dtype = "c%d" % (np.dtype("double").itemsize * 2)
             self._dDijdu = np.array(dDijdu, dtype=dtype, order="C")
@@ -522,7 +532,7 @@ class DDijQij:
     @dqijdu.setter
     def dqijdu(self, dqijdu):
         natom = len(self._supercell)
-        shape = (len(self.atom_indices), 3, natom)
+        shape = (len(self._atom_indices), 3, natom)
         if dqijdu.shape[1:4] == shape:
             dtype = "c%d" % (np.dtype("double").itemsize * 2)
             self._dqijdu = np.array(dqijdu, dtype=dtype, order="C")
@@ -539,13 +549,13 @@ class DDijQij:
 
     @Dij.setter
     def Dij(self, Dij):
-        if Dij.shape[1] == len(self.atom_indices):
+        if Dij.shape[1] == len(self._atom_indices):
             dtype = "c%d" % (np.dtype("double").itemsize * 2)
             self._Dij = np.array(Dij, dtype=dtype, order="C")
         else:
             raise RuntimeError(
                 "Number of atoms in supercell disagrees, %s!=%s."
-                % (len(self.atom_indices), Dij.shape[1])
+                % (len(self._atom_indices), Dij.shape[1])
             )
 
     @property
@@ -555,14 +565,19 @@ class DDijQij:
 
     @qij.setter
     def qij(self, qij):
-        if qij.shape[1] == len(self.atom_indices):
+        if qij.shape[1] == len(self._atom_indices):
             dtype = "c%d" % (np.dtype("double").itemsize * 2)
             self._qij = np.array(qij, dtype=dtype, order="C")
         else:
             raise RuntimeError(
                 "Number of atoms in supercell disagrees, %s!=%s."
-                % (len(self.atom_indices), qij.shape[1])
+                % (len(self._atom_indices), qij.shape[1])
             )
+
+    @property
+    def atom_indices(self) -> NDArray:
+        """Return atom indices where dDijdu and dqijdu are stored."""
+        return self._atom_indices
 
     def run(self, Dij_per, Dij_disps, qij_per, qij_disps, displacements, lm_channels):
         """Compute dDij/du and dqij/du.
@@ -600,6 +615,9 @@ class DDijQij:
         if self.dDijdu is None:
             self._allocate_arrays(Dij_per.shape[0], Dij_per.shape[2])
 
+        assert self._dDijdu is not None
+        assert self._dqijdu is not None
+
         for disp_atom in np.unique([d["number"] for d in displacements]):
             delta_Dij_qijs = []
             for i, d in enumerate(displacements):
@@ -618,23 +636,24 @@ class DDijQij:
                 delta_Dij_qijs,
                 self._supercell,
                 self.symmetry,
-                atom_indices=self.atom_indices,
+                atom_indices=self._atom_indices,
                 verbose=self._verbose,
             )
             ddijqij.run()
+            assert ddijqij.atom_indices is not None
 
             indices = []
-            for ai in ddijqij._atom_indices:
-                indices.append(np.where(self.atom_indices == ai)[0][0])
+            for ai in ddijqij.atom_indices:
+                indices.append(np.where(self._atom_indices == ai)[0][0])
             self._dDijdu[:, indices] = ddijqij._dDijdu
             self._dqijdu[:, indices] = ddijqij._dqijdu
 
-        self.Dij = Dij_per[:, self.atom_indices, :, :]
-        self.qij = qij_per[:, self.atom_indices, :, :]
+        self.Dij = Dij_per[:, self._atom_indices, :, :]
+        self.qij = qij_per[:, self._atom_indices, :, :]
 
     def _allocate_arrays(self, ncdij, lmdim):
         dtype = "c%d" % (np.dtype("double").itemsize * 2)
         natom = len(self._supercell)
-        shape = (ncdij, len(self.atom_indices), 3, natom, lmdim, lmdim)
+        shape = (ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim)
         self._dDijdu = np.zeros(shape, dtype=dtype, order="C")
         self._dqijdu = np.zeros(shape, dtype=dtype, order="C")
