@@ -16,6 +16,7 @@ def run_derivatives(
     phe: Phelel,
     subtract_residual_forces: bool = True,
     dir_name: str | os.PathLike = "phelel",
+    verbose: bool = False,
 ) -> bool:
     """Calculate derivatives and write phelel_params.hdf5."""
     dir_names = []
@@ -60,7 +61,7 @@ def run_derivatives(
         phe,
         dir_names,
         subtract_rfs=subtract_residual_forces,
-        log_level=0,
+        log_level=int(verbose),
     )
 
     return True

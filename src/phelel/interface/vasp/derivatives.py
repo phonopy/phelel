@@ -50,10 +50,14 @@ def read_files(
         )
 
     if log_level:
-        print(f'"{inwap_path}" was read.')
+        print(f'Parameters were collected from "{inwap_path}".')
+
     dataset, _ = _get_datasets(phelel)
     loc_pots = _read_local_potentials(dir_names, inwap_per, log_level=log_level)
-    assert loc_pots is not None
+    if loc_pots is None:
+        raise ValueError(
+            "Failed to read required local potentials from the given directories. "
+        )
     kin_pots = _read_local_potentials(
         dir_names, inwap_per, key="xcmu", log_level=log_level
     )
@@ -64,7 +68,7 @@ def read_files(
         _dir_names = dir_names
     else:
         _dir_names = phonon_dir_names
-    vasprun_filenames = _get_vasprun_filenames(_dir_names, log_level=log_level)
+    vasprun_filenames = _get_vasprun_filenames(_dir_names)
 
     if phelel.phonon_supercell_matrix:
         supercell = phelel.phonon_supercell
@@ -126,8 +130,6 @@ def create_derivatives(
     % phelel --fft-mesh 18 18 18 --cd perfect disp-001
 
     """
-    if log_level > 0:
-        print("Calculation of dV/du, dDij/du, and force constants")
     dataset, phonon_dataset = _get_datasets(phelel)
     num_disp = len(dataset["first_atoms"]) + 1
     num_disp_ph = len(phonon_dataset["first_atoms"]) + 1
@@ -163,6 +165,10 @@ def read_forces_from_vasprunxmls(
     log_level: int = 0,
 ) -> list[NDArray]:
     """Read forces from vasprun.xml's and read NAC params from BORN."""
+    if log_level:
+        for filename in vasprun_filenames:
+            print(f'Forces were read from "{filename}".')
+
     calc_dataset = parse_set_of_forces(len(supercell), vasprun_filenames, verbose=False)
     forces = calc_dataset["forces"]
 
@@ -179,13 +185,11 @@ def read_forces_from_vasprunxmls(
     return _forces
 
 
-def _get_vasprun_filenames(dir_names, log_level=0):
+def _get_vasprun_filenames(dir_names):
     vasprun_filenames = []
     for dir_name in dir_names:
         filename = next(pathlib.Path(dir_name).glob("vasprun.xml*"))
         vasprun_filenames.append(filename)
-        if log_level:
-            print('"%s" was read.' % filename)
     return vasprun_filenames
 
 
@@ -230,24 +234,30 @@ def _read_local_potentials(
     loc_pots = []
     for dir_name in dir_names:
         # Note glob returns a generator.
-        possible_locpot_paths = list(
-            pathlib.Path(dir_name).glob("LOCAL-POTENTIAL.bin*")
-        )
-        if possible_locpot_paths:
-            if key == "xcmu":
-                return None
-            locpot_path = possible_locpot_paths[0]
-            loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
-        else:
-            locpot_path = pathlib.Path(dir_name) / "vaspout.h5"
-            try:
+        if key == "total":
+            possible_locpot_paths = list(
+                pathlib.Path(dir_name).glob("LOCAL-POTENTIAL.bin*")
+            )
+            if possible_locpot_paths:
+                locpot_path = possible_locpot_paths[0]
+                loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
+            else:
+                locpot_path = pathlib.Path(dir_name) / "vaspout.h5"
                 loc_pots.append(
                     read_local_potential_vaspouth5(filename=locpot_path, key=key)
                 )
+            if log_level:
+                print(f'Local potential was read from "{locpot_path}".')
+        elif key == "xcmu":
+            kinpot_path = pathlib.Path(dir_name) / "vaspout.h5"
+            try:
+                loc_pots.append(
+                    read_local_potential_vaspouth5(filename=kinpot_path, key=key)
+                )
             except KeyError:
                 return None
-        if log_level:
-            print(f'"{locpot_path}" was read.')
+            if log_level:
+                print(f'Kinetic potential was read from "{kinpot_path}".')
     return loc_pots
 
 
@@ -273,5 +283,5 @@ def _read_PAW_strength_and_overlap(
             Dijs.append(dij)
             qijs.append(qij)
             if log_level:
-                print(f'"{Dij_qij_path}" was read.')
+                print(f'Dijs and qjis were read from "{Dij_qij_path}".')
     return Dijs, qijs

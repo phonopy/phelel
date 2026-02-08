@@ -199,7 +199,7 @@ def read_local_potential_vaspouth5(
 
 def read_local_potential(
     inwap: dict, filename: str | os.PathLike = "LOCAL-POTENTIAL.bin"
-) -> NDArray | None:
+) -> NDArray:
     """Read LOCAL-POTENTIAL.bin.
 
     Normally local potential (SV) is real in VASP. But non-collinear version, it

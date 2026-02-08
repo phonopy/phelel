@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional
 
 import click
 import tomli
@@ -113,11 +112,19 @@ def cmd_generate(toml_filename: str, dir_name: str):
         "(encut: float, default=None)"
     ),
 )
+@click.option(
+    "-v",
+    "verbose",
+    is_flag=True,
+    default=False,
+    help=("More information will be printed."),
+)
 @click.help_option("-h", "--help")
 def cmd_differentiate(
     toml_filename: str,
-    encut: Optional[float],
+    encut: float | None,
     dir_name: str,
+    verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5."""
     hdf5_filename = pathlib.Path(f"{dir_name}/phelel_params.hdf5")
@@ -165,7 +172,7 @@ def cmd_differentiate(
         else:
             click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
 
-    if run_derivatives(phe, dir_name=dir_name):
+    if run_derivatives(phe, dir_name=dir_name, verbose=verbose):
         pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)
         phe.save_hdf5(filename=hdf5_filename)
         click.echo(f'"{hdf5_filename}" has been made.')
