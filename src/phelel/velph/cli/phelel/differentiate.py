@@ -20,7 +20,8 @@ def run_derivatives(
 ) -> bool:
     """Calculate derivatives and write phelel_params.hdf5."""
     dir_names = []
-    assert phe.supercells_with_displacements is not None
+    if phe.supercells_with_displacements is None:
+        raise RuntimeError("supercells_with_displacements is None.")
     nd = get_num_digits(phe.supercells_with_displacements)
     for i, _ in enumerate(
         [
@@ -41,7 +42,8 @@ def run_derivatives(
             return False
 
     if phe.phonon_supercell_matrix is not None:
-        assert phe.phonon_supercells_with_displacements is not None
+        if phe.phonon_supercells_with_displacements is None:
+            raise RuntimeError("phonon_supercells_with_displacements is None.")
         nd = get_num_digits(phe.phonon_supercells_with_displacements)
         for i, _ in enumerate(
             [
@@ -69,7 +71,7 @@ def run_derivatives(
 
 def _check_files_exist(filepath: pathlib.Path) -> bool:
     if (filepath / "vaspout.h5").exists():
-        click.echo(f'Found "{filepath}/vaspout.h5".', err=True)
+        click.echo(f'Found "{filepath}/vaspout.h5".', err=False)
         return True
     else:
         if not _check_file_exists(filepath, "vasprun.xml"):

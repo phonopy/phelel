@@ -79,9 +79,10 @@ def read_files(
     vaspout5_exists = True
     vaspout_filenames = []
     for dir_name in _dir_names:
-        try:
-            vaspout_filenames.append(next(pathlib.Path(dir_name).glob("vaspout.h5*")))
-        except StopIteration:
+        filename = pathlib.Path(dir_name) / "vaspout.h5"
+        if filename.is_file():
+            vaspout_filenames.append(filename)
+        else:
             vaspout5_exists = False
             break
     if vaspout5_exists:
@@ -338,5 +339,9 @@ def _read_PAW_strength_and_overlap(
             qijs.append(read_PAW_Dij_qij(inwap_per, qij_path))
             if log_level:
                 print(f'"{Dij_path}" and "{qij_path}" were read.')
+        else:
+            raise RuntimeError(
+                f'"PAW-STRENGTH.bin" or "PAW-OVERLAP.bin" not found in "{dir_name}".'
+            )
 
     return Dijs, qijs
