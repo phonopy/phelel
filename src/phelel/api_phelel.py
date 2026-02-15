@@ -30,6 +30,7 @@ class PhelelDataset:
     Dijs: list[NDArray]
     qijs: list[NDArray]
     lm_channels: list[dict]
+    kinetic_potentials: list[NDArray] | None = None
     dataset: dict | None = None
     phonon_dataset: dict | None = None
     forces: NDArray | None = None
@@ -151,6 +152,7 @@ class Phelel:
         assert (abs(self._p2s_matrix - p2s_mat_float) < 1e-5).all()
 
         self._dVdu = None
+        self._dmudu = None
 
         if fft_mesh is None:
             self._fft_mesh = None
@@ -359,16 +361,6 @@ class Phelel:
     @fft_mesh.setter
     def fft_mesh(self, fft_mesh: ArrayLike):
         self._fft_mesh = np.array(fft_mesh, dtype="int64")
-        self._dVdu = DLocalPotential(
-            self._fft_mesh,
-            self._p2s_matrix,
-            self._phelel_phonon.supercell,
-            symmetry=self.symmetry,
-            atom_indices=self.atom_indices_in_derivatives,
-            nufft=self._nufft,
-            finufft_eps=self._finufft_eps,
-            verbose=self._log_level > 0,
-        )
 
     @property
     def dVdu(self) -> DLocalPotential | None:
@@ -378,6 +370,15 @@ class Phelel:
     @dVdu.setter
     def dVdu(self, dVdu: DLocalPotential):
         self._dVdu = dVdu
+
+    @property
+    def dmudu(self) -> DLocalPotential | None:
+        """Return DLocalPotential class instance of kinetic potential."""
+        return self._dmudu
+
+    @dmudu.setter
+    def dmudu(self, dmudu: DLocalPotential):
+        self._dmudu = dmudu
 
     @property
     def dDijdu(self) -> DDijQij:
@@ -461,9 +462,6 @@ class Phelel:
 
         if phe_input.dataset is not None:
             self._phelel_phonon.dataset = phe_input.dataset
-        loc_pots = phe_input.local_potentials
-        Dijs = phe_input.Dijs
-        qijs = phe_input.qijs
 
         if phe_input.phonon_dataset is not None:
             self._prepare_phonon(
@@ -478,10 +476,42 @@ class Phelel:
                 calculate_full_force_constants=True,
             )
         assert self._phelel_phonon.dataset is not None
-        assert self._dVdu is not None
+
+        self._dVdu = DLocalPotential(
+            self._fft_mesh,
+            self._p2s_matrix,
+            self._phelel_phonon.supercell,
+            symmetry=self.symmetry,
+            atom_indices=self.atom_indices_in_derivatives,
+            nufft=self._nufft,
+            finufft_eps=self._finufft_eps,
+            verbose=self._log_level > 0,
+        )
+        loc_pots = phe_input.local_potentials
         self._dVdu.run(
             loc_pots[0], loc_pots[1:], self._phelel_phonon.dataset["first_atoms"]
         )
+
+        if phe_input.kinetic_potentials is not None:
+            kin_pots = phe_input.kinetic_potentials
+            self._dmudu = DLocalPotential(
+                self._fft_mesh,
+                self._p2s_matrix,
+                self._phelel_phonon.supercell,
+                symmetry=self.symmetry,
+                atom_indices=self.atom_indices_in_derivatives,
+                nufft=self._nufft,
+                finufft_eps=self._finufft_eps,
+                verbose=self._log_level > 0,
+            )
+            self._dmudu.run(
+                kin_pots[0],
+                kin_pots[1:],
+                self._phelel_phonon.dataset["first_atoms"],
+            )
+
+        Dijs = phe_input.Dijs
+        qijs = phe_input.qijs
         self._dDijdu.run(
             Dijs[0],
             Dijs[1:],
@@ -495,6 +525,7 @@ class Phelel:
         """Write phelel_params.hdf5."""
         params = {
             "dVdu": self.dVdu,
+            "dmudu": self.dmudu,
             "dDijdu": self.dDijdu,
             "supercell_matrix": self.supercell_matrix,
             "primitive_matrix": self.primitive_matrix,

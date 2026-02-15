@@ -1,8 +1,9 @@
 """Implementation of velph-phelel-differentiate."""
 
+from __future__ import annotations
+
 import os
 import pathlib
-from typing import Union
 
 import click
 
@@ -14,10 +15,13 @@ from phelel.velph.cli.utils import get_num_digits
 def run_derivatives(
     phe: Phelel,
     subtract_residual_forces: bool = True,
-    dir_name: Union[str, bytes, os.PathLike] = "phelel",
+    dir_name: str | os.PathLike = "phelel",
+    verbose: bool = False,
 ) -> bool:
     """Calculate derivatives and write phelel_params.hdf5."""
     dir_names = []
+    if phe.supercells_with_displacements is None:
+        raise RuntimeError("supercells_with_displacements is None.")
     nd = get_num_digits(phe.supercells_with_displacements)
     for i, _ in enumerate(
         [
@@ -38,6 +42,8 @@ def run_derivatives(
             return False
 
     if phe.phonon_supercell_matrix is not None:
+        if phe.phonon_supercells_with_displacements is None:
+            raise RuntimeError("phonon_supercells_with_displacements is None.")
         nd = get_num_digits(phe.phonon_supercells_with_displacements)
         for i, _ in enumerate(
             [
@@ -57,35 +63,25 @@ def run_derivatives(
         phe,
         dir_names,
         subtract_rfs=subtract_residual_forces,
-        log_level=0,
+        log_level=int(verbose),
     )
 
     return True
 
 
 def _check_files_exist(filepath: pathlib.Path) -> bool:
-    if not _check_file_exists(filepath, "vasprun.xml"):
-        click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
-        return False
-    if _check_four_files_exist(filepath):
+    if (filepath / "vaspout.h5").exists():
+        click.echo(f'Found "{filepath}/vaspout.h5".', err=False)
         return True
     else:
-        if (filepath / "vaspout.h5").exists():
-            click.echo(f'Found "{filepath}/vaspout.h5".', err=True)
-            return True
-        else:
-            for filename in (
-                "inwap.yaml",
-                "LOCAL-POTENTIAL.bin",
-                "PAW-STRENGTH.bin",
-                "PAW-OVERLAP.bin",
-            ):
-                if not _check_file_exists(filepath, filename):
-                    click.echo(f'"{filepath}/{filename}" not found.', err=True)
+        if not _check_file_exists(filepath, "vasprun.xml"):
+            click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
             return False
+        return _check_four_files_exist(filepath)
 
 
 def _check_four_files_exist(filepath: pathlib.Path) -> bool:
+    four_files_exist = True
     for filename in (
         "inwap.yaml",
         "LOCAL-POTENTIAL.bin",
@@ -93,8 +89,9 @@ def _check_four_files_exist(filepath: pathlib.Path) -> bool:
         "PAW-OVERLAP.bin",
     ):
         if not _check_file_exists(filepath, filename):
-            return False
-    return True
+            click.echo(f'"{filepath}/{filename}" not found.', err=True)
+            four_files_exist = False
+    return four_files_exist
 
 
 def _check_file_exists(filepath: pathlib.Path, filename: str) -> bool:
