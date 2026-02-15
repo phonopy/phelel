@@ -49,6 +49,7 @@ from phonopy.interface.phonopy_yaml import (
     PhonopyYamlLoader,
     load_yaml,
 )
+from phonopy.physical_units import CalculatorPhysicalUnits
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
 
@@ -71,7 +72,11 @@ class PhelelYamlLoader(PhonopyYamlLoader):
     """PhelelYaml loader."""
 
     def __init__(
-        self, yaml_data, configuration=None, calculator=None, physical_units=None
+        self,
+        yaml_data: dict,
+        configuration: dict | None = None,
+        calculator: str | None = None,
+        physical_units: CalculatorPhysicalUnits | None = None,
     ):
         """Init method.
 
@@ -136,7 +141,7 @@ class PhelelYamlDumper(PhonopyYamlDumper):
         "dielectric_constant": True,
     }
 
-    def __init__(self, data: PhelelYamlData, dumper_settings=None):
+    def __init__(self, data: PhelelYamlData, dumper_settings: dict | None = None):
         """Init method."""
         self._data = data
         self._init_dumper_settings(dumper_settings)
@@ -235,7 +240,11 @@ class PhelelYaml(PhonopyYaml):
     command_name = "phelel"
 
     def __init__(
-        self, configuration=None, calculator=None, physical_units=None, settings=None
+        self,
+        configuration: dict | None = None,
+        calculator: str | None = None,
+        physical_units: CalculatorPhysicalUnits | None = None,
+        settings: dict | None = None,
     ):
         """Init method."""
         self._data = PhelelYamlData(
