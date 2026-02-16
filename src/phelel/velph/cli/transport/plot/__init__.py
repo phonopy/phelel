@@ -139,7 +139,7 @@ def cmd_plot_eigenvalues(
 
     if retvals is not None:
         with open("transport/bz.dat", "w") as w:
-            for i, (e, wt, rk) in enumerate(zip(*retvals)):
+            for i, (e, wt, rk) in enumerate(zip(*retvals, strict=True)):
                 print(
                     f"{i + 1} {e:.6f} {wt:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]",
                     file=w,

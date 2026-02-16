@@ -85,15 +85,19 @@ class VaspKpoints:
             raise RuntimeError("line in toml_dict is not found.")
         lines = []
         lines.append("k points along high symmetry lines by velph")
-        lines.append(str(toml_dict["line"]) + "")
+        lines.append(str(toml_dict["line"]))
         lines.append("line mode")
         lines.append("fractional")
 
         if "path" in toml_dict:
-            for p in list(toml_dict["path"]):
+            label = toml_dict.get("label")
+            for i_point, p in enumerate(toml_dict["path"]):
                 for i in range(2):
-                    coord = " ".join([f"{toml_dict[p[i]][j]:.8f}" for j in range(3)])
-                    lines.append(f"{coord} {p[i]}")
+                    coord = " ".join([f"{p[i][j]:.8f}" for j in range(3)])
+                    if label is not None:
+                        lines.append(f"{coord} {label[i_point][i]}")
+                    else:
+                        lines.append(f"{coord}")
                 lines.append("")
         else:
             try:
@@ -399,7 +403,7 @@ def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> Phono
     ion_types = f_vaspout_h5[f"{group}/ion_types"][:]
 
     symbols = []
-    for symbol, number in zip(ion_types, number_ion_types):
+    for symbol, number in zip(ion_types, number_ion_types, strict=True):
         symbols += [symbol.decode()] * number
 
     if not direct:

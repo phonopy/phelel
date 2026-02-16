@@ -10,10 +10,10 @@ description = "Electron-phonon code."
 authors = [
     {name = "Atsushi Togo", email = "atztogo@gmail.com"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "phonopy >= 2.43.0",
-    "phono3py >= 3.19.4",
+    "phonopy >= 2.48.0",
+    "phono3py >= 3.25.0",
     "spglib >= 2.5.0",
     "finufft",
     "click",

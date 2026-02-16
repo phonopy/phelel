@@ -145,16 +145,6 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
-    "--phelel-dir-name",
-    "phelel_dir_name",
-    type=str,
-    default="phelel",
-    help=(
-        'Used for backward compatibility, for which set "supercell". '
-        '(phelel_dir_name: str, default="phelel")'
-    ),
-)
-@click.option(
     "--phelel-nosym",
     "phelel_nosym",
     is_flag=True,
@@ -171,7 +161,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Plus-minus displacements in supercell, otherwise auto. "
-        f"(plusminus: bool, default={DisplacementOptions.plusminus})"
+        f"(plusminus: bool or 'auto', default={DisplacementOptions.plusminus})"
     ),
 )
 @click.option(
@@ -260,10 +250,9 @@ def cmd_init(
     kspacing_dense: float | None,
     magmom: str | None,
     max_num_atoms: int | None,
-    phelel_dir_name: str,
     phelel_nosym: bool | None,
     plusminus: bool | None,
-    primitive_cell_choice: str | None,
+    primitive_cell_choice: Literal["standardized", "reduced"] | None,
     project_folder: str,
     supercell_dimension: tuple[int, int, int] | None,
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None,
@@ -293,26 +282,31 @@ def cmd_init(
         click.echo(f'"{cell_filename}" not found.', err=True)
         return
 
+    if plusminus is True:
+        _plusminus = True
+    elif plusminus is False:
+        _plusminus = "auto"
+    else:
+        _plusminus = None
+
     vip_cmd_options = VelphInitOptions(
-        **{
-            "amplitude": amplitude,
-            "cell_for_nac": cell_for_nac,
-            "cell_for_relax": cell_for_relax,
-            "diagonal": diagonal,
-            "find_primitive": find_primitive,
-            "kspacing": kspacing,
-            "kspacing_dense": kspacing_dense,
-            "magmom": magmom,
-            "max_num_atoms": max_num_atoms,
-            "phelel_nosym": phelel_nosym,
-            "plusminus": plusminus,
-            "primitive_cell_choice": primitive_cell_choice,
-            "supercell_dimension": supercell_dimension,
-            "supercell_matrix": supercell_matrix,
-            "symmetrize_cell": symmetrize_cell,
-            "tolerance": tolerance,
-            "use_grg": use_grg,
-        }
+        amplitude=amplitude,
+        cell_for_nac=cell_for_nac,
+        cell_for_relax=cell_for_relax,
+        diagonal=diagonal,
+        find_primitive=find_primitive,
+        kspacing=kspacing,
+        kspacing_dense=kspacing_dense,
+        magmom=magmom,
+        max_num_atoms=max_num_atoms,
+        phelel_nosym=phelel_nosym,
+        plusminus=_plusminus,
+        primitive_cell_choice=primitive_cell_choice,
+        supercell_dimension=supercell_dimension,
+        supercell_matrix=supercell_matrix,
+        symmetrize_cell=symmetrize_cell,
+        tolerance=tolerance,
+        use_grg=use_grg,
     )
 
     cell_filepath = pathlib.Path(cell_filename)
@@ -354,7 +348,7 @@ def cmd_init(
             return
 
     vfp = VelphFilePaths(**vfp_dict)
-    toml_lines = run_init(vip_cmd_options, vfp, phelel_dir_name=phelel_dir_name)
+    toml_lines = run_init(vip_cmd_options, vfp)
 
     # Write velph.toml.
     if toml_lines:

@@ -19,7 +19,7 @@ from numpy.typing import NDArray
 from phono3py.phonon.grid import BZGrid
 from phonopy.interface.vasp import VasprunxmlExpat, sort_positions_by_symbols
 from phonopy.physical_units import get_physical_units
-from phonopy.structure.atoms import PhonopyAtoms, atom_data, parse_cell_dict
+from phonopy.structure.atoms import PhonopyAtoms, get_atomic_data, parse_cell_dict
 from phonopy.structure.cells import (
     get_primitive,
     get_primitive_matrix_by_centring,
@@ -125,7 +125,7 @@ class VelphInitOptions:
     magmom: str | None = None
     max_num_atoms: int | None = None
     phelel_nosym: bool | None = None
-    plusminus: bool | None = None
+    plusminus: bool | Literal["auto"] | None = True
     primitive_cell_choice: Literal["standardized", "reduced"] | None = None
     supercell_dimension: tuple[int, int, int] | None = None
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
@@ -149,6 +149,20 @@ class VelphFilePaths:
 
     cell_filepath: os.PathLike
     velph_template_filepath: os.PathLike | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class KpointsData:
+    """K-points data for VASP calculations."""
+
+    mesh: NDArray | None = None
+    D_diag: NDArray | None = None
+    shift: NDArray | None = None
+    line: int | None = None
+    path: (
+        tuple[tuple[tuple[float, float, float], tuple[float, float, float]]] | None
+    ) = None
+    label: tuple[tuple[str, str]] | None = None
 
 
 def write_incar(
@@ -446,9 +460,9 @@ def get_primitive_matrix_from_dataset(
     if isinstance(sym_dataset, SpglibDataset):
         centring = sym_dataset.international[0]
     else:
-        centring = spglib.get_spacegroup_type(
-            sym_dataset.hall_number
-        ).international_short[0]
+        spg_type = spglib.get_spacegroup_type(sym_dataset.hall_number)
+        assert spg_type is not None
+        centring = spg_type.international_short[0]
     return get_primitive_matrix_by_centring(centring)
 
 
@@ -518,6 +532,7 @@ def get_standardized_unitcell(
     std_positions = dataset.std_positions
     std_types = dataset.std_types
     _, _, _, perm = sort_positions_by_symbols(std_types, std_positions)
+    atom_data = get_atomic_data().atom_data
     if isinstance(dataset, SpglibDataset):
         return PhonopyAtoms(
             cell=dataset.std_lattice,
@@ -556,7 +571,7 @@ def kspacing_to_mesh(
 
     Returns
     -------
-    SpglibDataset
+    SpglibDataset, SpglibMagneticDataset
         Symmetry dataset of spglib.
 
     """

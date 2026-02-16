@@ -136,7 +136,7 @@ class LocalPotentialInterpolationNUFFT:
 
     def __init__(
         self,
-        fft_mesh: int | float | Sequence | NDArray,
+        fft_mesh: Sequence[int] | NDArray,
         p2s_matrix: NDArray,
         supercell: PhonopyAtoms,
         symmetry: Symmetry,
@@ -255,6 +255,7 @@ class LocalPotentialInterpolationNUFFT:
 
     def __next__(self):
         """Enable iterator."""
+        assert self._atom_indices_returned is not None
         if len(self._atom_indices_returned) == self._i_atom:
             self._dV_itpl = None
             self._disps = None
@@ -383,6 +384,9 @@ class LocalPotentialInterpolationNUFFT:
         derivative.
 
         """
+        assert self._sitesym_sets is not None
+        assert self._delta_Vs is not None
+        assert self._dVdu is not None
         sitesyms = self._sitesym_sets[self._i_atom]
         rotations = self._symmetry.symmetry_operations["rotations"][sitesyms]
         translations = self._symmetry.symmetry_operations["translations"][sitesyms]
@@ -399,7 +403,7 @@ class LocalPotentialInterpolationNUFFT:
         count = 0
         for delta_V in self._delta_Vs:
             dVs_iFT = [self._get_iFFT_of_dV(dV) for dV in delta_V.dV]
-            for r, t in zip(rotations, translations):
+            for r, t in zip(rotations, translations, strict=True):
                 dVs_rotated = self._rotate_dV(dVs_iFT, r, t)
                 if ncdij == 4:  # Need to rotate in spin space, too.
                     dVs_spinor_rotated = rotate_delta_vals_in_spin_space(
@@ -451,6 +455,7 @@ class LocalPotentialInterpolationNUFFT:
         So x, y, z are alined as (z, y, x) in nufft3d2.
 
         """
+        assert self._finufft_plan is not None
         retval = []
         for i, dV_iFT in enumerate(dV_iFTs):
             x, y, z = [
@@ -464,6 +469,8 @@ class LocalPotentialInterpolationNUFFT:
     def _init_finufft(self, ncdij: int):
         import finufft
 
+        assert self._delta_Vs is not None
+
         dtype = f"c{np.dtype('double').itemsize * 2}"
         self._finufft_plan = [
             finufft.Plan(
@@ -473,6 +480,7 @@ class LocalPotentialInterpolationNUFFT:
         ]
 
     def _finalize_finufft(self):
+        assert self._finufft_plan is not None
         self._finufft_plan.clear()
 
 
@@ -524,7 +532,7 @@ class DLocalPotential:
 
     def __init__(
         self,
-        fft_mesh: int | float | Sequence | NDArray,
+        fft_mesh: Sequence[int] | NDArray,
         p2s_matrix: NDArray,
         supercell: PhonopyAtoms,
         symmetry: Symmetry | None = None,
@@ -574,39 +582,39 @@ class DLocalPotential:
             self._symmetry = Symmetry(self._supercell)
         else:
             self._symmetry = symmetry
-        self._nufft = nufft
-        self._finufft_eps = finufft_eps
-        self._lattice_points = None
-        self._grid_points = None
-        self._dVdu = None  # self.dVdu is provided by @property.
+        self._nufft: str | None = nufft
+        self._finufft_eps: float | None = finufft_eps
+        self._lattice_points: NDArray | None = None
+        self._grid_points: NDArray | None = None
+        self._dVdu: NDArray | None = None  # self.dVdu is provided by @property.
 
     @property
-    def p2s_matrix(self):
+    def p2s_matrix(self) -> NDArray:
         """Return supercell matrix."""
         return self._p2s_matrix
 
     @property
-    def supercell(self):
+    def supercell(self) -> PhonopyAtoms:
         """Return supercell."""
         return self._supercell
 
     @property
-    def symmetry(self):
+    def symmetry(self) -> Symmetry:
         """Return symmetry of supercell."""
         return self._symmetry
 
     @property
-    def atom_indices(self):
+    def atom_indices(self) -> NDArray:
         """Return atom indices."""
         return self._atom_indices
 
     @property
-    def fft_mesh(self):
+    def fft_mesh(self) -> Sequence[int] | NDArray:
         """Return FFT mesh."""
         return self._fft_mesh
 
     @property
-    def dVdu(self):
+    def dVdu(self) -> NDArray | None:
         """Return dVdu.
 
         See detail at attribute section of this class's docstring.
@@ -622,6 +630,7 @@ class DLocalPotential:
             _dVdu = dVdu
         if _dVdu.shape[1:] == self._get_dVdu_shape():
             self._allocate_arrays(_dVdu.shape[0])
+            assert self._dVdu is not None
             self._dVdu[:] = _dVdu
         else:
             raise RuntimeError(
@@ -630,7 +639,7 @@ class DLocalPotential:
             )
 
     @property
-    def lattice_points(self):
+    def lattice_points(self) -> NDArray | None:
         """Return lattice points.
 
         See detail at attribute section of this class's docstring.
@@ -711,6 +720,8 @@ class DLocalPotential:
         if self._dVdu is None:
             self._allocate_arrays(V_loc_per.shape[0])
 
+        assert self._dVdu is not None
+
         for disp_atom in np.unique([d["number"] for d in displacements]):
             dVs = []
             for i, d in enumerate(displacements):
@@ -719,6 +730,7 @@ class DLocalPotential:
                         DeltaLocalPotential(V_loc_per, V_loc_disps[i], displacements[i])
                     )
             lpi.delta_Vs = dVs
+            assert lpi.atom_indices_returned is not None
             for i_atom, _ in enumerate(lpi):  # Run lpi by iterator.next()
                 if self._verbose:
                     print(
@@ -733,17 +745,18 @@ class DLocalPotential:
 
     def visualize(self, pcell: PhonopyAtoms, i_atom: int):
         """Visualize dV/du in x, y, z."""
+        assert self._grid_points is not None
+        assert self._dVdu is not None
         for i_dir in range(3):
             xyz = "xyz"[i_dir]
             # spin 1 only
             multi = visualize_distribution(
+                "locpot_viz-%03d-%s.dat" % (self._atom_indices[i_atom] + 1, xyz),
                 pcell,
                 self._p2s_matrix,
                 self._fft_mesh,
                 self._grid_points,
                 self._dVdu[0, i_atom, i_dir],
-                filename="locpot_viz-%03d-%s.dat"
-                % (self._atom_indices[i_atom] + 1, xyz),
             )
 
         if self._verbose:
@@ -759,23 +772,28 @@ class DLocalPotential:
                 )
             )
 
-    def _get_dVdu_shape(self):
-        num_gp = np.prod(self._fft_mesh) * determinant(self._p2s_matrix)
+    def _get_dVdu_shape(self) -> tuple[int, int, int]:
+        num_gp = int(
+            self._fft_mesh[0]
+            * self._fft_mesh[1]
+            * self._fft_mesh[2]
+            * determinant(self._p2s_matrix)
+        )
         return (len(self._atom_indices), 3, num_gp)
 
     def _allocate_arrays(self, ncdij: int):
         dtype = "c%d" % (np.dtype("double").itemsize * 2)
-        shape = (ncdij,) + self._get_dVdu_shape()
+        shape = (ncdij, *self._get_dVdu_shape())
         self._dVdu = np.zeros(shape, dtype=dtype, order="C")
 
 
 def visualize_distribution(
+    filename: str | os.PathLike,
     pcell: PhonopyAtoms,
     p2s_matrix: NDArray,
     fft_mesh: int | float | Sequence | NDArray,
     grid_points: NDArray,
     data: NDArray,
-    filename: str | bytes | os.PathLike | None = None,
 ) -> NDArray:
     """Visualize scalar distribution in space.
 
@@ -829,14 +847,13 @@ def visualize_distribution(
     assert (done == 1).all(), "%d in %d (%d x %d x %d) are done." % (
         done.sum(),
         np.prod(done.shape),
-        done.shape[0],
-        done.shape[1],
-        done.shape[2],
+        *done.shape,
     )
 
     scell = get_supercell(pcell, np.diag(multiplicity))
     header = "\n".join(get_vasp_structure_lines(scell))
-    locpot = get_CHGCAR(dV_viz.real, header)
+    locpot = get_CHGCAR(dV_viz.real, header)  # type: ignore
+
     with open(filename, "w") as w:
         w.write(locpot)
 
@@ -968,7 +985,7 @@ def rotate_delta_vals_in_spin_space(
 
 
 def get_grid_points(
-    fft_mesh: int | float | Sequence | NDArray, p2s_matrix: NDArray
+    fft_mesh: Sequence[int] | NDArray, p2s_matrix: NDArray
 ) -> tuple[NDArray, NDArray]:
     """Return grid points with respect to supercell basis vectors.
 

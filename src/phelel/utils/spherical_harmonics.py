@@ -349,7 +349,9 @@ class SHRotationMatrices:
         r"""Calculate <lm'|e^iL.n\alpha|lm> for all l channels."""
         self._d = []
         n = self._n_vec
-        for lx, ly, lz in zip(self._lxlylz.Lx, self._lxlylz.Ly, self._lxlylz.Lz):
+        for lx, ly, lz in zip(
+            self._lxlylz.Lx, self._lxlylz.Ly, self._lxlylz.Lz, strict=True
+        ):
             ln = n[0] * lx + n[1] * ly + n[2] * lz
             w, U = np.linalg.eigh(ln)
             self._d.append((U * np.exp(-1j * w * self._alpha)) @ U.T.conj())
@@ -410,7 +412,7 @@ def get_n_and_rotation_order(
     if r_order == 2:
         eigvals, eigvecs = np.linalg.eig(r_cart)
         n = None
-        for v, vec in zip(eigvals, eigvecs.T):
+        for v, vec in zip(eigvals, eigvecs.T, strict=True):
             if abs(v - 1) < 1e-5:
                 n = vec
 

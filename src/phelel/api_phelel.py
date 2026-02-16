@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import io
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -31,6 +30,7 @@ class PhelelDataset:
     Dijs: list[NDArray]
     qijs: list[NDArray]
     lm_channels: list[dict]
+    kinetic_potentials: list[NDArray] | None = None
     dataset: dict | None = None
     phonon_dataset: dict | None = None
     forces: NDArray | None = None
@@ -74,10 +74,13 @@ class Phelel:
     def __init__(
         self,
         unitcell: PhonopyAtoms,
-        supercell_matrix: ArrayLike | None = None,
-        primitive_matrix: str | ArrayLike | None = None,
-        phonon_supercell_matrix: ArrayLike | None = None,
-        fft_mesh: ArrayLike | None = None,
+        supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
+        | Sequence[Sequence[float]]
+        | NDArray
+        | None = None,
+        phonon_supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        fft_mesh: Sequence[int] | NDArray | None = None,
         symprec: float = 1e-5,
         is_symmetry: bool = True,
         calculator: str | None = None,
@@ -139,7 +142,7 @@ class Phelel:
         self._phelel_phonon = self._get_phonopy(supercell_matrix, primitive_matrix)
         self._atom_indices_in_derivatives = self._phelel_phonon.primitive.p2s_map
 
-        self._phonon: Optional[Phonopy] = None
+        self._phonon: Phonopy | None = None
         if phonon_supercell_matrix is not None:
             self._phonon = self._get_phonopy(phonon_supercell_matrix, primitive_matrix)
             assert isclose(self._phelel_phonon.primitive, self._phonon.primitive)
@@ -149,6 +152,7 @@ class Phelel:
         assert (abs(self._p2s_matrix - p2s_mat_float) < 1e-5).all()
 
         self._dVdu = None
+        self._dmudu = None
 
         if fft_mesh is None:
             self._fft_mesh = None
@@ -212,7 +216,7 @@ class Phelel:
         self._phelel_phonon.dataset = dataset
 
     @property
-    def atom_indices_in_derivatives(self) -> np.ndarray:
+    def atom_indices_in_derivatives(self) -> NDArray:
         """Return atom indices used for calculation of derivatives."""
         return self._atom_indices_in_derivatives
 
@@ -227,17 +231,17 @@ class Phelel:
         return self._phelel_phonon.primitive_symmetry
 
     @property
-    def supercell_matrix(self) -> np.ndarray:
+    def supercell_matrix(self) -> NDArray:
         """Return supercell matrix."""
         return self._phelel_phonon.supercell_matrix
 
     @property
-    def primitive_matrix(self) -> Optional[np.ndarray]:
+    def primitive_matrix(self) -> NDArray | None:
         """Return primitive matrix."""
         return self._phelel_phonon.primitive_matrix
 
     @property
-    def phonon_supercell_matrix(self) -> Optional[np.ndarray]:
+    def phonon_supercell_matrix(self) -> NDArray | None:
         """Return supercell matrix used for phonon calculation.
 
         If ``phonon_supercell_matrix`` is not specified at instantiation of
@@ -250,7 +254,7 @@ class Phelel:
             return self._phonon.supercell_matrix
 
     @property
-    def phonon_supercell(self) -> Optional[Supercell]:
+    def phonon_supercell(self) -> Supercell | None:
         """Return phonon supercell."""
         if self._phonon is None:
             return None
@@ -258,7 +262,7 @@ class Phelel:
             return self._phonon.supercell
 
     @property
-    def phonon_primitive(self) -> Optional[Primitive]:
+    def phonon_primitive(self) -> Primitive | None:
         """Return phonon primitive cell."""
         if self._phonon is None:
             return None
@@ -266,7 +270,7 @@ class Phelel:
             return self._phonon.primitive
 
     @property
-    def phonon_dataset(self) -> Optional[dict]:
+    def phonon_dataset(self) -> dict | None:
         """Setter and getter of phonon dataset."""
         if self._phonon is None:
             return None
@@ -274,7 +278,7 @@ class Phelel:
             return self._phonon.dataset
 
     @phonon_dataset.setter
-    def phonon_dataset(self, phonon_dataset):
+    def phonon_dataset(self, phonon_dataset: dict | None):
         if self._phonon is None:
             raise RuntimeError("Phonon instance is not initialized.")
         self._phonon.dataset = phonon_dataset
@@ -304,7 +308,7 @@ class Phelel:
             self._phonon.nac_params = nac_params
 
     @property
-    def force_constants(self) -> Optional[np.ndarray]:
+    def force_constants(self) -> NDArray | None:
         """Return force constants."""
         if self._phonon is None:
             return self._phelel_phonon.force_constants
@@ -312,14 +316,14 @@ class Phelel:
             return self._phonon.force_constants
 
     @force_constants.setter
-    def force_constants(self, force_constants: np.ndarray):
+    def force_constants(self, force_constants: NDArray):
         if self._phonon is None:
             self._phelel_phonon.force_constants = force_constants
         else:
             self._phonon.force_constants = force_constants
 
     @property
-    def forces(self) -> np.ndarray:
+    def forces(self) -> NDArray:
         """Setter and getter of forces of supercells."""
         if self._phonon is None:
             return self._phelel_phonon.forces
@@ -327,7 +331,7 @@ class Phelel:
             return self._phonon.forces
 
     @forces.setter
-    def forces(self, forces: Union[Sequence, np.ndarray]):
+    def forces(self, forces: Sequence | NDArray):
         _forces = np.array(forces, dtype="double", order="C")
         if self._phonon is None:
             self._phelel_phonon.forces = _forces
@@ -357,16 +361,6 @@ class Phelel:
     @fft_mesh.setter
     def fft_mesh(self, fft_mesh: ArrayLike):
         self._fft_mesh = np.array(fft_mesh, dtype="int64")
-        self._dVdu = DLocalPotential(
-            self._fft_mesh,
-            self._p2s_matrix,
-            self._phelel_phonon.supercell,
-            symmetry=self.symmetry,
-            atom_indices=self.atom_indices_in_derivatives,
-            nufft=self._nufft,
-            finufft_eps=self._finufft_eps,
-            verbose=self._log_level > 0,
-        )
 
     @property
     def dVdu(self) -> DLocalPotential | None:
@@ -376,6 +370,15 @@ class Phelel:
     @dVdu.setter
     def dVdu(self, dVdu: DLocalPotential):
         self._dVdu = dVdu
+
+    @property
+    def dmudu(self) -> DLocalPotential | None:
+        """Return DLocalPotential class instance of kinetic potential."""
+        return self._dmudu
+
+    @dmudu.setter
+    def dmudu(self, dmudu: DLocalPotential):
+        self._dmudu = dmudu
 
     @property
     def dDijdu(self) -> DDijQij:
@@ -459,9 +462,6 @@ class Phelel:
 
         if phe_input.dataset is not None:
             self._phelel_phonon.dataset = phe_input.dataset
-        loc_pots = phe_input.local_potentials
-        Dijs = phe_input.Dijs
-        qijs = phe_input.qijs
 
         if phe_input.phonon_dataset is not None:
             self._prepare_phonon(
@@ -476,10 +476,42 @@ class Phelel:
                 calculate_full_force_constants=True,
             )
         assert self._phelel_phonon.dataset is not None
-        assert self._dVdu is not None
+
+        self._dVdu = DLocalPotential(
+            self._fft_mesh,
+            self._p2s_matrix,
+            self._phelel_phonon.supercell,
+            symmetry=self.symmetry,
+            atom_indices=self.atom_indices_in_derivatives,
+            nufft=self._nufft,
+            finufft_eps=self._finufft_eps,
+            verbose=self._log_level > 0,
+        )
+        loc_pots = phe_input.local_potentials
         self._dVdu.run(
             loc_pots[0], loc_pots[1:], self._phelel_phonon.dataset["first_atoms"]
         )
+
+        if phe_input.kinetic_potentials is not None:
+            kin_pots = phe_input.kinetic_potentials
+            self._dmudu = DLocalPotential(
+                self._fft_mesh,
+                self._p2s_matrix,
+                self._phelel_phonon.supercell,
+                symmetry=self.symmetry,
+                atom_indices=self.atom_indices_in_derivatives,
+                nufft=self._nufft,
+                finufft_eps=self._finufft_eps,
+                verbose=self._log_level > 0,
+            )
+            self._dmudu.run(
+                kin_pots[0],
+                kin_pots[1:],
+                self._phelel_phonon.dataset["first_atoms"],
+            )
+
+        Dijs = phe_input.Dijs
+        qijs = phe_input.qijs
         self._dDijdu.run(
             Dijs[0],
             Dijs[1:],
@@ -489,12 +521,11 @@ class Phelel:
             phe_input.lm_channels,
         )
 
-    def save_hdf5(
-        self, filename: Union[str, bytes, os.PathLike, io.IOBase] = "phelel_params.hdf5"
-    ):
+    def save_hdf5(self, filename: str | os.PathLike = "phelel_params.hdf5"):
         """Write phelel_params.hdf5."""
         params = {
             "dVdu": self.dVdu,
+            "dmudu": self.dmudu,
             "dDijdu": self.dDijdu,
             "supercell_matrix": self.supercell_matrix,
             "primitive_matrix": self.primitive_matrix,
@@ -569,8 +600,11 @@ class Phelel:
 
     def _get_phonopy(
         self,
-        supercell_matrix: ArrayLike | None = None,
-        primitive_matrix: ArrayLike | None = None,
+        supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
+        | Sequence[Sequence[float]]
+        | NDArray
+        | None = None,
     ) -> Phonopy:
         """Return Phonopy instance."""
         return Phonopy(

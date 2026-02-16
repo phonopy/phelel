@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import pathlib
 import sys
-from typing import Optional, Union
+from typing import cast
 
 import numpy as np
+from phonopy import Phonopy
 from phonopy.cui.phonopy_script import (
     print_end,
     print_error,
@@ -16,6 +17,7 @@ from phonopy.cui.phonopy_script import (
 )
 from phonopy.exception import CellNotFoundError
 from phonopy.interface.calculator import get_calculator_physical_units
+from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import print_cell
 
 from phelel import Phelel
@@ -23,6 +25,7 @@ from phelel.cui.create_supercells import create_phelel_supercells, get_cell_info
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.settings import PhelelConfParser
 from phelel.interface.phelel_yaml import PhelelYaml
+from phelel.interface.vasp.derivatives import create_derivatives
 from phelel.version import __version__
 
 
@@ -42,10 +45,10 @@ def print_phelel():
 
 def finalize_phelel(
     phelel: Phelel,
-    confs: Optional[dict] = None,
-    log_level: Union[int, bool] = 0,
+    confs: dict | None = None,
+    log_level: int | bool = 0,
     displacements_mode: bool = False,
-    filename: Union[str, pathlib.Path] = "phelel.yaml",
+    filename: str | pathlib.Path = "phelel.yaml",
     sys_exit_after_finalize: bool = True,
 ) -> None:
     """Write phelel.yaml and then exit.
@@ -148,6 +151,7 @@ def main(**argparse_control):
         if log_level > 0:
             print_error()
         sys.exit(1)
+    assert cell_info.supercell_matrix is not None
 
     unitcell = cell_info.unitcell
     supercell_matrix = cell_info.supercell_matrix
@@ -186,6 +190,9 @@ def main(**argparse_control):
         is_symmetry=settings.is_symmetry,
         finufft_eps=settings.finufft_eps,
     )
+    if phonon_supercell_matrix is not None:
+        assert phelel.phonon_supercell_matrix is not None
+        assert phelel.phonon_supercell is not None
 
     if log_level > 0:
         print("")
@@ -197,14 +204,16 @@ def main(**argparse_control):
                 print("    %s" % v)
         else:
             print("  Supercell: %s" % np.diag(supercell_matrix))
-        if isinstance(primitive_matrix, str) and primitive_matrix == "auto":
-            print("  Primitive matrix (Auto):")
-        elif primitive_matrix is not None:
-            print("  Primitive matrix:")
         if primitive_matrix is not None:
+            if isinstance(primitive_matrix, str) and primitive_matrix == "auto":
+                print("  Primitive matrix (Auto):")
+            else:
+                print("  Primitive matrix:")
+            assert phelel.primitive_matrix is not None
             for v in phelel.primitive_matrix:
                 print("    %s" % v)
         if phonon_supercell_matrix is not None:
+            assert phelel.phonon_supercell_matrix is not None
             print("  Supercell matrix for phonon:")
             for v in phelel.phonon_supercell_matrix:
                 print("    %s" % v)
@@ -217,15 +226,13 @@ def main(**argparse_control):
         print_cell(phelel.supercell)
         if phelel.phonon_supercell_matrix is not None:
             print("-" * 28 + " phonon super cell " + "-" * 29)
-            print_cell(phelel.phonon_supercell)
+            print_cell(cast(PhonopyAtoms, phelel.phonon_supercell))
         print("-" * 76)
 
     ##################################
     # Create dV/du, dDij/du, dqij/du #
     ##################################
     if True:
-        from phelel.interface.vasp.derivatives import create_derivatives
-
         if phelel.dataset is None or "first_atoms" not in phelel.dataset:
             if cell_info.phelel_yaml is not None:
                 phe_yml = cell_info.phelel_yaml
@@ -247,18 +254,18 @@ def main(**argparse_control):
                 phe_yml = PhelelYaml()
                 phe_yml.read(filename)
 
+            assert phe_yml.dataset is not None
             phelel.dataset = phe_yml.dataset
             if phe_yml.phonon_dataset is not None:
                 phelel.phonon_dataset = phe_yml.phonon_dataset
 
-            if pathlib.Path("BORN").exists() or phe_yml.nac_params:
+            if pathlib.Path("BORN").is_file() or phe_yml.nac_params:
                 store_nac_params(
-                    phelel.phonon,
+                    cast(Phonopy, phelel),
                     settings,
                     cell_info.phelel_yaml,
                     unitcell_filename,
                     log_level,
-                    load_phonopy_yaml=load_phelel_yaml,
                 )
 
         if settings.create_derivatives:

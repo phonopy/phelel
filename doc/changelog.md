@@ -2,6 +2,10 @@
 
 # Change Log
 
+# Feb-16-2026: Version 0.12.0
+
+- Maintenance release
+
 # Oct-24-2025: Version 0.11.0
 
 - Default INCAR tags are removed by setting empty table {} in velph template

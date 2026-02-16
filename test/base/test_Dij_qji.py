@@ -13,8 +13,11 @@ def test_DeltaDijQij(
 ):
     """Test DeltaDijQij."""
     phe_in = phelel_input_CdAs2_111
+    assert phelel_empty_CdAs2_111.dataset is not None
     displacements = phelel_empty_CdAs2_111.dataset["first_atoms"]
-    for i, (Dij_disp, qij_disp) in enumerate(zip(phe_in.Dijs[1:], phe_in.qijs[1:])):
+    for i, (Dij_disp, qij_disp) in enumerate(
+        zip(phe_in.Dijs[1:], phe_in.qijs[1:], strict=True)
+    ):
         DeltaDijQij(
             phe_in.Dijs[0],
             Dij_disp,
@@ -31,10 +34,13 @@ def test_DDijQijFit(
     """Test DDijQijFit."""
     phe = phelel_empty_CdAs2_111
     phe_in = phelel_input_CdAs2_111
+    assert phe.dataset is not None
     displacements = phe.dataset["first_atoms"]
 
     delta_Dij_qijs = []
-    for i, (Dij_disp, qij_disp) in enumerate(zip(phe_in.Dijs[1:], phe_in.qijs[1:])):
+    for i, (Dij_disp, qij_disp) in enumerate(
+        zip(phe_in.Dijs[1:], phe_in.qijs[1:], strict=True)
+    ):
         delta_Dij_qijs.append(
             DeltaDijQij(
                 phe_in.Dijs[0],
@@ -45,8 +51,12 @@ def test_DDijQijFit(
                 phe_in.lm_channels,
             )
         )
+    assert phe.atom_indices_in_derivatives is not None
     ddijqij = DDijQijFit(
-        delta_Dij_qijs, phe.supercell, phe.symmetry, phe.atom_indices_in_derivatives
+        delta_Dij_qijs,
+        phe.supercell,
+        phe.symmetry,
+        atom_indices=phe.atom_indices_in_derivatives,
     )
     ddijqij.run()
 
@@ -55,6 +65,7 @@ def test_DDijQij(phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelD
     """Test DDijQij."""
     phe = phelel_empty_CdAs2_111
     phe_in = phelel_input_CdAs2_111
+    assert phe.dataset is not None
     displacements = phe.dataset["first_atoms"]
     dDijdu = DDijQij(phe.supercell, phe.symmetry, phe.atom_indices_in_derivatives)
     dDijdu.run(

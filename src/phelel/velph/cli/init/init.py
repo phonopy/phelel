@@ -30,6 +30,7 @@ from phelel.velph.cli.utils import (
     CellChoice,
     DefaultCellChoices,
     DisplacementOptions,
+    KpointsData,
     PrimitiveCellChoice,
     VelphFilePaths,
     VelphInitOptions,
@@ -45,9 +46,7 @@ from phelel.version import __version__
 
 
 def run_init(
-    cmd_init_options: VelphInitOptions,
-    vfp: VelphFilePaths,
-    phelel_dir_name: str = "phelel",
+    cmd_init_options: VelphInitOptions, vfp: VelphFilePaths
 ) -> list[str] | None:
     """Run velph-init.
 
@@ -66,10 +65,6 @@ def run_init(
     vfp : VelphFilePaths
         Input and output file names required for velph init. Default path to
         scheduler-toml-template file is defined in VelphFilePaths.
-    phelel_dir_name : str, optional
-        Directory name for [vasp.{phelel_dir_name}]. The default is "phelel",
-        which used to be "supercell". This parameter exists for backward
-        compatibility.
 
     Returns
     -------
@@ -81,6 +76,11 @@ def run_init(
     # Parse files.
     #
     input_cell, _ = read_crystal_structure(vfp.cell_filepath, interface_mode="vasp")
+    if input_cell is None:
+        click.echo(
+            f'Crystal structure file "{vfp.cell_filepath}" could not be read.', err=True
+        )
+        return None
     click.echo(f'Read crystal structure file "{vfp.cell_filepath}".')
 
     return _run_init(
@@ -88,7 +88,6 @@ def run_init(
         cmd_init_options,
         velph_template_fp=vfp.velph_template_filepath,
         template_toml_filepath=vfp.velph_template_filepath,
-        phelel_dir_name=phelel_dir_name,
     )
 
 
@@ -97,7 +96,6 @@ def _run_init(
     cmd_init_options: VelphInitOptions,
     velph_template_fp: str | os.PathLike | typing.IO | None = None,
     template_toml_filepath: str | os.PathLike | None = None,
-    phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Run init process and return velph-toml lines.
 
@@ -112,10 +110,6 @@ def _run_init(
         represents file name.
     template_toml_filepath : str, os.PathLike
         File name of velph-toml-template.
-    phelel_dir_name : str, optional
-        Directory name for [vasp.{phelel_dir_name}]. The default is "phelel",
-        which used to be "supercell". This parameter exists for backward
-        compatibility.
 
     """
     #
@@ -168,6 +162,29 @@ def _run_init(
     cell_choices = _determine_cell_choices(vip, velph_dict)
 
     #
+    # Determine supercell matrices.
+    #
+    supercell_matrices = _get_supercell_matrices(vip, velph_dict, sym_dataset)
+
+    #
+    # Determine k-point meshes.
+    #
+    (
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
+    ) = _get_kpoints_dict(
+        vip,
+        velph_dict,
+        unitcell,
+        primitive,
+        sym_dataset,
+        supercell_matrices,
+        cell_choices,
+    )
+
+    #
     # Create velph-toml lines.
     #
     toml_lines = _get_toml_lines(
@@ -176,8 +193,12 @@ def _run_init(
         unitcell,
         primitive,
         cell_choices,
+        supercell_matrices,
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
         sym_dataset,
-        phelel_dir_name=phelel_dir_name,
     )
 
     return toml_lines
@@ -218,7 +239,7 @@ def _select_supercell_matrix(
     ----------
     velph_dict_calc_type : dict
         velph-toml data of calc_type.
-    sym_dataset : SpglibDataset
+    sym_dataset : SpglibDataset, SpglibMagneticDataset
         Symmetry dataset of the input cell.
     find_primitive : bool
         When True, supercell is constructured
@@ -580,6 +601,10 @@ def _parse_velph_template(
     serve this purpose. If there is a need to pass toml_str, it can be achieved
     by using io.BytesIO(toml_str.encode('utf-8')).
 
+    In template_dict, [vasp.el_bands.dos] and [vasp.el_bands.bands] in toml are
+    converted to ['vasp']['el_bands.dos'] and ['vasp']['el_bands.bands']
+    respectively.
+
     """
     if velph_template_fp is None:
         return None
@@ -590,6 +615,14 @@ def _parse_velph_template(
         assert isinstance(velph_template_fp, (str, os.PathLike))
         with open(velph_template_fp, "rb") as f:
             template_dict = tomli.load(f)
+
+    if "vasp" in template_dict and "el_bands" in template_dict["vasp"]:
+        for key in ("dos", "bands"):
+            if key in template_dict["vasp"]["el_bands"]:
+                template_dict["vasp"][f"el_bands.{key}"] = template_dict["vasp"][
+                    "el_bands"
+                ][key]
+        del template_dict["vasp"]["el_bands"]
 
     click.echo(f'Read velph template file "{velph_template_fp}".')
     return template_dict
@@ -615,6 +648,76 @@ def _get_velph_dict(
         _update_velph_dict_by_template_dict(velph_dict, template_dict)
 
     return velph_dict
+
+
+def _get_kpoints_dict(
+    vip: VelphInitParams,
+    velph_dict: dict,
+    unitcell: PhonopyAtoms,
+    primitive: PhonopyAtoms,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    cell_choices: dict[str, CellChoice],
+) -> tuple[
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+]:
+    (
+        kpoints_dict,
+        kpoints_dense_dict,
+        qpoints_dict,
+        kpoints_opt_dict,
+    ) = _get_kpoints_dict_by_kspacing(
+        vip.kspacing,
+        vip.kspacing_dense,
+        vip.use_grg,
+        vip.tolerance,
+        unitcell,
+        primitive,
+        sym_dataset,
+        supercell_matrices,
+        cell_choices["nac"],
+        cell_choices["relax"],
+    )
+
+    if "vasp" in velph_dict:
+        _update_kpoints_by_vasp_dict(
+            kpoints_dict,
+            kpoints_dense_dict,
+            qpoints_dict,
+            kpoints_opt_dict,
+            velph_dict["vasp"],
+        )
+        _show_kpoints_lines(
+            kpoints_dict,
+            kpoints_dense_dict,
+            velph_dict["vasp"],
+            vip.kspacing,
+            vip.kspacing_dense,
+        )
+    return (kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict)
+
+
+def _get_supercell_matrices(
+    vip: VelphInitParams,
+    velph_dict: dict,
+    sym_dataset: SpglibDataset | SpglibMagneticDataset,
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
+) -> dict[Literal["phelel", "phonopy", "phono3py"], NDArray]:
+    supercell_matrices = {}
+    for calc_type in supercell_calc_types:
+        supercell_matrices[calc_type] = _get_supercell_matrix(
+            vip,
+            velph_dict,
+            sym_dataset,
+            calc_type,
+        )
+        click.echo(f"[{calc_type}]")
+        if supercell_matrices[calc_type] is not None:
+            _show_supercell_dimension(supercell_matrices[calc_type])
+    return supercell_matrices
 
 
 def _update_velph_dict_by_template_dict(velph_dict: dict, template_dict: dict):
@@ -689,57 +792,15 @@ def _get_toml_lines(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     cell_choices: dict,
+    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    kpoints_dict: dict[str, KpointsData],
+    kpoints_dense_dict: dict[str, KpointsData],
+    qpoints_dict: dict[str, KpointsData],
+    kpoints_opt_dict: dict[str, KpointsData],
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    phelel_dir_name: str = "phelel",
 ) -> list[str] | None:
     """Return velph-toml lines."""
     assert vip.displacement_options is not None
-    supercell_matrices = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
-        supercell_matrices[calc_type] = _get_supercell_matrix(
-            vip,
-            velph_dict,
-            sym_dataset,
-            calc_type,
-        )
-        click.echo(f"[{calc_type}]")
-        if supercell_matrices[calc_type] is not None:
-            _show_supercell_dimension(supercell_matrices[calc_type])
-
-    (
-        kpoints_dict,
-        kpoints_dense_dict,
-        qpoints_dict,
-        kpoints_opt_dict,
-    ) = _get_kpoints_dict(
-        vip.kspacing,
-        vip.kspacing_dense,
-        vip.use_grg,
-        vip.tolerance,
-        unitcell,
-        primitive,
-        sym_dataset,
-        supercell_matrices,
-        cell_choices["nac"],
-        cell_choices["relax"],
-        phelel_dir_name=phelel_dir_name,
-    )
-
-    if "vasp" in velph_dict:
-        _update_kpoints_by_vasp_dict(
-            kpoints_dict,
-            kpoints_dense_dict,
-            qpoints_dict,
-            kpoints_opt_dict,
-            velph_dict["vasp"],
-        )
-        _show_kpoints_lines(
-            kpoints_dict,
-            kpoints_dense_dict,
-            velph_dict["vasp"],
-            vip.kspacing,
-            vip.kspacing_dense,
-        )
 
     #
     # velph.toml
@@ -785,7 +846,6 @@ def _get_toml_lines(
             qpoints_dict,
             cell_choices["nac"],
             cell_choices["relax"],
-            phelel_dir_name=phelel_dir_name,
         )
 
     # [scheduler]
@@ -872,7 +932,7 @@ def _get_incar_dict_with_encut(velph_dict: dict, nested_keys: list[str]) -> dict
     }
 
 
-def _get_kpoints_dict(
+def _get_kpoints_dict_by_kspacing(
     vip_kspacing: float,
     vip_kspacing_dense: float,
     vip_use_grg: bool,
@@ -883,8 +943,13 @@ def _get_kpoints_dict(
     supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    phelel_dir_name: str = "phelel",
-) -> tuple[dict, dict, dict, dict]:
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
+) -> tuple[
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+    dict[str, KpointsData],
+]:
     """Return kpoints dicts."""
     use_grg_unitcell = vip_use_grg and (len(unitcell) == len(primitive))
     sym_dataset_prim = get_symmetry_dataset(primitive, tolerance=vip_tolerance)
@@ -897,7 +962,7 @@ def _get_kpoints_dict(
 
     # Grid matrix for supercell
     supercell_grid_matrices = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         if supercell_matrices[calc_type] is not None:
             _supercell = get_supercell(unitcell, supercell_matrices[calc_type])
             _sym_dataset = get_symmetry_dataset(_supercell, tolerance=vip_tolerance)
@@ -922,13 +987,12 @@ def _get_kpoints_dict(
         supercell_grid_matrices,
         cell_for_nac,
         cell_for_relax,
-        phelel_dir_name=phelel_dir_name,
     )
     kpoints_dense_dict = _get_kpoints_by_kspacing_dense(
-        gm_dense_prim, with_phelel=phelel_dir_name in kpoints_dict
+        gm_dense_prim, with_phelel=("phelel" in kpoints_dict)
     )
     qpoints_dict: dict = {}
-    kpoints_opt_dict: dict = {}
+    kpoints_opt_dict: dict = {"el_bands.band": KpointsData(line=51)}
 
     return kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict
 
@@ -965,10 +1029,10 @@ def _get_grid_matrix(
 
 
 def _update_kpoints_by_vasp_dict(
-    kpoints_dict: dict,
-    kpoints_dense_dict: dict,
-    qpoints_dict: dict,
-    kpoints_opt_dict: dict,
+    kpoints_dict: dict[str, KpointsData],
+    kpoints_dense_dict: dict[str, KpointsData],
+    qpoints_dict: dict[str, KpointsData],
+    kpoints_opt_dict: dict[str, KpointsData],
     vasp_dict: dict,
 ) -> None:
     """Overwrite kpoints_(dense_)dict if kpoints are defined in vasp_dict.
@@ -979,18 +1043,18 @@ def _update_kpoints_by_vasp_dict(
     """
     for key, calc_type_dict in vasp_dict.items():
         if "kpoints" in calc_type_dict:
-            kpoints_dict[key] = calc_type_dict["kpoints"]
+            kpoints_dict[key] = KpointsData(**calc_type_dict["kpoints"])
         if "kpoints_dense" in calc_type_dict:
-            kpoints_dense_dict[key] = calc_type_dict["kpoints_dense"]
+            kpoints_dense_dict[key] = KpointsData(**calc_type_dict["kpoints_dense"])
         if "qpoints" in calc_type_dict:
-            qpoints_dict[key] = calc_type_dict["qpoints"]
+            qpoints_dict[key] = KpointsData(**calc_type_dict["qpoints"])
         if "kpoints_opt" in calc_type_dict:
-            kpoints_opt_dict[key] = calc_type_dict["kpoints_opt"]
+            kpoints_opt_dict[key] = KpointsData(**calc_type_dict["kpoints_opt"])
 
 
 def _show_kpoints_lines(
-    kpoints_dict: dict,
-    kpoints_dense_dict: dict,
+    kpoints_dict: dict[str, KpointsData],
+    kpoints_dense_dict: dict[str, KpointsData],
     vasp_dict: dict,
     vip_kspacing: float,
     vip_kspacing_dense: float,
@@ -1000,17 +1064,17 @@ def _show_kpoints_lines(
         if key == "ph_bands":
             continue
         if key in kpoints_dict:
-            mesh = kpoints_dict[key].get("mesh")
+            mesh = kpoints_dict[key].mesh
             if mesh is not None:
-                if "D_diag" in kpoints_dict[key]:
-                    D_diag = kpoints_dict[key]["D_diag"]
+                if kpoints_dict[key].D_diag is not None:
+                    D_diag = kpoints_dict[key].D_diag
                     line = f"  {key}: {D_diag}"
                 else:
                     line = f"  {key}: {np.array(mesh)}"
                 if "kpoints" not in vasp_dict[key]:
                     line += "*"
                 k_mesh_lines.append(line)
-                if "D_diag" in kpoints_dict[key]:
+                if kpoints_dict[key].D_diag is not None:
                     k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
 
     k_mesh_lines.append(
@@ -1018,17 +1082,17 @@ def _show_kpoints_lines(
     )
     for key in vasp_dict:
         if key in kpoints_dense_dict:
-            mesh = kpoints_dense_dict[key].get("mesh")
+            mesh = kpoints_dense_dict[key].mesh
             if mesh is not None:
-                if "D_diag" in kpoints_dense_dict[key]:
-                    D_diag = kpoints_dense_dict[key]["D_diag"]
+                if kpoints_dense_dict[key].D_diag is not None:
+                    D_diag = kpoints_dense_dict[key].D_diag
                     line = f"  {key}: {np.array(D_diag)}"
                 else:
                     line = f"  {key}: {np.array(mesh)}"
                 if "kpoints_dense" not in vasp_dict[key]:
                     line += "*"
                 k_mesh_lines.append(line)
-                if "D_diag" in kpoints_dense_dict[key]:
+                if kpoints_dense_dict[key].D_diag is not None:
                     k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
     if k_mesh_lines:
         click.echo("\n".join(k_mesh_lines))
@@ -1040,8 +1104,8 @@ def _get_kpoints_by_kspacing(
     supercell_grid_matrices: dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    phelel_dir_name: str = "phelel",
-) -> dict:
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
+) -> dict[str, KpointsData]:
     """Return kpoints dict.
 
     Parameters
@@ -1067,26 +1131,27 @@ def _get_kpoints_by_kspacing(
 
     """
     kpoints_of_supercells = {}
-    for calc_type in ("phelel", "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         gm_super = supercell_grid_matrices[calc_type]
         if gm_super is not None:
             if gm_super.grid_matrix is None:
-                kpoints_of_supercells[calc_type] = {"mesh": gm_super.D_diag}
+                kpoints_of_supercells[calc_type] = KpointsData(mesh=gm_super.D_diag)
             else:
-                kpoints_of_supercells[calc_type] = {
-                    "mesh": gm_super.grid_matrix,
-                    "D_diag": gm_super.D_diag,
-                }
+                kpoints_of_supercells[calc_type] = KpointsData(
+                    mesh=gm_super.grid_matrix, D_diag=gm_super.D_diag
+                )
         else:
-            kpoints_of_supercells[calc_type] = None
+            kpoints_of_supercells[calc_type] = KpointsData()
 
     if gm_prim.grid_matrix is None:
-        selfenergy_kpoints = {"mesh": gm_prim.D_diag}
-        el_bands_kpoints = {"mesh": gm_prim.D_diag}
+        selfenergy_kpoints = KpointsData(mesh=gm_prim.D_diag)
+        el_bands_kpoints = KpointsData(mesh=gm_prim.D_diag)
     else:
-        selfenergy_kpoints = {"mesh": gm_prim.grid_matrix, "D_diag": gm_prim.D_diag}
-        el_bands_kpoints = {"mesh": gm_prim.grid_matrix, "D_diag": gm_prim.D_diag}
-    ph_bands_kpoints = {"mesh": [1, 1, 1]}
+        selfenergy_kpoints = KpointsData(
+            mesh=gm_prim.grid_matrix, D_diag=gm_prim.D_diag
+        )
+        el_bands_kpoints = KpointsData(mesh=gm_prim.grid_matrix, D_diag=gm_prim.D_diag)
+    ph_bands_kpoints = KpointsData(mesh=np.array([1, 1, 1], dtype="int64"))
 
     # nac
     if cell_for_nac is CellChoice.UNITCELL:
@@ -1096,9 +1161,9 @@ def _get_kpoints_by_kspacing(
     else:
         raise RuntimeError("This is something that sholud not happen.")
     if gm_nac.grid_matrix is None:
-        nac_kpoints = {"mesh": gm_nac.D_diag}
+        nac_kpoints = KpointsData(mesh=gm_nac.D_diag)
     else:
-        nac_kpoints = {"mesh": gm_nac.grid_matrix, "D_diag": gm_nac.D_diag}
+        nac_kpoints = KpointsData(mesh=gm_nac.grid_matrix, D_diag=gm_nac.D_diag)
 
     # relax
     if cell_for_relax is CellChoice.UNITCELL:
@@ -1108,13 +1173,13 @@ def _get_kpoints_by_kspacing(
     else:
         raise RuntimeError("This is something that sholud not happen.")
     if gm_relax.grid_matrix is None:
-        relax_kpoints = {"mesh": gm_relax.D_diag}
+        relax_kpoints = KpointsData(mesh=gm_relax.D_diag)
     else:
-        relax_kpoints = {"mesh": gm_relax.grid_matrix, "D_diag": gm_relax.D_diag}
+        relax_kpoints = KpointsData(mesh=gm_relax.grid_matrix, D_diag=gm_relax.D_diag)
 
     # keys are calc_types.
     kpoints_dict = {
-        phelel_dir_name: kpoints_of_supercells["phelel"],
+        "phelel": kpoints_of_supercells["phelel"],
         "phonopy": kpoints_of_supercells["phonopy"],
         "phono3py": kpoints_of_supercells["phono3py"],
         "relax": relax_kpoints,
@@ -1141,7 +1206,7 @@ def _get_kpoints_by_kspacing(
 
 def _get_kpoints_by_kspacing_dense(
     gm_dense_prim: GridMatrix, with_phelel: bool = True
-) -> dict:
+) -> dict[str, KpointsData]:
     """Return kpoints dict of dense grid.
 
     Returns
@@ -1152,17 +1217,16 @@ def _get_kpoints_by_kspacing_dense(
 
     """
     if gm_dense_prim.grid_matrix is None:
-        selfenergy_kpoints_dense = {"mesh": gm_dense_prim.D_diag}
-        el_bands_kpoints_dense = {"mesh": gm_dense_prim.D_diag}
+        selfenergy_kpoints_dense = KpointsData(mesh=gm_dense_prim.D_diag)
+        el_bands_kpoints_dense = KpointsData(mesh=gm_dense_prim.D_diag)
     else:
-        selfenergy_kpoints_dense = {
-            "mesh": gm_dense_prim.grid_matrix,
-            "D_diag": gm_dense_prim.D_diag,
-        }
-        el_bands_kpoints_dense = {
-            "mesh": gm_dense_prim.grid_matrix,
-            "D_diag": gm_dense_prim.D_diag,
-        }
+        selfenergy_kpoints_dense = KpointsData(
+            mesh=gm_dense_prim.grid_matrix, D_diag=gm_dense_prim.D_diag
+        )
+
+        el_bands_kpoints_dense = KpointsData(
+            mesh=gm_dense_prim.grid_matrix, D_diag=gm_dense_prim.D_diag
+        )
 
     if with_phelel:
         return {
@@ -1178,26 +1242,27 @@ def _get_kpoints_by_kspacing_dense(
 
 def _get_vasp_lines(
     vasp_dict: dict,
-    kpoints_dict: dict,
-    kpoints_dense_dict: dict,
-    kpoints_opt_dict: dict,
-    qpoints_dict: dict,
+    kpoints_dict: dict[str, KpointsData],
+    kpoints_dense_dict: dict[str, KpointsData],
+    kpoints_opt_dict: dict[str, KpointsData],
+    qpoints_dict: dict[str, KpointsData],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    phelel_dir_name: str = "phelel",
+    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> list:
     incar_commons = _get_incar_commons(vasp_dict)
 
     lines = []
 
-    for calc_type in (phelel_dir_name, "phonopy", "phono3py"):
+    for calc_type in supercell_calc_types:
         if calc_type in vasp_dict and calc_type in kpoints_dict:
-            _vasp_dict = vasp_dict[calc_type]
-            _add_incar_lines(lines, _vasp_dict, incar_commons, calc_type)
-            lines.append(f"[vasp.{calc_type}.kpoints]")
-            _add_kpoints_lines(lines, kpoints_dict[calc_type])
-            _add_calc_type_scheduler_lines(lines, _vasp_dict, calc_type)
-            lines.append("")
+            if kpoints_dict[calc_type].mesh is not None:
+                _vasp_dict = vasp_dict[calc_type]
+                _add_incar_lines(lines, _vasp_dict, incar_commons, calc_type)
+                lines.append(f"[vasp.{calc_type}.kpoints]")
+                _add_kpoints_lines(lines, kpoints_dict[calc_type])
+                _add_calc_type_scheduler_lines(lines, _vasp_dict, calc_type)
+                lines.append("")
 
     for calc_type in ("selfenergy", "transport"):
         if (
@@ -1249,25 +1314,27 @@ def _get_vasp_lines(
         lines.append(f"[vasp.el_bands.{calc_subtype}.kpoints]")
         _add_kpoints_lines(lines, kpoints_dict[f"el_bands.{calc_subtype}"])
         if calc_subtype == "bands":
-            el_bands_kpoints_opt = kpoints_opt_dict.get("el_bands.bands")
-            if el_bands_kpoints_opt and "line" in el_bands_kpoints_opt:
-                lines.append("[vasp.el_bands.bands.kpoints_opt]")
-                _add_kpoints_lines_bands(lines, el_bands_kpoints_opt)
+            if "el_bands.bands" in kpoints_opt_dict:
+                el_bands_kpoints_opt = kpoints_opt_dict["el_bands.bands"]
+                if el_bands_kpoints_opt.line is not None:
+                    lines.append("[vasp.el_bands.bands.kpoints_opt]")
+                    _add_kpoints_lines_bands(lines, el_bands_kpoints_opt)
         if calc_subtype == "dos":
-            el_bands_kpoints_dense = kpoints_dense_dict.get("el_bands.dos")
-            if el_bands_kpoints_dense and "mesh" in el_bands_kpoints_dense:
-                lines.append("[vasp.el_bands.dos.kpoints_dense]")
-                _add_kpoints_lines(lines, el_bands_kpoints_dense)
+            if "el_bands.dos" in kpoints_dense_dict:
+                el_bands_kpoints_dense = kpoints_dense_dict["el_bands.dos"]
+                if el_bands_kpoints_dense.mesh is not None:
+                    lines.append("[vasp.el_bands.dos.kpoints_dense]")
+                    _add_kpoints_lines(lines, el_bands_kpoints_dense)
         _add_calc_type_scheduler_lines(lines, _vasp_dict, f"el_bands.{calc_subtype}")
         lines.append("")
 
     if "ph_bands" in vasp_dict:
         # primitive cell
-        ph_bands_qpoints = qpoints_dict.get("ph_bands")
         _vasp_dict = vasp_dict["ph_bands"]
         _add_incar_lines(lines, _vasp_dict, incar_commons, "ph_bands")
         lines.append("[vasp.ph_bands.kpoints]")
         _add_kpoints_lines(lines, kpoints_dict["ph_bands"])
+        ph_bands_qpoints = qpoints_dict.get("ph_bands")
         if ph_bands_qpoints:
             lines.append("[vasp.ph_bands.qpoints]")
             _add_kpoints_lines_bands(lines, ph_bands_qpoints)
@@ -1348,28 +1415,35 @@ def _add_incar_lines(lines: list, vasp_dict: dict, incar_commons: dict, calc_typ
         )
 
 
-def _add_kpoints_lines_bands(lines: list, kpt_dict: dict) -> None:
-    lines.append("line = {:d}".format(kpt_dict["line"]))
-    if "path" in kpt_dict:
-        lines.append("path = " + str(kpt_dict["path"]))
-        points = kpt_dict["path"]
-        for i in np.unique(points):
+def _add_kpoints_lines_bands(lines: list, kpt_data: KpointsData) -> None:
+    lines.append("line = {:d}".format(kpt_data.line))
+    if kpt_data.path is not None:
+        lines.append("path = [")
+        for p1, p2 in kpt_data.path:
             lines.append(
-                str(i) + " = " + "[{:f}, {:f}, {:f}]".format(*kpt_dict[str(i)])
+                f"  [ [{p1[0]:f}, {p1[1]:f}, {p1[2]:f}], "
+                f"[{p2[0]:f}, {p2[1]:f}, {p2[2]:f}] ], "
             )
-
-
-def _add_kpoints_lines(lines: list, kpt_dict: dict) -> None:
-    if len(np.ravel(kpt_dict["mesh"])) == 3:
-        lines.append("mesh = [{:d}, {:d}, {:d}]".format(*kpt_dict["mesh"]))
-    elif len(np.ravel(kpt_dict["mesh"])) == 9:
-        lines.append("mesh = [")
-        lines.append("  [{:d}, {:d}, {:d}],".format(*kpt_dict["mesh"][0]))
-        lines.append("  [{:d}, {:d}, {:d}],".format(*kpt_dict["mesh"][1]))
-        lines.append("  [{:d}, {:d}, {:d}]".format(*kpt_dict["mesh"][2]))
         lines.append("]")
-    if "shift" in kpt_dict:
-        lines.append("shift = [{:f}, {:f}, {:f}]".format(*kpt_dict["shift"]))
+        if kpt_data.label is not None:
+            lines.append("label = [")
+            for lbl_pair in kpt_data.label:
+                lines.append(f'  [ "{lbl_pair[0]}", "{lbl_pair[1]}" ],')
+            lines.append("]")
+
+
+def _add_kpoints_lines(lines: list, kpt_data: KpointsData) -> None:
+    assert kpt_data.mesh is not None
+    if len(np.ravel(kpt_data.mesh)) == 3:
+        lines.append("mesh = [{:d}, {:d}, {:d}]".format(*kpt_data.mesh))
+    elif len(np.ravel(kpt_data.mesh)) == 9:
+        lines.append("mesh = [")
+        lines.append("  [{:d}, {:d}, {:d}],".format(*kpt_data.mesh[0]))
+        lines.append("  [{:d}, {:d}, {:d}],".format(*kpt_data.mesh[1]))
+        lines.append("  [{:d}, {:d}, {:d}]".format(*kpt_data.mesh[2]))
+        lines.append("]")
+    if kpt_data.shift is not None:
+        lines.append("shift = [{:f}, {:f}, {:f}]".format(*kpt_data.shift))
 
 
 def _add_calc_type_scheduler_lines(lines: list, vasp_dict: dict, calc_type: str):
@@ -1390,7 +1464,7 @@ def _get_cell_toml_lines(
     if cell_name:
         lines = [f"[{cell_name}]"]
     lines.append("lattice = [")
-    for v, a in zip(unitcell.cell, ("a", "b", "c")):
+    for v, a in zip(unitcell.cell, ("a", "b", "c"), strict=True):
         lines.append("  [ %21.15f, %21.15f, %21.15f ], # %s" % (v[0], v[1], v[2], a))
     lines.append("]")
     if unitcell.masses is None:
@@ -1402,7 +1476,13 @@ def _get_cell_toml_lines(
     else:
         magnetic_moments = unitcell.magnetic_moments
     for i, (s, v, m, mag) in enumerate(
-        zip(unitcell.symbols, unitcell.scaled_positions, masses, magnetic_moments)
+        zip(
+            unitcell.symbols,
+            unitcell.scaled_positions,
+            masses,
+            magnetic_moments,
+            strict=True,
+        )
     ):
         lines.append(f"[[{cell_name}.points]]  # {i + 1}")
         lines.append(f'symbol = "{s}"')
@@ -1473,10 +1553,7 @@ def _get_displacement_settings_lines(
     if "plusminus" in calc_dict:
         _plusminus = calc_dict["plusminus"]
     else:
-        if plusminus is False:
-            _plusminus = "auto"
-        else:
-            _plusminus = True
+        _plusminus = plusminus
     if isinstance(_plusminus, bool):
         if _plusminus:
             lines.append("plusminus = true")

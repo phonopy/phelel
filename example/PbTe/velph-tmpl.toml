@@ -1,6 +1,7 @@
 [init.options]
 max_num_atoms = 600
 phono3py_max_num_atoms = 100
+symmetrize_cell = true
 
 [vasp.incar]
 encut = 400
