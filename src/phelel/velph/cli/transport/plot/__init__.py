@@ -1,9 +1,9 @@
-"""velph command line tool / velph-transport."""
+"""velph command line tool / velph-transport-plot."""
 
 from __future__ import annotations
 
+import os
 import pathlib
-from typing import Optional
 
 import click
 import h5py
@@ -38,7 +38,7 @@ def cmd_plot():
 @click.help_option("-h", "--help")
 def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     """Plot self-energy in transports."""
-    args = _get_f_h5py_and_plot_filename(
+    args = get_f_h5py_and_plot_filename(
         "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is not None:
@@ -62,7 +62,7 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
 @click.help_option("-h", "--help")
 def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     """Plot transport in transports."""
-    args = _get_f_h5py_and_plot_filename(
+    args = get_f_h5py_and_plot_filename(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is not None:
@@ -119,11 +119,11 @@ def cmd_plot_eigenvalues(
     vaspout_filename: str,
     temperature: float,
     cutoff_occupancy: float,
-    mu: Optional[float],
-    tid: Optional[int],
+    mu: float | None,
+    tid: int | None,
 ):
     """Show eigenvalues in transports."""
-    args = _get_f_h5py_and_plot_filename(
+    args = get_f_h5py_and_plot_filename(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     if args[0] is None:
@@ -147,23 +147,25 @@ def cmd_plot_eigenvalues(
         click.echo('"transport/bz.dat" file was created.')
 
 
-def _get_f_h5py_and_plot_filename(
+def get_f_h5py_and_plot_filename(
     property_name: str,
-    vaspout_filename: pathlib.Path = pathlib.Path("transport/vaspout.h5"),
-    plot_filename: Optional[pathlib.Path] = None,
-) -> tuple[h5py.File, pathlib.Path]:
-    if not vaspout_filename.exists():
-        click.echo(f'"{vaspout_filename}" (default path) not found.')
+    vaspout_filename: str | os.PathLike = pathlib.Path("transport/vaspout.h5"),
+    plot_filename: str | os.PathLike | None = None,
+) -> tuple[h5py.File, pathlib.Path, pathlib.Path] | tuple[None, None, None]:
+    """Return h5py.File object and plot filename."""
+    _vaspout_filename = pathlib.Path(vaspout_filename)
+    if not _vaspout_filename.exists():
+        click.echo(f'"{_vaspout_filename}" (default path) not found.')
         click.echo("Please specify vaspout.h5 file path.")
-        return None, None
+        return None, None, None
 
-    dir_name = vaspout_filename.parent
+    dir_name = _vaspout_filename.parent
 
     if plot_filename is None:
         _plot_filename = dir_name / f"{property_name}.pdf"
     else:
-        _plot_filename = plot_filename
+        _plot_filename = pathlib.Path(plot_filename)
 
-    f_h5py = h5py.File(vaspout_filename)
+    f_h5py = h5py.File(_vaspout_filename)
 
     return f_h5py, _plot_filename, dir_name

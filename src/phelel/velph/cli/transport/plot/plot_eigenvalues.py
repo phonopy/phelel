@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import click
 import h5py
 import numpy as np
+from numpy.typing import NDArray
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.brillouin_zone import get_qpoints_in_Brillouin_zone
 from phonopy.structure.cells import get_reduced_bases
@@ -15,8 +16,11 @@ from scipy.spatial import Voronoi
 from phelel.velph.cli.utils import get_symmetry_dataset
 from phelel.velph.utils.vasp import read_crystal_structure_from_h5
 
+if TYPE_CHECKING:
+    from mpl_toolkits.mplot3d import Axes3D
 
-def fermi_dirac_distribution(energy: np.ndarray, temperature: float) -> np.ndarray:
+
+def fermi_dirac_distribution(energy: NDArray, temperature: float) -> NDArray:
     """Calculate the Fermi-Dirac distribution.
 
     energy in eV measured from chemical potential
@@ -31,12 +35,12 @@ def fermi_dirac_distribution(energy: np.ndarray, temperature: float) -> np.ndarr
 
 def plot_eigenvalues(
     f_h5py: h5py.File,
-    tid: Optional[int] = None,
-    temperature: Optional[float] = None,
+    tid: int | None = None,
+    temperature: float | None = None,
     cutoff_occupancy: float = 1e-2,
-    mu: Optional[float] = None,
+    mu: float | None = None,
     time_reversal: bool = True,
-) -> Optional[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+) -> tuple[NDArray, NDArray, NDArray] | None:
     """Show eigenvalues, occupation, k-points and Fermi-Dirac distribution.
 
     Parameters
@@ -59,15 +63,15 @@ def plot_eigenvalues(
 
     if tid is not None:
         transport = f_h5py["results/electron_phonon/electrons/transport_1"]
-        _temperature = transport["temps"][tid - 1]
-        _mu = transport["mu"][tid - 1]
+        _temperature: float = transport["temps"][tid - 1]  # type: ignore
+        _mu = transport["mu"][tid - 1]  # type: ignore
     else:
         if temperature is None:
             _temperature = 300
         else:
             _temperature = temperature
         if mu is None:
-            _mu = f_h5py["results/electron_phonon/electrons/dos/efermi"][()]
+            _mu = f_h5py["results/electron_phonon/electrons/dos/efermi"][()]  # type: ignore
         else:
             _mu = mu
 
@@ -84,9 +88,9 @@ def plot_eigenvalues(
             rotations += [-r for r in rotations]
 
     dir_eigenvalues = "results/electron_phonon/electrons/eigenvalues"
-    eigenvals = f_h5py[f"{dir_eigenvalues}/eigenvalues"][:] - _mu
+    eigenvals = f_h5py[f"{dir_eigenvalues}/eigenvalues"][:] - _mu  # type: ignore
     # weights = f_h5py[f"{dir_eigenvalues}/fermiweights"][:]
-    kpoints = f_h5py[f"{dir_eigenvalues}/kpoint_coords"][:]
+    kpoints: NDArray = f_h5py[f"{dir_eigenvalues}/kpoint_coords"][:]  # type: ignore
     ind = np.unravel_index(np.argsort(-eigenvals, axis=None), eigenvals.shape)
     weights = fermi_dirac_distribution(eigenvals, _temperature)
 
@@ -125,10 +129,10 @@ def plot_eigenvalues(
 
 
 def _plot_eigenvalues_in_BZ(
-    data: np.ndarray,
-    weights: np.ndarray,
-    bz_lattice: np.ndarray,
-    title: Optional[str] = None,
+    data: NDArray,
+    weights: NDArray,
+    bz_lattice: NDArray,
+    title: str | None = None,
 ):
     """Plot kpoints in Brillouin zone."""
     import matplotlib.pyplot as plt
@@ -138,8 +142,8 @@ def _plot_eigenvalues_in_BZ(
     scatter = ax.scatter(
         data[:, 0],
         data[:, 1],
-        data[:, 2],
-        s=point_sizes,
+        data[:, 2],  # type: ignore
+        s=point_sizes,  # type: ignore
         c=weights,
         cmap="viridis",
     )
@@ -154,12 +158,12 @@ def _plot_eigenvalues_in_BZ(
     plt.show()
 
 
-def _get_ax_3D() -> "plt.Axes":  # noqa: F821
+def _get_ax_3D() -> Axes3D:
     """Get 3D axis.
 
     Returns
     -------
-    plt.Axes
+    Axes3D
         3D axis.
 
     """
@@ -172,7 +176,7 @@ def _get_ax_3D() -> "plt.Axes":  # noqa: F821
     return ax
 
 
-def _plot_Brillouin_zone(bz_lattice: np.ndarray, ax: "plt.Axes"):  # noqa: F821
+def _plot_Brillouin_zone(bz_lattice: NDArray, ax: Axes3D):
     """Plot Brillouin zone.
 
     Parameters
@@ -181,8 +185,6 @@ def _plot_Brillouin_zone(bz_lattice: np.ndarray, ax: "plt.Axes"):  # noqa: F821
         Reciprocal basis vectors in column vectors.
 
     """
-    import matplotlib.pyplot as plt  # noqa: F401
-
     bz_red_lattice = get_reduced_bases(bz_lattice.T).T
     points = np.dot(np.array(list(np.ndindex(3, 3, 3))) - [1, 1, 1], bz_red_lattice.T)
     vor = Voronoi(points)

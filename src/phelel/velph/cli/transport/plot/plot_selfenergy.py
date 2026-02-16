@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pathlib
+import os
 
 import click
 import h5py
@@ -10,8 +10,8 @@ import h5py
 
 def plot_selfenergy(
     f_h5py: h5py.File,
-    plot_filename: str,
-    dir_name: pathlib.Path,
+    plot_filename: str | os.PathLike,
+    dir_name: os.PathLike,
     save_plot: bool = False,
 ):
     """Plot imaginary part of self-energies.
