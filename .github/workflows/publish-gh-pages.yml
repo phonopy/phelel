@@ -4,6 +4,11 @@ on:
   push:
     branches: [publish-gh-pages]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   docs:
     runs-on: ubuntu-latest
@@ -31,11 +36,20 @@ jobs:
       run: |
         conda activate test
         sphinx-build doc docs_build
-
-    - name: Deploy docs at develop branch
+    - name: Upload artifact
       if: ${{ github.ref == 'refs/heads/publish-gh-pages' }}
-      uses: peaceiris/actions-gh-pages@v4
+      uses: actions/upload-pages-artifact@v4
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs_build
-        # deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+        path: ./docs_build
+
+  deploy:
+    if: ${{ github.ref == 'refs/heads/publish-gh-pages' }}
+    needs: docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
