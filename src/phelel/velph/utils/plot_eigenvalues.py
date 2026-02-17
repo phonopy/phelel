@@ -1,4 +1,4 @@
-"""Implementation of velph-transport-plot-eigenvalues."""
+"""Implementation of velph plot-eigenvalues."""
 
 from __future__ import annotations
 

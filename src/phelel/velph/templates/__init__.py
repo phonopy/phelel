@@ -72,12 +72,18 @@ default_template_dict: dict[str, Any] = {
                 "elph_selfen_fan": True,
                 "elph_selfen_dw": True,
                 "elph_selfen_delta": 0.01,
-                "elph_selfen_temps": [300],
-                "elph_nbands": 100,
-                "elph_nbands_sum": [50, 100],
-                "elph_selfen_gaps": True,
+                "elph_selfen_temps": [0, 300],
                 "elph_ismear": -24,
-                "elph_fermi_nedos": 21,
+            },
+        },
+        "ph_selfenergy": {
+            "incar": {
+                "elph_run": True,
+                "elph_selfen_temps": [0, 300],
+                "elph_ismear": -24,
+                "elph_driver": "ph",
+                "elph_mode": "superconductivity",
+                "elph_selfen_carrier_den": 0.0,
             },
         },
         "transport": {

@@ -1193,6 +1193,7 @@ def _get_kpoints_by_kspacing(
             {
                 "selfenergy": selfenergy_kpoints,
                 "transport": selfenergy_kpoints,
+                "ph_selfenergy": selfenergy_kpoints,
             }
         )
 
@@ -1232,6 +1233,7 @@ def _get_kpoints_by_kspacing_dense(
         return {
             "selfenergy": selfenergy_kpoints_dense,
             "transport": selfenergy_kpoints_dense,
+            "ph_selfenergy": selfenergy_kpoints_dense,
             "el_bands.dos": el_bands_kpoints_dense,
         }
     else:
@@ -1264,7 +1266,7 @@ def _get_vasp_lines(
                 _add_calc_type_scheduler_lines(lines, _vasp_dict, calc_type)
                 lines.append("")
 
-    for calc_type in ("selfenergy", "transport"):
+    for calc_type in ("selfenergy", "transport", "ph_selfenergy"):
         if (
             calc_type in vasp_dict
             and calc_type in kpoints_dict

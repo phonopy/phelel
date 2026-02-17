@@ -16,6 +16,7 @@ from phelel.velph.cli.hints import cmd_hints  # noqa F401
 from phelel.velph.cli.init import cmd_init  # noqa F401
 from phelel.velph.cli.nac import cmd_nac  # noqa F401
 from phelel.velph.cli.ph_bands import cmd_ph_bands  # noqa F401
+from phelel.velph.cli.ph_selfenergy import cmd_ph_selfenergy  # noqa F401
 from phelel.velph.cli.phelel import cmd_phelel  # noqa F401
 from phelel.velph.cli.phono3py import cmd_phono3py  # noqa F401
 from phelel.velph.cli.phonopy import cmd_phonopy  # noqa F401
@@ -33,6 +34,7 @@ __all__ = [
     "cmd_phonopy",
     "cmd_phono3py",
     "cmd_ph_bands",
+    "cmd_ph_selfenergy",
     "cmd_relax",
     "cmd_selfenergy",
     "cmd_transport",
