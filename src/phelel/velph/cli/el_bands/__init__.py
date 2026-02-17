@@ -9,6 +9,10 @@ import click
 from phelel.velph.cli import cmd_root
 from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
+from phelel.velph.utils.plot_eigenvalues import (
+    cmd_plot_eigenvalues,
+    eigenvalue_plot_options,
+)
 
 
 @cmd_root.group("el_bands")
@@ -68,6 +72,31 @@ def cmd_plot(window: tuple[float, float], save_plot: bool):
         plot_el_bandstructures(
             window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
         )
+
+
+@cmd_el_bands.command("plot_eigenvalues")
+@click.argument(
+    "vaspout_filename",
+    nargs=1,
+    type=click.Path(),
+    default="el_bands/dos/vaspout.h5",
+)
+@eigenvalue_plot_options
+def cmd_plot_transport_eigenvalues(
+    vaspout_filename: str,
+    temperature: float,
+    cutoff_occupancy: float,
+    mu: float | None,
+):
+    """Show eigenvalues in transports."""
+    cmd_plot_eigenvalues(
+        vaspout_filename,
+        temperature,
+        cutoff_occupancy,
+        mu,
+        None,
+        calc_type="el_bands",
+    )
 
 
 def plot(window: tuple[float, float], save_plot: bool = False):
