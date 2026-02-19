@@ -72,9 +72,16 @@ def cmd_plot_eigenvalues(
     cutoff_occupancy: float,
     mu: float | None,
     tid: int | None,
-    calc_type: Literal["transport", "el_bands"] = "transport",
+    calc_type: Literal["transport", "ph_selfenergy", "el_bands"] = "transport",
 ):
-    """Show eigenvalues in transports."""
+    """Show eigenvalues in transports.
+
+    When tid is specified, temperature and mu are set according to the tid-th
+    temperature and chemical potential in self-energy calculation. In this case,
+    these are consistently determined values. Otherwise, temperature and mu are
+    set independently.
+
+    """
     _vaspout_filename = pathlib.Path(vaspout_filename)
     if not _vaspout_filename.exists():
         click.echo(
@@ -110,7 +117,7 @@ def _plot_eigenvalues(
     cutoff_occupancy: float = 1e-2,
     mu: float | None = None,
     time_reversal: bool = True,
-    calc_type: Literal["transport", "el_bands"] = "transport",
+    calc_type: Literal["transport", "ph_selfenergy", "el_bands"] = "transport",
 ) -> tuple[NDArray, NDArray, NDArray] | None:
     """Show eigenvalues, occupation, k-points and Fermi-Dirac distribution.
 
@@ -132,17 +139,20 @@ def _plot_eigenvalues(
     sym_dataset = get_symmetry_dataset(cell)
     rotations = [r.T for r in sym_dataset.rotations]
 
-    if tid is not None and calc_type == "transport":
-        transport = f_h5py["results/electron_phonon/electrons/transport_1"]
-        _temperature: float = transport["temps"][tid - 1]  # type: ignore
-        _mu = transport["mu"][tid - 1]  # type: ignore
+    if tid is not None and calc_type != "el_bands":
+        if calc_type == "transport":
+            params = f_h5py["results/electron_phonon/electrons/transport_1"]
+        elif calc_type == "ph_selfenergy":
+            params = f_h5py["results/electron_phonon/phonons/self_energy_1"]
+        _temperature: float = params["temps"][tid - 1]  # type: ignore
+        _mu = params["efermi"][tid - 1]  # type: ignore
     else:
         if temperature is None:
             _temperature = 300
         else:
             _temperature = temperature
         if mu is None:
-            if calc_type == "transport":
+            if calc_type in ("transport", "ph_selfenergy"):
                 _mu = f_h5py["results/electron_phonon/electrons/dos/efermi"][()]  # type: ignore
             elif calc_type == "el_bands":
                 _mu = f_h5py["results/electron_dos/efermi"][()]  # type: ignore
@@ -150,6 +160,7 @@ def _plot_eigenvalues(
                 raise ValueError(f"Invalid calc_type: {calc_type}")
         else:
             _mu = mu
+        click.echo("Note that mu and temperature are set independently.")
 
     click.echo(f"mu: {_mu:.6f} eV")
     click.echo(f"temperature: {_temperature:.6f} K")
@@ -163,7 +174,7 @@ def _plot_eigenvalues(
         if not has_inversion:
             rotations += [-r for r in rotations]
 
-    if calc_type == "transport":
+    if calc_type in ("transport", "ph_selfenergy"):
         dir_eigenvalues = "results/electron_phonon/electrons/eigenvalues"
     else:
         dir_eigenvalues = "results/electron_eigenvalues_kpoints_opt"
