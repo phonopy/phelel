@@ -78,6 +78,7 @@ default_template_dict: dict[str, Any] = {
         },
         "ph_selfenergy": {
             "incar": {
+                "elph_fermi_nedos": 501,
                 "elph_run": True,
                 "elph_selfen_temps": [0, 300],
                 "elph_ismear": -24,
