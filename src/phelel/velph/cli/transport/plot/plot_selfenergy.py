@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 
 import click
 import h5py
@@ -30,13 +31,13 @@ def plot_selfenergy(
 
     selfens = {}
     f_elph = f_h5py["results/electron_phonon/electrons"]
-    for key in f_elph:
+    for key in f_elph:  # type: ignore
         if "self_energy_" in key:
             index = key.split("_")[-1]
             if index.isdigit():
-                selfens[int(index)] = f_elph[key]
+                selfens[int(index)] = f_elph[key]  # type: ignore
 
-    assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])
+    assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])  # type: ignore
 
     if len(selfens) == 1:
         fig, axs = plt.subplots(1, 1, figsize=(4, 4))
@@ -51,13 +52,12 @@ def plot_selfenergy(
         if len(selfens) == 1:
             _plot(axs, selfen)
         else:
-            _plot(axs[i], selfen)
+            _plot(axs[i], selfen)  # type: ignore
 
-    with open(dir_name / "selfenergy.txt", "w") as w:
+    txt_filename = pathlib.Path(dir_name) / "selfenergy.txt"
+    with open(txt_filename, "w") as w:
         print("\n".join(lines), file=w)
-    click.echo(
-        f'Summary of data structure was saved in "{dir_name / "selfenergy.txt"}".'
-    )
+    click.echo(f'Summary of data structure was saved in "{txt_filename}".')
 
     plt.tight_layout()
     if save_plot:
@@ -91,28 +91,28 @@ def _get_text_lines(selfen: h5py.Group, index: int) -> list[str]:
     lines = [
         f"- parameters:  # {index}",
         "    scattering_approximation: {}".format(
-            selfen["scattering_approximation"][()].decode("utf-8")
+            selfen["scattering_approximation"][()].decode("utf-8")  # type: ignore
         ),
-        f"    static_approximation: {bool(selfen['static'][()])}",
-        f"    use_tetrahedron_method: {bool(selfen['tetrahedron'][()])}",
+        f"    static_approximation: {bool(selfen['static'][()])}",  # type: ignore
+        f"    use_tetrahedron_method: {bool(selfen['tetrahedron'][()])}",  # type: ignore
     ]
-    if not selfen["tetrahedron"][()]:
-        lines.append(f"    smearing_width: {selfen['delta'][()]}")
+    if not selfen["tetrahedron"][()]:  # type: ignore
+        lines.append(f"    smearing_width: {selfen['delta'][()]}")  # type: ignore
     lines += [
-        f"    band_start_stop: [{selfen['band_start'][()]}, {selfen['band_stop'][()]}]",
-        f"    nbands: {selfen['nbands'][()]}",
-        f"    nbands_sum: {selfen['nbands_sum'][()]}",
-        f"    nw: {selfen['nw'][()]}",
+        f"    band_start_stop: [{selfen['band_start'][()]}, {selfen['band_stop'][()]}]",  # type: ignore
+        f"    nbands: {selfen['nbands'][()]}",  # type: ignore
+        f"    nbands_sum: {selfen['nbands_sum'][()]}",  # type: ignore
+        f"    nw: {selfen['nw'][()]}",  # type: ignore
         "    temperatures:",
     ]
-    for i, t in enumerate(selfen["temps"]):
+    for i, t in enumerate(selfen["temps"]):  # type: ignore
         lines.append(f"    - {t}  # {i + 1}")
 
     lines += [
         "  data_array_shapes:",
-        f"    carrier_per_cell: {list(selfen['carrier_per_cell'].shape)}",
-        f"    Fan_self_energy: {list(selfen['selfen_fan'].shape)}",
-        f"    sampling_energy_points: {list(selfen['energies'].shape)}",
-        f"    Fermi_energies: {list(selfen['efermi'].shape)}",
+        f"    carrier_per_cell: {list(selfen['carrier_per_cell'].shape)}",  # type: ignore
+        f"    Fan_self_energy: {list(selfen['selfen_fan'].shape)}",  # type: ignore
+        f"    sampling_energy_points: {list(selfen['energies'].shape)}",  # type: ignore
+        f"    Fermi_energies: {list(selfen['efermi'].shape)}",  # type: ignore
     ]
     return lines
