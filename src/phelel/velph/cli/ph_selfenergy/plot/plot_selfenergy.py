@@ -36,7 +36,7 @@ def plot_selfenergy(
                 selfens[int(index)] = f_elph[key]  # type: ignore
 
     assert len(selfens) == int(
-        f_elph["results/electron_phonon/electrons/self_energy_meta/ncalculators"][()]  # type: ignore
+        f_h5py["results/electron_phonon/electrons/self_energy_meta/ncalculators"][()]  # type: ignore
     )
 
     if len(selfens) == 1:
@@ -48,9 +48,11 @@ def plot_selfenergy(
     for i in range(len(selfens)):
         selfen = selfens[i + 1]
         if len(selfens) == 1:
-            _plot(axs, selfen)
+            _axs = axs
         else:
-            _plot(axs[i], selfen)  # type: ignore
+            _axs = axs[i]  # type: ignore
+        _plot(_axs, selfen)
+        _axs.set_yscale("log")
 
     plt.tight_layout()
     if save_plot:
@@ -64,9 +66,9 @@ def plot_selfenergy(
 
 def _plot(ax, selfen):
     for i_nw in range(selfen["nw"][()]):
-        for i_temp, _ in enumerate(selfen["temps"]):
+        for selfen_at_T in -selfen["selfen_bubble"][:, i_nw, :, 1].T:
             ax.plot(
                 selfen["energies"][:, i_nw],
-                selfen["selfen_fan"][:, i_nw, i_temp, 1],
+                selfen_at_T,
                 ".",
             )
