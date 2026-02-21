@@ -124,7 +124,7 @@ def _run_init(
         Input crystal structure.
     cmd_init_options : VelphInitOptions
         Parameters provided by velph-init command options.
-    velph_template_fp : str, os.PathLike, typing.IO, or None
+    velph_template_fp : str, os.PathLike, typing.IO., or None
         velph toml template path. The parameter in str, bytes, or os.PathLike
         represents file name.
     template_toml_filepath : str, os.PathLike
