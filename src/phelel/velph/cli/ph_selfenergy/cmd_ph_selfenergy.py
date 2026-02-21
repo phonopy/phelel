@@ -3,6 +3,7 @@
 import pathlib
 
 import click
+import h5py
 
 from phelel.velph.cli import cmd_root
 from phelel.velph.cli.selfenergy.generate import write_selfenergy_input_files
@@ -51,3 +52,23 @@ def cmd_generate(toml_filename: str, dry_run: bool):
 def cmd_check_fft(toml_filename: str):
     """Show [NGX, NGY, NGZ] in vasprun.xml."""
     check_fft(toml_filename, "ph_selfenergy")
+
+
+@cmd_ph_selfenergy.command("dump")
+@click.argument(
+    "vaspout_filename",
+    nargs=1,
+    type=click.Path(),
+    default="ph_selfenergy/vaspout.h5",
+)
+@click.argument(
+    "output_filename",
+    nargs=1,
+    type=click.Path(),
+    default="ph_selfenergy/ph_selfenergy.hdf5",
+)
+@click.help_option("-h", "--help")
+def cmd_dump(vaspout_filename: str, output_filename: str):
+    """Dump ph_selfenergy data to HDF5 file."""
+    with h5py.File(vaspout_filename, "r") as f:
+        list(f)
