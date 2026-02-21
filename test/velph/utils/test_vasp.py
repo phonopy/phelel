@@ -7,9 +7,15 @@ import tempfile
 import numpy as np
 import pytest
 import tomli
+from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar, VaspKpoints, VaspPotcar
+from phelel.velph.utils.vasp import (
+    CutoffToFFTMesh,
+    VaspIncar,
+    VaspKpoints,
+    VaspPotcar,
+)
 
 cwd = pathlib.Path(__file__).parent
 
@@ -383,3 +389,54 @@ def test_VaspPotcar():
     vp = VaspPotcar(io.StringIO("\n".join(potcar_lines)))
     np.testing.assert_allclose([12.345, 11.111], vp.enmax)
     assert vp.titel[0] == "PAW_PBE X 23Apr2024"
+
+
+def test_convert_ir_kpoints_from_VASP_to_phono3py():
+    """Test of convert_ir_kpoints_from_VASP_to_phono3py.
+
+    This test will have to be written with VASP results of kpoints.
+
+    """
+    tio2_cell = """primitive_cell:
+  lattice:
+  - [    -1.888070425000000,     1.888070425000000,     4.790243149999999 ] # a
+  - [     1.888070425000000,    -1.888070424999999,     4.790243149999999 ] # b
+  - [     1.888070425000000,     1.888070424999999,    -4.790243149999999 ] # c
+  points:
+  - symbol: O  # 1
+    coordinates: [  0.457386310000000,  0.957386310000000,  0.500000000000000 ]
+    mass: 15.999400
+  - symbol: O  # 2
+    coordinates: [  0.707386310000000,  0.707386310000000,  1.000000000000000 ]
+    mass: 15.999400
+  - symbol: O  # 3
+    coordinates: [  0.042613690000000,  0.542613690000000,  0.500000000000000 ]
+    mass: 15.999400
+  - symbol: O  # 4
+    coordinates: [  0.292613690000000,  0.292613690000000,  1.000000000000000 ]
+    mass: 15.999400
+  - symbol: Ti # 5
+    coordinates: [  0.500000000000000,  0.500000000000000,  1.000000000000000 ]
+    mass: 47.867000
+  - symbol: Ti # 6
+    coordinates: [  0.250000000000000,  0.750000000000000,  0.500000000000000 ]
+    mass: 47.867000"""
+
+    cell = read_cell_yaml(io.StringIO(tio2_cell), cell_type="primitive").totuple()
+    np.testing.assert_allclose(
+        cell[0],
+        [
+            [-1.888070425000000, 1.888070425000000, 4.790243149999999],
+            [1.888070425000000, -1.888070424999999, 4.790243149999999],
+            [1.888070425000000, 1.888070424999999, -4.790243149999999],
+        ],
+    )
+    # mesh = [[0, 8, 8], [8, 0, 8], [3, 3, 0]]
+    # convert_ir_kpoints_from_VASP_to_phono3py(
+    #     cell[0],
+    #     cell[1],
+    #     cell[2],
+    #     np.linalg.inv(mesh).T,
+    #     np.zeros(1),  # ir_kpoints
+    #     np.zeros(1),  # ir_weights
+    # )

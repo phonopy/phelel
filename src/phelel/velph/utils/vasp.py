@@ -5,11 +5,15 @@ from __future__ import annotations
 import io
 import os
 from collections import defaultdict
-from typing import Optional, Union
+from typing import cast
 
 import h5py
 import numpy as np
+import spglib
+from numpy.typing import NDArray
+from phono3py.phonon.grid import BZGrid, get_grid_point_from_address, get_ir_grid_points
 from phonopy.structure.cells import PhonopyAtoms
+from spglib import SpgCell
 
 
 class VaspKpoints:
@@ -58,7 +62,7 @@ class VaspKpoints:
     @classmethod
     def write_line_mode(
         cls,
-        fp: Union[str, bytes, os.PathLike, io.IOBase],
+        fp: str | os.PathLike | io.IOBase,
         cell: PhonopyAtoms,
         toml_dict: dict,
     ) -> None:
@@ -67,7 +71,7 @@ class VaspKpoints:
         cls._write_lines(fp, lines)
 
     @staticmethod
-    def _write_lines(fp, lines):
+    def _write_lines(fp: str | os.PathLike | io.IOBase, lines: list[str]):
         if isinstance(fp, io.IOBase):
             fp.write(("\n".join(lines)).encode("utf-8"))
         else:
@@ -118,7 +122,7 @@ class VaspKpoints:
     @classmethod
     def write_mesh_mode(
         cls,
-        fp: Union[str, bytes, os.PathLike, io.IOBase],
+        fp: str | os.PathLike | io.IOBase,
         toml_dict: dict,
     ):
         """Write KPOINTS with mesh mode."""
@@ -178,7 +182,7 @@ class VaspIncar:
     specific_tags = []
 
     @classmethod
-    def write(cls, fp: Union[str, bytes, os.PathLike, io.IOBase], toml_dict: dict):
+    def write(cls, fp: str | os.PathLike | io.IOBase, toml_dict: dict):
         """Write INCAR."""
         lines = cls._get_incar(toml_dict)
         cls._write_lines(fp, lines)
@@ -237,7 +241,7 @@ class VaspIncar:
         return lines
 
     @staticmethod
-    def _write_lines(fp: Union[str, bytes, os.PathLike, io.IOBase], lines: list[str]):
+    def _write_lines(fp: str | os.PathLike | io.IOBase, lines: list[str]):
         if isinstance(fp, io.IOBase):
             fp.write(("\n".join(lines)).encode("utf-8"))
         else:
@@ -277,8 +281,14 @@ class VaspPotcar:
 
     value_types = {"ENMAX": float, "TITEL": str}
 
-    def __init__(self, fp: Union[str, bytes, os.PathLike, io.IOBase]):
-        """Init method."""
+    def __init__(self, fp: str | os.PathLike | io.TextIOBase):
+        """Init method.
+
+        fp : str, os.PathLike, or typing.IO
+            typing.IO is file-like object, e.g., io.StringIO or file object
+            obtained by open(). Otherwise, file path.
+
+        """
         self._property_dict = defaultdict(list)
         self._read(fp)
 
@@ -288,18 +298,18 @@ class VaspPotcar:
         return self._property_dict["ENMAX"]
 
     @property
-    def titel(self) -> list[float]:
+    def titel(self) -> list[str]:
         """Return values of TITEL in POTCAR as a list."""
         return self._property_dict["TITEL"]
 
-    def _read(self, fp: Union[str, bytes, os.PathLike, io.IOBase]):
-        if isinstance(fp, io.IOBase):
+    def _read(self, fp: str | os.PathLike | io.TextIOBase):
+        if isinstance(fp, io.TextIOBase):
             self._parse(fp)
         else:
-            with open(fp) as _fp:
+            with open(fp, "r") as _fp:
                 self._parse(_fp)
 
-    def _parse(self, fp: io.IOBase):
+    def _parse(self, fp: io.TextIOBase):
         """Parse lines of POTCAR.
 
         This method will be more complicated to support more properties.
@@ -324,8 +334,8 @@ class CutoffToFFTMesh:
 
     @classmethod
     def get_FFTMesh(
-        cls, cutoff_eV: float, lattice: np.ndarray, incar_prec: Optional[str] = None
-    ) -> np.ndarray:
+        cls, cutoff_eV: float, lattice: NDArray, incar_prec: str | None = None
+    ) -> NDArray:
         """Return FFT mesh corresponding to (NGX, NGY, NGZ).
 
         The return value has to be dividable by 2 and factorized by 2, 3, 5, and 7.
@@ -351,7 +361,7 @@ class CutoffToFFTMesh:
         return fft_mesh
 
     @staticmethod
-    def _get_cutoff_factor(prec: Optional[str]) -> int:
+    def _get_cutoff_factor(prec: str | None) -> int:
         """Return factor to multiply to cutoff.
 
         Note this is the VASP6 convention.
@@ -381,7 +391,7 @@ class CutoffToFFTMesh:
             return False
 
 
-def read_magmom(magmom: str) -> Optional[list[float]]:
+def read_magmom(magmom: str) -> list[float] | None:
     """Read text file to obtain MAGMOM information.
 
     Parameters
@@ -395,12 +405,12 @@ def read_magmom(magmom: str) -> Optional[list[float]]:
 
 def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> PhonopyAtoms:
     """Read crystal structure from vaspout.h5."""
-    direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])
-    scale = f_vaspout_h5[f"{group}/scale"][()]
-    lattice = f_vaspout_h5[f"{group}/lattice_vectors"][:] * scale
-    positions = f_vaspout_h5[f"{group}/position_ions"][:]
-    number_ion_types = f_vaspout_h5[f"{group}/number_ion_types"][:]
-    ion_types = f_vaspout_h5[f"{group}/ion_types"][:]
+    direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])  # type: ignore
+    scale = f_vaspout_h5[f"{group}/scale"][()]  # type: ignore
+    lattice: NDArray = f_vaspout_h5[f"{group}/lattice_vectors"][:] * scale  # type: ignore
+    positions: NDArray = f_vaspout_h5[f"{group}/position_ions"][:]  # type: ignore
+    number_ion_types: NDArray = f_vaspout_h5[f"{group}/number_ion_types"][:]  # type: ignore
+    ion_types: NDArray = f_vaspout_h5[f"{group}/ion_types"][:]  # type: ignore
 
     symbols = []
     for symbol, number in zip(ion_types, number_ion_types, strict=True):
@@ -414,3 +424,57 @@ def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> Phono
     cell = PhonopyAtoms(cell=lattice, scaled_positions=positions, symbols=symbols)
 
     return cell
+
+
+def convert_ir_kpoints_from_VASP_to_phono3py(
+    lattice: NDArray,
+    positions: NDArray,
+    numbers: NDArray,
+    k_gen_vecs: NDArray,
+    ir_kpoints: NDArray,
+    ir_kpoints_weights: NDArray,
+) -> tuple[NDArray, BZGrid, NDArray, NDArray, NDArray]:
+    """Convert irreducible k-points from VASP to phono3py.
+
+    1. Generate BZGrid from crystal structure and k-point generation vectors.
+    2. Convert VASP ir-kpoints to integer addresses in mesh grid.
+    3. Collect ir-grid-point indices of VASP integer addresses.
+    4. Map VASP grid-point indices to phono3py ir-grid-point indices.
+    5. Reorder phono3py ir-grid-point indices according to the order of VASP
+       ir-kpoints.
+
+    Parameters
+    ----------
+    Crystal structure and k-point information at ir-BZ collected from
+    vaspout.h5.
+
+    Returns
+    -------
+    id_map : np.ndarray
+        Ir-grid point indices in phono3py ordered by VASP ir-kpoints. This is
+        used like
+
+            freqs_phono3py_at_irBZ = freqs_VASP_at_irBZ[id_map]
+
+    [1:5] : (np.ndarray, BZGrid, np.ndarray, np.ndarray, np.ndarray)
+        BZGrid, ir_grid_points, ir_grid_weights, ir_grid_map.
+        Ir-grid point information in phono3py.
+
+    """
+    # Step 1
+    cell: SpgCell = cast(SpgCell, (lattice, positions, numbers))
+    sym_dataset = spglib.get_symmetry_dataset(cell)
+    mesh = np.linalg.inv(k_gen_vecs.T)
+    mesh = np.rint(mesh).astype(int)
+    bz_grid = BZGrid(mesh, lattice=lattice, symmetry_dataset=sym_dataset)
+    ir_grid_points, ir_grid_weights, ir_grid_map = get_ir_grid_points(bz_grid)
+
+    # Steps 2-5
+    ir_addresss = np.rint(ir_kpoints @ mesh).astype(int)
+    gps = get_grid_point_from_address(ir_addresss, bz_grid.D_diag)
+    irgp = ir_grid_map[gps]
+    id_map = np.array([np.where(irgp == gp)[0][0] for gp in ir_grid_points], dtype=int)
+    ir_kpoints_weights *= np.linalg.det(mesh)
+    assert (np.abs(ir_grid_weights - ir_kpoints_weights[id_map]) < 1e-8).all()
+
+    return id_map, bz_grid, ir_grid_points, ir_grid_weights, ir_grid_map
