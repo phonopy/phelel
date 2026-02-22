@@ -1,5 +1,7 @@
 """velph command line tool / velph-generate."""
 
+from __future__ import annotations
+
 import pathlib
 
 import click
@@ -7,7 +9,7 @@ import tomli
 from phonopy.interface.calculator import write_crystal_structure
 from phonopy.structure.atoms import parse_cell_dict
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 
 
 #
@@ -53,9 +55,16 @@ def _run_generate(toml_filename: str, prefix: str) -> None:
         _write_cell(filename, toml_dict["primitive_cell"])
 
 
-def _write_cell(filename, toml_cell_dict):
+def _write_cell(filename: str, toml_cell_dict: dict):
     if pathlib.Path(filename).exists():
         click.echo(f'"{filename}" was not overwritten because it exists.', err=True)
     else:
-        write_crystal_structure(filename, parse_cell_dict(toml_cell_dict))
-        click.echo(f'"{filename}" was generated.', err=True)
+        cell = parse_cell_dict(toml_cell_dict)
+        if cell is None:
+            click.echo(
+                f'"{filename}" was not generated because of invalid cell data.',
+                err=True,
+            )
+            return
+        write_crystal_structure(filename, cell)
+        click.echo(f'"{filename}" was generated.')

@@ -1,10 +1,12 @@
 """velph command line tool / velph-nac."""
 
+from __future__ import annotations
+
 import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.nac.generate import write_input_files
 
 

@@ -6,7 +6,7 @@ import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
 from phelel.velph.utils.plot_eigenvalues import (
@@ -95,12 +95,6 @@ def cmd_plot_transport_eigenvalues(
         cutoff_occupancy,
         mu,
         None,
+        None,
         calc_type="el_bands",
     )
-
-
-def plot(window: tuple[float, float], save_plot: bool = False):
-    """Plot electronic band structure."""
-    with click.Context(cmd_plot) as ctx:
-        ctx.params = {"window": window, "save_plot": save_plot}
-        cmd_plot.invoke(ctx)

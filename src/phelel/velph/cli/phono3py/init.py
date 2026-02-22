@@ -18,7 +18,7 @@ def run_init(
     toml_dict: dict,
     current_directory: pathlib.Path = pathlib.Path(""),
     number_of_snapshots: int | None = None,
-) -> Phono3py | None:
+) -> Phono3py:
     """Generate displacements and write phono3py_disp.yaml.
 
     current_directory : Path

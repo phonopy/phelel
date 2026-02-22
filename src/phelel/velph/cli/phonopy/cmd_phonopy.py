@@ -7,7 +7,7 @@ import pathlib
 import click
 import tomli
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.phonopy.generate import write_supercell_input_files
 from phelel.velph.cli.phonopy.init import run_init
 

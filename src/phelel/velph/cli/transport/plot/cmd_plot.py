@@ -8,7 +8,7 @@ import pathlib
 import click
 import h5py
 
-from phelel.velph.cli.transport import cmd_transport
+from phelel.velph.cli.transport.cmd_transport import cmd_transport
 from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
 from phelel.velph.cli.transport.plot.plot_transport import plot_transport
 from phelel.velph.utils.plot_eigenvalues import (
@@ -41,11 +41,16 @@ def cmd_plot():
 @click.help_option("-h", "--help")
 def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     """Plot self-energy in transports."""
-    args = _get_f_h5py_and_plot_filename(
+    _vaspout_filename, plot_filename, dir_name = _get_h5py_and_plot_filenames(
         "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
     )
-    if args[0] is not None:
-        plot_selfenergy(*args, save_plot=save_plot)
+    if (
+        _vaspout_filename is not None
+        and plot_filename is not None
+        and dir_name is not None
+    ):
+        with h5py.File(_vaspout_filename, "r") as f_h5py:
+            plot_selfenergy(f_h5py, plot_filename, dir_name, save_plot=save_plot)
 
 
 @cmd_plot.command("transport")
@@ -65,11 +70,16 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
 @click.help_option("-h", "--help")
 def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     """Plot transport in transports."""
-    args = _get_f_h5py_and_plot_filename(
+    _vaspout_filename, plot_filename, dir_name = _get_h5py_and_plot_filenames(
         "transport", vaspout_filename=pathlib.Path(vaspout_filename)
     )
-    if args[0] is not None:
-        plot_transport(*args, save_plot=save_plot)
+    if (
+        _vaspout_filename is not None
+        and plot_filename is not None
+        and dir_name is not None
+    ):
+        with h5py.File(_vaspout_filename, "r") as f_h5py:
+            plot_transport(f_h5py, plot_filename, dir_name, save_plot=save_plot)
 
 
 @cmd_plot.command("eigenvalues")
@@ -89,6 +99,16 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
         "temperature. (tid: int, default=None)"
     ),
 )
+@click.option(
+    "--calcid",
+    nargs=1,
+    type=int,
+    default=None,
+    help=(
+        "Index of self-energy calculation for collecting chemical potential and "
+        "temperature. (calcid: int, default=None)"
+    ),
+)
 @eigenvalue_plot_options
 def cmd_plot_transport_eigenvalues(
     vaspout_filename: str,
@@ -96,6 +116,7 @@ def cmd_plot_transport_eigenvalues(
     cutoff_occupancy: float,
     mu: float | None,
     tid: int | None,
+    calcid: int | None,
 ):
     """Show eigenvalues in transports."""
     cmd_plot_eigenvalues(
@@ -103,15 +124,16 @@ def cmd_plot_transport_eigenvalues(
         temperature,
         cutoff_occupancy,
         mu,
+        calcid,
         tid,
     )
 
 
-def _get_f_h5py_and_plot_filename(
+def _get_h5py_and_plot_filenames(
     property_name: str,
     vaspout_filename: str | os.PathLike | None = None,
     plot_filename: str | os.PathLike | None = None,
-) -> tuple[h5py.File, pathlib.Path, pathlib.Path] | tuple[None, None, None]:
+) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path] | tuple[None, None, None]:
     """Return h5py.File object and plot filename."""
     if vaspout_filename is None:
         _vaspout_filename = pathlib.Path(f"{property_name}/vaspout.h5")
@@ -130,6 +152,4 @@ def _get_f_h5py_and_plot_filename(
     else:
         _plot_filename = pathlib.Path(plot_filename)
 
-    f_h5py = h5py.File(_vaspout_filename)
-
-    return f_h5py, _plot_filename, dir_name
+    return _vaspout_filename, _plot_filename, dir_name

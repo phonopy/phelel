@@ -1,10 +1,12 @@
 """velph command line tool / velph-ph_bands."""
 
+from __future__ import annotations
+
 import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.ph_bands.generate import (
     write_input_files as write_input_files_ph_bandstructures,
 )
@@ -64,10 +66,3 @@ def cmd_plot(use_ordinary_frequency: bool, save_plot: bool):
     plot_ph_bandstructures(
         vaspout_filename, use_ordinary_frequency, save_plot=save_plot
     )
-
-
-def plot(save_plot: bool = False):
-    """Plot phonon band structure."""
-    with click.Context(cmd_plot) as ctx:
-        ctx.params = {"save_plot": save_plot}
-        cmd_plot.invoke(ctx)

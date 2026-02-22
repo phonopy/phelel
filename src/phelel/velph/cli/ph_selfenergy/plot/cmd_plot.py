@@ -40,11 +40,12 @@ def cmd_plot():
 @click.help_option("-h", "--help")
 def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     """Plot self-energy in ph_selfenergy."""
-    f_h5py, plot_filename = _get_f_h5py_and_plot_filename(
+    _vaspout_filename, plot_filename = _get_h5py_and_plot_filenames(
         "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
     )
-    if f_h5py is not None and plot_filename is not None:
-        plot_selfenergy(f_h5py, plot_filename, save_plot=save_plot)
+    with h5py.File(_vaspout_filename, "r") as f_h5py:
+        if f_h5py is not None and plot_filename is not None:
+            plot_selfenergy(f_h5py, plot_filename, save_plot=save_plot)
 
 
 @cmd_plot.command("eigenvalues")
@@ -60,8 +61,18 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     type=int,
     default=None,
     help=(
-        "Index of self-energy calculation for collecting chemical potential and "
+        "Index of temperature for collecting chemical potential and "
         "temperature. (tid: int, default=None)"
+    ),
+)
+@click.option(
+    "--calcid",
+    nargs=1,
+    type=int,
+    default=None,
+    help=(
+        "Index of self-energy calculation for collecting chemical potential and "
+        "temperature. (calcid: int, default=None)"
     ),
 )
 @eigenvalue_plot_options
@@ -71,6 +82,7 @@ def cmd_plot_ph_selfenergy_eigenvalues(
     cutoff_occupancy: float,
     mu: float | None,
     tid: int | None,
+    calcid: int | None,
 ):
     """Show eigenvalues in ph_selfenergy."""
     cmd_plot_eigenvalues(
@@ -79,15 +91,16 @@ def cmd_plot_ph_selfenergy_eigenvalues(
         cutoff_occupancy,
         mu,
         tid,
+        calcid,
         calc_type="ph_selfenergy",
     )
 
 
-def _get_f_h5py_and_plot_filename(
+def _get_h5py_and_plot_filenames(
     property_name: str,
     vaspout_filename: str | os.PathLike | None = None,
     plot_filename: str | os.PathLike | None = None,
-) -> tuple[h5py.File, pathlib.Path] | tuple[None, None]:
+) -> tuple[pathlib.Path, pathlib.Path] | tuple[None, None]:
     """Return h5py.File object and plot filename."""
     if vaspout_filename is None:
         _vaspout_filename = pathlib.Path(f"{property_name}/vaspout.h5")
@@ -106,6 +119,4 @@ def _get_f_h5py_and_plot_filename(
     else:
         _plot_filename = pathlib.Path(plot_filename)
 
-    f_h5py = h5py.File(_vaspout_filename)
-
-    return f_h5py, _plot_filename
+    return _vaspout_filename, _plot_filename

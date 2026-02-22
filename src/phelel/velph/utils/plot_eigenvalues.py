@@ -72,6 +72,7 @@ def cmd_plot_eigenvalues(
     cutoff_occupancy: float,
     mu: float | None,
     tid: int | None,
+    calcid: int | None,
     calc_type: Literal["transport", "ph_selfenergy", "el_bands"] = "transport",
 ):
     """Show eigenvalues in transports.
@@ -90,15 +91,23 @@ def cmd_plot_eigenvalues(
         )
         return None
 
-    f_h5py = h5py.File(_vaspout_filename)
-    retvals = _plot_eigenvalues(
-        f_h5py,
-        tid=tid,
-        temperature=temperature,
-        cutoff_occupancy=cutoff_occupancy,
-        mu=mu,
-        calc_type=calc_type,
-    )
+    with h5py.File(_vaspout_filename) as f_h5py:
+        if calc_type in ("transport", "ph_selfenergy"):
+            n_calculators: int = f_h5py[
+                "results/electron_phonon/electrons/self_energy_meta/ncalculators"
+            ][()]  # type: ignore
+
+            click.echo(f"Possible calculator IDs: {np.arange(n_calculators) + 1}.")
+
+        retvals = _plot_eigenvalues(
+            f_h5py,
+            tid=tid,
+            calcid=calcid,
+            temperature=temperature,
+            cutoff_occupancy=cutoff_occupancy,
+            mu=mu,
+            calc_type=calc_type,
+        )
 
     if retvals is not None:
         with open(f"{calc_type}/bz.dat", "w") as w:
@@ -113,6 +122,7 @@ def cmd_plot_eigenvalues(
 def _plot_eigenvalues(
     f_h5py: h5py.File,
     tid: int | None = None,
+    calcid: int | None = None,
     temperature: float | None = None,
     cutoff_occupancy: float = 1e-2,
     mu: float | None = None,
@@ -139,14 +149,24 @@ def _plot_eigenvalues(
     sym_dataset = get_symmetry_dataset(cell)
     rotations = [r.T for r in sym_dataset.rotations]
 
-    if tid is not None and calc_type != "el_bands":
-        if calc_type == "transport":
-            params = f_h5py["results/electron_phonon/electrons/transport_1"]
-        elif calc_type == "ph_selfenergy":
-            params = f_h5py["results/electron_phonon/phonons/self_energy_1"]
+    if calcid is None:
+        _calcid = 1
+    else:
+        _calcid = calcid
+
+    if calc_type == "transport":
+        params = f_h5py[f"results/electron_phonon/electrons/transport_{_calcid}"]  # type: ignore
+    elif calc_type == "ph_selfenergy":
+        params = f_h5py[f"results/electron_phonon/phonons/self_energy_{_calcid}"]  # type: ignore
+
+    if calc_type in ("transport", "ph_selfenergy") and tid is not None:
         _temperature: float = params["temps"][tid - 1]  # type: ignore
         _mu = params["efermi"][tid - 1]  # type: ignore
     else:
+        if calc_type in ("transport", "ph_selfenergy"):
+            click.echo(
+                f"Possible temperature IDs {np.arange(params['temps'].shape[0]) + 1}."  # type: ignore
+            )
         if temperature is None:
             _temperature = 300
         else:
