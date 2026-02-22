@@ -12,7 +12,6 @@ def cmd_root():
 
 from phelel.velph.cli.el_bands import cmd_el_bands  # noqa F401
 from phelel.velph.cli.generate import cmd_generate  # noqa F401
-from phelel.velph.cli.hints import cmd_hints  # noqa F401
 from phelel.velph.cli.init import cmd_init  # noqa F401
 from phelel.velph.cli.nac import cmd_nac  # noqa F401
 from phelel.velph.cli.ph_bands import cmd_ph_bands  # noqa F401
@@ -27,7 +26,6 @@ from phelel.velph.cli.transport import cmd_transport  # noqa F401
 __all__ = [
     "cmd_el_bands",
     "cmd_generate",
-    "cmd_hints",
     "cmd_init",
     "cmd_nac",
     "cmd_phelel",
