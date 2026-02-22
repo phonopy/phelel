@@ -1,39 +1,31 @@
 """velph command line tool module."""
 
-import click
-
-
-@click.group()
-@click.help_option("-h", "--help")
-def cmd_root():
-    """Command-line utility to help VASP el-ph calculation."""
-    pass
-
-
-from phelel.velph.cli.el_bands import cmd_el_bands  # noqa F401
-from phelel.velph.cli.generate import cmd_generate  # noqa F401
-from phelel.velph.cli.init import cmd_init  # noqa F401
-from phelel.velph.cli.nac import cmd_nac  # noqa F401
-from phelel.velph.cli.ph_bands import cmd_ph_bands  # noqa F401
-from phelel.velph.cli.ph_selfenergy import cmd_ph_selfenergy  # noqa F401
-from phelel.velph.cli.phelel import cmd_phelel  # noqa F401
-from phelel.velph.cli.phono3py import cmd_phono3py  # noqa F401
-from phelel.velph.cli.phonopy import cmd_phonopy  # noqa F401
-from phelel.velph.cli.relax import cmd_relax  # noqa F401
-from phelel.velph.cli.selfenergy import cmd_selfenergy  # noqa F401
-from phelel.velph.cli.transport import cmd_transport  # noqa F401
+from phelel.velph.cli.cmd_root import cmd_root
+from phelel.velph.cli.el_bands.cmd_el_bands import cmd_el_bands
+from phelel.velph.cli.generate.cmd_generate import cmd_generate
+from phelel.velph.cli.init.cmd_init import cmd_init
+from phelel.velph.cli.nac.cmd_nac import cmd_nac
+from phelel.velph.cli.ph_bands.cmd_ph_bands import cmd_ph_bands
+from phelel.velph.cli.ph_selfenergy.cmd_ph_selfenergy import cmd_ph_selfenergy
+from phelel.velph.cli.phelel.cmd_phelel import cmd_phelel
+from phelel.velph.cli.phono3py.cmd_phono3py import cmd_phono3py
+from phelel.velph.cli.phonopy.cmd_phonopy import cmd_phonopy
+from phelel.velph.cli.relax.cmd_relax import cmd_relax
+from phelel.velph.cli.selfenergy.cmd_selfenergy import cmd_selfenergy
+from phelel.velph.cli.transport.cmd_transport import cmd_transport
 
 __all__ = [
-    "cmd_el_bands",
-    "cmd_generate",
-    "cmd_init",
-    "cmd_nac",
-    "cmd_phelel",
-    "cmd_phonopy",
-    "cmd_phono3py",
-    "cmd_ph_bands",
-    "cmd_ph_selfenergy",
-    "cmd_relax",
-    "cmd_selfenergy",
-    "cmd_transport",
+    "cmd_el_bands",  # velph el-bands <subcommand>
+    "cmd_generate",  # velph generate
+    "cmd_init",  # velph init
+    "cmd_nac",  # velph nac <subcommand>
+    "cmd_phelel",  # velph phelel <subcommand>
+    "cmd_phonopy",  # velph phonopy <subcommand>
+    "cmd_phono3py",  # velph phono3py <subcommand>
+    "cmd_ph_bands",  # velph ph-bands <subcommand>
+    "cmd_ph_selfenergy",  # velph ph-selfenergy <subcommand>
+    "cmd_relax",  # velph relax <subcommand>
+    "cmd_root",  # velph <subcommand>
+    "cmd_selfenergy",  # velph selfenergy <subcommand>
+    "cmd_transport",  # velph transport <subcommand>
 ]
