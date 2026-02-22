@@ -4,7 +4,7 @@ import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.selfenergy.generate import write_input_files
 from phelel.velph.cli.utils import check_fft
 

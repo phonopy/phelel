@@ -6,7 +6,7 @@ import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.relax.generate import write_input_files
 
 

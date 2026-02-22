@@ -5,7 +5,7 @@ import pathlib
 import click
 import h5py
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.selfenergy.generate import write_selfenergy_input_files
 from phelel.velph.cli.utils import check_fft
 
@@ -72,3 +72,6 @@ def cmd_dump(vaspout_filename: str, output_filename: str):
     """Dump ph_selfenergy data to HDF5 file."""
     with h5py.File(vaspout_filename, "r") as f:
         list(f)
+
+
+from phelel.velph.cli.ph_selfenergy.plot.cmd_plot import cmd_plot  # noqa: E402, F401

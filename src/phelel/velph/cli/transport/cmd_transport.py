@@ -4,7 +4,7 @@ import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.transport.generate import write_input_files
 from phelel.velph.cli.utils import check_fft
 
@@ -51,3 +51,6 @@ def cmd_generate(toml_filename: str, dry_run: bool):
 def cmd_check_fft(toml_filename: str):
     """Show [NGX, NGY, NGZ] in vasprun.xml."""
     check_fft(toml_filename, "transport")
+
+
+from phelel.velph.cli.transport.plot.cmd_plot import cmd_plot  # noqa: E402, F401
