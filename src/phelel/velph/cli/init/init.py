@@ -35,12 +35,14 @@ from phelel.velph.cli.utils import (
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
+)
+from phelel.velph.templates import default_template_dict
+from phelel.velph.utils.structure import (
     generate_standardized_cells,
     get_primitive_cell,
     get_reduced_cell,
     get_symmetry_dataset,
 )
-from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar
 from phelel.version import __version__
 
@@ -549,6 +551,20 @@ def _get_cells(
         click.echo(f"  Reference space-group-type: {spg_type.international_short}")
 
     if symmetrize_cell:
+        if isinstance(sym_dataset, SpglibDataset):
+            click.echo(
+                "Crystal structure was standardized based on space-group-type "
+                f"{sym_dataset.international}."
+            )
+        elif isinstance(sym_dataset, SpglibMagneticDataset):
+            click.echo(
+                "Crystal structure was standardized based on magnetic-space-group-type "
+                f"UNI No.{sym_dataset.uni_number}."
+            )
+        else:
+            raise ValueError(
+                "sym_dataset must be SpglibDataset or SpglibMagneticDataset."
+            )
         unitcell, _primitive, tmat = generate_standardized_cells(
             sym_dataset, tolerance=tolerance
         )

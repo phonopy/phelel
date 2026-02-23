@@ -39,9 +39,9 @@ from phelel.velph.cli.utils import (
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
-    get_symmetry_dataset,
 )
 from phelel.velph.templates import default_template_dict
+from phelel.velph.utils.structure import get_symmetry_dataset
 
 cwd = pathlib.Path(__file__).parent
 
