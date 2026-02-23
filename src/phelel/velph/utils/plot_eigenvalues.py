@@ -14,7 +14,7 @@ from phonopy.structure.brillouin_zone import get_qpoints_in_Brillouin_zone
 from phonopy.structure.cells import get_reduced_bases
 from scipy.spatial import Voronoi
 
-from phelel.velph.cli.utils import get_symmetry_dataset
+from phelel.velph.utils.structure import get_symmetry_dataset
 from phelel.velph.utils.vasp import read_crystal_structure_from_h5
 
 if TYPE_CHECKING:

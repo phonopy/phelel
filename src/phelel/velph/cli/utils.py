@@ -12,19 +12,12 @@ from enum import Enum
 from typing import Any, Iterator, Literal
 
 import click
-import h5py
 import numpy as np
-import spglib
 from numpy.typing import NDArray
 from phono3py.phonon.grid import BZGrid
-from phonopy.interface.vasp import VasprunxmlExpat, sort_positions_by_symbols
+from phonopy.interface.vasp import VasprunxmlExpat
 from phonopy.physical_units import get_physical_units
-from phonopy.structure.atoms import PhonopyAtoms, get_atomic_data, parse_cell_dict
-from phonopy.structure.cells import (
-    get_primitive,
-    get_primitive_matrix_by_centring,
-    get_reduced_bases,
-)
+from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 from spglib import SpglibDataset, SpglibMagneticDataset
 
@@ -33,6 +26,7 @@ from phelel.velph.utils.scheduler import (
     get_sge_scheduler_script,
     get_slurm_scheduler_script,
 )
+from phelel.velph.utils.structure import get_symmetry_dataset
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
@@ -336,216 +330,6 @@ def choose_cell_in_dict(
             raise RuntimeError("This should not happen.")
 
     return cell
-
-
-def get_reclat_from_vaspout(fp_vaspout: h5py.File):
-    """Return reciprocal space basis vectors.
-
-    Returns
-    -------
-    reclat : np.ndarray
-        Reciprocal basis vectors in row vectors.
-        shape=(3, 3)
-
-    """
-    # Basis vectors in direct space in column vectors
-    lattice = np.transpose(
-        fp_vaspout["input"]["poscar"]["lattice_vectors"][:]  # type: ignore
-        * fp_vaspout["input"]["poscar"]["scale"][()]  # type: ignore
-    )
-    # Basis vectors in reciprocal space in row vectors
-    reclat = 2 * np.pi * np.linalg.inv(lattice)
-    return reclat
-
-
-def get_distances_along_BZ_path(nk_total, n_segments, nk_per_seg, k_cart):
-    """Measure distances of points from origin along paths.
-
-    Returns
-    -------
-    distances : np.ndarray
-        Distances of points from origin along BZ-paths.
-        shape=(nk_total,)
-
-    """
-    distances = np.zeros(nk_total)
-    count = 0
-    for _ in range(n_segments):
-        for i_pts in range(nk_per_seg):
-            # Treatment of jump between equivalent points on BZ boundary
-            if i_pts == 0:
-                delta_dist = 0
-            else:
-                delta_dist = np.linalg.norm(k_cart[count, :] - k_cart[count - 1, :])
-            distances[count] = distances[count - 1] + delta_dist
-            count += 1
-    return distances
-
-
-def get_special_points(
-    labels: list[str],
-    distances: list[float],
-    n_segments: int,
-    nk_per_seg: int,
-    nk_total: int,
-) -> tuple[list, list]:
-    """Plot special points at vertical lines and labels."""
-    # Left most
-    points = []
-    labels_at_points = []
-
-    labels_at_points.append(labels[0][0])
-    points.append(distances[0])
-
-    count = 0
-    for i_seg in range(n_segments):
-        for _ in range(nk_per_seg):
-            count += 1
-        if count != nk_total:
-            points.append(distances[count])
-            if labels[i_seg * 2 + 1] == labels[i_seg * 2 + 2]:
-                labels_at_points.append(labels[i_seg * 2 + 1][0])
-            else:
-                labels_at_points.append(
-                    f"{labels[i_seg * 2 + 1][0]}|{labels[i_seg * 2 + 2][0]}"
-                )
-
-    labels_at_points.append(labels[-1][0])
-    points.append(distances[-1])
-
-    return points, labels_at_points
-
-
-def get_symmetry_dataset(
-    cell: PhonopyAtoms, tolerance: float = 1e-5
-) -> SpglibDataset | SpglibMagneticDataset:
-    """Return spglib symmetry dataset."""
-    if cell.magnetic_moments is None:
-        dataset = spglib.get_symmetry_dataset(cell.totuple(), symprec=tolerance)
-    else:
-        dataset = spglib.get_magnetic_symmetry_dataset(
-            cell.totuple(), symprec=tolerance
-        )
-
-    assert dataset is not None
-
-    return dataset
-
-
-def get_primitive_cell(
-    cell: PhonopyAtoms,
-    sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    tolerance: float = 1e-5,
-) -> tuple[PhonopyAtoms, NDArray]:
-    """Return primitive cell and transformation matrix.
-
-    This primitive cell is generated from the input cell without
-    rigid rotation in contrast to `_get_standardized_unitcell`.
-
-    """
-    tmat = sym_dataset.transformation_matrix
-    pmat = get_primitive_matrix_from_dataset(sym_dataset)
-    total_tmat = np.array(np.linalg.inv(tmat) @ pmat, dtype="double", order="C")
-
-    return (
-        get_primitive(cell, primitive_matrix=total_tmat, symprec=tolerance),
-        total_tmat,
-    )
-
-
-def get_primitive_matrix_from_dataset(
-    sym_dataset: SpglibDataset | SpglibMagneticDataset,
-) -> NDArray:
-    """Return primitive matrix from symmetry dataset."""
-    if isinstance(sym_dataset, SpglibDataset):
-        centring = sym_dataset.international[0]
-    else:
-        spg_type = spglib.get_spacegroup_type(sym_dataset.hall_number)
-        assert spg_type is not None
-        centring = spg_type.international_short[0]
-    return get_primitive_matrix_by_centring(centring)
-
-
-def get_reduced_cell(
-    cell: PhonopyAtoms, method="niggli", tolerance: float = 1e-5
-) -> PhonopyAtoms:
-    """Return a reduced cell of input cell."""
-    reduced_lattice = get_reduced_bases(cell.cell, method=method, tolerance=tolerance)
-    assert reduced_lattice is not None
-    reduced_positions = cell.scaled_positions @ (
-        cell.cell @ np.linalg.inv(reduced_lattice)
-    )
-    reduced_positions = reduced_positions - np.rint(reduced_positions)
-    reduced_positions[:, :] += np.where(reduced_positions < 0, 1, 0)
-    reduced_cell = cell.copy()
-    reduced_cell.cell = reduced_lattice
-    reduced_cell.scaled_positions = reduced_positions
-    return reduced_cell
-
-
-def generate_standardized_cells(
-    sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    tolerance: float = 1e-5,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, NDArray]:
-    """Return standardized unit cell and primitive cell."""
-    if isinstance(sym_dataset, SpglibDataset):
-        click.echo(
-            "Crystal structure was standardized based on space-group-type "
-            f"{sym_dataset.international}."
-        )
-    else:
-        click.echo(
-            "Crystal structure was standardized based on magnetic-space-group-type "
-            f"UNI No.{sym_dataset.uni_number}."
-        )
-    convcell = get_standardized_unitcell(sym_dataset)
-    pmat = get_primitive_matrix_from_dataset(sym_dataset)
-    if (np.abs(pmat - np.eye(3)) < 1e-8).all():
-        primitive = convcell
-    else:
-        primitive = get_primitive(convcell, primitive_matrix=pmat, symprec=tolerance)
-
-    return convcell, primitive, pmat
-
-
-def get_standardized_unitcell(
-    dataset: SpglibDataset | SpglibMagneticDataset,
-) -> PhonopyAtoms:
-    """Return conventional unit cell.
-
-    This conventional unit cell can include rigid rotation with respect to
-    input unit cell for which symmetry was analized.
-
-    Parameters
-    ----------
-    cell : PhonopyAtoms
-        Input cell.
-    dataset : SpgliDataset
-        Symmetry dataset of spglib.
-
-    Returns
-    -------
-    PhonopyAtoms
-        Convetional unit cell.
-
-    """
-    std_positions = dataset.std_positions
-    std_types = dataset.std_types
-    _, _, _, perm = sort_positions_by_symbols(std_types, std_positions)
-    atom_data = get_atomic_data().atom_data
-    if isinstance(dataset, SpglibDataset):
-        return PhonopyAtoms(
-            cell=dataset.std_lattice,
-            scaled_positions=std_positions[perm],
-            symbols=[atom_data[n][1] for n in std_types[perm]],
-        )
-    else:
-        return PhonopyAtoms(
-            cell=dataset.std_lattice,
-            scaled_positions=std_positions[perm],
-            symbols=[atom_data[n][1] for n in std_types[perm]],
-            magnetic_moments=dataset.std_tensors[perm],
-        )
 
 
 def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:

@@ -7,12 +7,9 @@ import pathlib
 import click
 import h5py
 import numpy as np
+from numpy.typing import NDArray
 
-from phelel.velph.cli.utils import (
-    get_distances_along_BZ_path,
-    get_reclat_from_vaspout,
-    get_special_points,
-)
+from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
 
 
 def plot_el_bandstructures(
@@ -48,14 +45,14 @@ def plot_el_bandstructures(
         )
     if "results" not in f_h5py_dos:
         raise ValueError(f"No electronic DOS results found in {vaspout_filename_dos}.")
-    if "electron_dos_kpoints_opt" in f_h5py_dos["results"]:
+    if "electron_dos_kpoints_opt" in f_h5py_dos["results"]:  # type: ignore
         f_h5py_dos_results = f_h5py_dos["results/electron_dos_kpoints_opt"]
-    elif "electron_dos" in f_h5py_dos["results"]:
+    elif "electron_dos" in f_h5py_dos["results"]:  # type: ignore
         f_h5py_dos_results = f_h5py_dos["results/electron_dos"]
     else:
         raise ValueError("No electron DOS data found in vaspout.h5.")
 
-    efermi = f_h5py_dos_results["efermi"][()]
+    efermi: float = f_h5py_dos_results["efermi"][()]  # type: ignore
     emin = window[0]
     emax = window[1]
     _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
@@ -64,8 +61,8 @@ def plot_el_bandstructures(
     reclat = get_reclat_from_vaspout(f_h5py_bands)
     distances, eigvals, points, labels_at_points = _get_bands_data(
         reclat,
-        f_h5py_bands["results/electron_eigenvalues_kpoints_opt"],
-        f_h5py_bands["input/kpoints_opt"],
+        f_h5py_bands["results/electron_eigenvalues_kpoints_opt"],  # type: ignore
+        f_h5py_bands["input/kpoints_opt"],  # type: ignore
     )
 
     lines = ["-k", "--k"]
@@ -81,7 +78,9 @@ def plot_el_bandstructures(
     ax0.set_ylabel("E[eV]", fontsize=14)
     ymin, ymax = ax0.get_ylim()
 
-    dos, energies, xmax = _get_dos_data(f_h5py_dos_results, ymin, ymax)
+    dos: NDArray = f_h5py_dos_results["dos"][:]  # type: ignore
+    energies: NDArray = f_h5py_dos_results["energies"][:]  # type: ignore
+    xmax = _get_dos_data(dos, energies, ymin, ymax)
 
     lines = ["-k", "--k"]
     for i, dos_spin in enumerate(dos):
@@ -104,32 +103,27 @@ def plot_el_bandstructures(
 
 
 def _get_bands_data(
-    reclat: np.ndarray, f_h5py_bands_results: h5py.Group, f_h5py_bands_input: h5py.Group
+    reclat: NDArray, f_h5py_bands_results: h5py.Group, f_h5py_bands_input: h5py.Group
 ):
-    eigvals = f_h5py_bands_results["eigenvalues"][:]
+    eigvals: NDArray = f_h5py_bands_results["eigenvalues"][:]  # type: ignore
 
     # k-points in reduced coordinates
-    kpoint_coords = f_h5py_bands_results["kpoint_coords"]
+    kpoint_coords: NDArray = f_h5py_bands_results["kpoint_coords"][:]  # type: ignore
     # Special point labels
     labels = [
-        label.decode("utf-8") for label in f_h5py_bands_input["labels_kpoints"][:]
+        label.decode("utf-8")
+        for label in f_h5py_bands_input["labels_kpoints"][:]  # type: ignore
     ]
-    nk_per_seg = f_h5py_bands_input["number_kpoints"][()]
-    nk_total = len(kpoint_coords)
-    k_cart = kpoint_coords @ reclat
-    n_segments = nk_total // nk_per_seg
-    assert n_segments * nk_per_seg == nk_total
-    distances = get_distances_along_BZ_path(nk_total, n_segments, nk_per_seg, k_cart)
-    points, labels_at_points = get_special_points(
-        labels, distances, n_segments, nk_per_seg, nk_total
+    nk_per_seg: int = f_h5py_bands_input["number_kpoints"][()]  # type: ignore
+
+    distances, points, labels_at_points = get_bands_data(
+        kpoint_coords, reclat, nk_per_seg, labels
     )
 
     return distances, eigvals, points, labels_at_points
 
 
-def _get_dos_data(f_h5py_dos_results: h5py.Group, ymin: float, ymax: float):
-    dos = f_h5py_dos_results["dos"][:]
-    energies = f_h5py_dos_results["energies"][:]
+def _get_dos_data(dos: NDArray, energies: NDArray, ymin: float, ymax: float) -> float:
     i_min = 0
     i_max = len(energies)
     for i, val in enumerate(energies):
@@ -154,4 +148,4 @@ def _get_dos_data(f_h5py_dos_results: h5py.Group, ymin: float, ymax: float):
         dos = np.where(dos > 10000, 0, dos)
         xmax = dos[:, i_min : i_max + 1].max() * 1.1
 
-    return dos, energies, xmax
+    return xmax
