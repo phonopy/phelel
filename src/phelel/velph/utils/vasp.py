@@ -576,8 +576,8 @@ def convert_ir_kpoints_from_VASP_to_phono3py(
     gps = get_grid_point_from_address(ir_addresss, bz_grid.D_diag)
     irgp = ir_grid_map[gps]
     id_map = np.array([np.where(irgp == gp)[0][0] for gp in ir_grid_points], dtype=int)
-    ir_kpoints_weights *= np.linalg.det(mesh)
-    assert (np.abs(ir_grid_weights - ir_kpoints_weights[id_map]) < 1e-8).all()
+    ir_kpoints_weights_vasp = ir_kpoints_weights * np.linalg.det(mesh)
+    assert (np.abs(ir_grid_weights - ir_kpoints_weights_vasp[id_map]) < 1e-8).all()
 
     return id_map, bz_grid, ir_grid_points, ir_grid_weights, ir_grid_map
 
