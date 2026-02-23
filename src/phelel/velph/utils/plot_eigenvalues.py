@@ -15,7 +15,7 @@ from phonopy.structure.cells import get_reduced_bases
 from scipy.spatial import Voronoi
 
 from phelel.velph.utils.structure import get_symmetry_dataset
-from phelel.velph.utils.vasp import read_crystal_structure_from_h5
+from phelel.velph.utils.vasp import read_crystal_structure_from_vaspout_h5
 
 if TYPE_CHECKING:
     from mpl_toolkits.mplot3d import Axes3D
@@ -145,7 +145,7 @@ def _plot_eigenvalues(
         Chemical potential in eV. If None, the Fermi energy.
 
     """
-    cell = read_crystal_structure_from_h5(f_h5py, "results/positions")
+    cell = read_crystal_structure_from_vaspout_h5(f_h5py, "results/positions")
     sym_dataset = get_symmetry_dataset(cell)
     rotations = [r.T for r in sym_dataset.rotations]
 
@@ -282,8 +282,8 @@ def _get_ax_3D() -> Axes3D:
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1, projection="3d")
     ax.grid(False)
-    ax.set_box_aspect([1, 1, 1])
-    return ax
+    ax.set_box_aspect([1, 1, 1])  # type: ignore
+    return ax  # type: ignore
 
 
 def _plot_Brillouin_zone(bz_lattice: NDArray, ax: Axes3D):

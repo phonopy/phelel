@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import click
 import h5py
+from numpy.typing import NDArray
+
+from phelel.velph.utils.vasp import read_freqs_and_ph_gammas_from_vaspout_h5
+
+if TYPE_CHECKING:
+    import matplotlib.axes as axes
 
 
 def plot_selfenergy(
@@ -27,32 +34,37 @@ def plot_selfenergy(
     """
     import matplotlib.pyplot as plt
 
-    selfens = {}
-    f_elph = f_h5py["results/electron_phonon/phonons"]
-    for key in f_elph:  # type: ignore
-        if "self_energy_" in key:
-            index = key.split("_")[-1]
-            if index.isdigit():
-                selfens[int(index)] = f_elph[key]  # type: ignore
-
-    assert len(selfens) == int(
-        f_h5py["results/electron_phonon/electrons/self_energy_meta/ncalculators"][()]  # type: ignore
+    freqs_calcs, gammas_calcs, temps_calcs, indices = (
+        read_freqs_and_ph_gammas_from_vaspout_h5(f_h5py)
     )
 
-    if len(selfens) == 1:
-        fig, axs = plt.subplots(1, 1, figsize=(4, 4))
+    n_temp = len(temps_calcs[0])
+    n_spin = gammas_calcs[0].shape[0]
+    n_plots = len(gammas_calcs) * n_spin * n_temp
+    if n_plots == 1:
+        _, axs = plt.subplots(1, 1, figsize=(4, 4))
     else:
-        nrows = len(selfens) // 2
-        fig, axs = plt.subplots(nrows, 2, figsize=(8, 4 * nrows), squeeze=True)
+        nrows = n_plots
+        _, axs = plt.subplots(nrows, 1, figsize=(4, 4 * nrows), squeeze=True)
 
-    for i in range(len(selfens)):
-        selfen = selfens[i + 1]
-        if len(selfens) == 1:
-            _axs = axs
-        else:
-            _axs = axs[i]  # type: ignore
-        _plot(_axs, selfen)
-        _axs.set_yscale("log")
+    i_plot = 0
+    for i, (gammas, freqs, temps) in enumerate(
+        zip(gammas_calcs, freqs_calcs, temps_calcs, strict=True)
+    ):
+        for i_spin, gammas_at_spin in enumerate(gammas):
+            for i_temp, temp in enumerate(temps):
+                gammas_at_spin_temp = gammas_at_spin[:, :, :, i_temp]
+                if len(gammas_calcs) * n_spin * n_temp == 1:
+                    ax = axs
+                else:
+                    ax = axs[i_plot]  # type: ignore
+                    i_plot += 1
+                _plot(ax, gammas_at_spin_temp, freqs)
+                ax.set_yscale("log")
+                ax.set_title(
+                    f"$\\tau^{{-1}}$ vs $\\omega$ at T={temp}K spn={i_spin} "
+                    f"({indices[i]}) in 2$\\pi$THz"
+                )
 
     plt.tight_layout()
     if save_plot:
@@ -64,11 +76,8 @@ def plot_selfenergy(
     plt.close()
 
 
-def _plot(ax, selfen):
-    for i_nw in range(selfen["nw"][()]):
-        for selfen_at_T in -selfen["selfen_bubble"][:, i_nw, :, 1].T:
-            ax.plot(
-                selfen["energies"][:, i_nw],
-                selfen_at_T,
-                ".",
-            )
+def _plot(ax: axes.Axes, gammas: NDArray, freqs: NDArray):
+    nw = gammas.shape[2]
+    for i_nw in range(nw):
+        for gammas_at_band, freqs_at_band in zip(gammas, freqs.T, strict=True):
+            ax.plot(freqs_at_band, gammas_at_band[:, i_nw], ".")

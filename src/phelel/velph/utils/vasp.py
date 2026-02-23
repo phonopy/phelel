@@ -12,6 +12,7 @@ import numpy as np
 import spglib
 from numpy.typing import NDArray
 from phono3py.phonon.grid import BZGrid, get_grid_point_from_address, get_ir_grid_points
+from phonopy.physical_units import get_physical_units
 from phonopy.structure.cells import PhonopyAtoms
 from spglib import SpgCell
 
@@ -502,7 +503,9 @@ def read_magmom(magmom: str) -> list[float] | None:
     return VaspIncar().expand(magmom.strip())
 
 
-def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> PhonopyAtoms:
+def read_crystal_structure_from_vaspout_h5(
+    f_vaspout_h5: h5py.File, group: str
+) -> PhonopyAtoms:
     """Read crystal structure from vaspout.h5."""
     direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])  # type: ignore
     scale = f_vaspout_h5[f"{group}/scale"][()]  # type: ignore
@@ -577,3 +580,54 @@ def convert_ir_kpoints_from_VASP_to_phono3py(
     assert (np.abs(ir_grid_weights - ir_kpoints_weights[id_map]) < 1e-8).all()
 
     return id_map, bz_grid, ir_grid_points, ir_grid_weights, ir_grid_map
+
+
+def read_freqs_and_ph_gammas_from_vaspout_h5(
+    f_h5py: h5py.File,
+) -> tuple[list[NDArray], list[NDArray], list[NDArray], list[int]]:
+    """Read phonon frequencies and phonon full-linewidths from vaspout.h5.
+
+    Returns
+    -------
+    freqs_calcs : list[np.ndarray]
+        List of phonon frequencies for each self-energy calculation in 2piTHz.
+        [[ikpt, ib], ...]
+    gammas_calcs : list[np.ndarray]
+        List of imaginary part of phonon self-energies for each self-energy
+        calculation in 2piTHz. Positive sign is chosen.
+        [[ispin, ib, ikpt , nw, temp], ...]
+    indices : list[int]
+        List of self-energy calculation indices. [1, 2, ...] for self_energy_1,
+        self_energy_2, ...
+
+    """
+    THzToEv = get_physical_units().THzToEv
+
+    f_elph = f_h5py["results/electron_phonon/phonons"]
+    indices = []
+    for key in f_elph:  # type: ignore
+        if "self_energy_" in key:
+            # self_energy_1, self_energy_2, ...
+            index = key.split("_")[-1]
+            if index.isdigit():
+                indices.append(int(index))
+
+    gammas_calcs = []
+    freqs_calcs = []
+    temps_calcs = []
+    for index in sorted(indices):
+        selfen = f_elph[f"self_energy_{index}"]  # type: ignore
+        # Imag part of self-energy [ispin, ib, ikpt , nw, temp] in eV
+        selfen_ph: NDArray = selfen["selfen_ph"][:, :, :, :, :, 1]  # type: ignore
+        # [ikpt, ib] in 2piTHz
+        freqs: NDArray = selfen["phonon_freqs_ibz"][:, :]  # type: ignore
+        temps: NDArray = selfen["temps"][:]  # type: ignore
+        gammas_calcs.append(-selfen_ph / (THzToEv / (2 * np.pi)))
+        freqs_calcs.append(freqs)
+        temps_calcs.append(temps)
+
+    assert len(gammas_calcs) == int(
+        f_h5py["results/electron_phonon/electrons/self_energy_meta/ncalculators"][()]  # type: ignore
+    )
+
+    return freqs_calcs, gammas_calcs, temps_calcs, indices
