@@ -87,6 +87,8 @@ def cmd_dump_phono3py(vaspout_filename: str, output_filename: str):
             read_freqs_and_ph_gammas_from_vaspout_h5(f)
         )
         with h5py.File(output_filename, "w") as f_out:
+            f_out.create_dataset("qpoint", data=ir_kpoints)
+            f_out.create_dataset("weight", data=weights)
             for i, freqs, gammas, temps in zip(
                 indices, freqs_calcs, gammas_calcs, temps_calcs, strict=True
             ):
@@ -97,8 +99,6 @@ def cmd_dump_phono3py(vaspout_filename: str, output_filename: str):
                 f_out.create_dataset(f"frequency_{i}", data=_freqs)
                 f_out.create_dataset(f"gamma_{i}", data=_gammas)
                 f_out.create_dataset(f"temperature_{i}", data=temps)
-                f_out.create_dataset("qpoint", data=ir_kpoints)
-                f_out.create_dataset("weight", data=weights)
 
             click.echo(f'Dumped ph_selfenergy data to "{output_filename}".')
 
