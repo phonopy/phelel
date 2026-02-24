@@ -13,7 +13,12 @@ from phelel.velph.utils.vasp import (
 
 
 def dump_phono3py(vaspout_filename: str, output_filename: str):
-    """Dump phono3py input files from vaspout.h5."""
+    """Dump phono3py input files from vaspout.h5.
+
+    gammas: [ispin, ib, ikpt , nw, temp] -> [ispin, temp, ikpt, ib]
+    freqs: [ikpt, ib] -> [ikpt, ib]
+
+    """
     with h5py.File(vaspout_filename, "r") as f:
         id_map, ir_kpoints, weights, bz_grid = _collect_data_from_vaspout(f)
         freqs_calcs, gammas_calcs, temps_calcs, indices = (

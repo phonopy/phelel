@@ -69,12 +69,7 @@ def cmd_check_fft(toml_filename: str):
 )
 @click.help_option("-h", "--help")
 def cmd_dump_phono3py(vaspout_filename: str, output_filename: str):
-    """Dump ph_selfenergy data to HDF5 file.
-
-    gammas: [ispin, ib, ikpt , nw, temp] -> [ispin, temp, ikpt, ib]
-    freqs: [ikpt, ib] -> [ikpt, ib]
-
-    """
+    """Dump ph_selfenergy data to HDF5 file."""
     dump_phono3py(vaspout_filename, output_filename)
 
 
