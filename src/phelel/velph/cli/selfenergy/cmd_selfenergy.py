@@ -17,9 +17,9 @@ def cmd_selfenergy():
 
 
 @cmd_selfenergy.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
@@ -41,9 +41,9 @@ def cmd_generate(toml_filename: str, dry_run: bool):
 
 
 @cmd_selfenergy.command("check-fft")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )

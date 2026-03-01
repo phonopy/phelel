@@ -24,7 +24,10 @@ def dump_phono3py(vaspout_filename: str, output_filename: str):
         freqs_calcs, gammas_calcs, temps_calcs, indices = (
             read_freqs_and_ph_gammas_from_vaspout_h5(f)
         )
-        with h5py.File(output_filename, "w") as f_out:
+        _output_filename = output_filename.format(
+            mesh="-m" + "".join(map(str, bz_grid.D_diag))
+        )
+        with h5py.File(_output_filename, "w") as f_out:
             f_out.create_dataset("qpoint", data=ir_kpoints)
             f_out.create_dataset("weight", data=weights)
             f_out.create_dataset("mesh", data=bz_grid.D_diag)
@@ -38,8 +41,9 @@ def dump_phono3py(vaspout_filename: str, output_filename: str):
                 f_out.create_dataset(f"frequency_{i}", data=_freqs)
                 f_out.create_dataset(f"gamma_{i}", data=_gammas)
                 f_out.create_dataset(f"temperature_{i}", data=temps)
+                click.echo(f"calc-{i} temperatures: {temps}")
 
-            click.echo(f'Dumped ph_selfenergy data to "{output_filename}".')
+            click.echo(f'Dumped ph_selfenergy data to "{_output_filename}".')
 
 
 def _collect_data_from_vaspout(

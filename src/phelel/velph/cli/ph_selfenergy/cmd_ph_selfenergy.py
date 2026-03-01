@@ -18,9 +18,9 @@ def cmd_ph_selfenergy():
 
 
 @cmd_ph_selfenergy.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
@@ -42,9 +42,9 @@ def cmd_generate(toml_filename: str, dry_run: bool):
 
 
 @cmd_ph_selfenergy.command("check-fft")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
@@ -55,17 +55,21 @@ def cmd_check_fft(toml_filename: str):
 
 
 @cmd_ph_selfenergy.command("dump_phono3py")
-@click.argument(
+@click.option(
+    "--vaspout-filename",
     "vaspout_filename",
-    nargs=1,
     type=click.Path(),
     default="ph_selfenergy/vaspout.h5",
 )
-@click.argument(
+@click.option(
+    "--output-filename",
     "output_filename",
-    nargs=1,
     type=click.Path(),
-    default="ph_selfenergy/phono3py_elph.hdf5",
+    default="ph_selfenergy/gamma-elph{mesh}.hdf5",
+    help=(
+        'Output filename. Default is "ph_selfenergy/gamma_elph{mesh}.hdf5". '
+        '{mesh} will be replaced by the mesh size, e.g. "-m202020".'
+    ),
 )
 @click.help_option("-h", "--help")
 def cmd_dump_phono3py(vaspout_filename: str, output_filename: str):
