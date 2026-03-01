@@ -65,7 +65,7 @@ def cmd_check_fft(toml_filename: str):
     "--output-filename",
     "output_filename",
     type=click.Path(),
-    default="ph_selfenergy/gamma-elph{mesh}.hdf5",
+    default="ph_selfenergy/gamma_elph{mesh}.hdf5",
     help=(
         'Output filename. Default is "ph_selfenergy/gamma_elph{mesh}.hdf5". '
         '{mesh} will be replaced by the mesh size, e.g. "-m202020".'
