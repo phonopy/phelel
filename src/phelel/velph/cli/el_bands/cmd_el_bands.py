@@ -26,9 +26,9 @@ def cmd_el_bands():
 # velph el_bands generate
 #
 @cmd_el_bands.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
@@ -75,9 +75,9 @@ def cmd_plot(window: tuple[float, float], save_plot: bool):
 
 
 @cmd_el_bands.command("plot_eigenvalues")
-@click.argument(
+@click.option(
+    "--vaspout-filename",
     "vaspout_filename",
-    nargs=1,
     type=click.Path(),
     default="el_bands/dos/vaspout.h5",
 )

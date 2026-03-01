@@ -19,7 +19,6 @@ from phelel.velph.cli.cmd_root import cmd_root
 @click.option(
     "-f",
     "toml_filename",
-    nargs=1,
     type=click.Path(exists=True),
     default="velph.toml",
     show_default=True,
@@ -27,7 +26,7 @@ from phelel.velph.cli.cmd_root import cmd_root
 )
 @click.option(
     "--prefix",
-    nargs=1,
+    "prefix",
     type=click.Path(),
     default="POSCAR",
     show_default=True,

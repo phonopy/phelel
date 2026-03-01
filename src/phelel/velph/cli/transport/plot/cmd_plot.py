@@ -25,9 +25,9 @@ def cmd_plot():
 
 
 @cmd_plot.command("selfenergy")
-@click.argument(
+@click.option(
+    "--vaspout-filename",
     "vaspout_filename",
-    nargs=1,
     type=click.Path(),
     default="transport/vaspout.h5",
 )
@@ -54,9 +54,9 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
 
 
 @cmd_plot.command("transport")
-@click.argument(
+@click.option(
+    "--vaspout-filename",
     "vaspout_filename",
-    nargs=1,
     type=click.Path(),
     default="transport/vaspout.h5",
 )
@@ -65,7 +65,7 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     "save_plot",
     is_flag=bool,
     default=False,
-    help=("Save plot to file."),
+    help="Save plot to file.",
 )
 @click.help_option("-h", "--help")
 def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
@@ -83,15 +83,15 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
 
 
 @cmd_plot.command("eigenvalues")
-@click.argument(
+@click.option(
+    "--vaspout-filename",
     "vaspout_filename",
-    nargs=1,
     type=click.Path(),
     default="transport/vaspout.h5",
 )
 @click.option(
     "--tid",
-    nargs=1,
+    "tid",
     type=int,
     default=None,
     help=(
@@ -101,7 +101,7 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
 )
 @click.option(
     "--calcid",
-    nargs=1,
+    "calcid",
     type=int,
     default=None,
     help=(

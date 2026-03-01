@@ -24,16 +24,15 @@ def cmd_phono3py():
 # velph phono3py init
 #
 @cmd_phono3py.command("init")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
 @click.option(
     "--rd",
     "random_displacements",
-    nargs=1,
     default=None,
     type=int,
     help="Number of snapshots of supercells with random directional displacement.",
@@ -68,9 +67,9 @@ def cmd_init(
 # velph phono3py generate
 #
 @cmd_phono3py.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )

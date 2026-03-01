@@ -25,11 +25,19 @@ from phelel.velph.utils.vasp import VaspPotcar
 # velph init
 #
 @cmd_root.command("init")
-@click.argument("cell_filename", nargs=1, type=click.Path())
-@click.argument("project_folder", nargs=1, type=click.Path())
+@click.argument(
+    "cell_filename",
+    nargs=1,
+    type=click.Path(),
+)
+@click.argument(
+    "project_folder",
+    nargs=1,
+    type=click.Path(),
+)
 @click.option(
     "--amplitude",
-    nargs=1,
+    "amplitude",
     type=float,
     default=None,
     help=(
@@ -92,7 +100,6 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--kspacing",
     "kspacing",
-    nargs=1,
     type=float,
     default=None,
     help=(
@@ -103,7 +110,6 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--kspacing-dense",
     "kspacing_dense",
-    nargs=1,
     type=float,
     default=None,
     help=(
@@ -124,7 +130,6 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--max-num-atoms",
     "max_num_atoms",
-    nargs=1,
     default=None,
     type=int,
     help=(
@@ -200,7 +205,6 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--template-toml",
     "template_toml_filename",
-    nargs=1,
     type=click.Path(),
     default=None,
     help=(
@@ -211,7 +215,6 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--tolerance",
     "tolerance",
-    nargs=1,
     type=float,
     default=None,
     help=(
@@ -222,7 +225,6 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default=None,
     help="File name of velph.toml type file to be created.",

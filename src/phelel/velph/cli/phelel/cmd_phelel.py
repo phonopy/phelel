@@ -28,16 +28,11 @@ def cmd_phelel():
 # velph phelel init
 #
 @cmd_phelel.command("init")
-@click.argument("toml_filename", nargs=1, type=click.Path(), default="velph.toml")
 @click.option(
-    "--dir-name",
-    "dir_name",
-    type=str,
-    default="phelel",
-    help=(
-        'Used for backward compatibility, for which set "supercell". '
-        '(dir_name: str, default="phelel")'
-    ),
+    "--toml-filename",
+    "toml_filename",
+    type=click.Path(),
+    default="velph.toml",
 )
 @click.help_option("-h", "--help")
 def cmd_init(toml_filename: str, dir_name: str):
@@ -64,16 +59,11 @@ def cmd_init(toml_filename: str, dir_name: str):
 # velph phelel generate
 #
 @cmd_phelel.command("generate")
-@click.argument("toml_filename", nargs=1, type=click.Path(), default="velph.toml")
 @click.option(
-    "--dir-name",
-    "dir_name",
-    type=str,
-    default="phelel",
-    help=(
-        'Used for backward compatibility, for which set "supercell". '
-        '(phelel_dirname: str, default="phelel")'
-    ),
+    "--toml-filename",
+    "toml_filename",
+    type=click.Path(),
+    default="velph.toml",
 )
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str, dir_name: str):
@@ -91,20 +81,14 @@ def cmd_generate(toml_filename: str, dir_name: str):
 # velph supercell differentiate
 #
 @cmd_phelel.command("differentiate")
-@click.argument("toml_filename", nargs=1, type=click.Path(), default="velph.toml")
 @click.option(
-    "--dir-name",
-    "dir_name",
-    type=str,
-    default="phelel",
-    help=(
-        'Used for backward compatibility, for which set "supercell". '
-        '(phelel_dirname: str, default="phelel")'
-    ),
+    "--toml-filename",
+    "toml_filename",
+    type=click.Path(),
+    default="velph.toml",
 )
 @click.option(
     "--encut",
-    nargs=1,
     type=float,
     default=None,
     help=(
@@ -182,16 +166,11 @@ def cmd_differentiate(
 # velph phelel phonopy
 #
 @cmd_phelel.command("phonopy")
-@click.argument("toml_filename", nargs=1, type=click.Path(), default="velph.toml")
 @click.option(
-    "--dir-name",
-    "dir_name",
-    type=str,
-    default="phelel",
-    help=(
-        'Used for backward compatibility, for which set "supercell". '
-        '(phelel_dirname: str, default="phelel")'
-    ),
+    "--toml-filename",
+    "toml_filename",
+    type=click.Path(),
+    default="velph.toml",
 )
 @click.help_option("-h", "--help")
 def cmd_phonopy(toml_filename: str, dir_name: str):

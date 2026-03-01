@@ -18,9 +18,9 @@ def cmd_nac():
 
 
 @cmd_nac.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
