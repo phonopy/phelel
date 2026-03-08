@@ -9,11 +9,11 @@ import tomli
 
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
-from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.phelel.differentiate import run_derivatives
 from phelel.velph.cli.phelel.generate import write_supercell_input_files
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
+from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 

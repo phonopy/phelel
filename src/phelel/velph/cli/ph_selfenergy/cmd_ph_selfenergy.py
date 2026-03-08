@@ -4,10 +4,10 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.ph_selfenergy.dump_phono3py import dump_phono3py
 from phelel.velph.cli.selfenergy.generate import write_selfenergy_input_files
 from phelel.velph.cli.utils import check_fft
+from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 @cmd_root.group("ph_selfenergy")
