@@ -120,7 +120,7 @@ class PhelelYamlLoader(PhonopyYamlLoader):
             )
         if "phonon_supercell_matrix" in self._yaml:
             self._data.phonon_supercell_matrix = np.array(
-                self._yaml["phonon_supercell_matrix"], dtype="intc", order="C"
+                self._yaml["phonon_supercell_matrix"], dtype="int64", order="C"
             )
 
     def _parse_phonon_dataset(self):
@@ -292,7 +292,7 @@ class PhelelYaml(PhonopyYaml):
     @phonon_supercell_matrix.setter
     def phonon_supercell_matrix(self, value: ArrayLike):
         """Set supercell matrix of phonopy calculation."""
-        self._data.phonon_supercell_matrix = np.array(value, dtype="intc", order="C")
+        self._data.phonon_supercell_matrix = np.array(value, dtype="int64", order="C")
 
     def __str__(self):
         """Return string text of yaml output."""

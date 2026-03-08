@@ -12,8 +12,8 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "phonopy >= 2.48.0",
-    "phono3py >= 3.25.0",
+    "phonopy >= 3.0.1",
+    "phono3py >= 3.27.1",
     "spglib >= 2.5.0",
     "finufft",
     "click",
@@ -25,7 +25,7 @@ license = {file = "LICENSE"}
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
 phelel-load = "phelel.scripts.phelel_load:run"
-velph = "phelel.velph.cli:cmd_root"
+velph = "phelel.velph.cli.cmd_root:cmd_root"
 
 [tool.setuptools.dynamic]
 version = { attr = "phelel.version.__version__" }

@@ -7,7 +7,7 @@ import dataclasses
 import io
 import os
 import typing
-from typing import Literal
+from typing import Literal, get_args
 
 import click
 import numpy as np
@@ -35,14 +35,35 @@ from phelel.velph.cli.utils import (
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
+)
+from phelel.velph.templates import default_template_dict
+from phelel.velph.utils.structure import (
     generate_standardized_cells,
     get_primitive_cell,
     get_reduced_cell,
     get_symmetry_dataset,
 )
-from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar
 from phelel.version import __version__
+
+SupercellCalcType = Literal["phelel", "phonopy", "phono3py"]
+SUPERCELL_CALC_TYPES = get_args(SupercellCalcType)
+
+
+@dataclasses.dataclass
+class SupercellMatrices:
+    """Supercell matrices for phelel, phonopy and phono3py."""
+
+    phelel: NDArray | None = None
+    phonopy: NDArray | None = None
+    phono3py: NDArray | None = None
+
+
+assert set(SUPERCELL_CALC_TYPES) == set(
+    [f.name for f in dataclasses.fields(SupercellMatrices)]
+)
+
+ELPH_CALC_TYPES = ["selfenergy", "transport", "ph_selfenergy"]
 
 
 def run_init(
@@ -105,7 +126,7 @@ def _run_init(
         Input crystal structure.
     cmd_init_options : VelphInitOptions
         Parameters provided by velph-init command options.
-    velph_template_fp : str, os.PathLike, io.IOBase, or None
+    velph_template_fp : str, os.PathLike, typing.IO., or None
         velph toml template path. The parameter in str, bytes, or os.PathLike
         represents file name.
     template_toml_filepath : str, os.PathLike
@@ -208,7 +229,7 @@ def _get_supercell_matrix(
     vip: VelphInitParams,
     velph_dict: dict,
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    calc_type: Literal["phelel", "phonopy", "phono3py"],
+    calc_type: SupercellCalcType,
 ) -> NDArray | None:
     displacement_options = vip[f"{calc_type}_displacement_options"]
     if displacement_options is None:
@@ -530,6 +551,20 @@ def _get_cells(
         click.echo(f"  Reference space-group-type: {spg_type.international_short}")
 
     if symmetrize_cell:
+        if isinstance(sym_dataset, SpglibDataset):
+            click.echo(
+                "Crystal structure was standardized based on space-group-type "
+                f"{sym_dataset.international}."
+            )
+        elif isinstance(sym_dataset, SpglibMagneticDataset):
+            click.echo(
+                "Crystal structure was standardized based on magnetic-space-group-type "
+                f"UNI No.{sym_dataset.uni_number}."
+            )
+        else:
+            raise ValueError(
+                "sym_dataset must be SpglibDataset or SpglibMagneticDataset."
+            )
         unitcell, _primitive, tmat = generate_standardized_cells(
             sym_dataset, tolerance=tolerance
         )
@@ -656,7 +691,7 @@ def _get_kpoints_dict(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    supercell_matrices: SupercellMatrices,
     cell_choices: dict[str, CellChoice],
 ) -> tuple[
     dict[str, KpointsData],
@@ -704,10 +739,9 @@ def _get_supercell_matrices(
     vip: VelphInitParams,
     velph_dict: dict,
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
-) -> dict[Literal["phelel", "phonopy", "phono3py"], NDArray]:
+) -> SupercellMatrices:
     supercell_matrices = {}
-    for calc_type in supercell_calc_types:
+    for calc_type in SUPERCELL_CALC_TYPES:
         supercell_matrices[calc_type] = _get_supercell_matrix(
             vip,
             velph_dict,
@@ -717,7 +751,7 @@ def _get_supercell_matrices(
         click.echo(f"[{calc_type}]")
         if supercell_matrices[calc_type] is not None:
             _show_supercell_dimension(supercell_matrices[calc_type])
-    return supercell_matrices
+    return SupercellMatrices(**supercell_matrices)
 
 
 def _update_velph_dict_by_template_dict(velph_dict: dict, template_dict: dict):
@@ -792,7 +826,7 @@ def _get_toml_lines(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     cell_choices: dict,
-    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    supercell_matrices: SupercellMatrices,
     kpoints_dict: dict[str, KpointsData],
     kpoints_dense_dict: dict[str, KpointsData],
     qpoints_dict: dict[str, KpointsData],
@@ -811,7 +845,7 @@ def _get_toml_lines(
     if "phelel" in velph_dict:
         lines += _get_phelel_lines(
             velph_dict,
-            supercell_matrices["phelel"],
+            supercell_matrices.phelel,
             primitive,
             vip.displacement_options.amplitude,
             vip.displacement_options.diagonal,
@@ -824,9 +858,10 @@ def _get_toml_lines(
         displacement_options = vip[f"{calc_type}_displacement_options"]
         if displacement_options is None:
             displacement_options = vip.displacement_options
-        if supercell_matrices[calc_type] is not None:
+        smat = getattr(supercell_matrices, calc_type)
+        if smat is not None:
             lines += [f"[{calc_type}]"]
-            lines += _get_supercell_matrix_lines(supercell_matrices[calc_type])
+            lines += _get_supercell_matrix_lines(smat)
             lines += _get_displacement_settings_lines(
                 velph_dict,
                 calc_type,
@@ -940,10 +975,9 @@ def _get_kpoints_dict_by_kspacing(
     unitcell: PhonopyAtoms,
     primitive: PhonopyAtoms,
     sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    supercell_matrices: dict[Literal["phelel", "phonopy", "phono3py"], NDArray],
+    supercell_matrices: SupercellMatrices,
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> tuple[
     dict[str, KpointsData],
     dict[str, KpointsData],
@@ -962,9 +996,10 @@ def _get_kpoints_dict_by_kspacing(
 
     # Grid matrix for supercell
     supercell_grid_matrices = {}
-    for calc_type in supercell_calc_types:
-        if supercell_matrices[calc_type] is not None:
-            _supercell = get_supercell(unitcell, supercell_matrices[calc_type])
+    for calc_type in SUPERCELL_CALC_TYPES:
+        smat = getattr(supercell_matrices, calc_type)
+        if smat is not None:
+            _supercell = get_supercell(unitcell, smat)
             _sym_dataset = get_symmetry_dataset(_supercell, tolerance=vip_tolerance)
             supercell_grid_matrices[calc_type] = _get_grid_matrix(
                 vip_kspacing,
@@ -991,8 +1026,8 @@ def _get_kpoints_dict_by_kspacing(
     kpoints_dense_dict = _get_kpoints_by_kspacing_dense(
         gm_dense_prim, with_phelel=("phelel" in kpoints_dict)
     )
-    qpoints_dict: dict = {}
-    kpoints_opt_dict: dict = {"el_bands.band": KpointsData(line=51)}
+    qpoints_dict: dict = {"ph_bands": KpointsData(line=51)}  # ph_bands
+    kpoints_opt_dict: dict = {"el_bands.bands": KpointsData(line=51)}  # el_bands.bands
 
     return kpoints_dict, kpoints_dense_dict, qpoints_dict, kpoints_opt_dict
 
@@ -1028,6 +1063,146 @@ def _get_grid_matrix(
     return gm
 
 
+def _get_kpoints_by_kspacing(
+    gm: GridMatrix,
+    gm_prim: GridMatrix,
+    supercell_grid_matrices: dict[SupercellCalcType, GridMatrix],
+    cell_for_nac: CellChoice,
+    cell_for_relax: CellChoice,
+) -> dict[str, KpointsData]:
+    """Return kpoints dict.
+
+    Parameters
+    ----------
+    gm : GridMatrix
+        Grid matrix of unit cell.
+    gm_prim : GridMatrix
+        Grid matrix of primitive cell. The primitive cell can be a reduced cell.
+    supercell_grid_matrices : dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix]
+        Grid matrices of phelel, phonopy, and phono3py supercells.
+    cell_for_nac : CellChoice
+        Cell choice for NAC calculation among unit cell or primitive cell. The
+        primitive cell can be a reduced cell.
+    cell_for_relax : CellChoice
+        Cell choice for relax calculation among unit cell or primitive cell. The
+        primitive cell can be a reduced cell.
+
+    Returns
+    -------
+    dict
+        kpoints information for each calculation type is stored. The keys must
+        be calc_type names such as "phelel", "phelel.phonon", "selfenergy", etc.
+
+    """
+    kpoints_of_supercells = {}
+    for calc_type in SUPERCELL_CALC_TYPES:
+        gm_super = supercell_grid_matrices[calc_type]
+        if gm_super is not None:
+            if gm_super.grid_matrix is None:
+                kpoints_of_supercells[calc_type] = KpointsData(mesh=gm_super.D_diag)
+            else:
+                kpoints_of_supercells[calc_type] = KpointsData(
+                    mesh=gm_super.grid_matrix, D_diag=gm_super.D_diag
+                )
+        else:
+            kpoints_of_supercells[calc_type] = None
+
+    if gm_prim.grid_matrix is None:
+        elph_kpoints = KpointsData(mesh=gm_prim.D_diag)
+        el_bands_kpoints = KpointsData(mesh=gm_prim.D_diag)
+    else:
+        elph_kpoints = KpointsData(mesh=gm_prim.grid_matrix, D_diag=gm_prim.D_diag)
+        el_bands_kpoints = KpointsData(mesh=gm_prim.grid_matrix, D_diag=gm_prim.D_diag)
+    ph_bands_kpoints = KpointsData(mesh=np.array([1, 1, 1], dtype="int64"))
+    # Remove elph_kpoints setting when kpoints for "phelel" is not set.
+    if kpoints_of_supercells["phelel"] is None:
+        elph_kpoints = None
+        ph_bands_kpoints = None
+
+    # nac
+    if cell_for_nac is CellChoice.UNITCELL:
+        gm_nac = gm
+    elif cell_for_nac is CellChoice.PRIMITIVE:
+        gm_nac = gm_prim
+    else:
+        raise RuntimeError("This is something that sholud not happen.")
+    if gm_nac.grid_matrix is None:
+        nac_kpoints = KpointsData(mesh=gm_nac.D_diag)
+    else:
+        nac_kpoints = KpointsData(mesh=gm_nac.grid_matrix, D_diag=gm_nac.D_diag)
+
+    # relax
+    if cell_for_relax is CellChoice.UNITCELL:
+        gm_relax = gm
+    elif cell_for_relax is CellChoice.PRIMITIVE:
+        gm_relax = gm_prim
+    else:
+        raise RuntimeError("This is something that sholud not happen.")
+    if gm_relax.grid_matrix is None:
+        relax_kpoints = KpointsData(mesh=gm_relax.D_diag)
+    else:
+        relax_kpoints = KpointsData(mesh=gm_relax.grid_matrix, D_diag=gm_relax.D_diag)
+
+    # keys are calc_types.
+    kpoints_dict = {
+        "phelel": kpoints_of_supercells["phelel"],
+        "phonopy": kpoints_of_supercells["phonopy"],
+        "phono3py": kpoints_of_supercells["phono3py"],
+        "relax": relax_kpoints,
+        "nac": nac_kpoints,
+        "el_bands.dos": el_bands_kpoints,
+        "el_bands.bands": el_bands_kpoints,
+        "ph_bands": ph_bands_kpoints,
+        "selfenergy": elph_kpoints,
+        "transport": elph_kpoints,
+        "ph_selfenergy": elph_kpoints,
+    }
+
+    # Remove entries with None value.
+    return_kpoints_dict = {}
+    for key, val in kpoints_dict.items():
+        if val is not None:
+            return_kpoints_dict[key] = val
+
+    return return_kpoints_dict
+
+
+def _get_kpoints_by_kspacing_dense(
+    gm_dense_prim: GridMatrix, with_phelel: bool = True
+) -> dict[str, KpointsData]:
+    """Return kpoints dict of dense grid.
+
+    Returns
+    -------
+    dict
+        kpoints information for each calculation type is stored. The keys must
+        be calc_type names such as "selfenergy", etc.
+
+    """
+    if gm_dense_prim.grid_matrix is None:
+        elph_kpoints_dense = KpointsData(mesh=gm_dense_prim.D_diag)
+        el_bands_kpoints_dense = KpointsData(mesh=gm_dense_prim.D_diag)
+    else:
+        elph_kpoints_dense = KpointsData(
+            mesh=gm_dense_prim.grid_matrix, D_diag=gm_dense_prim.D_diag
+        )
+        el_bands_kpoints_dense = KpointsData(
+            mesh=gm_dense_prim.grid_matrix, D_diag=gm_dense_prim.D_diag
+        )
+
+    if with_phelel:
+        return {
+            "selfenergy": elph_kpoints_dense,
+            "transport": elph_kpoints_dense,
+            "ph_selfenergy": elph_kpoints_dense,
+            "el_bands.dos": el_bands_kpoints_dense,
+        }
+    else:
+        return {
+            "el_bands.dos": el_bands_kpoints_dense,
+        }
+
+
 def _update_kpoints_by_vasp_dict(
     kpoints_dict: dict[str, KpointsData],
     kpoints_dense_dict: dict[str, KpointsData],
@@ -1042,13 +1217,13 @@ def _update_kpoints_by_vasp_dict(
 
     """
     for key, calc_type_dict in vasp_dict.items():
-        if "kpoints" in calc_type_dict:
+        if key in kpoints_dict and "kpoints" in calc_type_dict:
             kpoints_dict[key] = KpointsData(**calc_type_dict["kpoints"])
-        if "kpoints_dense" in calc_type_dict:
+        if key in kpoints_dense_dict and "kpoints_dense" in calc_type_dict:
             kpoints_dense_dict[key] = KpointsData(**calc_type_dict["kpoints_dense"])
-        if "qpoints" in calc_type_dict:
+        if key in qpoints_dict and "qpoints" in calc_type_dict:
             qpoints_dict[key] = KpointsData(**calc_type_dict["qpoints"])
-        if "kpoints_opt" in calc_type_dict:
+        if key in kpoints_opt_dict and "kpoints_opt" in calc_type_dict:
             kpoints_opt_dict[key] = KpointsData(**calc_type_dict["kpoints_opt"])
 
 
@@ -1098,148 +1273,6 @@ def _show_kpoints_lines(
         click.echo("\n".join(k_mesh_lines))
 
 
-def _get_kpoints_by_kspacing(
-    gm: GridMatrix,
-    gm_prim: GridMatrix,
-    supercell_grid_matrices: dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix],
-    cell_for_nac: CellChoice,
-    cell_for_relax: CellChoice,
-    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
-) -> dict[str, KpointsData]:
-    """Return kpoints dict.
-
-    Parameters
-    ----------
-    gm : GridMatrix
-        Grid matrix of unit cell.
-    gm_prim : GridMatrix
-        Grid matrix of primitive cell. The primitive cell can be a reduced cell.
-    supercell_grid_matrices : dict[Literal["phelel", "phonopy", "phono3py"], GridMatrix]
-        Grid matrices of phelel, phonopy, and phono3py supercells.
-    cell_for_nac : CellChoice
-        Cell choice for NAC calculation among unit cell or primitive cell. The
-        primitive cell can be a reduced cell.
-    cell_for_relax : CellChoice
-        Cell choice for relax calculation among unit cell or primitive cell. The
-        primitive cell can be a reduced cell.
-
-    Returns
-    -------
-    dict
-        kpoints information for each calculation type is stored. The keys must
-        be calc_type names such as "phelel", "phelel.phonon", "selfenergy", etc.
-
-    """
-    kpoints_of_supercells = {}
-    for calc_type in supercell_calc_types:
-        gm_super = supercell_grid_matrices[calc_type]
-        if gm_super is not None:
-            if gm_super.grid_matrix is None:
-                kpoints_of_supercells[calc_type] = KpointsData(mesh=gm_super.D_diag)
-            else:
-                kpoints_of_supercells[calc_type] = KpointsData(
-                    mesh=gm_super.grid_matrix, D_diag=gm_super.D_diag
-                )
-        else:
-            kpoints_of_supercells[calc_type] = KpointsData()
-
-    if gm_prim.grid_matrix is None:
-        selfenergy_kpoints = KpointsData(mesh=gm_prim.D_diag)
-        el_bands_kpoints = KpointsData(mesh=gm_prim.D_diag)
-    else:
-        selfenergy_kpoints = KpointsData(
-            mesh=gm_prim.grid_matrix, D_diag=gm_prim.D_diag
-        )
-        el_bands_kpoints = KpointsData(mesh=gm_prim.grid_matrix, D_diag=gm_prim.D_diag)
-    ph_bands_kpoints = KpointsData(mesh=np.array([1, 1, 1], dtype="int64"))
-
-    # nac
-    if cell_for_nac is CellChoice.UNITCELL:
-        gm_nac = gm
-    elif cell_for_nac is CellChoice.PRIMITIVE:
-        gm_nac = gm_prim
-    else:
-        raise RuntimeError("This is something that sholud not happen.")
-    if gm_nac.grid_matrix is None:
-        nac_kpoints = KpointsData(mesh=gm_nac.D_diag)
-    else:
-        nac_kpoints = KpointsData(mesh=gm_nac.grid_matrix, D_diag=gm_nac.D_diag)
-
-    # relax
-    if cell_for_relax is CellChoice.UNITCELL:
-        gm_relax = gm
-    elif cell_for_relax is CellChoice.PRIMITIVE:
-        gm_relax = gm_prim
-    else:
-        raise RuntimeError("This is something that sholud not happen.")
-    if gm_relax.grid_matrix is None:
-        relax_kpoints = KpointsData(mesh=gm_relax.D_diag)
-    else:
-        relax_kpoints = KpointsData(mesh=gm_relax.grid_matrix, D_diag=gm_relax.D_diag)
-
-    # keys are calc_types.
-    kpoints_dict = {
-        "phelel": kpoints_of_supercells["phelel"],
-        "phonopy": kpoints_of_supercells["phonopy"],
-        "phono3py": kpoints_of_supercells["phono3py"],
-        "relax": relax_kpoints,
-        "nac": nac_kpoints,
-        "el_bands.dos": el_bands_kpoints,
-        "el_bands.bands": el_bands_kpoints,
-        "ph_bands": ph_bands_kpoints,
-    }
-    if gm_super:
-        kpoints_dict.update(
-            {
-                "selfenergy": selfenergy_kpoints,
-                "transport": selfenergy_kpoints,
-            }
-        )
-
-    return_kpoints_dict = {}
-    for key, val in kpoints_dict.items():
-        if val is not None:
-            return_kpoints_dict[key] = val
-
-    return return_kpoints_dict
-
-
-def _get_kpoints_by_kspacing_dense(
-    gm_dense_prim: GridMatrix, with_phelel: bool = True
-) -> dict[str, KpointsData]:
-    """Return kpoints dict of dense grid.
-
-    Returns
-    -------
-    dict
-        kpoints information for each calculation type is stored. The keys must
-        be calc_type names such as "selfenergy", etc.
-
-    """
-    if gm_dense_prim.grid_matrix is None:
-        selfenergy_kpoints_dense = KpointsData(mesh=gm_dense_prim.D_diag)
-        el_bands_kpoints_dense = KpointsData(mesh=gm_dense_prim.D_diag)
-    else:
-        selfenergy_kpoints_dense = KpointsData(
-            mesh=gm_dense_prim.grid_matrix, D_diag=gm_dense_prim.D_diag
-        )
-
-        el_bands_kpoints_dense = KpointsData(
-            mesh=gm_dense_prim.grid_matrix, D_diag=gm_dense_prim.D_diag
-        )
-
-    if with_phelel:
-        return {
-            "selfenergy": selfenergy_kpoints_dense,
-            "transport": selfenergy_kpoints_dense,
-            "el_bands.dos": el_bands_kpoints_dense,
-        }
-    else:
-        return {
-            "el_bands.dos": el_bands_kpoints_dense,
-        }
-
-
 def _get_vasp_lines(
     vasp_dict: dict,
     kpoints_dict: dict[str, KpointsData],
@@ -1248,13 +1281,12 @@ def _get_vasp_lines(
     qpoints_dict: dict[str, KpointsData],
     cell_for_nac: CellChoice,
     cell_for_relax: CellChoice,
-    supercell_calc_types: tuple = ("phelel", "phonopy", "phono3py"),
 ) -> list:
     incar_commons = _get_incar_commons(vasp_dict)
 
     lines = []
 
-    for calc_type in supercell_calc_types:
+    for calc_type in SUPERCELL_CALC_TYPES:
         if calc_type in vasp_dict and calc_type in kpoints_dict:
             if kpoints_dict[calc_type].mesh is not None:
                 _vasp_dict = vasp_dict[calc_type]
@@ -1264,7 +1296,7 @@ def _get_vasp_lines(
                 _add_calc_type_scheduler_lines(lines, _vasp_dict, calc_type)
                 lines.append("")
 
-    for calc_type in ("selfenergy", "transport"):
+    for calc_type in ELPH_CALC_TYPES:
         if (
             calc_type in vasp_dict
             and calc_type in kpoints_dict
@@ -1328,7 +1360,7 @@ def _get_vasp_lines(
         _add_calc_type_scheduler_lines(lines, _vasp_dict, f"el_bands.{calc_subtype}")
         lines.append("")
 
-    if "ph_bands" in vasp_dict:
+    if "ph_bands" in vasp_dict and "ph_bands" in kpoints_dict:
         # primitive cell
         _vasp_dict = vasp_dict["ph_bands"]
         _add_incar_lines(lines, _vasp_dict, incar_commons, "ph_bands")
@@ -1528,7 +1560,7 @@ def _get_supercell_matrix_lines(
 
 def _get_displacement_settings_lines(
     velph_dict: dict,
-    calc_type: Literal["phelel", "phonopy", "phono3py"],
+    calc_type: SupercellCalcType,
     amplitude: float,
     diagonal: bool,
     plusminus: Literal["auto"] | bool,

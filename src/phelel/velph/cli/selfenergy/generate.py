@@ -31,7 +31,7 @@ def write_input_files(toml_filepath: pathlib.Path, dry_run: bool):
 def write_selfenergy_input_files(
     toml_filepath: pathlib.Path,
     dry_run: bool,
-    calc_type: Literal["transport", "selfenergy"],
+    calc_type: Literal["transport", "selfenergy", "ph_selfenergy"],
     estimate_elph_selfen_band_stop: bool = False,
     energy_threshold: float = 0.5,
     current_directory: pathlib.Path = pathlib.Path(""),

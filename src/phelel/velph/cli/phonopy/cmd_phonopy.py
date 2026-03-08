@@ -7,7 +7,7 @@ import pathlib
 import click
 import tomli
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.phonopy.generate import write_supercell_input_files
 from phelel.velph.cli.phonopy.init import run_init
 
@@ -23,9 +23,9 @@ def cmd_phonopy():
 # velph phonopy init
 #
 @cmd_phonopy.command("init")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
@@ -53,9 +53,9 @@ def cmd_init(toml_filename: str):
 # velph phonopy generate
 #
 @cmd_phonopy.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )

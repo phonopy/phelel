@@ -5,11 +5,115 @@ from __future__ import annotations
 import io
 import os
 from collections import defaultdict
-from typing import Optional, Union
+from typing import cast
 
 import h5py
 import numpy as np
+import spglib
+from numpy.typing import NDArray
+from phono3py.phonon.grid import BZGrid, get_grid_point_from_address, get_ir_grid_points
+from phonopy.physical_units import get_physical_units
 from phonopy.structure.cells import PhonopyAtoms
+from spglib import SpgCell
+
+
+def get_reclat_from_vaspout(fp_vaspout: h5py.File) -> NDArray[np.float64]:
+    """Return reciprocal space basis vectors.
+
+    Returns
+    -------
+    reclat : np.ndarray
+        Reciprocal basis vectors in row vectors.
+        shape=(3, 3)
+
+    """
+    # Basis vectors in direct space in column vectors
+    lattice = np.transpose(
+        fp_vaspout["input"]["poscar"]["lattice_vectors"][:]  # type: ignore
+        * fp_vaspout["input"]["poscar"]["scale"][()]  # type: ignore
+    )
+    # Basis vectors in reciprocal space in row vectors
+    reclat = 2 * np.pi * np.linalg.inv(lattice)
+    return reclat
+
+
+def get_bands_data(
+    kpoint_coords: NDArray,
+    reclat: NDArray,
+    nk_per_seg: int,
+    labels: list[str],
+) -> tuple[NDArray, list, list]:
+    """Measure distances of points from origin along paths and get special points."""
+    k_cart = kpoint_coords @ reclat
+    nk_total = len(kpoint_coords)
+    n_segments = nk_total // nk_per_seg
+    assert n_segments * nk_per_seg == nk_total
+    distances = _get_distances_along_BZ_path(nk_total, n_segments, nk_per_seg, k_cart)
+    points, labels_at_points = _get_special_points(
+        labels, distances, n_segments, nk_per_seg, nk_total
+    )
+
+    return distances, points, labels_at_points
+
+
+def _get_distances_along_BZ_path(
+    nk_total: int, n_segments: int, nk_per_seg: int, k_cart: NDArray
+) -> NDArray:
+    """Measure distances of points from origin along paths.
+
+    Returns
+    -------
+    distances : np.ndarray
+        Distances of points from origin along BZ-paths.
+        shape=(nk_total,)
+
+    """
+    distances = np.zeros(nk_total)
+    count = 0
+    for _ in range(n_segments):
+        for i_pts in range(nk_per_seg):
+            # Treatment of jump between equivalent points on BZ boundary
+            if i_pts == 0:
+                delta_dist = 0
+            else:
+                delta_dist = np.linalg.norm(k_cart[count, :] - k_cart[count - 1, :])
+            distances[count] = distances[count - 1] + delta_dist
+            count += 1
+    return distances
+
+
+def _get_special_points(
+    labels: list[str],
+    distances: NDArray,
+    n_segments: int,
+    nk_per_seg: int,
+    nk_total: int,
+) -> tuple[list, list]:
+    """Plot special points at vertical lines and labels."""
+    # Left most
+    points = []
+    labels_at_points = []
+
+    labels_at_points.append(labels[0][0])
+    points.append(distances[0])
+
+    count = 0
+    for i_seg in range(n_segments):
+        for _ in range(nk_per_seg):
+            count += 1
+        if count != nk_total:
+            points.append(distances[count])
+            if labels[i_seg * 2 + 1] == labels[i_seg * 2 + 2]:
+                labels_at_points.append(labels[i_seg * 2 + 1][0])
+            else:
+                labels_at_points.append(
+                    f"{labels[i_seg * 2 + 1][0]}|{labels[i_seg * 2 + 2][0]}"
+                )
+
+    labels_at_points.append(labels[-1][0])
+    points.append(distances[-1])
+
+    return points, labels_at_points
 
 
 class VaspKpoints:
@@ -58,7 +162,7 @@ class VaspKpoints:
     @classmethod
     def write_line_mode(
         cls,
-        fp: Union[str, bytes, os.PathLike, io.IOBase],
+        fp: str | os.PathLike | io.IOBase,
         cell: PhonopyAtoms,
         toml_dict: dict,
     ) -> None:
@@ -67,7 +171,7 @@ class VaspKpoints:
         cls._write_lines(fp, lines)
 
     @staticmethod
-    def _write_lines(fp, lines):
+    def _write_lines(fp: str | os.PathLike | io.IOBase, lines: list[str]):
         if isinstance(fp, io.IOBase):
             fp.write(("\n".join(lines)).encode("utf-8"))
         else:
@@ -118,7 +222,7 @@ class VaspKpoints:
     @classmethod
     def write_mesh_mode(
         cls,
-        fp: Union[str, bytes, os.PathLike, io.IOBase],
+        fp: str | os.PathLike | io.IOBase,
         toml_dict: dict,
     ):
         """Write KPOINTS with mesh mode."""
@@ -178,7 +282,7 @@ class VaspIncar:
     specific_tags = []
 
     @classmethod
-    def write(cls, fp: Union[str, bytes, os.PathLike, io.IOBase], toml_dict: dict):
+    def write(cls, fp: str | os.PathLike | io.IOBase, toml_dict: dict):
         """Write INCAR."""
         lines = cls._get_incar(toml_dict)
         cls._write_lines(fp, lines)
@@ -237,7 +341,7 @@ class VaspIncar:
         return lines
 
     @staticmethod
-    def _write_lines(fp: Union[str, bytes, os.PathLike, io.IOBase], lines: list[str]):
+    def _write_lines(fp: str | os.PathLike | io.IOBase, lines: list[str]):
         if isinstance(fp, io.IOBase):
             fp.write(("\n".join(lines)).encode("utf-8"))
         else:
@@ -277,8 +381,14 @@ class VaspPotcar:
 
     value_types = {"ENMAX": float, "TITEL": str}
 
-    def __init__(self, fp: Union[str, bytes, os.PathLike, io.IOBase]):
-        """Init method."""
+    def __init__(self, fp: str | os.PathLike | io.TextIOBase):
+        """Init method.
+
+        fp : str, os.PathLike, or typing.IO
+            typing.IO is file-like object, e.g., io.StringIO or file object
+            obtained by open(). Otherwise, file path.
+
+        """
         self._property_dict = defaultdict(list)
         self._read(fp)
 
@@ -288,18 +398,18 @@ class VaspPotcar:
         return self._property_dict["ENMAX"]
 
     @property
-    def titel(self) -> list[float]:
+    def titel(self) -> list[str]:
         """Return values of TITEL in POTCAR as a list."""
         return self._property_dict["TITEL"]
 
-    def _read(self, fp: Union[str, bytes, os.PathLike, io.IOBase]):
-        if isinstance(fp, io.IOBase):
+    def _read(self, fp: str | os.PathLike | io.TextIOBase):
+        if isinstance(fp, io.TextIOBase):
             self._parse(fp)
         else:
-            with open(fp) as _fp:
+            with open(fp, "r") as _fp:
                 self._parse(_fp)
 
-    def _parse(self, fp: io.IOBase):
+    def _parse(self, fp: io.TextIOBase):
         """Parse lines of POTCAR.
 
         This method will be more complicated to support more properties.
@@ -324,8 +434,8 @@ class CutoffToFFTMesh:
 
     @classmethod
     def get_FFTMesh(
-        cls, cutoff_eV: float, lattice: np.ndarray, incar_prec: Optional[str] = None
-    ) -> np.ndarray:
+        cls, cutoff_eV: float, lattice: NDArray, incar_prec: str | None = None
+    ) -> NDArray:
         """Return FFT mesh corresponding to (NGX, NGY, NGZ).
 
         The return value has to be dividable by 2 and factorized by 2, 3, 5, and 7.
@@ -351,7 +461,7 @@ class CutoffToFFTMesh:
         return fft_mesh
 
     @staticmethod
-    def _get_cutoff_factor(prec: Optional[str]) -> int:
+    def _get_cutoff_factor(prec: str | None) -> int:
         """Return factor to multiply to cutoff.
 
         Note this is the VASP6 convention.
@@ -381,7 +491,7 @@ class CutoffToFFTMesh:
             return False
 
 
-def read_magmom(magmom: str) -> Optional[list[float]]:
+def read_magmom(magmom: str) -> list[float] | None:
     """Read text file to obtain MAGMOM information.
 
     Parameters
@@ -393,14 +503,16 @@ def read_magmom(magmom: str) -> Optional[list[float]]:
     return VaspIncar().expand(magmom.strip())
 
 
-def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> PhonopyAtoms:
+def read_crystal_structure_from_vaspout_h5(
+    f_vaspout_h5: h5py.File, group: str
+) -> PhonopyAtoms:
     """Read crystal structure from vaspout.h5."""
-    direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])
-    scale = f_vaspout_h5[f"{group}/scale"][()]
-    lattice = f_vaspout_h5[f"{group}/lattice_vectors"][:] * scale
-    positions = f_vaspout_h5[f"{group}/position_ions"][:]
-    number_ion_types = f_vaspout_h5[f"{group}/number_ion_types"][:]
-    ion_types = f_vaspout_h5[f"{group}/ion_types"][:]
+    direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])  # type: ignore
+    scale = f_vaspout_h5[f"{group}/scale"][()]  # type: ignore
+    lattice: NDArray = f_vaspout_h5[f"{group}/lattice_vectors"][:] * scale  # type: ignore
+    positions: NDArray = f_vaspout_h5[f"{group}/position_ions"][:]  # type: ignore
+    number_ion_types: NDArray = f_vaspout_h5[f"{group}/number_ion_types"][:]  # type: ignore
+    ion_types: NDArray = f_vaspout_h5[f"{group}/ion_types"][:]  # type: ignore
 
     symbols = []
     for symbol, number in zip(ion_types, number_ion_types, strict=True):
@@ -414,3 +526,108 @@ def read_crystal_structure_from_h5(f_vaspout_h5: h5py.File, group: str) -> Phono
     cell = PhonopyAtoms(cell=lattice, scaled_positions=positions, symbols=symbols)
 
     return cell
+
+
+def convert_ir_kpoints_from_VASP_to_phono3py(
+    lattice: NDArray,
+    positions: NDArray,
+    numbers: NDArray,
+    k_gen_vecs: NDArray,
+    ir_kpoints: NDArray,
+    ir_kpoints_weights: NDArray,
+) -> tuple[NDArray, BZGrid, NDArray, NDArray, NDArray]:
+    """Convert irreducible k-points from VASP to phono3py.
+
+    1. Generate BZGrid from crystal structure and k-point generation vectors.
+    2. Convert VASP ir-kpoints to integer addresses in mesh grid.
+    3. Collect ir-grid-point indices of VASP integer addresses.
+    4. Map VASP grid-point indices to phono3py ir-grid-point indices.
+    5. Reorder phono3py ir-grid-point indices according to the order of VASP
+       ir-kpoints.
+
+    Parameters
+    ----------
+    Crystal structure and k-point information at ir-BZ collected from
+    vaspout.h5.
+
+    Returns
+    -------
+    id_map : np.ndarray
+        Ir-grid point indices in phono3py ordered by VASP ir-kpoints. This is
+        used like
+
+            freqs_phono3py_at_irBZ = freqs_VASP_at_irBZ[id_map]
+
+    [1:5] : (np.ndarray, BZGrid, np.ndarray, np.ndarray, np.ndarray)
+        BZGrid, ir_grid_points, ir_grid_weights, ir_grid_map.
+        Ir-grid point information in phono3py.
+
+    """
+    # Step 1
+    cell: SpgCell = cast(SpgCell, (lattice, positions, numbers))
+    sym_dataset = spglib.get_symmetry_dataset(cell)
+    mesh = np.linalg.inv(k_gen_vecs.T)
+    mesh = np.rint(mesh).astype(int)
+    bz_grid = BZGrid(mesh, lattice=lattice, symmetry_dataset=sym_dataset)
+    ir_grid_points, ir_grid_weights, ir_grid_map = get_ir_grid_points(bz_grid)
+
+    # Steps 2-5
+    ir_addresss = np.rint(ir_kpoints @ mesh).astype(int)
+    gps = get_grid_point_from_address(ir_addresss, bz_grid.D_diag)
+    irgp = ir_grid_map[gps]
+    id_map = np.array([np.where(irgp == gp)[0][0] for gp in ir_grid_points], dtype=int)
+    ir_kpoints_weights_vasp = ir_kpoints_weights * np.linalg.det(mesh)
+    assert (np.abs(ir_grid_weights - ir_kpoints_weights_vasp[id_map]) < 1e-8).all()
+
+    return id_map, bz_grid, ir_grid_points, ir_grid_weights, ir_grid_map
+
+
+def read_freqs_and_ph_gammas_from_vaspout_h5(
+    f_h5py: h5py.File,
+) -> tuple[list[NDArray], list[NDArray], list[NDArray], list[int]]:
+    """Read phonon frequencies and phonon full-linewidths from vaspout.h5.
+
+    Returns
+    -------
+    freqs_calcs : list[np.ndarray]
+        List of phonon frequencies for each self-energy calculation in 2piTHz.
+        [[ikpt, ib], ...]
+    gammas_calcs : list[np.ndarray]
+        List of imaginary part of phonon self-energies for each self-energy
+        calculation in 2piTHz. Positive sign is chosen.
+        [[ispin, ib, ikpt , nw, temp], ...]
+    indices : list[int]
+        List of self-energy calculation indices. [1, 2, ...] for self_energy_1,
+        self_energy_2, ...
+
+    """
+    THzToEv = get_physical_units().THzToEv
+
+    f_elph = f_h5py["results/electron_phonon/phonons"]
+    indices = []
+    for key in f_elph:  # type: ignore
+        if "self_energy_" in key:
+            # self_energy_1, self_energy_2, ...
+            index = key.split("_")[-1]
+            if index.isdigit():
+                indices.append(int(index))
+
+    gammas_calcs = []
+    freqs_calcs = []
+    temps_calcs = []
+    for index in sorted(indices):
+        selfen = f_elph[f"self_energy_{index}"]  # type: ignore
+        # Imag part of self-energy [ispin, ib, ikpt , nw, temp] in eV
+        selfen_ph: NDArray = selfen["selfen_ph"][:, :, :, :, :, 1]  # type: ignore
+        # [ikpt, ib] in 2piTHz
+        freqs: NDArray = selfen["phonon_freqs_ibz"][:, :]  # type: ignore
+        temps: NDArray = selfen["temps"][:]  # type: ignore
+        gammas_calcs.append(-selfen_ph / (THzToEv / (2 * np.pi)))
+        freqs_calcs.append(freqs)
+        temps_calcs.append(temps)
+
+    assert len(gammas_calcs) == int(
+        f_h5py["results/electron_phonon/electrons/self_energy_meta/ncalculators"][()]  # type: ignore
+    )
+
+    return freqs_calcs, gammas_calcs, temps_calcs, indices

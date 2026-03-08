@@ -1,16 +1,15 @@
 """Implementation of velph-ph_bands-plot."""
 
+from __future__ import annotations
+
 import pathlib
 
 import click
 import h5py
 import numpy as np
+from numpy.typing import NDArray
 
-from phelel.velph.cli.utils import (
-    get_distances_along_BZ_path,
-    get_reclat_from_vaspout,
-    get_special_points,
-)
+from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
 
 
 def plot_ph_bandstructures(
@@ -37,24 +36,17 @@ def plot_ph_bandstructures(
     import matplotlib.pyplot as plt
 
     f = h5py.File(vaspout_filename)
-    eigvals = f["results"]["phonons"]["eigenvalues"][:]  # phonon eigenvalues
+    eigvals: NDArray = f["results/phonons/eigenvalues"][:]  # type: ignore
     if use_ordinary_frequency:
         eigvals /= 2 * np.pi
     omega_max = 1.1 * eigvals.max()
 
     reclat = get_reclat_from_vaspout(f)
-    labels = [
-        label.decode("utf-8") for label in f["input"]["qpoints"]["labels_kpoints"][:]
-    ]
-    nk_per_seg = f["input"]["qpoints"]["number_kpoints"][()]
-    kpoint_coords = f["results"]["phonons"]["kpoint_coords"]
-    nk_total = len(kpoint_coords)
-    k_cart = kpoint_coords @ reclat
-    n_segments = nk_total // nk_per_seg
-    assert n_segments * nk_per_seg == nk_total
-    distances = get_distances_along_BZ_path(nk_total, n_segments, nk_per_seg, k_cart)
-    points, labels_at_points = get_special_points(
-        labels, distances, n_segments, nk_per_seg, nk_total
+    labels = [label.decode("utf-8") for label in f["input/qpoints/labels_kpoints"][:]]  # type: ignore
+    nk_per_seg: int = f["input/qpoints/number_kpoints"][()]  # type: ignore
+    kpoint_coords: NDArray = f["results/phonons/kpoint_coords"][:]  # type: ignore
+    distances, points, labels_at_points = get_bands_data(
+        kpoint_coords, reclat, nk_per_seg, labels
     )
 
     _, ax = plt.subplots()

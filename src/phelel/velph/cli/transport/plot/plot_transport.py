@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 
 import click
@@ -11,8 +12,8 @@ import numpy as np
 
 def plot_transport(
     f_h5py: h5py.File,
-    plot_filename: str,
-    dir_name: pathlib.Path,
+    plot_filename: str | os.PathLike,
+    dir_name: os.PathLike,
     save_plot: bool = False,
 ):
     """Plot transport properties.

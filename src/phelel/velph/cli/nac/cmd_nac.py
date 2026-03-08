@@ -1,10 +1,12 @@
 """velph command line tool / velph-nac."""
 
+from __future__ import annotations
+
 import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.nac.generate import write_input_files
 
 
@@ -16,9 +18,9 @@ def cmd_nac():
 
 
 @cmd_nac.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )

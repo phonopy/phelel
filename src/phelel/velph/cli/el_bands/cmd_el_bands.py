@@ -6,9 +6,13 @@ import pathlib
 
 import click
 
-from phelel.velph.cli import cmd_root
+from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
+from phelel.velph.utils.plot_eigenvalues import (
+    cmd_plot_eigenvalues,
+    eigenvalue_plot_options,
+)
 
 
 @cmd_root.group("el_bands")
@@ -22,9 +26,9 @@ def cmd_el_bands():
 # velph el_bands generate
 #
 @cmd_el_bands.command("generate")
-@click.argument(
+@click.option(
+    "--toml-filename",
     "toml_filename",
-    nargs=1,
     type=click.Path(),
     default="velph.toml",
 )
@@ -70,8 +74,27 @@ def cmd_plot(window: tuple[float, float], save_plot: bool):
         )
 
 
-def plot(window: tuple[float, float], save_plot: bool = False):
-    """Plot electronic band structure."""
-    with click.Context(cmd_plot) as ctx:
-        ctx.params = {"window": window, "save_plot": save_plot}
-        cmd_plot.invoke(ctx)
+@cmd_el_bands.command("plot_eigenvalues")
+@click.option(
+    "--vaspout-filename",
+    "vaspout_filename",
+    type=click.Path(),
+    default="el_bands/dos/vaspout.h5",
+)
+@eigenvalue_plot_options
+def cmd_plot_transport_eigenvalues(
+    vaspout_filename: str,
+    temperature: float,
+    cutoff_occupancy: float,
+    mu: float | None,
+):
+    """Show eigenvalues in transports."""
+    cmd_plot_eigenvalues(
+        vaspout_filename,
+        temperature,
+        cutoff_occupancy,
+        mu,
+        None,
+        None,
+        calc_type="el_bands",
+    )
