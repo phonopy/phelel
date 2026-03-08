@@ -6,9 +6,9 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
+from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.utils.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
