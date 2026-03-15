@@ -5,13 +5,16 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from phonopy import Phonopy
+from phonopy.api_phonopy import set_yaml
 from phonopy.exception import ForcesetsNotFoundError
 from phonopy.harmonic.dynamical_matrix import DynamicalMatrix
+from phonopy.interface.phonopy_yaml import PhonopyYaml
+from phonopy.physical_units import get_calculator_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
 from phonopy.structure.symmetry import Symmetry
@@ -19,6 +22,7 @@ from phonopy.structure.symmetry import Symmetry
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
 from phelel.file_IO import write_phelel_params_hdf5
+from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.version import __version__
 
 
@@ -567,6 +571,29 @@ class Phelel:
             hdf5_settings=hdf5_settings,
             compression=compression,
         )
+
+    def get_yaml(
+        self, configuration: dict | None = None, settings: dict | None = None
+    ) -> PhelelYaml:
+        """Return Phono3pyYaml class instance with this data."""
+        units = get_calculator_physical_units(self.calculator)
+        phpy_yaml = PhelelYaml(
+            configuration=configuration, physical_units=units, settings=settings
+        )
+        set_yaml(cast(PhonopyYaml, phpy_yaml), cast(Phonopy, self))
+
+        if self.unit_conversion_factor is not None:
+            phpy_yaml.frequency_unit_conversion_factor = self.unit_conversion_factor
+
+        if self.phonon_supercell_matrix is not None:
+            phpy_yaml.phonon_supercell_matrix = self.phonon_supercell_matrix
+            if self.phonon_dataset is not None:
+                phpy_yaml.phonon_dataset = self.phonon_dataset
+            if self.phonon_primitive is not None:
+                phpy_yaml.phonon_primitive = self.phonon_primitive
+            if self.phonon_supercell is not None:
+                phpy_yaml.phonon_supercell = self.phonon_supercell
+        return phpy_yaml
 
     def _prepare_phonon(
         self,

@@ -16,8 +16,7 @@ cwd = Path(__file__).parent
 def test_PhelelYaml_get_yaml_lines():
     """Test PhelelYaml.get_yaml_lines by C 1x1x1."""
     phe = phelel.load(cwd / ".." / "phelel_disp_NaCl111.yaml")
-    phe_yml = PhelelYaml()
-    phe_yml.set_phelel_info(phe)
+    phe_yml = phe.get_yaml()
     phe_yml_test = PhelelYaml()
     phe_yml_test._data = load_phelel_yaml(yaml.safe_load(StringIO(str(phe_yml))))
     assert isclose(phe_yml.primitive, phe_yml_test.primitive)
