@@ -142,7 +142,7 @@ def main(**argparse_control):
     unitcell = cell_info.unitcell
     supercell_matrix = cell_info.supercell_matrix
     primitive_matrix = cell_info.primitive_matrix
-    unitcell_filename = cell_info.optional_structure_info[0]
+    unitcell_filename = cell_info.optional_structure_info.unitcell_filename
     cell_info.phonon_supercell_matrix = settings.phonon_supercell_matrix
     phe_yml = cell_info.phelel_yaml
     if cell_info.phonon_supercell_matrix is None and phe_yml:
