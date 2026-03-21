@@ -69,7 +69,7 @@ def finalize_phelel(
 
     """
     yaml_settings = {"force_sets": False, "displacements": displacements_mode}
-    phe_yml = phelel.get_yaml(configuration=confs, settings=yaml_settings)
+    phe_yml = phelel.to_phelel_yaml(configuration=confs, settings=yaml_settings)
     with open(filename, "w") as w:
         w.write(str(phe_yml))
 
