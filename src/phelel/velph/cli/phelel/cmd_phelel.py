@@ -35,8 +35,10 @@ def cmd_phelel():
     default="velph.toml",
 )
 @click.help_option("-h", "--help")
-def cmd_init(toml_filename: str, dir_name: str = "phelel"):
+def cmd_init(toml_filename: str):
     """Generate displacements and write phelel_disp.yaml."""
+    dir_name = "phelel"
+
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
 
@@ -66,8 +68,10 @@ def cmd_init(toml_filename: str, dir_name: str = "phelel"):
     default="velph.toml",
 )
 @click.help_option("-h", "--help")
-def cmd_generate(toml_filename: str, dir_name: str):
+def cmd_generate(toml_filename: str):
     """Generate phelel input files."""
+    dir_name = "phelel"
+
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 
@@ -107,10 +111,10 @@ def cmd_generate(toml_filename: str, dir_name: str):
 def cmd_differentiate(
     toml_filename: str,
     encut: float | None,
-    dir_name: str,
     verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5."""
+    dir_name = "phelel"
     hdf5_filename = pathlib.Path(f"{dir_name}/phelel_params.hdf5")
     yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
 
@@ -173,8 +177,9 @@ def cmd_differentiate(
     default="velph.toml",
 )
 @click.help_option("-h", "--help")
-def cmd_phonopy(toml_filename: str, dir_name: str):
+def cmd_phonopy(toml_filename: str):
     """Create phonopy_params.yaml."""
+    dir_name = "phelel"
     create_phonopy_yaml(
         pathlib.Path(toml_filename),
         pathlib.Path(f"{dir_name}/phelel_disp.yaml"),
