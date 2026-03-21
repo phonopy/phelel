@@ -35,7 +35,7 @@ def cmd_phelel():
     default="velph.toml",
 )
 @click.help_option("-h", "--help")
-def cmd_init(toml_filename: str, dir_name: str):
+def cmd_init(toml_filename: str, dir_name: str = "phelel"):
     """Generate displacements and write phelel_disp.yaml."""
     with open(toml_filename, "rb") as f:
         toml_dict = tomli.load(f)
