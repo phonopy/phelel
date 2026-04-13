@@ -38,7 +38,7 @@ jobs:
         sphinx-build doc docs_build
     - name: Upload artifact
       if: ${{ github.ref == 'refs/heads/publish-gh-pages' }}
-      uses: actions/upload-pages-artifact@v4
+      uses: actions/upload-pages-artifact@v5
       with:
         path: ./docs_build
 
