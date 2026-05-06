@@ -4,7 +4,7 @@ import click
 import h5py
 import numpy as np
 from numpy.typing import NDArray
-from phono3py.phonon.grid import BZGrid
+from phonopy.phonon.grid import BZGrid
 
 from phelel.velph.utils.vasp import (
     convert_ir_kpoints_from_VASP_to_phono3py,

@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 import spglib
 from numpy.typing import NDArray
-from phono3py.phonon.grid import BZGrid, get_grid_point_from_address, get_ir_grid_points
+from phonopy.phonon.grid import BZGrid, get_grid_point_from_address, get_ir_grid_points
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.cells import PhonopyAtoms
 from spglib import SpgCell
