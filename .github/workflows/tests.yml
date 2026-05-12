@@ -23,7 +23,7 @@ jobs:
         run: |
           conda activate test
           conda install --yes -c conda-forge python=${{ matrix.python-version }}
-          conda install --yes -c conda-forge finufft tomli tomli-w seekpath pytest click codecov pytest-cov matplotlib-base pyyaml h5py numpy scipy spglib cmake c-compiler cxx-compiler
+          conda install --yes -c conda-forge finufft tomli tomli-w seekpath pytest click codecov pytest-cov matplotlib-base pyyaml h5py numpy scipy spglib cmake c-compiler cxx-compiler nanobind scikit-build-core
       - name: Install symfc develop branch
         run: |
           conda activate test
