@@ -16,7 +16,6 @@ from phonopy.cui.phonopy_script import (
     store_nac_params,
 )
 from phonopy.exception import CellNotFoundError
-from phonopy.interface.calculator import get_calculator_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import print_cell
 
@@ -69,21 +68,8 @@ def finalize_phelel(
         phelel.yaml is written in this filename.
 
     """
-    if displacements_mode:
-        _calculator = phelel.calculator
-    else:
-        _calculator = None
-    _physical_units = get_calculator_physical_units(_calculator)
-
     yaml_settings = {"force_sets": False, "displacements": displacements_mode}
-
-    phe_yml = PhelelYaml(
-        configuration=confs,
-        calculator=_calculator,
-        physical_units=_physical_units,
-        settings=yaml_settings,
-    )
-    phe_yml.set_phelel_info(phelel)
+    phe_yml = phelel.to_phelel_yaml(configuration=confs, settings=yaml_settings)
     with open(filename, "w") as w:
         w.write(str(phe_yml))
 
@@ -156,7 +142,7 @@ def main(**argparse_control):
     unitcell = cell_info.unitcell
     supercell_matrix = cell_info.supercell_matrix
     primitive_matrix = cell_info.primitive_matrix
-    unitcell_filename = cell_info.optional_structure_info[0]
+    unitcell_filename = cell_info.optional_structure_info.unitcell_filename
     cell_info.phonon_supercell_matrix = settings.phonon_supercell_matrix
     phe_yml = cell_info.phelel_yaml
     if cell_info.phonon_supercell_matrix is None and phe_yml:
