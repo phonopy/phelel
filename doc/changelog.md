@@ -2,6 +2,10 @@
 
 # Change Log
 
+# May-13-2026: Version 0.13.3
+
+- Fix import errors.
+
 # May-13-2026: Version 0.13.2
 
 - Update following the change of phonopy and phono3py.
