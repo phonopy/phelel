@@ -15,9 +15,9 @@ import spglib
 import tomli
 import tomli_w
 from numpy.typing import NDArray
-from phono3py.phonon.grid import GridMatrix
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.vasp import get_vasp_structure_lines
+from phonopy.phonon.grid import GridMatrix
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import (
     estimate_supercell_matrix,

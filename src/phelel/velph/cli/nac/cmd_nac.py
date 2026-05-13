@@ -6,8 +6,8 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.nac.generate import write_input_files
+from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 @cmd_root.group("nac")

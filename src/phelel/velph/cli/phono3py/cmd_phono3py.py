@@ -8,9 +8,9 @@ from typing import Optional
 import click
 import tomli
 
-from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.phono3py.generate import write_supercell_input_files
 from phelel.velph.cli.phono3py.init import run_init
+from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 @cmd_root.group("phono3py")

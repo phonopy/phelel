@@ -37,11 +37,9 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-from phonopy import Phonopy
 from phonopy.interface.phonopy_yaml import (
     PhonopyYaml,
     PhonopyYamlData,
@@ -52,9 +50,6 @@ from phonopy.interface.phonopy_yaml import (
 from phonopy.physical_units import CalculatorPhysicalUnits
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
-
-if TYPE_CHECKING:
-    from phelel import Phelel
 
 
 @dataclasses.dataclass
@@ -310,14 +305,6 @@ class PhelelYaml(PhonopyYaml):
             physical_units=self._data.physical_units,
         )
         return self
-
-    def set_phelel_info(self, phelel: "Phelel"):
-        """Store data in Phelel instance in this instance."""
-        super().set_phonon_info(cast(Phonopy, phelel))
-        self._data.phonon_supercell_matrix = phelel.phonon_supercell_matrix
-        self._data.phonon_dataset = phelel.phonon_dataset
-        self._data.phonon_primitive = phelel.phonon_primitive
-        self._data.phonon_supercell = phelel.phonon_supercell
 
 
 def read_phelel_yaml(

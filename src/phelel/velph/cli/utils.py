@@ -14,8 +14,8 @@ from typing import Any, Iterator, Literal
 import click
 import numpy as np
 from numpy.typing import NDArray
-from phono3py.phonon.grid import BZGrid
 from phonopy.interface.vasp import VasprunxmlExpat
+from phonopy.phonon.grid import BZGrid
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon

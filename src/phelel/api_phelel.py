@@ -5,13 +5,16 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from phonopy import Phonopy
+from phonopy.api_phonopy import set_data_to_phonopy_yaml
 from phonopy.exception import ForcesetsNotFoundError
 from phonopy.harmonic.dynamical_matrix import DynamicalMatrix
+from phonopy.interface.phonopy_yaml import PhonopyYaml
+from phonopy.physical_units import get_calculator_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
 from phonopy.structure.symmetry import Symmetry
@@ -19,6 +22,7 @@ from phonopy.structure.symmetry import Symmetry
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
 from phelel.file_IO import write_phelel_params_hdf5
+from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.version import __version__
 
 
@@ -567,6 +571,25 @@ class Phelel:
             hdf5_settings=hdf5_settings,
             compression=compression,
         )
+
+    def to_phelel_yaml(
+        self, configuration: dict | None = None, settings: dict | None = None
+    ) -> PhelelYaml:
+        """Return PhelelYaml class instance with this data."""
+        units = get_calculator_physical_units(self.calculator)
+        phe_yaml = PhelelYaml(
+            configuration=configuration, physical_units=units, settings=settings
+        )
+        set_data_to_phonopy_yaml(cast(PhonopyYaml, phe_yaml), cast(Phonopy, self))
+        if self.phonon_supercell_matrix is not None:
+            phe_yaml.phonon_supercell_matrix = self.phonon_supercell_matrix
+            if self.phonon_dataset is not None:
+                phe_yaml.phonon_dataset = self.phonon_dataset
+            if self.phonon_primitive is not None:
+                phe_yaml.phonon_primitive = self.phonon_primitive
+            if self.phonon_supercell is not None:
+                phe_yaml.phonon_supercell = self.phonon_supercell
+        return phe_yaml
 
     def _prepare_phonon(
         self,

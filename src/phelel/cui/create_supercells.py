@@ -52,10 +52,13 @@ def get_cell_info(
         phonopy_yaml_cls=PhelelYaml,
     )
 
-    cell_info_dict = dataclasses.asdict(cell_info)
-    cell_info_dict["phelel_yaml"] = cell_info_dict.pop("phonopy_yaml")
     cell_info = PhelelCellInfoResult(
-        **cell_info_dict,
+        unitcell=cell_info.unitcell,
+        optional_structure_info=cell_info.optional_structure_info,
+        supercell_matrix=cell_info.supercell_matrix,
+        primitive_matrix=cell_info.primitive_matrix,
+        interface_mode=cell_info.interface_mode,
+        phelel_yaml=cell_info.phonopy_yaml,
         phonon_supercell_matrix=settings.phonon_supercell_matrix,
     )
 
@@ -80,7 +83,7 @@ def create_phelel_supercells(
 
     """
     optional_structure_info = cell_info.optional_structure_info
-    unitcell_filename = optional_structure_info[0]
+    unitcell_filename = optional_structure_info.unitcell_filename
     phe_yml = cell_info.phelel_yaml
 
     phelel = Phelel(

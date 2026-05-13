@@ -2,6 +2,15 @@
 
 # Change Log
 
+# May-13-2026: Version 0.13.2
+
+- Update following the change of phonopy and phono3py.
+
+# Mar-8-2026: Version 0.13.1
+
+- Rename `cmd_root.py` to `velph_cmd_root.py` for safer module import when
+  calling velph command.
+
 # Mar-6-2026: Version 0.13.0
 
 - Maintenance release

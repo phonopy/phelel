@@ -9,7 +9,7 @@ import tomli
 from phonopy.interface.calculator import write_crystal_structure
 from phonopy.structure.atoms import parse_cell_dict
 
-from phelel.velph.cli.cmd_root import cmd_root
+from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 #

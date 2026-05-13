@@ -8,7 +8,6 @@ from typing import Literal
 
 import click
 
-from phelel.velph.cli.cmd_root import cmd_root
 from phelel.velph.cli.init.init import run_init
 from phelel.velph.cli.utils import (
     DefaultCellChoices,
@@ -18,6 +17,7 @@ from phelel.velph.cli.utils import (
     VelphInitOptions,
     VelphInitParams,
 )
+from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.utils.vasp import VaspPotcar
 
 
