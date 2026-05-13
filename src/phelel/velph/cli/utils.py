@@ -15,7 +15,11 @@ import click
 import numpy as np
 from numpy.typing import NDArray
 from phonopy.interface.vasp import VasprunxmlExpat
-from phonopy.phonon.grid import BZGrid
+
+try:
+    from phonopy.phonon.grid import BZGrid
+except ModuleNotFoundError:
+    from phono3py.phonon.grid import BZGrid
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
