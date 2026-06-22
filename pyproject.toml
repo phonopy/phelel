@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0"]
+requires = ["setuptools >= 61.0", "setuptools_scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -27,8 +27,8 @@ phelel = "phelel.scripts.phelel:run"
 phelel-load = "phelel.scripts.phelel_load:run"
 velph = "phelel.velph.cli.velph_cmd_root:cmd_root"
 
-[tool.setuptools.dynamic]
-version = { attr = "phelel.version.__version__" }
+[tool.setuptools_scm]
+version_file = "src/phelel/_version.py"
 
 [tool.ruff]
 line-length = 88

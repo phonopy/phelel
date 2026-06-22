@@ -19,11 +19,11 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive, Supercell, isclose
 from phonopy.structure.symmetry import Symmetry
 
+from phelel import __version__
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
 from phelel.file_IO import write_phelel_params_hdf5
 from phelel.interface.phelel_yaml import PhelelYaml
-from phelel.version import __version__
 
 
 @dataclass

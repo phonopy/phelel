@@ -5,29 +5,13 @@ from __future__ import annotations
 import numpy as np
 import spglib
 from numpy.typing import NDArray
-from phonopy.interface.vasp import sort_positions_by_symbols
-from phonopy.structure.atoms import PhonopyAtoms, get_atomic_data
+from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import (
     get_primitive,
     get_primitive_matrix_by_centring,
     get_reduced_bases,
 )
 from spglib import SpglibDataset, SpglibMagneticDataset
-
-
-def generate_standardized_cells(
-    sym_dataset: SpglibDataset | SpglibMagneticDataset,
-    tolerance: float = 1e-5,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, NDArray]:
-    """Return standardized unit cell and primitive cell."""
-    convcell = _get_standardized_unitcell(sym_dataset)
-    pmat = _get_primitive_matrix_from_dataset(sym_dataset)
-    if (np.abs(pmat - np.eye(3)) < 1e-8).all():
-        primitive = convcell
-    else:
-        primitive = get_primitive(convcell, primitive_matrix=pmat, symprec=tolerance)
-
-    return convcell, primitive, pmat
 
 
 def get_primitive_cell(
@@ -38,7 +22,7 @@ def get_primitive_cell(
     """Return primitive cell and transformation matrix.
 
     This primitive cell is generated from the input cell without
-    rigid rotation in contrast to `_get_standardized_unitcell`.
+    rigid rotation in contrast to the spglib-standardized cell.
 
     """
     tmat = sym_dataset.transformation_matrix
@@ -95,43 +79,3 @@ def _get_primitive_matrix_from_dataset(
         assert spg_type is not None
         centring = spg_type.international_short[0]
     return get_primitive_matrix_by_centring(centring)
-
-
-def _get_standardized_unitcell(
-    dataset: SpglibDataset | SpglibMagneticDataset,
-) -> PhonopyAtoms:
-    """Return conventional unit cell.
-
-    This conventional unit cell can include rigid rotation with respect to
-    input unit cell for which symmetry was analized.
-
-    Parameters
-    ----------
-    cell : PhonopyAtoms
-        Input cell.
-    dataset : SpgliDataset
-        Symmetry dataset of spglib.
-
-    Returns
-    -------
-    PhonopyAtoms
-        Convetional unit cell.
-
-    """
-    std_positions = dataset.std_positions
-    std_types = dataset.std_types
-    _, _, _, perm = sort_positions_by_symbols(std_types, std_positions)
-    atom_data = get_atomic_data().atom_data
-    if isinstance(dataset, SpglibDataset):
-        return PhonopyAtoms(
-            cell=dataset.std_lattice,
-            scaled_positions=std_positions[perm],
-            symbols=[atom_data[n][1] for n in std_types[perm]],
-        )
-    else:
-        return PhonopyAtoms(
-            cell=dataset.std_lattice,
-            scaled_positions=std_positions[perm],
-            symbols=[atom_data[n][1] for n in std_types[perm]],
-            magnetic_moments=dataset.std_tensors[perm],
-        )
