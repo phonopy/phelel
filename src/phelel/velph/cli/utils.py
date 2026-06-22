@@ -89,6 +89,8 @@ class VelphInitParams:
     kspacing: float = 0.1
     kspacing_dense: float = 0.05
     magmom: str | None = None
+    site_mixture: str | None = None
+    split_site_mixture: bool = False
     phelel_displacement_options: DisplacementOptions | None = None
     phonopy_displacement_options: DisplacementOptions | None = None
     phono3py_displacement_options: DisplacementOptions | None = None
@@ -122,6 +124,8 @@ class VelphInitOptions:
     kspacing_dense: float | None = None
     magmom: str | None = None
     max_num_atoms: int | None = None
+    site_mixture: str | None = None
+    split_site_mixture: bool | None = None
     phelel_nosym: bool | None = None
     plusminus: bool | Literal["auto"] | None = True
     primitive_cell_choice: Literal["standardized", "reduced"] | None = None

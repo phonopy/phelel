@@ -181,6 +181,30 @@ from phelel.velph.utils.vasp import VaspPotcar
     ),
 )
 @click.option(
+    "--site-mixture",
+    "site_mixture",
+    type=str,
+    default=None,
+    help=(
+        "[Experimental] Per-atom concentration weights in input-cell atom "
+        'order, e.g., "0.5 0.5 0.5 0.5". Weights of co-located atoms (same '
+        "fractional position) must sum to 1.0; an isolated atom must be 1.0. "
+        "Cannot be combined with --magmom. "
+        f"(site_mixture: str, default={VelphInitParams.site_mixture})"
+    ),
+)
+@click.option(
+    "--split-site-mixture",
+    "split_site_mixture",
+    is_flag=True,
+    default=None,
+    help=(
+        "[Experimental] Keep co-located atoms as separate weighted species "
+        "instead of merging them (currently the only supported scheme). "
+        f"(split_site_mixture: bool, default={VelphInitParams.split_site_mixture})"
+    ),
+)
+@click.option(
     "--supercell-matrix",
     "supercell_matrix",
     nargs=9,
@@ -256,6 +280,8 @@ def cmd_init(
     plusminus: bool | None,
     primitive_cell_choice: Literal["standardized", "reduced"] | None,
     project_folder: str,
+    site_mixture: str | None,
+    split_site_mixture: bool | None,
     supercell_dimension: tuple[int, int, int] | None,
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None,
     symmetrize_cell: bool | None,
@@ -304,6 +330,8 @@ def cmd_init(
         phelel_nosym=phelel_nosym,
         plusminus=_plusminus,
         primitive_cell_choice=primitive_cell_choice,
+        site_mixture=site_mixture,
+        split_site_mixture=split_site_mixture,
         supercell_dimension=supercell_dimension,
         supercell_matrix=supercell_matrix,
         symmetrize_cell=symmetrize_cell,
