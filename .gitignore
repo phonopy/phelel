@@ -5,6 +5,9 @@
 *~
 MANIFEST
 
+# setuptools_scm generated version file
+src/phelel/_version.py
+
 # C extensions
 *.so
 

@@ -33,6 +33,7 @@ from phonopy.structure.cells import (
 )
 from spglib import SpglibDataset, SpglibMagneticDataset
 
+from phelel import __version__
 from phelel.velph.cli.utils import (
     CellChoice,
     DefaultCellChoices,
@@ -50,7 +51,6 @@ from phelel.velph.utils.structure import (
     get_symmetry_dataset,
 )
 from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar
-from phelel.version import __version__
 
 SupercellCalcType = Literal["phelel", "phonopy", "phono3py"]
 SUPERCELL_CALC_TYPES = get_args(SupercellCalcType)
