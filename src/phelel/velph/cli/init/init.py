@@ -25,7 +25,9 @@ except ModuleNotFoundError:
 
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import (
+    apply_site_mixture,
     estimate_supercell_matrix,
+    generate_standardized_cells,
     get_supercell,
     shape_supercell_matrix,
 )
@@ -43,7 +45,6 @@ from phelel.velph.cli.utils import (
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import (
-    generate_standardized_cells,
     get_primitive_cell,
     get_reduced_cell,
     get_symmetry_dataset,
@@ -165,6 +166,20 @@ def _run_init(
     if vip.magmom is not None:
         magmom_vals = VaspIncar().expand(vip.magmom.strip())
         input_cell.magnetic_moments = magmom_vals
+
+    #
+    # Apply site-mixture per-atom concentration weights (non-merge scheme).
+    #
+    if vip.site_mixture is not None:
+        if vip.magmom is not None:
+            raise click.ClickException(
+                "--site-mixture cannot be combined with --magmom."
+            )
+        weights = [float(x) for x in vip.site_mixture.split()]
+        try:
+            input_cell = apply_site_mixture(input_cell, weights, symprec=vip.tolerance)
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
 
     #
     # Define cells and find crystal symmetry.
@@ -571,7 +586,7 @@ def _get_cells(
                 "sym_dataset must be SpglibDataset or SpglibMagneticDataset."
             )
         unitcell, _primitive, tmat = generate_standardized_cells(
-            sym_dataset, tolerance=tolerance
+            input_cell, sym_dataset, symprec=tolerance
         )
         if find_primitive:
             primitive = _primitive
@@ -1512,12 +1527,17 @@ def _get_cell_toml_lines(
         magnetic_moments = [None] * len(unitcell.symbols)
     else:
         magnetic_moments = unitcell.magnetic_moments
-    for i, (s, v, m, mag) in enumerate(
+    if unitcell.mixture_weights is None:
+        weights = [None] * len(unitcell.symbols)
+    else:
+        weights = unitcell.mixture_weights
+    for i, (s, v, m, mag, w) in enumerate(
         zip(
             unitcell.symbols,
             unitcell.scaled_positions,
             masses,
             magnetic_moments,
+            weights,
             strict=True,
         )
     ):
@@ -1532,6 +1552,8 @@ def _get_cell_toml_lines(
             else:
                 mag_str = f"[ {mag[0]:.8f}, {mag[1]:.8f}, {mag[2]:.8f} ]"
             lines.append(f"magnetic_moment = {mag_str}")
+        if w is not None:
+            lines.append(f"weight = {w:.15f}")
     return lines
 
 
