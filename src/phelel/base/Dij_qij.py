@@ -323,6 +323,7 @@ class DDijQijFit:
             translations,
             np.array(lattice, dtype="double", order="C"),
             self._symmetry.tolerance,
+            self._supercell.permutation_types,
         )
 
         disps = get_displacements_with_rotations(
