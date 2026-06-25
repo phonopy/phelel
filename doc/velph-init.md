@@ -80,9 +80,42 @@ Use generalized regular grid.
 
 Distance of displacements in Angstrom.
 
+### `--diagonal`
+
+Whether to also generate displacements along diagonal (non-axis) directions. By
+default, only axis-aligned displacements are used. This corresponds to the
+`diagonal` key of `[phelel]`, `[phonopy]`, and `[phono3py]`.
+
+### `--plusminus` / `--auto`
+
+`--plusminus` (default) adds the opposite (minus) displacement for every
+displacement. `--auto` adds the minus displacement only when it is not
+symmetrically equivalent to the plus one. This corresponds to the `plusminus`
+key of `[phelel]`, `[phonopy]`, and `[phono3py]`.
+
+### `--phelel-nosym`
+
+Disable symmetry reduction of the displacements generated for the phelel
+supercell (equivalent to running `phelel --nosym`).
+
 ### `--magmom`
 
 String corresponding to INCAR MAGMOM tag value for unit cell, e.g., "24*1" or "0
 0 1". This is similar to `MAGMOM` tag in phonopy, see
 https://phonopy.github.io/phonopy/setting-tags.html#magmom. In velph, the
 asterisk symbol (`*`) is supported.
+
+### `--force`
+
+Create `velph.toml` even if a file with the target name already exists,
+overwriting it.
+
+### `--toml-filename`
+
+File name of the generated `velph.toml`-type file. The default is `velph.toml`.
+
+```{note}
+`--force`, `--template-toml`, and `--toml-filename` are command-line only and
+have no corresponding `[init.options]` keyword in the template file (see
+{ref}`velph_init_template`).
+```

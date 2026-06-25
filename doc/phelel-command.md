@@ -63,12 +63,24 @@ Unit cell structure is specified.
 % phelel -c POSCAR-unitcell [OPTIONS]
 ```
 
+### `--pa`, `--primitive-axis`
+
+Transformation matrix from the input unit cell to the primitive cell. It is given
+either as nine values forming the 3x3 matrix `[[v1, v2, v3], [v4, v5, v6], [v7,
+v8, v9]]`, or as `auto` to search the primitive cell automatically. This works
+the same way as the `PRIMITIVE_AXES` tag in
+[phonopy](https://phonopy.github.io/phonopy/setting-tags.html).
+
+```bash
+% phelel --pa auto [OPTIONS]
+```
+
 ### `--pm`
 
 Unless specified, only one directional displacement is selected among
 symmetrically equivalent displacements in the opposite direction. With this
 option specified, both directions are included in the generated supercells with
-dispacements. Use of this option is recommended.
+displacements. Use of this option is recommended.
 
 ```bash
 % phelel --pm [OPTIONS]
@@ -76,9 +88,9 @@ dispacements. Use of this option is recommended.
 
 ## Calculation of derivatives of potentials
 
-After running VASP calculations to calculate local potentials and PAW strenghts
+After running VASP calculations to calculate local potentials and PAW strengths
 under the configurations of displacements in supercells, those data are stored
-in cetain files. Those are read and then the derivatives are computed by the
+in certain files. Those are read and then the derivatives are computed by the
 following command option, e.g.,
 
 ```bash

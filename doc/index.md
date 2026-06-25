@@ -34,6 +34,8 @@ workflow
 phelel-command
 velph-command
 velph-toml
+velph-toml-vasp
+velph-toml-cell
 velph-toml-scheduler
 velph-init
 velph-init-template
