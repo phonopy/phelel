@@ -346,7 +346,7 @@ plusminus = true
 fft_mesh = [30, 30, 30]
 
 [vasp.phelel.incar]
-lwap = true
+elph_prepare = true
 isym = 0
 kpar = 2
 ismear = 0

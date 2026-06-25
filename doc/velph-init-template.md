@@ -27,19 +27,62 @@ max_num_atoms = 120
 ```
 
 The `[init.options]` keywords correspond to command-line options for `velph
-init`. To view a complete list of available options, use:
+init`. A value given on the command line overrides the one in `[init.options]`.
+To view the available options and their defaults, use:
 
 ```bash
 % velph init --help
 ```
 
+The recognized keywords are listed below. Each maps to the `velph init`
+command-line option of the same name (with underscores written as hyphens).
+
+| Keyword                 | Type                | Default         | `velph init` option        |
+| ----------------------- | ------------------- | --------------- | -------------------------- |
+| `amplitude`             | float               | `0.03`          | `--amplitude`              |
+| `cell_for_nac`          | str                 | `"primitive"`   | `--cell-for-nac`           |
+| `cell_for_relax`        | str                 | `"unitcell"`    | `--cell-for-relax`         |
+| `diagonal`              | bool                | `false`         | `--diagonal`               |
+| `find_primitive`        | bool                | `true`          | `--no-find-primitive`      |
+| `kspacing`              | float               | `0.1`           | `--kspacing`               |
+| `kspacing_dense`        | float               | `0.05`          | `--kspacing-dense`         |
+| `magmom`                | str                 | (none)          | `--magmom`                 |
+| `max_num_atoms`         | int                 | (none)          | `--max-num-atoms`          |
+| `phelel_nosym`          | bool                | `false`         | `--phelel-nosym`           |
+| `plusminus`             | bool or `"auto"`    | `true`          | `--plusminus` / `--auto`   |
+| `primitive_cell_choice` | str                 | `"standardized"`| `--primitive-cell-choice`  |
+| `supercell_dimension`   | list[int] (3)       | (none)          | `--dim`                    |
+| `supercell_matrix`      | list[int] (9)       | (none)          | `--supercell-matrix`       |
+| `symmetrize_cell`       | bool                | `false`         | `--symmetrize-cell`        |
+| `tolerance`             | float               | `1e-5`          | `--tolerance`              |
+| `use_grg`               | bool                | `false`         | `--use-grg`                |
+<!-- Hidden until site mixture is public:
+| `site_mixture`          | str                 | (none)          | `--site-mixture`           |
+| `split_site_mixture`    | bool                | `false`         | `--split-site-mixture`     |
+-->
+
+Notes:
+
+- `cell_for_nac` and `cell_for_relax` accept `"primitive"` or `"unitcell"`.
+- `primitive_cell_choice` accepts `"standardized"` or `"reduced"`.
+- `max_num_atoms` determines the supercell dimension and must be used together
+  with `symmetrize_cell`.
+- Give either `supercell_dimension` (three integers) or `supercell_matrix` (nine
+  integers), not both.
+<!-- Hidden until site mixture is public:
+- `site_mixture` and `split_site_mixture` are experimental, and `site_mixture`
+  cannot be combined with `magmom`.
+-->
+- The file-handling options of `velph init` (`--force`, `--template-toml`,
+  `--toml-filename`) are command-line only and have no `[init.options]`
+  keyword.
+
 (velph_init_template_incar)=
 ## `[vasp.incar]`
 
-The base INCAR settings are defined in the `[vasp.incar]` section. These
-settings can be overridden by the `[vasp.CALC_TYPE.incar]` section if existed,
-where `CALC_TYPE` could be `phelel`, `relax`, `nac`, `transport`, `phono3py`,
-`phono3py.phonon`, etc. For example, consider the following configuration:
+In a template, the `[vasp.incar]` section holds the base INCAR settings that are
+common to the whole project, such as the plane-wave cutoff and the
+parallelization tags:
 
 ```toml
 [vasp.incar]
@@ -48,8 +91,9 @@ ncore = 4
 gga = "PS"
 ```
 
-In this case, the `[vasp.phelel.incar]` section in `velph.toml` is initially
-populated with these base settings. And then, the default parameters specific to
-the `phelel` calculation, as well as any settings defined in the
-`[vasp.phelel.incar]` section of the template, will override these
-configurations as needed.
+At `velph init` these base settings are merged into every
+`[vasp.CALC_TYPE.incar]` of the generated `velph.toml`. The calculation-type
+defaults and any `[vasp.CALC_TYPE.incar]` settings written in the template take
+precedence over them. See {ref}`velph_toml_vasp_incar` for the full merge,
+override, and suppression rules, including how the merge happens only at
+initialization.

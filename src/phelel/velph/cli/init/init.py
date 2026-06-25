@@ -1504,13 +1504,13 @@ def _add_calc_type_scheduler_lines(lines: list, vasp_dict: dict, calc_type: str)
         lines.append(tomli_w.dumps(vasp_dict["scheduler"]).strip())
 
 
-def _get_cell_toml_lines(
-    unitcell: PhonopyAtoms, cell_name: str = "cell", show_masses: bool = False
-) -> list:
+def _get_cell_toml_lines(unitcell: PhonopyAtoms, cell_name: str = "cell") -> list:
     """Return crystal structure lines in toml.
 
-    Masses are not presented by default because they are inconsistent with those
-    in VASP.
+    Atomic masses are written explicitly. This makes velph.toml self-describing
+    and reproducible: the masses no longer depend on the default atomic-mass
+    table, and they can be edited (e.g. for isotopes). The masses may differ from
+    those used internally by VASP (POMASS).
 
     """
     if cell_name:
@@ -1544,7 +1544,7 @@ def _get_cell_toml_lines(
         lines.append(f"[[{cell_name}.points]]  # {i + 1}")
         lines.append(f'symbol = "{s}"')
         lines.append(f"coordinates = [ {v[0]:18.15f}, {v[1]:18.15f}, {v[2]:18.15f} ]")
-        if show_masses and m is not None:
+        if m is not None:
             lines.append(f"mass = {m:f}")
         if mag is not None:
             if mag.ndim == 0:

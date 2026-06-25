@@ -34,7 +34,7 @@ diagonal = {dg_str}
 plusminus = {pm_str}
 fft_mesh = [18, 18, 28]
 [vasp.supercell.incar]
-lwap = true
+elph_prepare = true
 isym = 0
 kpar = 2
 ncore = 24

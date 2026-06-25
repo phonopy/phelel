@@ -2,42 +2,42 @@
 
 # Change Log
 
-# May-13-2026: Version 0.13.3
+## May-13-2026: Version 0.13.3
 
 - Fix import errors.
 
-# May-13-2026: Version 0.13.2
+## May-13-2026: Version 0.13.2
 
 - Update following the change of phonopy and phono3py.
 
-# Mar-8-2026: Version 0.13.1
+## Mar-8-2026: Version 0.13.1
 
 - Rename `cmd_root.py` to `velph_cmd_root.py` for safer module import when
   calling velph command.
 
-# Mar-6-2026: Version 0.13.0
+## Mar-6-2026: Version 0.13.0
 
 - Maintenance release
 
-# Feb-16-2026: Version 0.12.0
+## Feb-16-2026: Version 0.12.0
 
 - Maintenance release
 
-# Oct-24-2025: Version 0.11.0
+## Oct-24-2025: Version 0.11.0
 
 - Default INCAR tags are removed by setting empty table {} in velph template
   toml.
 - Use generalized regular grid when k-point grid symmetry is broken.
 
-# Jun-27-2025: Version 0.10.0
+## Jun-27-2025: Version 0.10.0
 
 - Update following the change of phonopy.
 
-# May-1-2025: Version 0.9.1
+## May-1-2025: Version 0.9.1
 
 - Update following the change of phonopy.
 
-# Mar-23-2025: Version 0.9.0
+## Mar-23-2025: Version 0.9.0
 
 - Numpy arraies of `dtype='long'` were changed to those of `dtype='int64'`.
 - Collection of updates in velph commands.
