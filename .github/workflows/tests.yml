@@ -2,7 +2,7 @@ name: phelel test using conda-forge environment
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [main]
 
 jobs:
   build-linux:
@@ -15,7 +15,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: conda-incubator/setup-miniconda@v4
         with:
           activate-environment: test
@@ -60,7 +60,7 @@ jobs:
           phelel-load --help
           pytest -v --cov=./ --cov-report=xml test
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true

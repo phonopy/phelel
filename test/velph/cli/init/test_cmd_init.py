@@ -9,6 +9,7 @@ import pathlib
 from collections.abc import Callable
 from typing import Literal
 
+import click
 import numpy as np
 import pytest
 import tomli
@@ -116,6 +117,78 @@ def test_run_init_read_cell_and_magmom():
     assert pcell.magnetic_moments is not None
     np.testing.assert_allclose(unitcell.magnetic_moments, [1, 1, 1, 1, -1, -1, -1, -1])
     np.testing.assert_allclose(pcell.magnetic_moments, [1, -1])
+
+
+def _site_mixture_cell() -> PhonopyAtoms:
+    """Return a CsCl-like cell with a co-located Ge/Sn site and a Te site."""
+    return PhonopyAtoms(
+        symbols=["Ge", "Sn", "Te"],
+        cell=np.eye(3) * 4.0,
+        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+
+
+def _run_init_site_mixture(options: VelphInitOptions) -> dict:
+    toml_lines = _run_init(
+        _site_mixture_cell(), options, velph_template_fp=io.BytesIO(b"")
+    )
+    assert toml_lines is not None
+    return tomli.loads("\n".join(toml_lines))
+
+
+@pytest.mark.parametrize("symmetrize_cell", [False, True])
+def test_run_init_site_mixture(symmetrize_cell: bool):
+    """Test --site-mixture writes per-atom weights into velph.toml.
+
+    Weights survive both the default (find_primitive) path and the
+    --symmetrize-cell standardization path, and a pure site carries an
+    explicit weight of 1.0.
+
+    """
+    velph_dict = _run_init_site_mixture(
+        VelphInitOptions(
+            site_mixture="0.5 0.5 1.0",
+            split_site_mixture=True,
+            symmetrize_cell=symmetrize_cell,
+            supercell_dimension=(2, 2, 2),
+        )
+    )
+    for cell_key in ("unitcell", "primitive_cell"):
+        cell = load_phonopy_yaml(velph_dict[cell_key]).unitcell
+        assert cell is not None
+        assert cell.symbols == ["Ge", "Sn", "Te"]
+        assert cell.mixture_weights is not None
+        np.testing.assert_allclose(cell.mixture_weights, [0.5, 0.5, 1.0])
+
+
+def test_run_init_site_mixture_via_template():
+    """Test site_mixture / split_site_mixture flow through [init.options]."""
+    template = (
+        b'[init.options]\nsite_mixture = "0.5 0.5 1.0"\nsplit_site_mixture = true\n'
+    )
+    toml_lines = _run_init(
+        _site_mixture_cell(),
+        VelphInitOptions(supercell_dimension=(2, 2, 2)),
+        velph_template_fp=io.BytesIO(template),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    unitcell = load_phonopy_yaml(velph_dict["unitcell"]).unitcell
+    assert unitcell is not None
+    assert unitcell.mixture_weights is not None
+    np.testing.assert_allclose(unitcell.mixture_weights, [0.5, 0.5, 1.0])
+
+
+def test_run_init_site_mixture_with_magmom_raises():
+    """Test --site-mixture cannot be combined with --magmom."""
+    with pytest.raises(click.ClickException):
+        _run_init_site_mixture(
+            VelphInitOptions(
+                site_mixture="0.5 0.5 1.0",
+                magmom="1 1 1",
+                supercell_dimension=(2, 2, 2),
+            )
+        )
 
 
 def test_run_init_without_max_num_atoms(

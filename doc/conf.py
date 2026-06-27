@@ -38,6 +38,6 @@ html_title = "Phelel v.%s" % release
 
 extlinks = {
     "issue": ("https://github.com/phonopy/phelel/issues/%s", "issue %s"),
-    "path": ("https://github.com/phonopy/phelel/tree/develop/%s", "%s"),
+    "path": ("https://github.com/phonopy/phelel/tree/main/%s", "%s"),
     "user": ("https://github.com/%s", "%s"),
 }

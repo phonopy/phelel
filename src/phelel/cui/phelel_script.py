@@ -19,13 +19,12 @@ from phonopy.exception import CellNotFoundError
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import print_cell
 
-from phelel import Phelel
+from phelel import Phelel, __version__
 from phelel.cui.create_supercells import create_phelel_supercells, get_cell_info
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.settings import PhelelConfParser
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.interface.vasp.derivatives import create_derivatives
-from phelel.version import __version__
 
 
 # AA is created at http://www.network-science.de/ascii/.

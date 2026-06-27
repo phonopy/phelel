@@ -34,7 +34,7 @@ sleep 10
 
 as `_job.sh`. The `job_name` key is a special one. For supercell
 calculations, the value is replaced by `{job_name}-000`, `{job_name}-001`, ...,
-and for `velph-relax` calculatios `{job_name}-iter1`, `{job_name}-iter2`, ...
+and for `velph-relax` calculations `{job_name}-iter1`, `{job_name}-iter2`, ...
 
 If `[vasp.CALC_TYPE.scheduler]` is specified, `[scheduler]` settings are
 overwritten by the settings for `[vasp.CALC_TYPE]`.
