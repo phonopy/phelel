@@ -267,6 +267,11 @@ def _add_datasets(
             "shortest_vector_multiplicities",
             data=np.array(p2s_multiplicities, dtype="int64"),
         )
+        if primitive.mixture_weights is not None:
+            w.create_dataset(
+                "primitive_mixture_weights",
+                data=np.array(primitive.mixture_weights, dtype="double", order="C"),
+            )
         if atom_indices_in_derivatives is not None:
             if True:
                 warnings.warn(
@@ -302,6 +307,11 @@ def _add_datasets(
         w.create_dataset(
             "unitcell_masses", data=np.array(unitcell.masses, dtype="double")
         )
+        if unitcell.mixture_weights is not None:
+            w.create_dataset(
+                "unitcell_mixture_weights",
+                data=np.array(unitcell.mixture_weights, dtype="double", order="C"),
+            )
     if supercell is not None:
         w.create_dataset(
             "supercell_lattice",
@@ -317,6 +327,11 @@ def _add_datasets(
         w.create_dataset(
             "supercell_masses", data=np.array(supercell.masses, dtype="double")
         )
+        if supercell.mixture_weights is not None:
+            w.create_dataset(
+                "supercell_mixture_weights",
+                data=np.array(supercell.mixture_weights, dtype="double", order="C"),
+            )
     if disp_dataset is not None:
         if "first_atoms" in disp_dataset:
             atom_indices = [d["number"] for d in disp_dataset["first_atoms"]]
@@ -373,6 +388,13 @@ def _add_datasets(
             "phonon_supercell_masses",
             data=np.array(phonon_supercell.masses, dtype="double"),
         )
+        if phonon_supercell.mixture_weights is not None:
+            w.create_dataset(
+                "phonon_supercell_mixture_weights",
+                data=np.array(
+                    phonon_supercell.mixture_weights, dtype="double", order="C"
+                ),
+            )
     if nac_params is not None:
         w.create_dataset(
             "born_effective_charges",
