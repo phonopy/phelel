@@ -695,6 +695,86 @@ def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms
     assert scheduler_dict["pe"] == "mpi* 144"
 
 
+def test_run_init_template_from_file(tmp_path: pathlib.Path):
+    """Test of velph-template read from a file as velph init does.
+
+    [vasp.el_bands.dos] and [vasp.el_bands.bands] are handled only when the
+    template is read from a file. The values are chosen to differ from those in
+    default_template_dict.
+
+    """
+    template_lines = [
+        "[init.options]",
+        "supercell_dimension = [2, 2, 2]",
+        "amplitude = 0.05",
+        "[vasp.incar]",
+        "encut = 450",
+        "[vasp.selfenergy.scheduler]",
+        'pe = "mpi* 144"',
+        "[vasp.el_bands.dos.incar]",
+        "nedos = 100",
+        "[vasp.el_bands.bands.kpoints_opt]",
+        "line = 21",
+    ]
+    template_filepath = tmp_path / "velph-template.toml"
+    template_filepath.write_text("\n".join(template_lines))
+    vfp = VelphFilePaths(
+        cell_filepath=cwd / "POSCAR_NaCl", velph_template_filepath=template_filepath
+    )
+    toml_lines = run_init(VelphInitOptions(), vfp)
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict["phelel"]["supercell_dimension"] == [2, 2, 2]
+    assert velph_dict["phelel"]["amplitude"] == pytest.approx(0.05)
+    assert velph_dict["vasp"]["phelel"]["incar"]["encut"] == pytest.approx(450)
+    assert velph_dict["vasp"]["selfenergy"]["scheduler"]["pe"] == "mpi* 144"
+    assert velph_dict["vasp"]["el_bands"]["dos"]["incar"]["nedos"] == 100
+    assert velph_dict["vasp"]["el_bands"]["bands"]["kpoints_opt"]["line"] == 21
+
+
+def test_run_init_template_file_and_bytesio_give_same_lines(
+    nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path
+):
+    """Test that a template gives the same velph.toml from a file and BytesIO.
+
+    The other template tests use io.BytesIO. [vasp.el_bands.*] is excluded
+    because it is handled only for a file.
+
+    """
+    template_str = "\n".join(
+        [
+            "[init.options]",
+            "supercell_dimension = [2, 2, 2]",
+            'cell_for_nac = "unitcell"',
+            "[phelel]",
+            "amplitude = 0.05",
+            "[vasp.incar]",
+            "encut = 450",
+            "[vasp.relax]",
+            'cell = "primitive"',
+            "[vasp.selfenergy.scheduler]",
+            'pe = "mpi* 144"',
+            "[scheduler]",
+            'scheduler_name = "slurm"',
+        ]
+    )
+    template_filepath = tmp_path / "velph-template.toml"
+    template_filepath.write_text(template_str)
+    toml_lines_file = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=template_filepath,
+        template_toml_filepath=template_filepath,
+    )
+    toml_lines_bytesio = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO(template_str.encode("utf-8")),
+    )
+    assert toml_lines_file is not None
+    assert toml_lines_file == toml_lines_bytesio
+
+
 def _test_velph_dict_cell_choices(
     velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):
