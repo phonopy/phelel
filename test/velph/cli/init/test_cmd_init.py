@@ -663,17 +663,92 @@ def test_run_init_template_with_vasp_incar(
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
-    for key in velph_dict["vasp"]:
-        try:
-            velph_dict["vasp"][key]["incar"]["encut"]
-            if encut is None:
-                assert velph_dict["vasp"][key]["incar"]["encut"] == pytest.approx(
-                    default_template_dict["vasp"]["incar"]["encut"]
-                )
-            else:
-                assert velph_dict["vasp"][key]["incar"]["encut"] == pytest.approx(encut)
-        except KeyError:
-            print(f"Note [vasp.{key}.incar] doesn't have encut entry.")
+    if encut is None:
+        encut_ref = default_template_dict["vasp"]["incar"]["encut"]
+    else:
+        encut_ref = encut
+    for incar in _get_incar_dicts(velph_dict).values():
+        assert incar["encut"] == pytest.approx(encut_ref)
+
+
+@pytest.mark.parametrize("nac_ncore", [None, 2])
+def test_run_init_template_incar_merge(nacl_cell: PhonopyAtoms, nac_ncore: int | None):
+    """Test of merging [vasp.incar] into [vasp.CALC_TYPE.incar].
+
+    Tags in [vasp.incar] are added to every [vasp.CALC_TYPE.incar] unless the
+    tag is given there. A tag set to {} in default_template_dict is removed:
+    "sigma" etc. in [vasp.ph_bands.incar] and "ncore" etc. in
+    [vasp.nac.incar]. A template value of such a tag replaces {}.
+
+    """
+    template_lines = [
+        "[vasp.incar]",
+        "encut = 450",
+        "sigma = 0.02",
+        "ncore = 4",
+        "[vasp.relax.incar]",
+        "encut = 600",
+        "nsw = 5",
+    ]
+    if nac_ncore is not None:
+        template_lines += ["[vasp.nac.incar]", f"ncore = {nac_ncore}"]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**{"supercell_dimension": (2, 2, 2)}),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    incars = _get_incar_dicts(tomli.loads("\n".join(toml_lines)))
+    assert set(incars) == {
+        "phelel",
+        "phonopy",
+        "phono3py",
+        "selfenergy",
+        "transport",
+        "ph_selfenergy",
+        "relax",
+        "nac",
+        "ph_bands",
+        "el_bands.bands",
+        "el_bands.dos",
+    }
+
+    for calc_type, incar in incars.items():
+        if calc_type != "relax":
+            assert incar["encut"] == 450
+        if calc_type != "nac":
+            assert incar["ncore"] == 4
+        if calc_type != "ph_bands":
+            assert incar["sigma"] == pytest.approx(0.02)
+
+    # [vasp.relax.incar] in template updates that in default_template_dict.
+    assert incars["relax"]["encut"] == 600
+    assert incars["relax"]["nsw"] == 5
+    assert incars["relax"]["isif"] == 3
+
+    # Tags of default [vasp.CALC_TYPE.incar] are preferred to [vasp.incar].
+    assert incars["el_bands.dos"]["ismear"] == -5
+
+    for tag in ("ismear", "sigma", "ediff", "lreal", "lwave", "lcharg"):
+        assert tag not in incars["ph_bands"]
+    for tag in ("npar", "kpar"):
+        assert tag not in incars["nac"]
+    if nac_ncore is None:
+        assert "ncore" not in incars["nac"]
+    else:
+        assert incars["nac"]["ncore"] == nac_ncore
+
+
+def _get_incar_dicts(velph_dict: dict) -> dict[str, dict]:
+    """Return [vasp.CALC_TYPE.incar] including [vasp.el_bands.*.incar]."""
+    incars = {}
+    for calc_type, calc_dict in velph_dict["vasp"].items():
+        if calc_type == "el_bands":
+            for subtype, subtype_dict in calc_dict.items():
+                incars[f"el_bands.{subtype}"] = subtype_dict["incar"]
+        else:
+            incars[calc_type] = calc_dict["incar"]
+    return incars
 
 
 def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms):
