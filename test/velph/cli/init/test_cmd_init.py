@@ -775,6 +775,50 @@ def test_run_init_template_file_and_bytesio_give_same_lines(
     assert toml_lines_file == toml_lines_bytesio
 
 
+@pytest.mark.parametrize(
+    "template_lines,cmd_init_options",
+    [
+        ([], {}),
+        ([], {"supercell_dimension": (2, 2, 2)}),
+        (["[phonopy]", "supercell_dimension = [2, 2, 2]"], {}),
+        (["[phelel]", "supercell_dimension = [2, 2, 2]"], {}),
+    ],
+)
+def test_run_init_written_vasp_calc_types(
+    nacl_cell: PhonopyAtoms, template_lines: list[str], cmd_init_options: dict
+):
+    """Test which [vasp.CALC_TYPE] sections are written.
+
+    [vasp.phelel], [vasp.phonopy], and [vasp.phono3py] are written when the
+    corresponding [phelel], [phonopy], and [phono3py] have a supercell matrix.
+    [vasp.selfenergy], [vasp.transport], [vasp.ph_selfenergy], and
+    [vasp.ph_bands] are written when [phelel] has a supercell matrix. The
+    others are always written. The parameters give cases both with and without
+    a supercell matrix for each of [phelel] and [phonopy].
+
+    """
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    vasp_dict = velph_dict["vasp"]
+
+    def has_supercell(calc_type: str) -> bool:
+        calc_dict = velph_dict.get(calc_type, {})
+        return "supercell_dimension" in calc_dict or "supercell_matrix" in calc_dict
+
+    for calc_type in ("phelel", "phonopy", "phono3py"):
+        assert (calc_type in vasp_dict) == has_supercell(calc_type)
+    for calc_type in ("selfenergy", "transport", "ph_selfenergy", "ph_bands"):
+        assert (calc_type in vasp_dict) == has_supercell("phelel")
+    for calc_type in ("relax", "nac"):
+        assert calc_type in vasp_dict
+    assert set(vasp_dict["el_bands"]) == {"bands", "dos"}
+
+
 def _test_velph_dict_cell_choices(
     velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):
