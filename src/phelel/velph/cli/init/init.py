@@ -70,6 +70,7 @@ assert set(SUPERCELL_CALC_TYPES) == set(
 )
 
 ELPH_CALC_TYPES = ["selfenergy", "transport", "ph_selfenergy"]
+SUPERCELL_OPTION_KEYS = ("max_num_atoms", "supercell_dimension", "supercell_matrix")
 
 
 def run_init(
@@ -399,6 +400,10 @@ def _collect_init_params(
     2. template_dict["init"]["options"]
     3. Command line options
 
+    max_num_atoms, supercell_dimension, and supercell_matrix all determine the
+    supercell matrix, so only one of them takes effect. If command line options
+    give any of them, none of those in [init.options] are used.
+
     For amplitude, diagonal, and plusminus of each supercell calculation type,
     [phelel], [phonopy], or [phono3py] in velph_dict is placed between 1 and 2.
     These are stored in phelel_displacement_options etc.
@@ -444,6 +449,12 @@ def _collect_init_params(
 
     if cmd_displacement_options:
         num_active_cmd_params = 1
+        # max_num_atoms, supercell_dimension, and supercell_matrix all determine
+        # the supercell matrix. If the command line gives any of them, drop all
+        # of them taken from [init.options].
+        if any(key in cmd_displacement_options for key in SUPERCELL_OPTION_KEYS):
+            for key in SUPERCELL_OPTION_KEYS:
+                displacement_options.pop(key, None)
         displacement_options.update(cmd_displacement_options)
     else:
         num_active_cmd_params = 0

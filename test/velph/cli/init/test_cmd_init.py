@@ -1046,6 +1046,79 @@ def test_run_init_template_supercell(
         assert supercell == {"supercell_dimension": [3, 3, 3]}
 
 
+def _get_phelel_supercell(
+    nacl_cell: PhonopyAtoms, template_lines: list[str], cmd_init_options: dict
+) -> dict:
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    calc_dict = tomli.loads("\n".join(toml_lines))["phelel"]
+    return {
+        key: calc_dict[key]
+        for key in ("supercell_dimension", "supercell_matrix")
+        if key in calc_dict
+    }
+
+
+@pytest.mark.parametrize(
+    "init_options_lines,cmd_init_options,expected",
+    [
+        (
+            ["max_num_atoms = 8", "symmetrize_cell = true"],
+            {"supercell_dimension": (3, 3, 3)},
+            {"supercell_dimension": [3, 3, 3]},
+        ),
+        (
+            ["max_num_atoms = 8"],
+            {"supercell_dimension": (3, 3, 3)},
+            {"supercell_dimension": [3, 3, 3]},
+        ),
+        (
+            ["supercell_dimension = [2, 2, 2]"],
+            {"supercell_matrix": (-1, 1, 1, 1, -1, 1, 1, 1, -1)},
+            {"supercell_matrix": [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]},
+        ),
+        (
+            ["supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]"],
+            {"supercell_dimension": (3, 3, 3)},
+            {"supercell_dimension": [3, 3, 3]},
+        ),
+    ],
+)
+def test_run_init_supercell_options_ranked_per_source(
+    nacl_cell: PhonopyAtoms,
+    init_options_lines: list[str],
+    cmd_init_options: dict,
+    expected: dict,
+):
+    """Test that a supercell option on the command line beats [init.options].
+
+    max_num_atoms, supercell_dimension, and supercell_matrix are ranked as a
+    group per source. When the command line gives any of them, those in
+    [init.options] are not used. Then max_num_atoms in [init.options] does not
+    require symmetrize_cell.
+
+    """
+    template_lines = ["[init.options]", *init_options_lines]
+    supercell = _get_phelel_supercell(nacl_cell, template_lines, cmd_init_options)
+    assert supercell == expected
+
+
+def test_run_init_supercell_cmd_max_num_atoms_beats_init_options(
+    nacl_cell: PhonopyAtoms,
+):
+    """Test that --max-num-atoms beats supercell_dimension in [init.options]."""
+    cmd_init_options = {"max_num_atoms": 120, "symmetrize_cell": True}
+    supercell_ref = _get_phelel_supercell(nacl_cell, [], cmd_init_options)
+    assert supercell_ref != {"supercell_dimension": [3, 3, 3]}
+    template_lines = ["[init.options]", "supercell_dimension = [3, 3, 3]"]
+    supercell = _get_phelel_supercell(nacl_cell, template_lines, cmd_init_options)
+    assert supercell == supercell_ref
+
+
 def _test_velph_dict_cell_choices(
     velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):
