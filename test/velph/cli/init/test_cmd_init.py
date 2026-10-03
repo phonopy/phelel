@@ -894,6 +894,71 @@ def test_run_init_written_vasp_calc_types(
     assert set(vasp_dict["el_bands"]) == {"bands", "dos"}
 
 
+@pytest.mark.parametrize(
+    "calc_type,template_supercell,expected,option_source",
+    [
+        (calc_type, *template_and_expected, option_source)
+        for calc_type in ("phelel", "phonopy", "phono3py")
+        for template_and_expected in (
+            (
+                "supercell_dimension = [2, 2, 3]",
+                {"supercell_dimension": [2, 2, 3]},
+            ),
+            (
+                "supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]",
+                {"supercell_matrix": [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]},
+            ),
+            (
+                "supercell_matrix = [[2, 0, 0], [0, 2, 0], [0, 0, 3]]",
+                {"supercell_dimension": [2, 2, 3]},
+            ),
+        )
+        for option_source in (None, "init_options", "cmd_options")
+    ],
+)
+def test_run_init_template_supercell(
+    nacl_cell: PhonopyAtoms,
+    calc_type: str,
+    template_supercell: str,
+    expected: dict,
+    option_source: str | None,
+):
+    """Test of supercell matrix given in [phelel], [phonopy], or [phono3py].
+
+    The supercell matrix in the template section is used when no supercell
+    option is given in [init.options] or by command-line options. A diagonal
+    matrix is written as supercell_dimension. Only the section where the matrix
+    is written in the template is checked.
+
+    Preference order:
+        cmd_options, [init.options] > [phelel], [phonopy], [phono3py]
+
+    """
+    template_lines = []
+    cmd_init_options = {}
+    if option_source == "init_options":
+        template_lines += ["[init.options]", "supercell_dimension = [3, 3, 3]"]
+    elif option_source == "cmd_options":
+        cmd_init_options["supercell_dimension"] = (3, 3, 3)
+    template_lines += [f"[{calc_type}]", template_supercell]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    calc_dict = tomli.loads("\n".join(toml_lines))[calc_type]
+    supercell = {
+        key: calc_dict[key]
+        for key in ("supercell_dimension", "supercell_matrix")
+        if key in calc_dict
+    }
+    if option_source is None:
+        assert supercell == expected
+    else:
+        assert supercell == {"supercell_dimension": [3, 3, 3]}
+
+
 def _test_velph_dict_cell_choices(
     velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):
