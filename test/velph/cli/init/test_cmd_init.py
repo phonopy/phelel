@@ -663,17 +663,92 @@ def test_run_init_template_with_vasp_incar(
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
-    for key in velph_dict["vasp"]:
-        try:
-            velph_dict["vasp"][key]["incar"]["encut"]
-            if encut is None:
-                assert velph_dict["vasp"][key]["incar"]["encut"] == pytest.approx(
-                    default_template_dict["vasp"]["incar"]["encut"]
-                )
-            else:
-                assert velph_dict["vasp"][key]["incar"]["encut"] == pytest.approx(encut)
-        except KeyError:
-            print(f"Note [vasp.{key}.incar] doesn't have encut entry.")
+    if encut is None:
+        encut_ref = default_template_dict["vasp"]["incar"]["encut"]
+    else:
+        encut_ref = encut
+    for incar in _get_incar_dicts(velph_dict).values():
+        assert incar["encut"] == pytest.approx(encut_ref)
+
+
+@pytest.mark.parametrize("nac_ncore", [None, 2])
+def test_run_init_template_incar_merge(nacl_cell: PhonopyAtoms, nac_ncore: int | None):
+    """Test of merging [vasp.incar] into [vasp.CALC_TYPE.incar].
+
+    Tags in [vasp.incar] are added to every [vasp.CALC_TYPE.incar] unless the
+    tag is given there. A tag set to {} in default_template_dict is removed:
+    "sigma" etc. in [vasp.ph_bands.incar] and "ncore" etc. in
+    [vasp.nac.incar]. A template value of such a tag replaces {}.
+
+    """
+    template_lines = [
+        "[vasp.incar]",
+        "encut = 450",
+        "sigma = 0.02",
+        "ncore = 4",
+        "[vasp.relax.incar]",
+        "encut = 600",
+        "nsw = 5",
+    ]
+    if nac_ncore is not None:
+        template_lines += ["[vasp.nac.incar]", f"ncore = {nac_ncore}"]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**{"supercell_dimension": (2, 2, 2)}),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    incars = _get_incar_dicts(tomli.loads("\n".join(toml_lines)))
+    assert set(incars) == {
+        "phelel",
+        "phonopy",
+        "phono3py",
+        "selfenergy",
+        "transport",
+        "ph_selfenergy",
+        "relax",
+        "nac",
+        "ph_bands",
+        "el_bands.bands",
+        "el_bands.dos",
+    }
+
+    for calc_type, incar in incars.items():
+        if calc_type != "relax":
+            assert incar["encut"] == 450
+        if calc_type != "nac":
+            assert incar["ncore"] == 4
+        if calc_type != "ph_bands":
+            assert incar["sigma"] == pytest.approx(0.02)
+
+    # [vasp.relax.incar] in template updates that in default_template_dict.
+    assert incars["relax"]["encut"] == 600
+    assert incars["relax"]["nsw"] == 5
+    assert incars["relax"]["isif"] == 3
+
+    # Tags of default [vasp.CALC_TYPE.incar] are preferred to [vasp.incar].
+    assert incars["el_bands.dos"]["ismear"] == -5
+
+    for tag in ("ismear", "sigma", "ediff", "lreal", "lwave", "lcharg"):
+        assert tag not in incars["ph_bands"]
+    for tag in ("npar", "kpar"):
+        assert tag not in incars["nac"]
+    if nac_ncore is None:
+        assert "ncore" not in incars["nac"]
+    else:
+        assert incars["nac"]["ncore"] == nac_ncore
+
+
+def _get_incar_dicts(velph_dict: dict) -> dict[str, dict]:
+    """Return [vasp.CALC_TYPE.incar] including [vasp.el_bands.*.incar]."""
+    incars = {}
+    for calc_type, calc_dict in velph_dict["vasp"].items():
+        if calc_type == "el_bands":
+            for subtype, subtype_dict in calc_dict.items():
+                incars[f"el_bands.{subtype}"] = subtype_dict["incar"]
+        else:
+            incars[calc_type] = calc_dict["incar"]
+    return incars
 
 
 def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms):
@@ -693,6 +768,195 @@ def test_run_init_template_with_vasp_calc_type_scheduler(nacl_cell: PhonopyAtoms
     scheduler_dict = velph_dict["vasp"]["selfenergy"]["scheduler"]
     assert "pe" in scheduler_dict
     assert scheduler_dict["pe"] == "mpi* 144"
+
+
+def test_run_init_template_from_file(tmp_path: pathlib.Path):
+    """Test of velph-template read from a file as velph init does.
+
+    [vasp.el_bands.dos] and [vasp.el_bands.bands] are handled only when the
+    template is read from a file. The values are chosen to differ from those in
+    default_template_dict.
+
+    """
+    template_lines = [
+        "[init.options]",
+        "supercell_dimension = [2, 2, 2]",
+        "amplitude = 0.05",
+        "[vasp.incar]",
+        "encut = 450",
+        "[vasp.selfenergy.scheduler]",
+        'pe = "mpi* 144"',
+        "[vasp.el_bands.dos.incar]",
+        "nedos = 100",
+        "[vasp.el_bands.bands.kpoints_opt]",
+        "line = 21",
+    ]
+    template_filepath = tmp_path / "velph-template.toml"
+    template_filepath.write_text("\n".join(template_lines))
+    vfp = VelphFilePaths(
+        cell_filepath=cwd / "POSCAR_NaCl", velph_template_filepath=template_filepath
+    )
+    toml_lines = run_init(VelphInitOptions(), vfp)
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict["phelel"]["supercell_dimension"] == [2, 2, 2]
+    assert velph_dict["phelel"]["amplitude"] == pytest.approx(0.05)
+    assert velph_dict["vasp"]["phelel"]["incar"]["encut"] == pytest.approx(450)
+    assert velph_dict["vasp"]["selfenergy"]["scheduler"]["pe"] == "mpi* 144"
+    assert velph_dict["vasp"]["el_bands"]["dos"]["incar"]["nedos"] == 100
+    assert velph_dict["vasp"]["el_bands"]["bands"]["kpoints_opt"]["line"] == 21
+
+
+def test_run_init_template_file_and_bytesio_give_same_lines(
+    nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path
+):
+    """Test that a template gives the same velph.toml from a file and BytesIO.
+
+    The other template tests use io.BytesIO. [vasp.el_bands.*] is excluded
+    because it is handled only for a file.
+
+    """
+    template_str = "\n".join(
+        [
+            "[init.options]",
+            "supercell_dimension = [2, 2, 2]",
+            'cell_for_nac = "unitcell"',
+            "[phelel]",
+            "amplitude = 0.05",
+            "[vasp.incar]",
+            "encut = 450",
+            "[vasp.relax]",
+            'cell = "primitive"',
+            "[vasp.selfenergy.scheduler]",
+            'pe = "mpi* 144"',
+            "[scheduler]",
+            'scheduler_name = "slurm"',
+        ]
+    )
+    template_filepath = tmp_path / "velph-template.toml"
+    template_filepath.write_text(template_str)
+    toml_lines_file = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=template_filepath,
+        template_toml_filepath=template_filepath,
+    )
+    toml_lines_bytesio = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO(template_str.encode("utf-8")),
+    )
+    assert toml_lines_file is not None
+    assert toml_lines_file == toml_lines_bytesio
+
+
+@pytest.mark.parametrize(
+    "template_lines,cmd_init_options",
+    [
+        ([], {}),
+        ([], {"supercell_dimension": (2, 2, 2)}),
+        (["[phonopy]", "supercell_dimension = [2, 2, 2]"], {}),
+        (["[phelel]", "supercell_dimension = [2, 2, 2]"], {}),
+    ],
+)
+def test_run_init_written_vasp_calc_types(
+    nacl_cell: PhonopyAtoms, template_lines: list[str], cmd_init_options: dict
+):
+    """Test which [vasp.CALC_TYPE] sections are written.
+
+    [vasp.phelel], [vasp.phonopy], and [vasp.phono3py] are written when the
+    corresponding [phelel], [phonopy], and [phono3py] have a supercell matrix.
+    [vasp.selfenergy], [vasp.transport], [vasp.ph_selfenergy], and
+    [vasp.ph_bands] are written when [phelel] has a supercell matrix. The
+    others are always written. The parameters give cases both with and without
+    a supercell matrix for each of [phelel] and [phonopy].
+
+    """
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    vasp_dict = velph_dict["vasp"]
+
+    def has_supercell(calc_type: str) -> bool:
+        calc_dict = velph_dict.get(calc_type, {})
+        return "supercell_dimension" in calc_dict or "supercell_matrix" in calc_dict
+
+    for calc_type in ("phelel", "phonopy", "phono3py"):
+        assert (calc_type in vasp_dict) == has_supercell(calc_type)
+    for calc_type in ("selfenergy", "transport", "ph_selfenergy", "ph_bands"):
+        assert (calc_type in vasp_dict) == has_supercell("phelel")
+    for calc_type in ("relax", "nac"):
+        assert calc_type in vasp_dict
+    assert set(vasp_dict["el_bands"]) == {"bands", "dos"}
+
+
+@pytest.mark.parametrize(
+    "calc_type,template_supercell,expected,option_source",
+    [
+        (calc_type, *template_and_expected, option_source)
+        for calc_type in ("phelel", "phonopy", "phono3py")
+        for template_and_expected in (
+            (
+                "supercell_dimension = [2, 2, 3]",
+                {"supercell_dimension": [2, 2, 3]},
+            ),
+            (
+                "supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]",
+                {"supercell_matrix": [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]},
+            ),
+            (
+                "supercell_matrix = [[2, 0, 0], [0, 2, 0], [0, 0, 3]]",
+                {"supercell_dimension": [2, 2, 3]},
+            ),
+        )
+        for option_source in (None, "init_options", "cmd_options")
+    ],
+)
+def test_run_init_template_supercell(
+    nacl_cell: PhonopyAtoms,
+    calc_type: str,
+    template_supercell: str,
+    expected: dict,
+    option_source: str | None,
+):
+    """Test of supercell matrix given in [phelel], [phonopy], or [phono3py].
+
+    The supercell matrix in the template section is used when no supercell
+    option is given in [init.options] or by command-line options. A diagonal
+    matrix is written as supercell_dimension. Only the section where the matrix
+    is written in the template is checked.
+
+    Preference order:
+        cmd_options, [init.options] > [phelel], [phonopy], [phono3py]
+
+    """
+    template_lines = []
+    cmd_init_options = {}
+    if option_source == "init_options":
+        template_lines += ["[init.options]", "supercell_dimension = [3, 3, 3]"]
+    elif option_source == "cmd_options":
+        cmd_init_options["supercell_dimension"] = (3, 3, 3)
+    template_lines += [f"[{calc_type}]", template_supercell]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    calc_dict = tomli.loads("\n".join(toml_lines))[calc_type]
+    supercell = {
+        key: calc_dict[key]
+        for key in ("supercell_dimension", "supercell_matrix")
+        if key in calc_dict
+    }
+    if option_source is None:
+        assert supercell == expected
+    else:
+        assert supercell == {"supercell_dimension": [3, 3, 3]}
 
 
 def _test_velph_dict_cell_choices(
