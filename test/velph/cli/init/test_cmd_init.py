@@ -516,6 +516,30 @@ def test_run_init_template_amplitude(
         np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.03)
 
 
+@pytest.mark.parametrize("plusminus", [True, False, "auto"])
+def test_run_init_template_init_options_plusminus(
+    nacl_cell: PhonopyAtoms, plusminus: bool | str
+):
+    """Test that plusminus in [init.options] is not overridden by default.
+
+    VelphInitOptions() is used without plusminus, i.e., no command-line option.
+
+    """
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
+    if plusminus == "auto":
+        template_lines += ['plusminus = "auto"']
+    else:
+        template_lines += [f"plusminus = {str(plusminus).lower()}"]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict["phelel"]["plusminus"] == plusminus
+
+
 @pytest.mark.parametrize(
     "plusminus,diagonal",
     itertools.product([True, False, "auto", None], [True, False, None]),
@@ -694,7 +718,7 @@ def test_run_init_template_incar_merge(nacl_cell: PhonopyAtoms, nac_ncore: int |
         template_lines += ["[vasp.nac.incar]", f"ncore = {nac_ncore}"]
     toml_lines = _run_init(
         nacl_cell,
-        VelphInitOptions(**{"supercell_dimension": (2, 2, 2)}),
+        VelphInitOptions(supercell_dimension=(2, 2, 2)),
         velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
     )
     assert toml_lines is not None
@@ -935,7 +959,7 @@ def test_run_init_template_supercell(
 
     """
     template_lines = []
-    cmd_init_options = {}
+    cmd_init_options: dict = {}
     if option_source == "init_options":
         template_lines += ["[init.options]", "supercell_dimension = [3, 3, 3]"]
     elif option_source == "cmd_options":

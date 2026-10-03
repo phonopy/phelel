@@ -127,7 +127,7 @@ class VelphInitOptions:
     site_mixture: str | None = None
     split_site_mixture: bool | None = None
     phelel_nosym: bool | None = None
-    plusminus: bool | Literal["auto"] | None = True
+    plusminus: bool | Literal["auto"] | None = None
     primitive_cell_choice: Literal["standardized", "reduced"] | None = None
     supercell_dimension: tuple[int, int, int] | None = None
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
