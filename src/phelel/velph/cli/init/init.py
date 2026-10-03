@@ -81,9 +81,11 @@ def run_init(
 
     Preference order of configurations is as follows.
 
-    1. Detailed configurations in [phelel] and [vasp] in velph-template.
-    2. Command line options.
-    3. [init.options] (alternative of command-line-options) in velph-template.
+    1. Command line options.
+    2. [init.options] (alternative of command-line-options) in velph-template.
+    3. Detailed configurations in [phelel], [phonopy], [phono3py], and [vasp] in
+       velph-template.
+    4. Default values.
 
     Parameters
     ----------
@@ -149,13 +151,21 @@ def _run_init(
         return None
 
     #
+    # Parse velph configurations.
+    #
+    velph_dict = _get_velph_dict(velph_template_dict)
+
+    #
     # Collect velph-init command line options.
     #
     template_init_params = _get_template_init_params(
         velph_template_dict, template_toml_filepath
     )
     vip = _collect_init_params(
-        cmd_init_options, template_init_params, template_toml_filepath
+        cmd_init_options,
+        template_init_params,
+        template_toml_filepath,
+        velph_dict=velph_dict,
     )
     if vip is None:
         return None
@@ -191,11 +201,6 @@ def _run_init(
         vip.find_primitive,
         vip.primitive_cell_choice,
     )
-
-    #
-    # Parse velph configurations.
-    #
-    velph_dict = _get_velph_dict(velph_template_dict)
 
     #
     # Determine cell choices for calculations such as nac, relax, etc.
@@ -384,6 +389,7 @@ def _collect_init_params(
     cmd_init_options: VelphInitOptions,
     template_init_params: VelphInitOptions,
     template_toml_filepath: str | os.PathLike | None,
+    velph_dict: dict | None = None,
 ) -> VelphInitParams | None:
     """Merge init params defined different places.
 
@@ -392,6 +398,10 @@ def _collect_init_params(
     1. Defalut VelphInitParams
     2. template_dict["init"]["options"]
     3. Command line options
+
+    For amplitude, diagonal, and plusminus of each supercell calculation type,
+    [phelel], [phonopy], or [phono3py] in velph_dict is placed between 1 and 2.
+    These are stored in phelel_displacement_options etc.
 
     Returns
     -------
@@ -402,7 +412,7 @@ def _collect_init_params(
     displacement_options_keys = [
         field.name for field in dataclasses.fields(DisplacementOptions)
     ]
-    vip_dict = {}
+    vip_dict: dict[str, typing.Any] = {}
     displacement_options = {}
 
     # Set parameters specified in velph-toml-template file.
@@ -493,6 +503,13 @@ def _collect_init_params(
     # DisplacementOptions is treated specially.
     if displacement_options:
         vip_dict["displacement_options"] = DisplacementOptions(**displacement_options)
+    if velph_dict is not None:
+        for calc_type in SUPERCELL_CALC_TYPES:
+            vip_dict[f"{calc_type}_displacement_options"] = (
+                _get_calc_type_displacement_options(
+                    displacement_options, velph_dict.get(calc_type, {})
+                )
+            )
 
     # Treatment of correlation among parameters
     if "max_num_atoms" in displacement_options:
@@ -509,6 +526,24 @@ For "symmetrize_cell=false", use "supercell_dimension" (--dim) or
     vip = VelphInitParams(**vip_dict)
 
     return vip
+
+
+def _get_calc_type_displacement_options(
+    displacement_options: dict, calc_dict: dict
+) -> DisplacementOptions:
+    """Return displacement options of a supercell calculation type.
+
+    amplitude, diagonal, and plusminus are taken from displacement_options
+    (command-line options and [init.options]), then from calc_dict ([phelel],
+    [phonopy], or [phono3py] of velph-template), then from the defaults of
+    DisplacementOptions. The other options are taken from displacement_options.
+
+    """
+    options = dict(displacement_options)
+    for key in ("amplitude", "diagonal", "plusminus"):
+        if key not in options and key in calc_dict:
+            options[key] = calc_dict[key]
+    return DisplacementOptions(**options)
 
 
 def _get_cells(
@@ -863,13 +898,16 @@ def _get_toml_lines(
 
     # [phelel]
     if "phelel" in velph_dict:
+        displacement_options = vip.phelel_displacement_options
+        if displacement_options is None:
+            displacement_options = vip.displacement_options
         lines += _get_phelel_lines(
             velph_dict,
             supercell_matrices.phelel,
             primitive,
-            vip.displacement_options.amplitude,
-            vip.displacement_options.diagonal,
-            vip.displacement_options.plusminus,
+            displacement_options.amplitude,
+            displacement_options.diagonal,
+            displacement_options.plusminus,
             vip.phelel_nosym,
         )
 
@@ -883,8 +921,6 @@ def _get_toml_lines(
             lines += [f"[{calc_type}]"]
             lines += _get_supercell_matrix_lines(smat)
             lines += _get_displacement_settings_lines(
-                velph_dict,
-                calc_type,
                 displacement_options.amplitude,
                 displacement_options.diagonal,
                 displacement_options.plusminus,
@@ -1437,9 +1473,7 @@ def _get_phelel_lines(
 
     if supercell_matrix is not None:
         lines += _get_supercell_matrix_lines(supercell_matrix)
-        lines += _get_displacement_settings_lines(
-            velph_dict, "phelel", amplitude, diagonal, plusminus
-        )
+        lines += _get_displacement_settings_lines(amplitude, diagonal, plusminus)
 
         if phelel_nosym:
             lines.append("nosym = true")
@@ -1586,40 +1620,26 @@ def _get_supercell_matrix_lines(
 
 
 def _get_displacement_settings_lines(
-    velph_dict: dict,
-    calc_type: SupercellCalcType,
     amplitude: float,
     diagonal: bool,
     plusminus: Literal["auto"] | bool,
 ) -> list:
     lines = []
-    calc_dict = velph_dict.get(calc_type, {})
-    if "amplitude" in calc_dict:
-        lines.append(f"amplitude = {calc_dict['amplitude']}")
-    else:
-        lines.append(f"amplitude = {amplitude}")
+    lines.append(f"amplitude = {amplitude}")
 
-    if "diagonal" in calc_dict:
-        _diagonal = calc_dict["diagonal"]
-    else:
-        _diagonal = diagonal
-    assert isinstance(_diagonal, bool)
-    if _diagonal:
+    assert isinstance(diagonal, bool)
+    if diagonal:
         lines.append("diagonal = true")
     else:
         lines.append("diagonal = false")
 
-    if "plusminus" in calc_dict:
-        _plusminus = calc_dict["plusminus"]
-    else:
-        _plusminus = plusminus
-    if isinstance(_plusminus, bool):
-        if _plusminus:
+    if isinstance(plusminus, bool):
+        if plusminus:
             lines.append("plusminus = true")
         else:
             lines.append("plusminus = false")
-    elif isinstance(_plusminus, str):
-        if _plusminus == "auto":
+    elif isinstance(plusminus, str):
+        if plusminus == "auto":
             lines.append('plusminus = "auto"')
         else:  # Fall back to default
             lines.append("plusminus = true")

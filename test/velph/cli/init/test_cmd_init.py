@@ -482,10 +482,10 @@ def test_run_init_template_amplitude(
     """Test of preference of amplitude in init option and [phelel].
 
     Preference order:
-        [phelel] > cmd_options > [init.options]
+        cmd_options > [init.options] > [phelel] > default
 
-    Similar tests should be written for "diagonal", "plusminus", and
-    "phelel_nosym".
+    See test_run_init_template_displacement_options for "diagonal" and
+    "plusminus". "nosym" in [phelel] of template is not read.
 
     """
     input_cell = nacl_cell
@@ -504,16 +504,79 @@ def test_run_init_template_amplitude(
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
-    if in_phelel:
-        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.05)
+    if in_options:
+        amplitude_ref = 0.04
+    elif in_template:
+        amplitude_ref = 0.06
+    elif in_phelel:
+        amplitude_ref = 0.05
     else:
-        if in_options:
-            np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.04)
-        else:
-            if in_template:
-                np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.06)
-    if not (in_phelel or in_options or in_template):
-        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.03)
+        amplitude_ref = 0.03
+    np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], amplitude_ref)
+
+
+@pytest.mark.parametrize(
+    "calc_type,key,values,sources",
+    [
+        (calc_type, key, values, sources)
+        for calc_type in ("phelel", "phonopy", "phono3py")
+        for key, values in (
+            ("amplitude", (0.05, 0.04)),
+            ("diagonal", (True, False)),
+            ("plusminus", ("auto", False)),
+        )
+        for sources in (
+            ("template_section",),
+            ("init_options", "template_section"),
+            ("cmd_options", "template_section"),
+            ("cmd_options", "init_options"),
+        )
+    ],
+)
+def test_run_init_template_displacement_options(
+    nacl_cell: PhonopyAtoms,
+    calc_type: str,
+    key: str,
+    values: tuple,
+    sources: tuple[str, ...],
+):
+    """Test of preference of amplitude, diagonal, and plusminus.
+
+    Preference order:
+        cmd_options > [init.options] > [phelel], [phonopy], [phono3py] > default
+
+    The first source in sources is given values[0], which differs from the
+    default, and the second source is given values[1]. values[0] is expected.
+
+    """
+
+    def toml_value(value: float | bool | str) -> str:
+        if isinstance(value, bool):
+            return str(value).lower()
+        if isinstance(value, str):
+            return f'"{value}"'
+        return str(value)
+
+    source_values = dict(zip(sources, values, strict=False))
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
+    cmd_init_options: dict = {}
+    if "init_options" in source_values:
+        template_lines += [f"{key} = {toml_value(source_values['init_options'])}"]
+    if "cmd_options" in source_values:
+        cmd_init_options[key] = source_values["cmd_options"]
+    if "template_section" in source_values:
+        template_lines += [
+            f"[{calc_type}]",
+            f"{key} = {toml_value(source_values['template_section'])}",
+        ]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict[calc_type][key] == values[0]
 
 
 @pytest.mark.parametrize("plusminus", [True, False, "auto"])
