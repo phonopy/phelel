@@ -1252,6 +1252,7 @@ def _get_grid_matrix(
             lattice=primitive.cell,
             symmetry_dataset=sym_dataset,
             use_grg=use_grg,
+            rounding="ceiling",
         )
     except RuntimeError as e:
         if "Grid symmetry is broken." in str(e):
@@ -1264,6 +1265,7 @@ def _get_grid_matrix(
                 lattice=primitive.cell,
                 symmetry_dataset=sym_dataset,
                 use_grg=True,
+                rounding="ceiling",
             )
         else:
             raise e

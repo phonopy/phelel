@@ -361,6 +361,9 @@ def kspacing_to_mesh(
 ) -> SpglibDataset | SpglibMagneticDataset:
     """Update kpoints_dict by mesh corresponding to kspacing.
 
+    The mesh numbers follow the VASP INCAR tag KSPACING,
+    max(1, ceiling(|b_i| 2 pi / kspacing)).
+
     Parameters
     ----------
     kpoints_dict : dict
@@ -382,6 +385,7 @@ def kspacing_to_mesh(
         lattice=unitcell.cell,
         symmetry_dataset=symmetry_dataset,
         use_grg=use_grg,
+        rounding="ceiling",
     )
     if gm.grid_matrix is None:
         kpoints_dict["mesh"] = gm.D_diag.tolist()
