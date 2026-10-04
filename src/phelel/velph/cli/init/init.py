@@ -71,6 +71,25 @@ assert set(SUPERCELL_CALC_TYPES) == set(
 
 ELPH_CALC_TYPES = ["selfenergy", "transport", "ph_selfenergy"]
 SUPERCELL_OPTION_KEYS = ("max_num_atoms", "supercell_dimension", "supercell_matrix")
+# Calculation types whose k-point block accepts kspacing. The generate
+# commands convert kspacing to mesh in these blocks.
+KSPACING_BLOCKS: dict[str, tuple[str, ...]] = {
+    "kpoints": (
+        "phelel",
+        "phonopy",
+        "phono3py",
+        "selfenergy",
+        "transport",
+        "ph_selfenergy",
+        "relax",
+        "nac",
+        "el_bands.bands",
+        "el_bands.dos",
+    ),
+    "kpoints_dense": ("selfenergy", "transport", "ph_selfenergy", "el_bands.dos"),
+    "qpoints": (),
+    "kpoints_opt": (),
+}
 
 
 def run_init(
@@ -150,6 +169,12 @@ def _run_init(
     except tomli.TOMLDecodeError as e:
         click.echo(f'Error in reading "{velph_template_fp}": {e}', err=True)
         return None
+    if velph_template_dict is not None:
+        velph_template_dict = _normalize_template_incar_keys(velph_template_dict)
+        if velph_template_dict is None:
+            return None
+        if not _check_template_kpoints(velph_template_dict):
+            return None
 
     #
     # Parse velph configurations.
@@ -758,6 +783,82 @@ def _parse_velph_template(
     return template_dict
 
 
+def _normalize_template_incar_keys(template_dict: dict | None) -> dict | None:
+    """Return template_dict with INCAR tag names in lower case.
+
+    [vasp.incar] and [vasp.CALC_TYPE.incar] are treated. Values are kept as
+    they are. None is returned with an error message if a table has the same
+    tag twice differing only in case.
+
+    """
+    if template_dict is None or "vasp" not in template_dict:
+        return template_dict
+
+    def _lower_keys(incar: dict, section: str) -> dict | None:
+        lower_incar = {}
+        original_keys: dict[str, str] = {}
+        for key, value in incar.items():
+            if key.lower() in lower_incar:
+                msg = f"""
+------------------------------- ERROR -------------------------------
+INCAR tags "{original_keys[key.lower()]}" and "{key}" in [{section}] are
+the same tag, because tag names are case-insensitive. Give it once.
+---------------------------------------------------------------------"""
+                click.echo(msg, err=True)
+                return None
+            lower_incar[key.lower()] = value
+            original_keys[key.lower()] = key
+        return lower_incar
+
+    template_dict = copy.deepcopy(template_dict)
+    vasp_dict = template_dict["vasp"]
+    for calc_type, calc_dict in vasp_dict.items():
+        if calc_type == "incar":
+            incar, section = calc_dict, "vasp.incar"
+        elif isinstance(calc_dict, dict) and isinstance(calc_dict.get("incar"), dict):
+            incar, section = calc_dict["incar"], f"vasp.{calc_type}.incar"
+        else:
+            continue
+        lower_incar = _lower_keys(incar, section)
+        if lower_incar is None:
+            return None
+        if calc_type == "incar":
+            vasp_dict["incar"] = lower_incar
+        else:
+            calc_dict["incar"] = lower_incar
+    return template_dict
+
+
+def _check_template_kpoints(template_dict: dict) -> bool:
+    """Return False with an error message if a template k-point block is invalid.
+
+    kspacing is accepted only in the blocks in KSPACING_BLOCKS, and mesh and
+    kspacing cannot be given together.
+
+    """
+    for calc_type, calc_dict in template_dict.get("vasp", {}).items():
+        if not isinstance(calc_dict, dict):
+            continue
+        for block, kspacing_calc_types in KSPACING_BLOCKS.items():
+            block_dict = calc_dict.get(block)
+            if not isinstance(block_dict, dict) or "kspacing" not in block_dict:
+                continue
+            section = f"[vasp.{calc_type}.{block}]"
+            if calc_type not in kspacing_calc_types:
+                msg = f"kspacing cannot be used in {section}."
+            elif "mesh" in block_dict:
+                msg = f"Give either mesh or kspacing in {section}, not both."
+            else:
+                continue
+            msg = f"""
+------------------------------- ERROR -------------------------------
+{msg}
+---------------------------------------------------------------------"""
+            click.echo(msg, err=True)
+            return False
+    return True
+
+
 def _get_velph_dict(
     template_dict: dict | None,
 ) -> dict:
@@ -1347,6 +1448,8 @@ def _show_kpoints_lines(
                 k_mesh_lines.append(line)
                 if kpoints_dict[key].D_diag is not None:
                     k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
+            elif kpoints_dict[key].kspacing is not None:
+                k_mesh_lines.append(f"  {key}: kspacing={kpoints_dict[key].kspacing}")
 
     k_mesh_lines.append(
         f"[vasp.*.kpoints_dense.mesh] (*kspacing_dense={vip_kspacing_dense})"
@@ -1365,6 +1468,9 @@ def _show_kpoints_lines(
                 k_mesh_lines.append(line)
                 if kpoints_dense_dict[key].D_diag is not None:
                     k_mesh_lines += [f"     {v}" for v in np.array(mesh)]
+            elif kpoints_dense_dict[key].kspacing is not None:
+                kspacing = kpoints_dense_dict[key].kspacing
+                k_mesh_lines.append(f"  {key}: kspacing={kspacing}")
     if k_mesh_lines:
         click.echo("\n".join(k_mesh_lines))
 
@@ -1384,7 +1490,10 @@ def _get_vasp_lines(
 
     for calc_type in SUPERCELL_CALC_TYPES:
         if calc_type in vasp_dict and calc_type in kpoints_dict:
-            if kpoints_dict[calc_type].mesh is not None:
+            if (
+                kpoints_dict[calc_type].mesh is not None
+                or kpoints_dict[calc_type].kspacing is not None
+            ):
                 _vasp_dict = vasp_dict[calc_type]
                 _add_incar_lines(lines, _vasp_dict, incar_commons, calc_type)
                 lines.append(f"[vasp.{calc_type}.kpoints]")
@@ -1450,7 +1559,10 @@ def _get_vasp_lines(
         if calc_subtype == "dos":
             if "el_bands.dos" in kpoints_dense_dict:
                 el_bands_kpoints_dense = kpoints_dense_dict["el_bands.dos"]
-                if el_bands_kpoints_dense.mesh is not None:
+                if (
+                    el_bands_kpoints_dense.mesh is not None
+                    or el_bands_kpoints_dense.kspacing is not None
+                ):
                     lines.append("[vasp.el_bands.dos.kpoints_dense]")
                     _add_kpoints_lines(lines, el_bands_kpoints_dense)
         _add_calc_type_scheduler_lines(lines, _vasp_dict, f"el_bands.{calc_subtype}")
@@ -1559,15 +1671,19 @@ def _add_kpoints_lines_bands(lines: list, kpt_data: KpointsData) -> None:
 
 
 def _add_kpoints_lines(lines: list, kpt_data: KpointsData) -> None:
-    assert kpt_data.mesh is not None
-    if len(np.ravel(kpt_data.mesh)) == 3:
-        lines.append("mesh = [{:d}, {:d}, {:d}]".format(*kpt_data.mesh))
-    elif len(np.ravel(kpt_data.mesh)) == 9:
-        lines.append("mesh = [")
-        lines.append("  [{:d}, {:d}, {:d}],".format(*kpt_data.mesh[0]))
-        lines.append("  [{:d}, {:d}, {:d}],".format(*kpt_data.mesh[1]))
-        lines.append("  [{:d}, {:d}, {:d}]".format(*kpt_data.mesh[2]))
-        lines.append("]")
+    if kpt_data.kspacing is not None:
+        lines.append(f"kspacing = {kpt_data.kspacing}")
+    else:
+        mesh = kpt_data.mesh
+        assert mesh is not None
+        if len(np.ravel(mesh)) == 3:
+            lines.append("mesh = [{:d}, {:d}, {:d}]".format(*mesh))
+        elif len(np.ravel(mesh)) == 9:
+            lines.append("mesh = [")
+            lines.append("  [{:d}, {:d}, {:d}],".format(*mesh[0]))
+            lines.append("  [{:d}, {:d}, {:d}],".format(*mesh[1]))
+            lines.append("  [{:d}, {:d}, {:d}]".format(*mesh[2]))
+            lines.append("]")
     if kpt_data.shift is not None:
         lines.append("shift = [{:f}, {:f}, {:f}]".format(*kpt_data.shift))
 

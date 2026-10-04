@@ -160,6 +160,7 @@ class KpointsData:
     mesh: NDArray | None = None
     D_diag: NDArray | None = None
     shift: NDArray | None = None
+    kspacing: float | None = None
     line: int | None = None
     path: (
         tuple[tuple[tuple[float, float, float], tuple[float, float, float]]] | None
