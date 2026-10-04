@@ -826,6 +826,64 @@ def test_run_init_template_incar_merge(nacl_cell: PhonopyAtoms, nac_ncore: int |
         assert incars["nac"]["ncore"] == nac_ncore
 
 
+def _run_init_with_template(
+    cell: PhonopyAtoms, template_lines: list[str]
+) -> list[str] | None:
+    return _run_init(
+        cell,
+        VelphInitOptions(supercell_dimension=(2, 2, 2)),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+
+
+def test_run_init_template_incar_upper_case(nacl_cell: PhonopyAtoms):
+    """Test that INCAR tag names in template are normalized to lower case.
+
+    ENCUT is in default_template_dict and NCORE is not. Values are kept as
+    they are.
+
+    """
+    template_lines = [
+        "[vasp.incar]",
+        "ENCUT = 600",
+        "NCORE = 4",
+        'PREC = "Accurate"',
+        "[vasp.relax.incar]",
+        "Nsw = 5",
+    ]
+    toml_lines = _run_init_with_template(nacl_cell, template_lines)
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    incars = _get_incar_dicts(velph_dict)
+    for calc_type, incar in incars.items():
+        assert all(key == key.lower() for key in incar)
+        assert incar["encut"] == 600
+        assert incar["prec"] == "Accurate"
+        if calc_type != "nac":
+            assert incar["ncore"] == 4
+    assert "ncore" not in incars["nac"]
+    assert incars["relax"]["nsw"] == 5
+
+    toml_lines_lower = _run_init_with_template(
+        nacl_cell, ["[vasp.incar]", "encut = 600"]
+    )
+    assert toml_lines_lower is not None
+    fft_mesh_lower = tomli.loads("\n".join(toml_lines_lower))["phelel"]["fft_mesh"]
+    assert velph_dict["phelel"]["fft_mesh"] == fft_mesh_lower
+
+
+@pytest.mark.parametrize("section", ["vasp.incar", "vasp.relax.incar"])
+def test_run_init_template_incar_same_tag_in_two_cases(
+    nacl_cell: PhonopyAtoms, capsys: pytest.CaptureFixture, section: str
+):
+    """Test that the same INCAR tag twice differing only in case is an error."""
+    template_lines = [f"[{section}]", "ENCUT = 600", "encut = 500"]
+    assert _run_init_with_template(nacl_cell, template_lines) is None
+    err = capsys.readouterr().err
+    assert f"[{section}]" in err
+    assert "ENCUT" in err
+
+
 def _get_incar_dicts(velph_dict: dict) -> dict[str, dict]:
     """Return [vasp.CALC_TYPE.incar] including [vasp.el_bands.*.incar]."""
     incars = {}

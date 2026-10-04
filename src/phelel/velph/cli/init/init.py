@@ -150,6 +150,10 @@ def _run_init(
     except tomli.TOMLDecodeError as e:
         click.echo(f'Error in reading "{velph_template_fp}": {e}', err=True)
         return None
+    if velph_template_dict is not None:
+        velph_template_dict = _normalize_template_incar_keys(velph_template_dict)
+        if velph_template_dict is None:
+            return None
 
     #
     # Parse velph configurations.
@@ -755,6 +759,52 @@ def _parse_velph_template(
         del template_dict["vasp"]["el_bands"]
 
     click.echo(f'Read velph template file "{velph_template_fp}".')
+    return template_dict
+
+
+def _normalize_template_incar_keys(template_dict: dict | None) -> dict | None:
+    """Return template_dict with INCAR tag names in lower case.
+
+    [vasp.incar] and [vasp.CALC_TYPE.incar] are treated. Values are kept as
+    they are. None is returned with an error message if a table has the same
+    tag twice differing only in case.
+
+    """
+    if template_dict is None or "vasp" not in template_dict:
+        return template_dict
+
+    def _lower_keys(incar: dict, section: str) -> dict | None:
+        lower_incar = {}
+        original_keys: dict[str, str] = {}
+        for key, value in incar.items():
+            if key.lower() in lower_incar:
+                msg = f"""
+------------------------------- ERROR -------------------------------
+INCAR tags "{original_keys[key.lower()]}" and "{key}" in [{section}] are
+the same tag, because tag names are case-insensitive. Give it once.
+---------------------------------------------------------------------"""
+                click.echo(msg, err=True)
+                return None
+            lower_incar[key.lower()] = value
+            original_keys[key.lower()] = key
+        return lower_incar
+
+    template_dict = copy.deepcopy(template_dict)
+    vasp_dict = template_dict["vasp"]
+    for calc_type, calc_dict in vasp_dict.items():
+        if calc_type == "incar":
+            incar, section = calc_dict, "vasp.incar"
+        elif isinstance(calc_dict, dict) and isinstance(calc_dict.get("incar"), dict):
+            incar, section = calc_dict["incar"], f"vasp.{calc_type}.incar"
+        else:
+            continue
+        lower_incar = _lower_keys(incar, section)
+        if lower_incar is None:
+            return None
+        if calc_type == "incar":
+            vasp_dict["incar"] = lower_incar
+        else:
+            calc_dict["incar"] = lower_incar
     return template_dict
 
 
