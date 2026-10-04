@@ -45,6 +45,7 @@ from phelel.velph.cli.utils import (
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
+    kspacing_to_mesh,
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import get_symmetry_dataset
@@ -1249,6 +1250,109 @@ def test_run_init_template_supercell_given_together(
     )
     assert toml_lines is None
     assert "Only one of" in capsys.readouterr().err
+
+
+def _run_init_with_template_file(
+    cell: PhonopyAtoms, template_lines: list[str], tmp_path: pathlib.Path
+) -> list[str] | None:
+    template_filepath = tmp_path / "velph-template.toml"
+    template_filepath.write_text("\n".join(template_lines))
+    return _run_init(
+        cell,
+        VelphInitOptions(supercell_dimension=(2, 2, 2)),
+        velph_template_fp=template_filepath,
+        template_toml_filepath=template_filepath,
+    )
+
+
+@pytest.mark.parametrize(
+    "calc_type,block",
+    [
+        ("phelel", "kpoints"),
+        ("phonopy", "kpoints"),
+        ("phono3py", "kpoints"),
+        ("selfenergy", "kpoints"),
+        ("selfenergy", "kpoints_dense"),
+        ("transport", "kpoints"),
+        ("transport", "kpoints_dense"),
+        ("ph_selfenergy", "kpoints"),
+        ("ph_selfenergy", "kpoints_dense"),
+        ("relax", "kpoints"),
+        ("nac", "kpoints"),
+        ("el_bands.bands", "kpoints"),
+        ("el_bands.dos", "kpoints"),
+        ("el_bands.dos", "kpoints_dense"),
+    ],
+)
+def test_run_init_template_kpoints_kspacing(
+    nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path, calc_type: str, block: str
+):
+    """Test that kspacing in a template k-point block is copied to velph.toml.
+
+    The mesh is computed from kspacing by the generate commands.
+
+    """
+    template_lines = [f"[vasp.{calc_type}.{block}]", "kspacing = 0.2"]
+    toml_lines = _run_init_with_template_file(nacl_cell, template_lines, tmp_path)
+    assert toml_lines is not None
+    calc_dict = tomli.loads("\n".join(toml_lines))["vasp"]
+    for key in calc_type.split("."):
+        calc_dict = calc_dict[key]
+    assert calc_dict[block] == {"kspacing": 0.2}
+
+
+@pytest.mark.parametrize(
+    "calc_type,block",
+    [
+        ("ph_bands", "kpoints"),
+        ("ph_bands", "qpoints"),
+        ("el_bands.bands", "kpoints_opt"),
+    ],
+)
+def test_run_init_template_kpoints_kspacing_not_supported(
+    nacl_cell: PhonopyAtoms,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture,
+    calc_type: str,
+    block: str,
+):
+    """Test that kspacing in a block where generate does not use it is an error."""
+    template_lines = [f"[vasp.{calc_type}.{block}]", "kspacing = 0.2"]
+    assert _run_init_with_template_file(nacl_cell, template_lines, tmp_path) is None
+    err = capsys.readouterr().err
+    assert f"[vasp.{calc_type}.{block}]" in err
+    assert "kspacing" in err
+
+
+def test_run_init_template_kpoints_mesh_and_kspacing(
+    nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path, capsys: pytest.CaptureFixture
+):
+    """Test that mesh and kspacing in one k-point block are an error."""
+    template_lines = ["[vasp.relax.kpoints]", "mesh = [3, 3, 3]", "kspacing = 0.2"]
+    assert _run_init_with_template_file(nacl_cell, template_lines, tmp_path) is None
+    err = capsys.readouterr().err
+    assert "[vasp.relax.kpoints]" in err
+    assert "mesh" in err
+
+
+def test_run_init_template_kpoints_kspacing_to_mesh(
+    nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path
+):
+    """Test that kspacing written by velph init is converted to mesh."""
+    template_lines = [
+        "[vasp.relax.kpoints]",
+        "kspacing = 0.2",
+        "shift = [0.5, 0.5, 0.5]",
+    ]
+    toml_lines = _run_init_with_template_file(nacl_cell, template_lines, tmp_path)
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    kpoints_dict = velph_dict["vasp"]["relax"]["kpoints"]
+    assert kpoints_dict == {"kspacing": 0.2, "shift": [0.5, 0.5, 0.5]}
+    unitcell = load_phonopy_yaml(velph_dict["unitcell"]).unitcell
+    assert unitcell is not None
+    kspacing_to_mesh(kpoints_dict, unitcell)
+    assert np.array(kpoints_dict["mesh"]).shape in ((3,), (3, 3))
 
 
 def _test_velph_dict_cell_choices(
