@@ -67,8 +67,13 @@ Notes:
 - `primitive_cell_choice` accepts `"standardized"` or `"reduced"`.
 - `max_num_atoms` determines the supercell dimension and must be used together
   with `symmetrize_cell`.
-- Give either `supercell_dimension` (three integers) or `supercell_matrix` (nine
-  integers), not both.
+- `max_num_atoms`, `supercell_dimension` (three integers), and `supercell_matrix`
+  (nine integers) are three ways to give the supercell. Give only one of them in
+  `[init.options]`. When two or more of them are given, `velph init` stops with
+  an error.
+- When the command line gives the supercell, for example with `--dim`, the
+  supercell keywords in `[init.options]` are not used. See
+  {ref}`velph_init_template_precedence`.
 <!-- Hidden until site mixture is public:
 - `site_mixture` and `split_site_mixture` are experimental, and `site_mixture`
   cannot be combined with `magmom`.
@@ -76,6 +81,52 @@ Notes:
 - The file-handling options of `velph init` (`--force`, `--template-toml`,
   `--toml-filename`) are command-line only and have no `[init.options]`
   keyword.
+
+(velph_init_template_precedence)=
+## Order of precedence
+
+The same setting can be given in more than one place. For example, the
+displacement amplitude can be given by `--amplitude` on the command line, by
+`amplitude` in `[init.options]`, and by `amplitude` in `[phelel]` of the
+template. `velph init` takes the value from the first of the following places
+that gives it:
+
+1. a command-line option of `velph init`
+2. `[init.options]` of the template
+3. the sections of the template that have the same layout as in `velph.toml`
+4. the default value
+
+This order applies to the settings in the table below.
+
+| Setting   | Command line                                  | `[init.options]`                                      | Template section                                                     |
+| --------- | --------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| amplitude | `--amplitude`                                 | `amplitude`                                           | `amplitude` in `[phelel]`, `[phonopy]`, `[phono3py]`                 |
+| diagonal  | `--diagonal`                                  | `diagonal`                                            | `diagonal` in `[phelel]`, `[phonopy]`, `[phono3py]`                  |
+| plusminus | `--plusminus` / `--auto`                      | `plusminus`                                           | `plusminus` in `[phelel]`, `[phonopy]`, `[phono3py]`                 |
+| supercell | `--max-num-atoms`, `--dim`, `--supercell-matrix` | `max_num_atoms`, `supercell_dimension`, `supercell_matrix` | `supercell_dimension`, `supercell_matrix` in `[phelel]`, `[phonopy]`, `[phono3py]` |
+| cell      | `--cell-for-relax`, `--cell-for-nac`          | `cell_for_relax`, `cell_for_nac`                      | `cell` in `[vasp.relax]`, `[vasp.nac]`                               |
+
+A value from the command line or from `[init.options]` is used for all of
+`[phelel]`, `[phonopy]`, and `[phono3py]`. A value in a template section is used
+only for that section. For example, `amplitude = 0.05` in `[phonopy]` of the
+template sets the amplitude of `[phonopy]`, and `[phelel]` gets the default
+value 0.03.
+
+A template made from an existing `velph.toml` has `amplitude`, `diagonal`,
+`plusminus`, and the supercell in `[phelel]`. These values are used when the
+command line and `[init.options]` do not give them. To change one of them for a
+new project, give it on the command line, for example `--amplitude 0.02`, and
+the template can be used as it is.
+
+The supercell is one setting that can be given in three ways: by the number of
+atoms (`max_num_atoms`), by three integers (`supercell_dimension`), or by nine
+integers (`supercell_matrix`). In each place, give only one of them. When two or
+more of them are given in the same place, `velph init` stops with an error. When
+the command line gives one of them, none of the three in `[init.options]` is
+used. For example, with `max_num_atoms = 120` in `[init.options]` and
+`--dim 3 3 3` on the command line, the supercell is 3x3x3.
+
+INCAR tags follow different rules, which are described in the next section.
 
 (velph_init_template_incar)=
 ## `[vasp.incar]`

@@ -482,10 +482,10 @@ def test_run_init_template_amplitude(
     """Test of preference of amplitude in init option and [phelel].
 
     Preference order:
-        [phelel] > cmd_options > [init.options]
+        cmd_options > [init.options] > [phelel] > default
 
-    Similar tests should be written for "diagonal", "plusminus", and
-    "phelel_nosym".
+    See test_run_init_template_displacement_options for "diagonal" and
+    "plusminus". "nosym" in [phelel] of template is not read.
 
     """
     input_cell = nacl_cell
@@ -504,16 +504,103 @@ def test_run_init_template_amplitude(
     )
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
-    if in_phelel:
-        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.05)
+    if in_options:
+        amplitude_ref = 0.04
+    elif in_template:
+        amplitude_ref = 0.06
+    elif in_phelel:
+        amplitude_ref = 0.05
     else:
-        if in_options:
-            np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.04)
-        else:
-            if in_template:
-                np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.06)
-    if not (in_phelel or in_options or in_template):
-        np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], 0.03)
+        amplitude_ref = 0.03
+    np.testing.assert_allclose(velph_dict["phelel"]["amplitude"], amplitude_ref)
+
+
+@pytest.mark.parametrize(
+    "calc_type,key,values,sources",
+    [
+        (calc_type, key, values, sources)
+        for calc_type in ("phelel", "phonopy", "phono3py")
+        for key, values in (
+            ("amplitude", (0.05, 0.04)),
+            ("diagonal", (True, False)),
+            ("plusminus", ("auto", False)),
+        )
+        for sources in (
+            ("template_section",),
+            ("init_options", "template_section"),
+            ("cmd_options", "template_section"),
+            ("cmd_options", "init_options"),
+        )
+    ],
+)
+def test_run_init_template_displacement_options(
+    nacl_cell: PhonopyAtoms,
+    calc_type: str,
+    key: str,
+    values: tuple,
+    sources: tuple[str, ...],
+):
+    """Test of preference of amplitude, diagonal, and plusminus.
+
+    Preference order:
+        cmd_options > [init.options] > [phelel], [phonopy], [phono3py] > default
+
+    The first source in sources is given values[0], which differs from the
+    default, and the second source is given values[1]. values[0] is expected.
+
+    """
+
+    def toml_value(value: float | bool | str) -> str:
+        if isinstance(value, bool):
+            return str(value).lower()
+        if isinstance(value, str):
+            return f'"{value}"'
+        return str(value)
+
+    source_values = dict(zip(sources, values, strict=False))
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
+    cmd_init_options: dict = {}
+    if "init_options" in source_values:
+        template_lines += [f"{key} = {toml_value(source_values['init_options'])}"]
+    if "cmd_options" in source_values:
+        cmd_init_options[key] = source_values["cmd_options"]
+    if "template_section" in source_values:
+        template_lines += [
+            f"[{calc_type}]",
+            f"{key} = {toml_value(source_values['template_section'])}",
+        ]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict[calc_type][key] == values[0]
+
+
+@pytest.mark.parametrize("plusminus", [True, False, "auto"])
+def test_run_init_template_init_options_plusminus(
+    nacl_cell: PhonopyAtoms, plusminus: bool | str
+):
+    """Test that plusminus in [init.options] is not overridden by default.
+
+    VelphInitOptions() is used without plusminus, i.e., no command-line option.
+
+    """
+    template_lines = ["[init.options]", "supercell_dimension = [2, 2, 2]"]
+    if plusminus == "auto":
+        template_lines += ['plusminus = "auto"']
+    else:
+        template_lines += [f"plusminus = {str(plusminus).lower()}"]
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict["phelel"]["plusminus"] == plusminus
 
 
 @pytest.mark.parametrize(
@@ -694,7 +781,7 @@ def test_run_init_template_incar_merge(nacl_cell: PhonopyAtoms, nac_ncore: int |
         template_lines += ["[vasp.nac.incar]", f"ncore = {nac_ncore}"]
     toml_lines = _run_init(
         nacl_cell,
-        VelphInitOptions(**{"supercell_dimension": (2, 2, 2)}),
+        VelphInitOptions(supercell_dimension=(2, 2, 2)),
         velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
     )
     assert toml_lines is not None
@@ -935,7 +1022,7 @@ def test_run_init_template_supercell(
 
     """
     template_lines = []
-    cmd_init_options = {}
+    cmd_init_options: dict = {}
     if option_source == "init_options":
         template_lines += ["[init.options]", "supercell_dimension = [3, 3, 3]"]
     elif option_source == "cmd_options":
@@ -957,6 +1044,153 @@ def test_run_init_template_supercell(
         assert supercell == expected
     else:
         assert supercell == {"supercell_dimension": [3, 3, 3]}
+
+
+def _get_phelel_supercell(
+    nacl_cell: PhonopyAtoms, template_lines: list[str], cmd_init_options: dict
+) -> dict:
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    calc_dict = tomli.loads("\n".join(toml_lines))["phelel"]
+    return {
+        key: calc_dict[key]
+        for key in ("supercell_dimension", "supercell_matrix")
+        if key in calc_dict
+    }
+
+
+@pytest.mark.parametrize(
+    "init_options_lines,cmd_init_options,expected",
+    [
+        (
+            ["max_num_atoms = 8", "symmetrize_cell = true"],
+            {"supercell_dimension": (3, 3, 3)},
+            {"supercell_dimension": [3, 3, 3]},
+        ),
+        (
+            ["max_num_atoms = 8"],
+            {"supercell_dimension": (3, 3, 3)},
+            {"supercell_dimension": [3, 3, 3]},
+        ),
+        (
+            ["supercell_dimension = [2, 2, 2]"],
+            {"supercell_matrix": (-1, 1, 1, 1, -1, 1, 1, 1, -1)},
+            {"supercell_matrix": [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]},
+        ),
+        (
+            ["supercell_matrix = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]"],
+            {"supercell_dimension": (3, 3, 3)},
+            {"supercell_dimension": [3, 3, 3]},
+        ),
+    ],
+)
+def test_run_init_supercell_options_ranked_per_source(
+    nacl_cell: PhonopyAtoms,
+    init_options_lines: list[str],
+    cmd_init_options: dict,
+    expected: dict,
+):
+    """Test that a supercell option on the command line beats [init.options].
+
+    max_num_atoms, supercell_dimension, and supercell_matrix are ranked as a
+    group per source. When the command line gives any of them, those in
+    [init.options] are not used. Then max_num_atoms in [init.options] does not
+    require symmetrize_cell.
+
+    """
+    template_lines = ["[init.options]", *init_options_lines]
+    supercell = _get_phelel_supercell(nacl_cell, template_lines, cmd_init_options)
+    assert supercell == expected
+
+
+def test_run_init_supercell_cmd_max_num_atoms_beats_init_options(
+    nacl_cell: PhonopyAtoms,
+):
+    """Test that --max-num-atoms beats supercell_dimension in [init.options]."""
+    cmd_init_options = {"max_num_atoms": 120, "symmetrize_cell": True}
+    supercell_ref = _get_phelel_supercell(nacl_cell, [], cmd_init_options)
+    assert supercell_ref != {"supercell_dimension": [3, 3, 3]}
+    template_lines = ["[init.options]", "supercell_dimension = [3, 3, 3]"]
+    supercell = _get_phelel_supercell(nacl_cell, template_lines, cmd_init_options)
+    assert supercell == supercell_ref
+
+
+@pytest.mark.parametrize("source", ["cmd_options", "init_options"])
+@pytest.mark.parametrize(
+    "keys",
+    [
+        ("max_num_atoms", "supercell_dimension"),
+        ("max_num_atoms", "supercell_matrix"),
+        ("supercell_dimension", "supercell_matrix"),
+        ("max_num_atoms", "supercell_dimension", "supercell_matrix"),
+    ],
+)
+def test_run_init_supercell_options_given_together(
+    nacl_cell: PhonopyAtoms,
+    capsys: pytest.CaptureFixture,
+    source: str,
+    keys: tuple[str, ...],
+):
+    """Test that two or more supercell options in one source are an error."""
+    cmd_values = {
+        "max_num_atoms": 120,
+        "supercell_dimension": (2, 2, 2),
+        "supercell_matrix": (2, 0, 0, 0, 2, 0, 0, 0, 2),
+    }
+    toml_values = {
+        "max_num_atoms": "120",
+        "supercell_dimension": "[2, 2, 2]",
+        "supercell_matrix": "[[2, 0, 0], [0, 2, 0], [0, 0, 2]]",
+    }
+    cmd_init_options: dict = {"symmetrize_cell": True}
+    template_lines = ["[init.options]"]
+    for key in keys:
+        if source == "cmd_options":
+            cmd_init_options[key] = cmd_values[key]
+        else:
+            template_lines.append(f"{key} = {toml_values[key]}")
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is None
+    assert "Only one of" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("cmd_supercell", [False, True])
+@pytest.mark.parametrize("calc_type", ["phelel", "phonopy", "phono3py"])
+def test_run_init_template_supercell_given_together(
+    nacl_cell: PhonopyAtoms,
+    capsys: pytest.CaptureFixture,
+    calc_type: str,
+    cmd_supercell: bool,
+):
+    """Test that both supercell keys in one template section are an error.
+
+    This holds also when the command line gives the supercell, so that the
+    template section is not used.
+
+    """
+    template_lines = [
+        f"[{calc_type}]",
+        "supercell_dimension = [2, 2, 2]",
+        "supercell_matrix = [[3, 0, 0], [0, 3, 0], [0, 0, 3]]",
+    ]
+    cmd_init_options: dict = {}
+    if cmd_supercell:
+        cmd_init_options["supercell_dimension"] = (2, 2, 2)
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is None
+    assert "Only one of" in capsys.readouterr().err
 
 
 def _test_velph_dict_cell_choices(

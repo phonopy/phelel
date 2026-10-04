@@ -42,21 +42,25 @@ even if it is not a primitive cell.
 Sampling k-point meshes are calculated from these values in the similar way to
 VASP `KSPACING` definition by overwriting the template.
 
-### `--max-num-atoms`
+### `--max-num-atoms`, `--dim`, and `--supercell-matrix`
 
-Supercell shape is determined so that its number of atoms is equal or less than
-this number respecting the crystallographic point group. Use of this option
-requires `--symmetrize-cell`.
+These three options give the supercell in different ways.
 
-### `--dim`
+`--max-num-atoms` determines the supercell shape so that its number of atoms is
+equal or less than this number respecting the crystallographic point group. Use
+of this option requires `--symmetrize-cell`.
 
-Supercell shape is determined by three integer values that extend along a, b,
-and c axes of the unit cell, respectively. See also `--supercell-matrix`.
+`--dim` determines the supercell shape by three integer values that extend
+along a, b, and c axes of the unit cell, respectively.
 
-### `--supercell-matrix`
+`--supercell-matrix` determines the supercell shape by nine integer values
+(v1, ..., v9) that correspond to the 3x3 matrix
+[[v1, v2, v3], [v4, v5, v6], [v7, v8, v9]].
 
-Supercell shape is determined by nine integer values (v1, ..., v9) that
-corresponds to a 3x3 matrix [[v1, v2, v3], [v4, v5, v6], [v7, v8, v9]].
+Give only one of `--max-num-atoms`, `--dim`, and `--supercell-matrix`. When two
+or more of them are given, `velph init` stops with an error. The supercell given
+by one of these options is used instead of the supercell settings in the
+template (see {ref}`velph_init_template_precedence`).
 
 ### `--cell-for-relax`
 

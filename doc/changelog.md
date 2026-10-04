@@ -2,6 +2,16 @@
 
 # Change Log
 
+## Unreleased
+
+- `velph init`: command-line options and `[init.options]` now take
+  precedence over `[phelel]`, `[phonopy]`, and `[phono3py]` of the template
+  for `amplitude`, `diagonal`, and `plusminus`, as for the supercell matrix.
+- `velph init`: giving two or more of `max_num_atoms`,
+  `supercell_dimension`, and `supercell_matrix` in one place is an error.
+  A supercell option on the command line is no longer overridden by
+  `max_num_atoms` in `[init.options]`.
+
 ## May-13-2026: Version 0.13.3
 
 - Fix import errors.
