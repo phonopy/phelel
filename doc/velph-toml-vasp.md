@@ -229,12 +229,22 @@ shift = [0.5, 0.5, 0.5]
 
 - `kspacing` : optional. Instead of an explicit `mesh`, a target spacing (in
   1/Angstrom) can be given and the mesh is computed from it at the time the input
-  files are generated. This mirrors VASP's `KSPACING` with `KGAMMA = .TRUE.`:
+  files are generated:
 
   ```toml
   [vasp.relax.kpoints]
   kspacing = 0.2
   ```
+
+  Give either `mesh` or `kspacing` in one block. If a `velph.toml` has both in
+  one block, the generate commands use `kspacing` and ignore `mesh`. If a
+  template of `velph init` has both in one block, `velph init` stops with an
+  error.
+
+  `kspacing` can be used in the `kpoints` blocks, except in
+  `[vasp.ph_bands.kpoints]`, and in the `kpoints_dense` blocks. In
+  `[vasp.ph_bands.kpoints]`, give `mesh`. If a template of `velph init` has
+  `kspacing` in `[vasp.ph_bands.kpoints]`, `velph init` stops with an error.
 
 The `kspacing` and `kspacing_dense` values used by `velph init` to populate the
 `kpoints` and `kpoints_dense` blocks come from the `velph init` options of the
@@ -262,7 +272,8 @@ Band-structure steps add a line-mode block on top of the regular `kpoints` mesh:
 - `[vasp.el_bands.bands.kpoints_opt]` for the electronic band structure.
 - `[vasp.ph_bands.qpoints]` for the phonon band structure.
 
-Both use the same line-mode syntax:
+Both use the same line-mode syntax. `kspacing` cannot be used in these blocks,
+and `velph init` stops with an error if a template has it there.
 
 ```toml
 [vasp.ph_bands.qpoints]

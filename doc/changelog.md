@@ -11,6 +11,11 @@
   `supercell_dimension`, and `supercell_matrix` in one place is an error.
   A supercell option on the command line is no longer overridden by
   `max_num_atoms` in `[init.options]`.
+- `velph init`: INCAR tag names in `[vasp.incar]` and
+  `[vasp.CALC_TYPE.incar]` of the template are case-insensitive, as
+  documented. Upper-case tags were ignored or raised an error.
+- `velph init`: `kspacing` in a k-point block of the template is copied
+  to `velph.toml`, and the mesh is computed by the generate commands.
 
 ## May-13-2026: Version 0.13.3
 
