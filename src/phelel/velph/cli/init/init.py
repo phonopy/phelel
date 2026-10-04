@@ -402,7 +402,9 @@ def _collect_init_params(
 
     max_num_atoms, supercell_dimension, and supercell_matrix all determine the
     supercell matrix, so only one of them takes effect. If command line options
-    give any of them, none of those in [init.options] are used.
+    give any of them, none of those in [init.options] are used. Giving two or
+    more of them in command line options, in [init.options], or in one of
+    [phelel], [phonopy], and [phono3py] is an error, and None is returned.
 
     For amplitude, diagonal, and plusminus of each supercell calculation type,
     [phelel], [phonopy], or [phono3py] in velph_dict is placed between 1 and 2.
@@ -446,6 +448,17 @@ def _collect_init_params(
             value = cmd_init_options[key]
             if value is not None:
                 cmd_displacement_options.update({key: value})
+
+    # Only one of SUPERCELL_OPTION_KEYS can be given in each source.
+    if not _check_supercell_options(cmd_displacement_options, "command-line options"):
+        return None
+    if not _check_supercell_options(displacement_options, "[init.options]"):
+        return None
+    if velph_dict is not None:
+        for calc_type in SUPERCELL_CALC_TYPES:
+            calc_dict = velph_dict.get(calc_type, {})
+            if not _check_supercell_options(calc_dict, f"[{calc_type}]"):
+                return None
 
     if cmd_displacement_options:
         num_active_cmd_params = 1
@@ -537,6 +550,22 @@ For "symmetrize_cell=false", use "supercell_dimension" (--dim) or
     vip = VelphInitParams(**vip_dict)
 
     return vip
+
+
+def _check_supercell_options(options: dict, source: str) -> bool:
+    """Return False with an error message if two or more supercell options."""
+    keys = [key for key in SUPERCELL_OPTION_KEYS if key in options]
+    if len(keys) < 2:
+        return True
+    given = ", ".join(f'"{key}"' for key in keys)
+    msg = f"""
+------------------------------- ERROR -------------------------------
+Only one of "max_num_atoms", "supercell_dimension", and
+"supercell_matrix" can be given in {source}.
+Given: {given}
+---------------------------------------------------------------------"""
+    click.echo(msg, err=True)
+    return False
 
 
 def _get_calc_type_displacement_options(

@@ -1119,6 +1119,80 @@ def test_run_init_supercell_cmd_max_num_atoms_beats_init_options(
     assert supercell == supercell_ref
 
 
+@pytest.mark.parametrize("source", ["cmd_options", "init_options"])
+@pytest.mark.parametrize(
+    "keys",
+    [
+        ("max_num_atoms", "supercell_dimension"),
+        ("max_num_atoms", "supercell_matrix"),
+        ("supercell_dimension", "supercell_matrix"),
+        ("max_num_atoms", "supercell_dimension", "supercell_matrix"),
+    ],
+)
+def test_run_init_supercell_options_given_together(
+    nacl_cell: PhonopyAtoms,
+    capsys: pytest.CaptureFixture,
+    source: str,
+    keys: tuple[str, ...],
+):
+    """Test that two or more supercell options in one source are an error."""
+    cmd_values = {
+        "max_num_atoms": 120,
+        "supercell_dimension": (2, 2, 2),
+        "supercell_matrix": (2, 0, 0, 0, 2, 0, 0, 0, 2),
+    }
+    toml_values = {
+        "max_num_atoms": "120",
+        "supercell_dimension": "[2, 2, 2]",
+        "supercell_matrix": "[[2, 0, 0], [0, 2, 0], [0, 0, 2]]",
+    }
+    cmd_init_options: dict = {"symmetrize_cell": True}
+    template_lines = ["[init.options]"]
+    for key in keys:
+        if source == "cmd_options":
+            cmd_init_options[key] = cmd_values[key]
+        else:
+            template_lines.append(f"{key} = {toml_values[key]}")
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is None
+    assert "Only one of" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("cmd_supercell", [False, True])
+@pytest.mark.parametrize("calc_type", ["phelel", "phonopy", "phono3py"])
+def test_run_init_template_supercell_given_together(
+    nacl_cell: PhonopyAtoms,
+    capsys: pytest.CaptureFixture,
+    calc_type: str,
+    cmd_supercell: bool,
+):
+    """Test that both supercell keys in one template section are an error.
+
+    This holds also when the command line gives the supercell, so that the
+    template section is not used.
+
+    """
+    template_lines = [
+        f"[{calc_type}]",
+        "supercell_dimension = [2, 2, 2]",
+        "supercell_matrix = [[3, 0, 0], [0, 3, 0], [0, 0, 3]]",
+    ]
+    cmd_init_options: dict = {}
+    if cmd_supercell:
+        cmd_init_options["supercell_dimension"] = (2, 2, 2)
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is None
+    assert "Only one of" in capsys.readouterr().err
+
+
 def _test_velph_dict_cell_choices(
     velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):
