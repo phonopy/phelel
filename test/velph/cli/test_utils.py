@@ -3,13 +3,20 @@
 import copy
 import io
 import itertools
+import pathlib
 from collections.abc import Callable
 
+import click
 import numpy as np
+import pytest
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.cli.utils import get_scheduler_dict
+from phelel.velph.cli.utils import (
+    get_scheduler_dict,
+    write_incar,
+    write_kpoints_mesh_mode,
+)
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import get_reduced_cell
 
@@ -84,3 +91,29 @@ points:
             "recondier this test."
         )
         raise AssertionError(msg)
+
+
+@pytest.mark.parametrize("tag", ["kspacing", "elph_kspacing", "KSPACING"])
+def test_write_incar_kspacing_is_error(tmp_path: pathlib.Path, tag: str):
+    """Test that kspacing and elph_kspacing in INCAR are errors."""
+    with pytest.raises(click.ClickException, match=tag):
+        write_incar({"encut": 500, tag: 0.2}, tmp_path)
+    assert not (tmp_path / "INCAR").exists()
+
+
+@pytest.mark.parametrize(
+    "kpoints_filename,incar_tag",
+    [("KPOINTS", "kspacing"), ("KPOINTS_ELPH", "elph_kspacing")],
+)
+def test_write_kpoints_mesh_mode_always_writes(
+    tmp_path: pathlib.Path, kpoints_filename: str, incar_tag: str
+):
+    """Test that KPOINTS is written regardless of the INCAR dict."""
+    write_kpoints_mesh_mode(
+        {incar_tag: 0.2},
+        tmp_path,
+        "vasp.relax.kpoints",
+        {"mesh": [4, 4, 4]},
+        kpoints_filename=kpoints_filename,
+    )
+    assert (tmp_path / kpoints_filename).exists()

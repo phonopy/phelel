@@ -885,6 +885,23 @@ def test_run_init_template_incar_same_tag_in_two_cases(
     assert "ENCUT" in err
 
 
+@pytest.mark.parametrize("section", ["vasp.incar", "vasp.relax.incar"])
+@pytest.mark.parametrize("tag", ["kspacing", "elph_kspacing", "KSPACING"])
+def test_run_init_template_incar_kspacing_is_error(
+    nacl_cell: PhonopyAtoms, capsys: pytest.CaptureFixture, section: str, tag: str
+):
+    """Test that kspacing and elph_kspacing in template INCAR are errors.
+
+    velph always writes KPOINTS files, so these VASP tags are not used.
+
+    """
+    template_lines = [f"[{section}]", f"{tag} = 0.2"]
+    assert _run_init_with_template(nacl_cell, template_lines) is None
+    err = capsys.readouterr().err
+    assert f"[{section}]" in err
+    assert tag.lower() in err
+
+
 def _get_incar_dicts(velph_dict: dict) -> dict[str, dict]:
     """Return [vasp.CALC_TYPE.incar] including [vasp.el_bands.*.incar]."""
     incars = {}

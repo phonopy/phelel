@@ -49,6 +49,10 @@ class PrimitiveCellChoice(Enum):
     REDUCED = "reduced"
 
 
+# VASP INCAR tags that make VASP generate k-points without KPOINTS files.
+VASP_KSPACING_TAGS = ("kspacing", "elph_kspacing")
+
+
 @dataclasses.dataclass(frozen=True)
 class DefaultCellChoices:
     """Default cell choices."""
@@ -174,7 +178,19 @@ def write_incar(
     cell: PhonopyAtoms | None = None,
     incar_filename: str | os.PathLike = "INCAR",
 ) -> None:
-    """Write INCAR file."""
+    """Write INCAR file.
+
+    kspacing and elph_kspacing are not accepted, because velph always writes
+    KPOINTS files.
+
+    """
+    for key in toml_incar_dict:
+        if key.lower() in VASP_KSPACING_TAGS:
+            raise click.ClickException(
+                f'INCAR tag "{key}" cannot be used in velph, because velph '
+                "always writes KPOINTS files. Remove it from velph.toml and give "
+                "the k-point mesh in the kpoints blocks."
+            )
     incar_dict = copy.deepcopy(toml_incar_dict)
     if cell is not None and cell.magnetic_moments is not None:
         incar_dict["magmom"] = cell.magnetic_moments.tolist()
@@ -187,23 +203,14 @@ def write_kpoints_mesh_mode(
     tag: str,
     toml_kpoints_dict: dict,
     kpoints_filename="KPOINTS",
-    kspacing_name="kspacing",
 ) -> None:
     """Write KPOINTS file in mesh mode."""
-    if toml_incar_dict.get(kspacing_name) is None:
-        try:
-            VaspKpoints.write_mesh_mode(
-                pathlib.Path(directory) / kpoints_filename, toml_kpoints_dict
-            )
-        except KeyError:
-            click.echo(
-                f'Invalid setting of [{tag}]. "{kpoints_filename}" was not made.'
-            )
-    else:
-        click.echo(
-            f'"{kpoints_filename}" was not made because of '
-            f'"{kspacing_name}" tag in INCAR setting.'
+    try:
+        VaspKpoints.write_mesh_mode(
+            pathlib.Path(directory) / kpoints_filename, toml_kpoints_dict
         )
+    except KeyError:
+        click.echo(f'Invalid setting of [{tag}]. "{kpoints_filename}" was not made.')
 
 
 def write_kpoints_line_mode(

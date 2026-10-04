@@ -125,7 +125,6 @@ def write_selfenergy_input_files(
         f"vasp.{calc_type}.kpoints_dense",
         kpoints_dense_dict,
         kpoints_filename="KPOINTS_ELPH",
-        kspacing_name="elph_kspacing",
     )
 
     # POTCAR

@@ -35,6 +35,7 @@ from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel import __version__
 from phelel.velph.cli.utils import (
+    VASP_KSPACING_TAGS,
     CellChoice,
     DefaultCellChoices,
     DisplacementOptions,
@@ -788,7 +789,8 @@ def _normalize_template_incar_keys(template_dict: dict | None) -> dict | None:
 
     [vasp.incar] and [vasp.CALC_TYPE.incar] are treated. Values are kept as
     they are. None is returned with an error message if a table has the same
-    tag twice differing only in case.
+    tag twice differing only in case, or has kspacing or elph_kspacing, which
+    velph does not accept because it always writes KPOINTS files.
 
     """
     if template_dict is None or "vasp" not in template_dict:
@@ -803,6 +805,15 @@ def _normalize_template_incar_keys(template_dict: dict | None) -> dict | None:
 ------------------------------- ERROR -------------------------------
 INCAR tags "{original_keys[key.lower()]}" and "{key}" in [{section}] are
 the same tag, because tag names are case-insensitive. Give it once.
+---------------------------------------------------------------------"""
+                click.echo(msg, err=True)
+                return None
+            if key.lower() in VASP_KSPACING_TAGS:
+                msg = f"""
+------------------------------- ERROR -------------------------------
+INCAR tag "{key.lower()}" in [{section}] cannot be used in velph,
+because velph always writes KPOINTS files. Give the k-point mesh in
+the kpoints blocks.
 ---------------------------------------------------------------------"""
                 click.echo(msg, err=True)
                 return None

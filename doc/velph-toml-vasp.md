@@ -138,6 +138,16 @@ lwave = false
 lcharg = false
 ```
 
+velph always writes the k-point files from the k-point blocks described below.
+The `kpoints` block is written to `KPOINTS`, and the `kpoints_dense` block is
+written to `KPOINTS_ELPH` for the electron-phonon steps and to `KPOINTS_OPT` for
+`el_bands.dos`. For this reason, the VASP tags `kspacing` and `elph_kspacing`,
+which make VASP generate the k-points without these files, cannot be written in
+an INCAR section. If a template has one of them, `velph init` stops with an
+error, and if a `velph.toml` has one of them, the generate commands stop with an
+error. To give the k-point mesh by a spacing, write `kspacing` in the k-point
+block instead (see {ref}`velph_toml_vasp_kpoints`).
+
 The base INCAR settings are defined once in the `[vasp.incar]` section and are
 merged into every `[vasp.CALC_TYPE.incar]` for any tag that the calculation type
 does not define itself. See {ref}`velph_init_template_incar` for how this base

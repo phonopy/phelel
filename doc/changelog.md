@@ -16,6 +16,9 @@
   documented. Upper-case tags were ignored or raised an error.
 - `velph init`: `kspacing` in a k-point block of the template is copied
   to `velph.toml`, and the mesh is computed by the generate commands.
+- velph always writes the k-point files. The INCAR tags `kspacing` and
+  `elph_kspacing` are an error in `velph init` templates and in
+  `velph.toml`.
 
 ## May-13-2026: Version 0.13.3
 
