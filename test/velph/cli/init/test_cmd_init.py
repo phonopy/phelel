@@ -984,8 +984,7 @@ def test_run_init_template_file_and_bytesio_give_same_lines(
 ):
     """Test that a template gives the same velph.toml from a file and BytesIO.
 
-    The other template tests use io.BytesIO. [vasp.el_bands.*] is excluded
-    because it is handled only for a file.
+    The other template tests use io.BytesIO.
 
     """
     template_str = "\n".join(
@@ -1003,6 +1002,10 @@ def test_run_init_template_file_and_bytesio_give_same_lines(
             'pe = "mpi* 144"',
             "[scheduler]",
             'scheduler_name = "slurm"',
+            "[vasp.el_bands.dos.incar]",
+            "nedos = 100",
+            "[vasp.el_bands.bands.kpoints_opt]",
+            "line = 21",
         ]
     )
     template_filepath = tmp_path / "velph-template.toml"
@@ -1020,6 +1023,39 @@ def test_run_init_template_file_and_bytesio_give_same_lines(
     )
     assert toml_lines_file is not None
     assert toml_lines_file == toml_lines_bytesio
+
+
+@pytest.mark.parametrize("source", ["file", "bytesio"])
+def test_run_init_template_el_bands(
+    nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path, source: str
+):
+    """Test that [vasp.el_bands.dos] and [vasp.el_bands.bands] of template are used.
+
+    The values differ from those in default_template_dict.
+
+    """
+    template_str = "\n".join(
+        [
+            "[vasp.el_bands.dos.incar]",
+            "NEDOS = 100",
+            "[vasp.el_bands.bands.kpoints_opt]",
+            "line = 21",
+        ]
+    )
+    velph_template_fp: pathlib.Path | io.BytesIO
+    if source == "file":
+        template_filepath = tmp_path / "velph-template.toml"
+        template_filepath.write_text(template_str)
+        velph_template_fp = template_filepath
+    else:
+        velph_template_fp = io.BytesIO(template_str.encode("utf-8"))
+    toml_lines = _run_init(
+        nacl_cell, VelphInitOptions(), velph_template_fp=velph_template_fp
+    )
+    assert toml_lines is not None
+    el_bands_dict = tomli.loads("\n".join(toml_lines))["vasp"]["el_bands"]
+    assert el_bands_dict["dos"]["incar"]["nedos"] == 100
+    assert el_bands_dict["bands"]["kpoints_opt"]["line"] == 21
 
 
 @pytest.mark.parametrize(
