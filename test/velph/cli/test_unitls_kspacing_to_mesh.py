@@ -13,7 +13,7 @@ def test_kspacing_to_mesh_FCC_prim(si_prim_cell, use_grg):
     kspacing_to_mesh(kpoints_dict, si_prim_cell, use_grg)
     if use_grg:
         np.testing.assert_array_equal(
-            kpoints_dict["mesh"], [[-2, 2, 2], [2, -2, 2], [2, 2, -2]]
+            kpoints_dict["mesh"], [[-3, 3, 3], [3, -3, 3], [3, 3, -3]]
         )
     else:
         np.testing.assert_array_equal(kpoints_dict["mesh"], [4, 4, 4])
@@ -26,7 +26,7 @@ def test_kspacing_to_mesh_BCT(tio2_prim_cell, use_grg):
     if use_grg:
         kspacing_to_mesh(kpoints_dict, tio2_prim_cell, use_grg)
         np.testing.assert_array_equal(
-            kpoints_dict["mesh"], [[0, 3, 3], [3, 0, 3], [1, 1, 0]]
+            kpoints_dict["mesh"], [[0, 4, 4], [4, 0, 4], [2, 2, 0]]
         )
     else:
         with pytest.raises(RuntimeError):

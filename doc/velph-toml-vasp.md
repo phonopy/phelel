@@ -239,7 +239,9 @@ shift = [0.5, 0.5, 0.5]
 
 - `kspacing` : optional. Instead of an explicit `mesh`, a target spacing (in
   1/Angstrom) can be given and the mesh is computed from it at the time the input
-  files are generated:
+  files are generated. The number of divisions along each reciprocal basis
+  vector b_i is max(1, ceiling(|b_i| 2π / `kspacing`)), the same rule as the
+  VASP INCAR tag `KSPACING`:
 
   ```toml
   [vasp.relax.kpoints]

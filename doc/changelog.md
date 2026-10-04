@@ -19,6 +19,10 @@
 - velph always writes the k-point files. The INCAR tags `kspacing` and
   `elph_kspacing` are an error in `velph init` templates and in
   `velph.toml`.
+- velph computes a k-point mesh from `kspacing` by rounding up, as the VASP
+  INCAR tag `KSPACING` does. It was rounded to the nearest integer, so the
+  mesh can be larger than before. phonopy 4.8.1 or later is required for
+  this.
 
 ## May-13-2026: Version 0.13.3
 

@@ -39,8 +39,10 @@ even if it is not a primitive cell.
 
 ### `--kspacing` and `--kspacing-dense`
 
-Sampling k-point meshes are calculated from these values in the similar way to
-VASP `KSPACING` definition by overwriting the template.
+Sampling k-point meshes are calculated from these values, unless the template
+gives the k-point blocks. The number of divisions along each reciprocal basis
+vector b_i is max(1, ceiling(|b_i| 2π / `kspacing`)), the same rule as the VASP
+INCAR tag `KSPACING`.
 
 ### `--max-num-atoms`, `--dim`, and `--supercell-matrix`
 

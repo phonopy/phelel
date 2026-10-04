@@ -652,10 +652,19 @@ def test_run_init_with_use_grg(
 ):
     """Return velph_dict by running _run_init with use_grg.
 
-    VASP returns 360 and 50 ir-kpoints. These values are compared with those
-    obtained from phono3py.
+    init_grid is the grid made by velph init. Its mesh numbers along the
+    conventional axes are |b_i| 2 pi / kspacing rounded up, as VASP KSPACING
+    does: (16.64, 16.64, 6.56) -> (17, 17, 7) and (8.32, 8.32, 3.28) ->
+    (9, 9, 4).
+
+    For ref_grid, VASP returns 360 and 50 ir-kpoints. These values are compared
+    with those obtained from phono3py.
 
     """
+    init_grid = (
+        [[0, 17, 17], [17, 0, 17], [7, 7, 0]],
+        [[0, 9, 9], [9, 0, 9], [4, 4, 0]],
+    )
     ref_grid = (
         [[0, 17, 17], [17, 0, 17], [7, 7, 0]],
         [[0, 8, 8], [8, 0, 8], [3, 3, 0]],
@@ -678,7 +687,7 @@ def test_run_init_with_use_grg(
             if velph_dict["vasp"][calc]["cell"] == "primitive":
                 mesh = velph_dict["vasp"][calc]["kpoints"]["mesh"]
                 assert np.array(mesh).shape == (3, 3)
-                np.testing.assert_array_equal(mesh, ref_grid[index])
+                np.testing.assert_array_equal(mesh, init_grid[index])
         except KeyError:
             pass
 
@@ -1370,6 +1379,51 @@ def test_run_init_template_kpoints_kspacing_to_mesh(
     assert unitcell is not None
     kspacing_to_mesh(kpoints_dict, unitcell)
     assert np.array(kpoints_dict["mesh"]).shape in ((3,), (3, 3))
+
+
+def _get_vasp_kspacing_mesh(cell: PhonopyAtoms, kspacing: float) -> list[int]:
+    """Return the mesh of VASP KSPACING, max(1, ceiling(|b_i| 2 pi / KSPACING))."""
+    rec_lengths = np.linalg.norm(np.linalg.inv(cell.cell), axis=0)
+    return (
+        np.maximum(1, np.ceil(rec_lengths * 2 * np.pi / kspacing)).astype(int).tolist()
+    )
+
+
+@pytest.mark.parametrize("kspacing,kspacing_dense", [(0.25, 0.145), (0.3, 0.145)])
+def test_run_init_kspacing_follows_vasp_kspacing(
+    nacl_cell: PhonopyAtoms, kspacing: float, kspacing_dense: float
+):
+    """Test that meshes from --kspacing and --kspacing-dense follow VASP KSPACING.
+
+    Rounding to the nearest integer gives a different mesh for relax with
+    kspacing=0.25 (4.42), for selfenergy kpoints with kspacing=0.3 (6.38), and
+    for selfenergy kpoints_dense with kspacing_dense=0.145 (13.19).
+
+    """
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(
+            kspacing=kspacing,
+            kspacing_dense=kspacing_dense,
+            supercell_dimension=(2, 2, 2),
+        ),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    unitcell = load_phonopy_yaml(velph_dict["unitcell"]).unitcell
+    primitive = load_phonopy_yaml(velph_dict["primitive_cell"]).unitcell
+    assert unitcell is not None
+    assert primitive is not None
+    vasp_dict = velph_dict["vasp"]
+    assert vasp_dict["relax"]["kpoints"]["mesh"] == _get_vasp_kspacing_mesh(
+        unitcell, kspacing
+    )
+    assert vasp_dict["selfenergy"]["kpoints"]["mesh"] == _get_vasp_kspacing_mesh(
+        primitive, kspacing
+    )
+    assert vasp_dict["selfenergy"]["kpoints_dense"]["mesh"] == _get_vasp_kspacing_mesh(
+        primitive, kspacing_dense
+    )
 
 
 def _test_velph_dict_cell_choices(
