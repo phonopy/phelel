@@ -171,6 +171,7 @@ def _run_init(
         click.echo(f'Error in reading "{velph_template_fp}": {e}', err=True)
         return None
     if velph_template_dict is not None:
+        velph_template_dict = _flatten_template_el_bands(velph_template_dict)
         velph_template_dict = _normalize_template_incar_keys(velph_template_dict)
         if velph_template_dict is None:
             return None
@@ -757,30 +758,38 @@ def _parse_velph_template(
     serve this purpose. If there is a need to pass toml_str, it can be achieved
     by using io.BytesIO(toml_str.encode('utf-8')).
 
-    In template_dict, [vasp.el_bands.dos] and [vasp.el_bands.bands] in toml are
-    converted to ['vasp']['el_bands.dos'] and ['vasp']['el_bands.bands']
-    respectively.
-
     """
     if velph_template_fp is None:
         return None
 
     if isinstance(velph_template_fp, io.BytesIO):
         return tomli.load(velph_template_fp)
-    else:
-        assert isinstance(velph_template_fp, (str, os.PathLike))
-        with open(velph_template_fp, "rb") as f:
-            template_dict = tomli.load(f)
 
-    if "vasp" in template_dict and "el_bands" in template_dict["vasp"]:
-        for key in ("dos", "bands"):
-            if key in template_dict["vasp"]["el_bands"]:
-                template_dict["vasp"][f"el_bands.{key}"] = template_dict["vasp"][
-                    "el_bands"
-                ][key]
-        del template_dict["vasp"]["el_bands"]
-
+    assert isinstance(velph_template_fp, (str, os.PathLike))
+    with open(velph_template_fp, "rb") as f:
+        template_dict = tomli.load(f)
     click.echo(f'Read velph template file "{velph_template_fp}".')
+    return template_dict
+
+
+def _flatten_template_el_bands(template_dict: dict) -> dict:
+    """Return template_dict with [vasp.el_bands.*] as flat keys.
+
+    [vasp.el_bands.dos] and [vasp.el_bands.bands] in toml are converted to
+    ['vasp']['el_bands.dos'] and ['vasp']['el_bands.bands'], respectively.
+    These dotted keys are used only inside velph init, as in
+    default_template_dict.
+
+    """
+    vasp_dict = template_dict.get("vasp")
+    if not isinstance(vasp_dict, dict) or "el_bands" not in vasp_dict:
+        return template_dict
+    template_dict = copy.deepcopy(template_dict)
+    vasp_dict = template_dict["vasp"]
+    el_bands_dict = vasp_dict.pop("el_bands")
+    for key in ("dos", "bands"):
+        if key in el_bands_dict:
+            vasp_dict[f"el_bands.{key}"] = el_bands_dict[key]
     return template_dict
 
 
