@@ -23,6 +23,14 @@
   INCAR tag `KSPACING` does. It was rounded to the nearest integer, so the
   mesh can be larger than before. phonopy 4.8.1 or later is required for
   this.
+- `velph phelel init`, `velph phonopy init`, and `velph phono3py init` use
+  `plusminus = true` and `diagonal = false` when these keys are missing in
+  `velph.toml`, as `velph init` writes and as documented. They used the
+  defaults of phonopy (`"auto"` and `true`).
+- `velph init` writes `amplitude = 0.01` in `[phonopy]` instead of 0.03 when
+  the amplitude is not given. `[phelel]` and `[phono3py]` keep 0.03. These are
+  the default displacement distances of phonopy and phono3py for VASP, which
+  the generate commands also use when `amplitude` is missing.
 
 ## May-13-2026: Version 0.13.3
 

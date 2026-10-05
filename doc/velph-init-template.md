@@ -39,7 +39,7 @@ command-line option of the same name (with underscores written as hyphens).
 
 | Keyword                 | Type                | Default         | `velph init` option        |
 | ----------------------- | ------------------- | --------------- | -------------------------- |
-| `amplitude`             | float               | `0.03`          | `--amplitude`              |
+| `amplitude`             | float               | (see below)     | `--amplitude`              |
 | `cell_for_nac`          | str                 | `"primitive"`   | `--cell-for-nac`           |
 | `cell_for_relax`        | str                 | `"unitcell"`    | `--cell-for-relax`         |
 | `diagonal`              | bool                | `false`         | `--diagonal`               |
@@ -63,6 +63,9 @@ command-line option of the same name (with underscores written as hyphens).
 
 Notes:
 
+- Without `amplitude`, `velph init` writes 0.03 in `[phelel]` and `[phono3py]`
+  and 0.01 in `[phonopy]`. These are the default displacement distances of
+  phono3py and phonopy for VASP.
 - `cell_for_nac` and `cell_for_relax` accept `"primitive"` or `"unitcell"`.
 - `primitive_cell_choice` accepts `"standardized"` or `"reduced"`.
 - `max_num_atoms` determines the supercell dimension and must be used together

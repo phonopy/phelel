@@ -41,9 +41,11 @@ from phelel.velph.cli.utils import (
     DisplacementOptions,
     KpointsData,
     PrimitiveCellChoice,
+    SupercellCalcType,
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
+    get_default_amplitude,
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import (
@@ -53,7 +55,6 @@ from phelel.velph.utils.structure import (
 )
 from phelel.velph.utils.vasp import CutoffToFFTMesh, VaspIncar
 
-SupercellCalcType = Literal["phelel", "phonopy", "phono3py"]
 SUPERCELL_CALC_TYPES = get_args(SupercellCalcType)
 
 
@@ -558,7 +559,7 @@ def _collect_init_params(
         for calc_type in SUPERCELL_CALC_TYPES:
             vip_dict[f"{calc_type}_displacement_options"] = (
                 _get_calc_type_displacement_options(
-                    displacement_options, velph_dict.get(calc_type, {})
+                    displacement_options, velph_dict.get(calc_type, {}), calc_type
                 )
             )
 
@@ -596,20 +597,23 @@ Given: {given}
 
 
 def _get_calc_type_displacement_options(
-    displacement_options: dict, calc_dict: dict
+    displacement_options: dict, calc_dict: dict, calc_type: SupercellCalcType
 ) -> DisplacementOptions:
     """Return displacement options of a supercell calculation type.
 
     amplitude, diagonal, and plusminus are taken from displacement_options
     (command-line options and [init.options]), then from calc_dict ([phelel],
     [phonopy], or [phono3py] of velph-template), then from the defaults of
-    DisplacementOptions. The other options are taken from displacement_options.
+    DisplacementOptions (get_default_amplitude for amplitude). The other options
+    are taken from displacement_options.
 
     """
     options = dict(displacement_options)
     for key in ("amplitude", "diagonal", "plusminus"):
         if key not in options and key in calc_dict:
             options[key] = calc_dict[key]
+    if options.get("amplitude") is None:
+        options["amplitude"] = get_default_amplitude(calc_type)
     return DisplacementOptions(**options)
 
 
@@ -1082,6 +1086,7 @@ def _get_toml_lines(
             lines += [f"[{calc_type}]"]
             lines += _get_supercell_matrix_lines(smat)
             lines += _get_displacement_settings_lines(
+                calc_type,
                 displacement_options.amplitude,
                 displacement_options.diagonal,
                 displacement_options.plusminus,
@@ -1636,7 +1641,7 @@ def _get_phelel_lines(
     velph_dict: dict,
     supercell_matrix: NDArray | None,
     primitive: PhonopyAtoms,
-    amplitude: float,
+    amplitude: float | None,
     diagonal: bool,
     plusminus: Literal["auto"] | bool,
     phelel_nosym: bool,
@@ -1647,7 +1652,9 @@ def _get_phelel_lines(
 
     if supercell_matrix is not None:
         lines += _get_supercell_matrix_lines(supercell_matrix)
-        lines += _get_displacement_settings_lines(amplitude, diagonal, plusminus)
+        lines += _get_displacement_settings_lines(
+            "phelel", amplitude, diagonal, plusminus
+        )
 
         if phelel_nosym:
             lines.append("nosym = true")
@@ -1798,11 +1805,14 @@ def _get_supercell_matrix_lines(
 
 
 def _get_displacement_settings_lines(
-    amplitude: float,
+    calc_type: SupercellCalcType,
+    amplitude: float | None,
     diagonal: bool,
     plusminus: Literal["auto"] | bool,
 ) -> list:
     lines = []
+    if amplitude is None:
+        amplitude = get_default_amplitude(calc_type)
     lines.append(f"amplitude = {amplitude}")
 
     assert isinstance(diagonal, bool)

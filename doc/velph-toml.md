@@ -120,14 +120,17 @@ subcommands, respectively.
 ```toml
 [phonopy]
 supercell_dimension = [2, 2, 2]
-amplitude = 0.03
+amplitude = 0.01
 diagonal = false
 plusminus = true
 ```
 
 They share the supercell and displacement keys of `[phelel]`
 (`supercell_dimension`/`supercell_matrix`, `amplitude`, `diagonal`,
-`plusminus`, `nosym`) with the same meanings and defaults, plus:
+`plusminus`, `nosym`) with the same meanings and defaults, except that the
+default `amplitude` of `[phonopy]` is `0.01`. These defaults are the default
+displacement distances of phonopy (0.01) and phono3py (0.03) for VASP. In
+addition, they have the following keys:
 
 | Key                          | Type           | Meaning                                                                   |
 | ---------------------------- | -------------- | ------------------------------------------------------------------------- |

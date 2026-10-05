@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Literal
 
 import click
 import numpy as np
 from phono3py import Phono3py
-from phono3py.interface.calculator import get_default_displacement_distance
 from phonopy.structure.atoms import parse_cell_dict
 
-from phelel.velph.cli.utils import get_nac_params
+from phelel.velph.cli.utils import (
+    DisplacementOptions,
+    get_displacement_options,
+    get_nac_params,
+)
 
 
 def run_init(
@@ -61,22 +63,11 @@ def run_init(
         calculator="vasp",
     )
 
-    amplitude = toml_dict["phono3py"].get("amplitude", None)
-    if number_of_snapshots is None:
-        is_diagonal = toml_dict["phono3py"].get("diagonal", True)
-        is_plusminus = toml_dict["phono3py"].get("plusminus", "auto")
-    else:
-        is_diagonal = False
-        is_plusminus = False
-
-    _generate_phono3py_supercells(
-        ph3py,
-        interface_mode="vasp",
-        distance=amplitude,
-        is_plusminus=is_plusminus,
-        is_diagonal=is_diagonal,
-        number_of_snapshots=number_of_snapshots,
+    displacement_options = get_displacement_options(
+        toml_dict["phono3py"], "phono3py", number_of_snapshots=number_of_snapshots
     )
+
+    _generate_phono3py_supercells(ph3py, displacement_options)
 
     nac_directory = current_directory / "nac"
     if nac_directory.exists():
@@ -100,26 +91,18 @@ def run_init(
 
 def _generate_phono3py_supercells(
     phono3py: Phono3py,
-    interface_mode: str = "vasp",
-    distance: float | None = None,
-    is_plusminus: Literal["auto"] | bool = "auto",
-    is_diagonal: bool = True,
-    number_of_snapshots: int | None = None,
+    displacement_options: DisplacementOptions,
     number_of_snapshots_fc2: int | None = None,
 ):
-    """Generate phelel supercells."""
-    if distance is None:
-        _distance = get_default_displacement_distance(interface_mode)
-    else:
-        _distance = distance
-
+    """Generate phono3py supercells with displacements."""
+    distance = displacement_options.amplitude
     phono3py.generate_displacements(
-        distance=_distance,
-        is_plusminus=is_plusminus,
-        is_diagonal=is_diagonal,
-        number_of_snapshots=number_of_snapshots,
+        distance=distance,
+        is_plusminus=displacement_options.plusminus,
+        is_diagonal=displacement_options.diagonal,
+        number_of_snapshots=displacement_options.number_of_snapshots,
     )
-    click.echo(f"Displacement distance: {_distance}")
+    click.echo(f"Displacement distance: {distance}")
     click.echo(
         f"Number of displacements: {len(phono3py.supercells_with_displacements)}"
     )

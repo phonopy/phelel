@@ -14,6 +14,12 @@ from typing import Any, Iterator, Literal
 import click
 import numpy as np
 from numpy.typing import NDArray
+from phono3py.interface.calculator import (
+    get_default_displacement_distance as get_phono3py_displacement_distance,
+)
+from phonopy.interface.calculator import (
+    get_default_displacement_distance as get_phonopy_displacement_distance,
+)
 from phonopy.interface.vasp import VasprunxmlExpat
 
 try:
@@ -61,17 +67,66 @@ class DefaultCellChoices:
     relax: CellChoice = CellChoice.UNITCELL
 
 
+SupercellCalcType = Literal["phelel", "phonopy", "phono3py"]
+
+
 @dataclasses.dataclass(frozen=True)
 class DisplacementOptions:
-    """Options for generating displacements."""
+    """Options for generating displacements.
 
-    amplitude: float = 0.03
+    amplitude=None means the default of each calculation type given by
+    get_default_amplitude.
+
+    """
+
+    amplitude: float | None = None
     diagonal: bool = False
     max_num_atoms: int | None = None
     number_of_snapshots: int | None = None
     plusminus: bool | Literal["auto"] = True
     supercell_dimension: tuple[int, int, int] | None = None
     supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
+
+
+def get_default_amplitude(calc_type: SupercellCalcType) -> float:
+    """Return default displacement distance of a calculation type.
+
+    The default displacement distances of phonopy (for phonopy) and phono3py
+    (for phono3py and phelel) for VASP are used.
+
+    """
+    if calc_type == "phonopy":
+        return get_phonopy_displacement_distance("vasp")
+    return get_phono3py_displacement_distance("vasp")
+
+
+def get_displacement_options(
+    calc_dict: dict,
+    calc_type: SupercellCalcType,
+    number_of_snapshots: int | None = None,
+) -> DisplacementOptions:
+    """Return displacement options in a velph.toml section.
+
+    calc_dict is [phelel], [phonopy], or [phono3py] of velph.toml given by
+    calc_type. A missing key gives the default that velph init writes:
+    get_default_amplitude for amplitude and the defaults of
+    DisplacementOptions for diagonal and plusminus. With number_of_snapshots
+    (random displacements), diagonal and plusminus are False.
+
+    """
+    amplitude = calc_dict.get("amplitude", get_default_amplitude(calc_type))
+    if number_of_snapshots:
+        return DisplacementOptions(
+            amplitude=amplitude,
+            diagonal=False,
+            plusminus=False,
+            number_of_snapshots=number_of_snapshots,
+        )
+    return DisplacementOptions(
+        amplitude=amplitude,
+        diagonal=calc_dict.get("diagonal", DisplacementOptions.diagonal),
+        plusminus=calc_dict.get("plusminus", DisplacementOptions.plusminus),
+    )
 
 
 @dataclasses.dataclass(frozen=True)
