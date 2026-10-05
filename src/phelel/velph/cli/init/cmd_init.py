@@ -16,6 +16,7 @@ from phelel.velph.cli.utils import (
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
+    get_default_amplitude,
 )
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.utils.vasp import VaspPotcar
@@ -42,7 +43,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Distance of displacements in Angstrom. "
-        f"(amplitude: float, default={DisplacementOptions.amplitude})"
+        f"(amplitude: float, default={get_default_amplitude('phelel')} for "
+        f"phelel and phono3py, {get_default_amplitude('phonopy')} for phonopy)"
     ),
 )
 @click.option(

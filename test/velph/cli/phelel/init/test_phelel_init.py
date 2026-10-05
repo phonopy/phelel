@@ -1,6 +1,7 @@
 """Tests CLIs."""
 
 import itertools
+import pathlib
 from pathlib import Path
 
 import numpy as np
@@ -96,3 +97,50 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]
     for i, d in enumerate(phe.dataset["first_atoms"]):
         assert d["number"] == 0
         np.testing.assert_allclose(d["displacement"], disps[i])
+
+
+_TI_UNITCELL = """
+[unitcell]
+lattice = [
+  [ 2.930720886111760, 0.000000000000000, 0.000000000000000 ],
+  [ -1.465360443055880, 2.538078738774425, 0.000000000000000 ],
+  [ 0.000000000000000, 0.000000000000000, 4.646120482318025 ],
+]
+[[unitcell.points]]
+symbol = "Ti"
+coordinates = [ 0.333333333333336, 0.666666666666664, 0.25 ]
+[[unitcell.points]]
+symbol = "Ti"
+coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
+"""
+
+
+def _get_phelel_displacements(
+    displacement_lines: list[str], tmp_path: pathlib.Path
+) -> np.ndarray:
+    toml_str = "\n".join(
+        ["[phelel]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
+    )
+    phe = run_init(tomli.loads(toml_str + _TI_UNITCELL), current_directory=tmp_path)
+    assert phe.dataset is not None
+    return np.array([a["displacement"] for a in phe.dataset["first_atoms"]])
+
+
+def test_phelel_init_default_displacement_settings(tmp_path: pathlib.Path):
+    """Test defaults of plusminus, diagonal, and amplitude in [phelel].
+
+    When they are not given, the values written by velph init (plusminus=true,
+    diagonal=false, amplitude=0.03) are used. These give displacements that
+    differ from those with the defaults of phonopy ("auto", true, and 0.01).
+
+    """
+    disps = _get_phelel_displacements([], tmp_path)
+    disps_velph = _get_phelel_displacements(
+        ["plusminus = true", "diagonal = false", "amplitude = 0.03"], tmp_path
+    )
+    disps_phonopy = _get_phelel_displacements(
+        ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"], tmp_path
+    )
+    assert disps.shape == disps_velph.shape
+    np.testing.assert_allclose(disps, disps_velph)
+    assert disps.shape != disps_phonopy.shape or not np.allclose(disps, disps_phonopy)

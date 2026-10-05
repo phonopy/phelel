@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Literal
 
 import click
 import numpy as np
 from phonopy import Phonopy
-from phonopy.interface.calculator import get_default_displacement_distance
 from phonopy.structure.atoms import parse_cell_dict
 
-from phelel.velph.cli.utils import get_nac_params
+from phelel.velph.cli.utils import (
+    DisplacementOptions,
+    get_displacement_options,
+    get_nac_params,
+)
 
 
 def run_init(
@@ -56,23 +58,13 @@ def run_init(
         calculator="vasp",
     )
 
-    amplitude = toml_dict["phonopy"].get("amplitude", None)
-    number_of_snapshots = toml_dict["phonopy"].get("number_of_snapshots", {})
-    is_diagonal = False
-    is_plusminus = False
-    if not number_of_snapshots:
-        is_diagonal = toml_dict["phonopy"].get("diagonal", True)
-        is_plusminus = toml_dict["phonopy"].get("plusminus", "auto")
-        number_of_snapshots = None
-
-    _generate_phonopy_supercells(
-        ph,
-        interface_mode="vasp",
-        distance=amplitude,
-        is_plusminus=is_plusminus,
-        is_diagonal=is_diagonal,
-        number_of_snapshots=number_of_snapshots,
+    displacement_options = get_displacement_options(
+        toml_dict["phonopy"],
+        "phonopy",
+        number_of_snapshots=toml_dict["phonopy"].get("number_of_snapshots"),
     )
+
+    _generate_phonopy_supercells(ph, displacement_options)
 
     nac_directory = current_directory / "nac"
     if nac_directory.exists():
@@ -95,25 +87,15 @@ def run_init(
 
 
 def _generate_phonopy_supercells(
-    phonopy: Phonopy,
-    interface_mode: str = "vasp",
-    distance: float | None = None,
-    is_plusminus: Literal["auto"] | bool = "auto",
-    is_diagonal: bool = True,
-    number_of_snapshots: int | None = None,
+    phonopy: Phonopy, displacement_options: DisplacementOptions
 ):
-    """Generate phelel supercells."""
-    if distance is None:
-        _distance = get_default_displacement_distance(interface_mode)
-    else:
-        _distance = distance
-
+    """Generate phonopy supercells with displacements."""
     phonopy.generate_displacements(
-        distance=_distance,
-        is_plusminus=is_plusminus,
-        is_diagonal=is_diagonal,
-        number_of_snapshots=number_of_snapshots,
+        distance=displacement_options.amplitude,
+        is_plusminus=displacement_options.plusminus,
+        is_diagonal=displacement_options.diagonal,
+        number_of_snapshots=displacement_options.number_of_snapshots,
     )
     assert phonopy.supercells_with_displacements is not None
-    click.echo(f"Displacement distance: {_distance}")
+    click.echo(f"Displacement distance: {displacement_options.amplitude}")
     click.echo(f"Number of displacements: {len(phonopy.supercells_with_displacements)}")

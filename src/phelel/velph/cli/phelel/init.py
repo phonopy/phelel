@@ -10,7 +10,7 @@ from phonopy.structure.atoms import parse_cell_dict
 
 from phelel import Phelel
 from phelel.cui.create_supercells import generate_phelel_supercells
-from phelel.velph.cli.utils import get_nac_params
+from phelel.velph.cli.utils import get_displacement_options, get_nac_params
 
 
 def run_init(
@@ -57,16 +57,14 @@ def run_init(
         calculator="vasp",
     )
 
-    is_diagonal = toml_dict["phelel"].get("diagonal", True)
-    is_plusminus = toml_dict["phelel"].get("plusminus", "auto")
-    amplitude = toml_dict["phelel"].get("amplitude", None)
+    displacement_options = get_displacement_options(toml_dict["phelel"], "phelel")
 
     generate_phelel_supercells(
         phe,
         interface_mode="vasp",
-        distance=amplitude,
-        is_plusminus=is_plusminus,
-        is_diagonal=is_diagonal,
+        distance=displacement_options.amplitude,
+        is_plusminus=displacement_options.plusminus,
+        is_diagonal=displacement_options.diagonal,
     )
 
     nac_directory = current_directory / "nac"

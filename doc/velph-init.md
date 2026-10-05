@@ -84,7 +84,10 @@ Use generalized regular grid.
 
 ### `--amplitude`
 
-Distance of displacements in Angstrom.
+Distance of displacements in Angstrom. The value is used for `[phelel]`,
+`[phonopy]`, and `[phono3py]`. Without this option, `velph init` writes 0.03 in
+`[phelel]` and `[phono3py]` and 0.01 in `[phonopy]`, which are the default
+displacement distances of phono3py and phonopy for VASP.
 
 ### `--diagonal`
 

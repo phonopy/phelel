@@ -15,12 +15,7 @@ import pytest
 import tomli
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.phonopy_yaml import load_phonopy_yaml
-
-try:
-    from phonopy.phonon.grid import BZGrid, get_ir_grid_points
-except ModuleNotFoundError:
-    from phono3py.phonon.grid import BZGrid, get_ir_grid_points
-
+from phonopy.phonon.grid import BZGrid, get_ir_grid_points
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import get_primitive
 
@@ -578,6 +573,21 @@ def test_run_init_template_displacement_options(
     assert toml_lines is not None
     velph_dict = tomli.loads("\n".join(toml_lines))
     assert velph_dict[calc_type][key] == values[0]
+
+
+def test_run_init_default_amplitude(nacl_cell: PhonopyAtoms):
+    """Test default amplitude of each calculation type written by velph init.
+
+    phonopy uses 0.01 and phelel and phono3py use 0.03, which are the default
+    displacement distances of phonopy and phono3py for VASP.
+
+    """
+    toml_lines = _run_init(nacl_cell, VelphInitOptions(supercell_dimension=(2, 2, 2)))
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    assert velph_dict["phelel"]["amplitude"] == pytest.approx(0.03)
+    assert velph_dict["phonopy"]["amplitude"] == pytest.approx(0.01)
+    assert velph_dict["phono3py"]["amplitude"] == pytest.approx(0.03)
 
 
 @pytest.mark.parametrize("plusminus", [True, False, "auto"])
