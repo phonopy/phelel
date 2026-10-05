@@ -1539,6 +1539,21 @@ def test_run_init_cell_choices_case_insensitive(nacl_cell: PhonopyAtoms, source:
     assert tomli.loads("\n".join(toml_lines))["vasp"]["relax"]["cell"] == "primitive"
 
 
+def test_run_init_template_partial_scheduler(nacl_cell: PhonopyAtoms):
+    """Test that [scheduler] of template updates the default key by key."""
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO(b'[scheduler]\njob_name = "x"\n'),
+    )
+    assert toml_lines is not None
+    scheduler_dict = tomli.loads("\n".join(toml_lines))["scheduler"]
+    assert scheduler_dict["job_name"] == "x"
+    for key, value in default_template_dict["scheduler"].items():
+        if key != "job_name":
+            assert scheduler_dict[key] == value
+
+
 def _test_velph_dict_cell_choices(
     velph_dict: dict, calc_type: Literal["relax", "nac"], cell_for_calc: str | None
 ):

@@ -33,6 +33,11 @@
   default or matched by substring (`"primitive_cell"` was taken as
   `"primitive"`). They are now an error in `velph init` and in the generate
   commands.
+- `velph init`: `[scheduler]` of the template updates the default
+  `[scheduler]` key by key. It replaced the whole section, so a template with
+  only some keys lost `scheduler_template` and the generate commands stopped
+  with `KeyError`. A key missing for the job script now stops the generate
+  commands with an error that names the key.
 - `velph init` writes `amplitude = 0.01` in `[phonopy]` instead of 0.03 when
   the amplitude is not given. `[phelel]` and `[phono3py]` keep 0.03. These are
   the default displacement distances of phonopy and phono3py for VASP, which
