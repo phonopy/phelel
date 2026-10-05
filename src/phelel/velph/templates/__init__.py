@@ -41,9 +41,10 @@ dictionary structure.
             This is used for sandwich. Charge density calculation is performed
             using the configuration of "kpoints".
 "scheduler":
-    Schedular configuration. Values of the kyes are inserted to specific
-    schedular templeate found in ``velph/template/scheduler``. This section is
-    replaced by ``.config/velph/scheduler.toml`` if this path exists.
+    Scheduler configuration. Values of the keys are inserted into the job
+    script template, either "scheduler_template" or the template of
+    "scheduler_name" ("sge" or "slurm") in ``velph/utils/scheduler.py``.
+    [scheduler] of velph-template updates this section key by key.
 
 """
 

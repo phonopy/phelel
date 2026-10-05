@@ -24,6 +24,7 @@ from phelel.velph.cli.utils import (
     kspacing_to_mesh,
     write_incar,
     write_kpoints_mesh_mode,
+    write_launch_script,
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import get_reduced_cell
@@ -197,3 +198,37 @@ def test_get_nac_params_invalid_cell(
     )
     assert nac_params is None
     assert '"primitiv"' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "scheduler_dict,missing",
+    [
+        ({"job_name": "x"}, "scheduler_template"),
+        ({"scheduler_name": "slurm", "job_name": "x"}, "partition"),
+        ({"scheduler_template": "#!/bin/bash\n# {pe}\n", "job_name": "x"}, "pe"),
+    ],
+)
+def test_write_launch_script_missing_keys(
+    tmp_path: pathlib.Path, scheduler_dict: dict, missing: str
+):
+    """Test that a missing scheduler setting is an error naming the key."""
+    with pytest.raises(click.ClickException, match=missing):
+        write_launch_script(scheduler_dict, tmp_path, job_id="relax")
+    assert not (tmp_path / "_job.sh").exists()
+
+
+def test_write_launch_script_with_partial_template_scheduler(tmp_path: pathlib.Path):
+    """Test that velph.toml from a template with a partial [scheduler] works."""
+    cell, _ = read_crystal_structure(
+        pathlib.Path(__file__).parent / "init" / "POSCAR_NaCl", interface_mode="vasp"
+    )
+    assert cell is not None
+    toml_lines = _run_init(
+        cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO(b'[scheduler]\njob_name = "x"\n'),
+    )
+    assert toml_lines is not None
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    write_launch_script(get_scheduler_dict(velph_dict, "relax"), tmp_path, "relax")
+    assert "x-relax" in (tmp_path / "_job.sh").read_text()

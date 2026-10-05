@@ -311,33 +311,47 @@ def write_kpoints_line_mode(
 def write_launch_script(
     toml_scheduler_dict: dict, directory: os.PathLike, job_id: str | None = None
 ) -> None:
-    """Write scheduler launch script."""
+    """Write scheduler launch script.
+
+    click.ClickException is raised when a setting that the job script template
+    needs is missing.
+
+    """
     sched_string = None
-    if "scheduler_name" in toml_scheduler_dict:
-        if toml_scheduler_dict["scheduler_name"] == "sge":
-            sched_string = get_sge_scheduler_script(toml_scheduler_dict, job_id=job_id)
-        elif toml_scheduler_dict["scheduler_name"] == "slurm":
-            sched_string = get_slurm_scheduler_script(
-                toml_scheduler_dict, job_id=job_id
-            )
+    try:
+        if "scheduler_name" in toml_scheduler_dict:
+            if toml_scheduler_dict["scheduler_name"] == "sge":
+                sched_string = get_sge_scheduler_script(
+                    toml_scheduler_dict, job_id=job_id
+                )
+            elif toml_scheduler_dict["scheduler_name"] == "slurm":
+                sched_string = get_slurm_scheduler_script(
+                    toml_scheduler_dict, job_id=job_id
+                )
 
-    if sched_string is None:
-        if "custom_template" in toml_scheduler_dict:
-            raise RuntimeError(
-                'Key "custom_template" is obsoleted. Use "scheduler_template".'
-            )
+        if sched_string is None:
+            if "custom_template" in toml_scheduler_dict:
+                raise RuntimeError(
+                    'Key "custom_template" is obsoleted. Use "scheduler_template".'
+                )
 
-        if "scheduler_template" not in toml_scheduler_dict:
-            click.echo(
-                '"scheduler_template" has to be specified in scheduler setting.',
-                err=True,
-            )
+            if "scheduler_template" not in toml_scheduler_dict:
+                raise click.ClickException(
+                    '"scheduler_template" has to be given in [scheduler] or '
+                    '[vasp.CALC_TYPE.scheduler], unless "scheduler_name" is '
+                    '"sge" or "slurm".'
+                )
 
-        sched_string = get_custom_schedular_script(
-            toml_scheduler_dict["scheduler_template"],
-            toml_scheduler_dict,
-            job_id=job_id,
-        )
+            sched_string = get_custom_schedular_script(
+                toml_scheduler_dict["scheduler_template"],
+                toml_scheduler_dict,
+                job_id=job_id,
+            )
+    except KeyError as e:
+        raise click.ClickException(
+            f'"{e.args[0]}" used in the job script template is not given in '
+            "[scheduler] or [vasp.CALC_TYPE.scheduler]."
+        ) from e
 
     if sched_string:
         with open(pathlib.Path(directory) / "_job.sh", "w") as w:

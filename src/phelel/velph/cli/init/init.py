@@ -108,11 +108,10 @@ def run_init(
 
     Parameters
     ----------
-    cmd_options : dict
+    cmd_init_options : VelphInitOptions
         Command line options.
     vfp : VelphFilePaths
-        Input and output file names required for velph init. Default path to
-        scheduler-toml-template file is defined in VelphFilePaths.
+        Input and output file names required for velph init.
 
     Returns
     -------
@@ -986,11 +985,16 @@ def _update_velph_dict_by_template_dict(velph_dict: dict, template_dict: dict):
 
     [phelel], [vasp], ...
 
+    [scheduler] of template updates the default key by key, so that the keys
+    not given in template keep the default values.
+
     """
     for key in template_dict:
         if key in velph_dict:
             if key == "vasp":
                 _update_vasp_dict_by_template_dict(velph_dict, template_dict)
+            elif key == "scheduler":
+                velph_dict["scheduler"].update(template_dict["scheduler"])
             else:
                 velph_dict[key] = template_dict[key]
 

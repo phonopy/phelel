@@ -39,6 +39,15 @@ and for `velph-relax` calculations `{job_name}-iter1`, `{job_name}-iter2`, ...
 If `[vasp.CALC_TYPE.scheduler]` is specified, `[scheduler]` settings are
 overwritten by the settings for `[vasp.CALC_TYPE]`.
 
+In a template of `velph init`, `[scheduler]` updates the default `[scheduler]`
+key by key. For example, a template with only `job_name = "PbTe"` in
+`[scheduler]` gives a `velph.toml` whose `[scheduler]` has `job_name = "PbTe"`
+and the default values of the other keys, including `scheduler_template`.
+
+When a key used in the job script template is not given, for example
+`partition` of the template of `scheduler_name = "slurm"`, the generate commands
+stop with an error that names the key.
+
 An example is shown below.
 
 ```toml
