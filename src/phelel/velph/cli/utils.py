@@ -21,11 +21,7 @@ from phonopy.interface.calculator import (
     get_default_displacement_distance as get_phonopy_displacement_distance,
 )
 from phonopy.interface.vasp import VasprunxmlExpat
-
-try:
-    from phonopy.phonon.grid import BZGrid
-except ModuleNotFoundError:
-    from phono3py.phonon.grid import BZGrid
+from phonopy.phonon.grid import BZGrid
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon

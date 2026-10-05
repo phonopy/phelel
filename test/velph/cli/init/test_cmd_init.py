@@ -15,12 +15,7 @@ import pytest
 import tomli
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.phonopy_yaml import load_phonopy_yaml
-
-try:
-    from phonopy.phonon.grid import BZGrid, get_ir_grid_points
-except ModuleNotFoundError:
-    from phono3py.phonon.grid import BZGrid, get_ir_grid_points
-
+from phonopy.phonon.grid import BZGrid, get_ir_grid_points
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import get_primitive
 
