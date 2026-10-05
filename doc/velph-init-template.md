@@ -68,6 +68,8 @@ Notes:
   phono3py and phonopy for VASP.
 - `cell_for_nac` and `cell_for_relax` accept `"primitive"` or `"unitcell"`.
 - `primitive_cell_choice` accepts `"standardized"` or `"reduced"`.
+- These values are compared in lower case, so `"Primitive"` is accepted. Any
+  other value, such as `"primitive_cell"`, is an error.
 - `max_num_atoms` determines the supercell dimension and must be used together
   with `symmetrize_cell`.
 - `max_num_atoms`, `supercell_dimension` (three integers), and `supercell_matrix`

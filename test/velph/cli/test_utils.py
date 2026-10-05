@@ -10,11 +10,16 @@ from collections.abc import Callable
 import click
 import numpy as np
 import pytest
+import tomli
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 
+from phelel.velph.cli.init.init import _run_init
 from phelel.velph.cli.utils import (
+    VelphInitOptions,
+    choose_cell_in_dict,
+    get_nac_params,
     get_scheduler_dict,
     kspacing_to_mesh,
     write_incar,
@@ -140,3 +145,55 @@ def test_kspacing_to_mesh_follows_vasp_kspacing(use_grg: bool):
     with pytest.warns() if use_grg else contextlib.nullcontext():
         kspacing_to_mesh(kpoints_dict, cell, use_grg=use_grg)
     assert kpoints_dict["mesh"] == [5, 5, 5]
+
+
+def _get_nacl_velph_dict() -> dict:
+    cell, _ = read_crystal_structure(
+        pathlib.Path(__file__).parent / "init" / "POSCAR_NaCl", interface_mode="vasp"
+    )
+    assert cell is not None
+    toml_lines = _run_init(cell, VelphInitOptions())
+    assert toml_lines is not None
+    return tomli.loads("\n".join(toml_lines))
+
+
+@pytest.mark.parametrize(
+    "value,num_atoms", [("unitcell", 8), ("Unitcell", 8), ("Primitive", 2)]
+)
+def test_choose_cell_in_dict(tmp_path: pathlib.Path, value: str, num_atoms: int):
+    """Test that the cell of [vasp.relax] is chosen case-insensitively."""
+    velph_dict = _get_nacl_velph_dict()
+    velph_dict["vasp"]["relax"]["cell"] = value
+    cell = choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax")
+    assert cell is not None
+    assert len(cell) == num_atoms
+
+
+@pytest.mark.parametrize("value", ["primitiv", "primitive_cell", "unitcel"])
+def test_choose_cell_in_dict_invalid(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture, value: str
+):
+    """Test that an invalid cell of [vasp.relax] is an error."""
+    velph_dict = _get_nacl_velph_dict()
+    velph_dict["vasp"]["relax"]["cell"] = value
+    assert choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax") is None
+    assert f'"{value}"' in capsys.readouterr().err
+
+
+def test_get_nac_params_invalid_cell(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture
+):
+    """Test that an invalid cell of [vasp.nac] is an error.
+
+    The cell is checked before vasprun.xml is read.
+
+    """
+    velph_dict = _get_nacl_velph_dict()
+    velph_dict["vasp"]["nac"]["cell"] = "primitiv"
+    cell = choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax")
+    assert cell is not None
+    nac_params = get_nac_params(
+        velph_dict, tmp_path / "vasprun.xml", None, cell, is_symmetry=True
+    )
+    assert nac_params is None
+    assert '"primitiv"' in capsys.readouterr().err

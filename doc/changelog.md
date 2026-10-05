@@ -27,6 +27,12 @@
   `plusminus = true` and `diagonal = false` when these keys are missing in
   `velph.toml`, as `velph init` writes and as documented. They used the
   defaults of phonopy (`"auto"` and `true`).
+- `cell` of `[vasp.relax]` and `[vasp.nac]`, `cell_for_relax`,
+  `cell_for_nac`, and `primitive_cell_choice` accept only the documented
+  values, compared in lower case. Other values were silently replaced by the
+  default or matched by substring (`"primitive_cell"` was taken as
+  `"primitive"`). They are now an error in `velph init` and in the generate
+  commands.
 - `velph init` writes `amplitude = 0.01` in `[phonopy]` instead of 0.03 when
   the amplitude is not given. `[phelel]` and `[phono3py]` keep 0.03. These are
   the default displacement distances of phonopy and phono3py for VASP, which

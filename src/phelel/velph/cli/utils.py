@@ -9,7 +9,7 @@ import pathlib
 import xml.parsers.expat
 from collections.abc import Sequence
 from enum import Enum
-from typing import Any, Iterator, Literal
+from typing import Any, Iterator, Literal, cast
 
 import click
 import numpy as np
@@ -49,6 +49,37 @@ class PrimitiveCellChoice(Enum):
 
     STANDARDIZED = "standardized"
     REDUCED = "reduced"
+
+
+def parse_cell_choice(value: Any, name: str) -> CellChoice | None:
+    """Return CellChoice of "primitive" or "unitcell".
+
+    value is compared in lower case. Otherwise None is returned with an error
+    message, in which name tells where value is given.
+
+    """
+    choice = _parse_choice(value, name, (CellChoice.PRIMITIVE, CellChoice.UNITCELL))
+    return cast(CellChoice | None, choice)
+
+
+def parse_primitive_cell_choice(value: Any, name: str) -> PrimitiveCellChoice | None:
+    """Return PrimitiveCellChoice of "standardized" or "reduced".
+
+    See parse_cell_choice.
+
+    """
+    choice = _parse_choice(value, name, tuple(PrimitiveCellChoice))
+    return cast(PrimitiveCellChoice | None, choice)
+
+
+def _parse_choice(value: Any, name: str, choices: tuple[Enum, ...]) -> Enum | None:
+    if isinstance(value, str):
+        for choice in choices:
+            if value.lower() == choice.value:
+                return choice
+    allowed = " or ".join(f'"{choice.value}"' for choice in choices)
+    click.echo(f'{name} has to be {allowed}, not "{value}".', err=True)
+    return None
 
 
 # VASP INCAR tags that make VASP generate k-points without KPOINTS files.
@@ -375,17 +406,16 @@ def choose_cell_in_dict(
 
     """
     if "cell" in toml_dict["vasp"][calc_type]:
-        if "unitcell" in toml_dict["vasp"][calc_type]["cell"]:
-            cell = parse_cell_dict(toml_dict["unitcell"])
-        elif "primitive" in toml_dict["vasp"][calc_type]["cell"]:
-            cell = parse_cell_dict(toml_dict["primitive_cell"])
-        else:
-            msg = (
-                f"[vasp.{calc_type}] cell in {toml_filename} has to be either "
-                '"unitcell" or "primitive_cell"'
-            )
-            click.echo(msg, err=True)
+        cell_choice = parse_cell_choice(
+            toml_dict["vasp"][calc_type]["cell"],
+            f"cell in [vasp.{calc_type}] of {toml_filename}",
+        )
+        if cell_choice is None:
             return None
+        if cell_choice is CellChoice.UNITCELL:
+            cell = parse_cell_dict(toml_dict["unitcell"])
+        else:
+            cell = parse_cell_dict(toml_dict["primitive_cell"])
     else:
         if dataclasses.asdict(DefaultCellChoices())[calc_type] is CellChoice.PRIMITIVE:
             cell = parse_cell_dict(toml_dict["primitive_cell"])
@@ -471,6 +501,16 @@ def get_nac_params(
     symprec: float = 1e-5,
 ) -> dict | None:
     """Collect NAC parameters from vasprun.xml and return them."""
+    nac_cell = convcell
+    if "cell" in toml_dict["vasp"].get("nac", {}):
+        cell_choice = parse_cell_choice(
+            toml_dict["vasp"]["nac"]["cell"], "cell in [vasp.nac]"
+        )
+        if cell_choice is None:
+            return None
+        if cell_choice is CellChoice.PRIMITIVE:
+            nac_cell = primitive
+
     with open(vasprun_path, "rb") as f:
         try:
             vasprun = VasprunxmlExpat(f)
@@ -478,13 +518,6 @@ def get_nac_params(
         except xml.parsers.expat.ExpatError:
             click.echo(f'Parsing "{vasprun_path}" failed.')
             return None
-
-    nac_cell = convcell
-    try:
-        if "primitive" in toml_dict["vasp"]["nac"]["cell"]:
-            nac_cell = primitive
-    except KeyError:
-        pass
 
     assert nac_cell is not None
     borns_, epsilon_ = symmetrize_borns_and_epsilon(
