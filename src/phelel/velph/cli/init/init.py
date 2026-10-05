@@ -41,6 +41,8 @@ from phelel.velph.cli.utils import (
     VelphInitOptions,
     VelphInitParams,
     get_default_amplitude,
+    parse_cell_choice,
+    parse_primitive_cell_choice,
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import (
@@ -230,6 +232,8 @@ def _run_init(
     # Determine cell choices for calculations such as nac, relax, etc.
     #
     cell_choices = _determine_cell_choices(vip, velph_dict)
+    if cell_choices is None:
+        return None
 
     #
     # Determine supercell matrices.
@@ -346,11 +350,12 @@ def _select_supercell_matrix(
     return _supercell_matrix
 
 
-def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict:
+def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict | None:
     """Determine cell choices for calculations such as nac, relax, etc.
 
     Cell choices are collected from VelphInitParams. When unspecified in
-    VelphInitParams, [vasp.*.cell] in velph dict are examined.
+    VelphInitParams, [vasp.*.cell] in velph dict are examined. None is returned
+    with an error message if [vasp.*.cell] is invalid.
 
     """
     cell_choices = dataclasses.asdict(DefaultCellChoices())
@@ -362,11 +367,12 @@ def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict:
                 and key in velph_dict["vasp"]
                 and "cell" in velph_dict["vasp"][key]
             ):
-                for _cell_choice in CellChoice:
-                    if _cell_choice is CellChoice.UNSPECIFIED:
-                        continue
-                    if _cell_choice.value in velph_dict["vasp"][key]["cell"]:
-                        cell_choices[key] = _cell_choice
+                cell_choice = parse_cell_choice(
+                    velph_dict["vasp"][key]["cell"], f"cell in [vasp.{key}]"
+                )
+                if cell_choice is None:
+                    return None
+                cell_choices[key] = cell_choice
         else:
             cell_choices[key] = value
         assert cell_choices[key] in CellChoice
@@ -452,13 +458,17 @@ def _collect_init_params(
         elif key in displacement_options_keys:
             displacement_options.update({key: value})
         elif key in ("cell_for_nac", "cell_for_relax"):
-            for cell_choice in CellChoice:
-                if value.lower() == cell_choice.value:
-                    vip_dict[key] = cell_choice
+            cell_choice = parse_cell_choice(value, f"{key} in [init.options]")
+            if cell_choice is None:
+                return None
+            vip_dict[key] = cell_choice
         elif key == "primitive_cell_choice":
-            for primitive_cell_choice in PrimitiveCellChoice:
-                if value.lower() == primitive_cell_choice.value:
-                    vip_dict[key] = primitive_cell_choice
+            primitive_cell_choice = parse_primitive_cell_choice(
+                value, f"{key} in [init.options]"
+            )
+            if primitive_cell_choice is None:
+                return None
+            vip_dict[key] = primitive_cell_choice
         else:
             vip_dict[key] = value
 
@@ -513,16 +523,18 @@ def _collect_init_params(
         if value is None:
             continue
         if key in ("cell_for_nac", "cell_for_relax"):
-            for cell_choice in CellChoice:
-                if cell_choice == CellChoice.UNSPECIFIED:
-                    continue
-                if value.lower() == cell_choice.value:
-                    cmd_params[key] = cell_choice
-                    click.echo(f"  {key} = {value.lower()}")
+            cell_choice = parse_cell_choice(value, f"--{key.replace('_', '-')}")
+            if cell_choice is None:
+                return None
+            cmd_params[key] = cell_choice
+            click.echo(f"  {key} = {cell_choice.value}")
         elif key == "primitive_cell_choice":
-            for primitive_cell_choice in PrimitiveCellChoice:
-                if value.lower() == primitive_cell_choice.value:
-                    cmd_params[key] = primitive_cell_choice
+            primitive_cell_choice = parse_primitive_cell_choice(
+                value, f"--{key.replace('_', '-')}"
+            )
+            if primitive_cell_choice is None:
+                return None
+            cmd_params[key] = primitive_cell_choice
         else:
             click.echo(f"  {key} = {value}")
 

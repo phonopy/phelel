@@ -273,6 +273,7 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
         vip.primitive_cell_choice,
     )
     cell_choices = _determine_cell_choices(vip, velph_dict)
+    assert cell_choices is not None
     supercell_matrices = _get_supercell_matrices(vip, velph_dict, sym_dataset)
     (
         kpoints_dict,
@@ -1470,6 +1471,72 @@ def test_run_init_kspacing_follows_vasp_kspacing(
     assert vasp_dict["selfenergy"]["kpoints_dense"]["mesh"] == _get_vasp_kspacing_mesh(
         primitive, kspacing_dense
     )
+
+
+@pytest.mark.parametrize(
+    "source,key,value",
+    [
+        ("cmd_options", "cell_for_nac", "foo"),
+        ("init_options", "cell_for_relax", "foo"),
+        ("init_options", "cell_for_nac", "unspecified"),
+        ("template", "nac", "primitiv"),
+        ("template", "relax", "primitive_cell"),
+        ("cmd_options", "primitive_cell_choice", "foo"),
+        ("init_options", "primitive_cell_choice", "foo"),
+    ],
+)
+def test_run_init_invalid_cell_choices(
+    nacl_cell: PhonopyAtoms,
+    capsys: pytest.CaptureFixture,
+    source: str,
+    key: str,
+    value: str,
+):
+    """Test that an invalid cell choice is an error.
+
+    The value is compared with the allowed values in lower case, not by
+    substring.
+
+    """
+    template_lines = []
+    cmd_init_options: dict = {}
+    if source == "cmd_options":
+        cmd_init_options[key] = value
+    elif source == "init_options":
+        template_lines += ["[init.options]", f'{key} = "{value}"']
+    else:
+        template_lines += [f"[vasp.{key}]", f'cell = "{value}"']
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is None
+    assert f'"{value}"' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("source", ["cmd_options", "init_options", "template"])
+def test_run_init_cell_choices_case_insensitive(nacl_cell: PhonopyAtoms, source: str):
+    """Test that cell choices are case-insensitive.
+
+    relax is used because its default is unitcell.
+
+    """
+    template_lines = []
+    cmd_init_options: dict = {}
+    if source == "cmd_options":
+        cmd_init_options["cell_for_relax"] = "Primitive"
+    elif source == "init_options":
+        template_lines += ["[init.options]", 'cell_for_relax = "Primitive"']
+    else:
+        template_lines += ["[vasp.relax]", 'cell = "Primitive"']
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(**cmd_init_options),
+        velph_template_fp=io.BytesIO("\n".join(template_lines).encode("utf-8")),
+    )
+    assert toml_lines is not None
+    assert tomli.loads("\n".join(toml_lines))["vasp"]["relax"]["cell"] == "primitive"
 
 
 def _test_velph_dict_cell_choices(

@@ -50,7 +50,7 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--cell-for-nac",
     "cell_for_nac",
-    type=str,
+    type=click.Choice(["primitive", "unitcell"], case_sensitive=False),
     default=None,
     help=(
         'Cell choice for NAC, "primitive" or "unitcell" '
@@ -60,7 +60,7 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--cell-for-relax",
     "cell_for_relax",
-    type=str,
+    type=click.Choice(["primitive", "unitcell"], case_sensitive=False),
     default=None,
     help=(
         'Cell choice for relax, "primitive" or "unitcell" '
@@ -174,7 +174,7 @@ from phelel.velph.utils.vasp import VaspPotcar
 @click.option(
     "--primitive-cell-choice",
     "primitive_cell_choice",
-    type=str,
+    type=click.Choice(["standardized", "reduced"], case_sensitive=False),
     default=None,
     help=(
         'Primitive cell choice, "standardized" or "reduced" '

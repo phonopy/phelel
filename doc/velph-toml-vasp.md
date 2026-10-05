@@ -65,7 +65,9 @@ cell = "primitive"
 `cell` selects whether the unit cell or the primitive cell is used for that step.
 The defaults are `unitcell` for `relax` and `primitive` for `nac`, and they can
 be set with the `velph init` options `--cell-for-relax` and `--cell-for-nac`
-(see {ref}`velph_init`).
+(see {ref}`velph_init`). The value is `"unitcell"` or `"primitive"`, compared in
+lower case. Any other value, such as `"primitive_cell"`, is an error in
+`velph init` and in the generate commands.
 
 (velph_toml_vasp_incar)=
 ## INCAR settings
