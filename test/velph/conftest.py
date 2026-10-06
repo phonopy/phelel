@@ -1,11 +1,17 @@
 """Pytest conftest."""
 
+import contextlib
+import io
 import pathlib
 from collections.abc import Callable
 
 import numpy as np
 import pytest
+import tomli
 from phonopy.structure.atoms import PhonopyAtoms
+
+from phelel.velph.cli.init.init import _run_init
+from phelel.velph.cli.utils import VelphInitOptions
 
 cwd = pathlib.Path(__file__).parent
 
@@ -196,3 +202,34 @@ def helper_methods() -> Callable:
             return indices
 
     return HelperMethods
+
+
+@pytest.fixture(scope="session")
+def site_mixture_velph_toml() -> Callable[[bool], dict]:
+    """Return a function giving velph.toml dict of a site-mixture cell.
+
+    The cell is CsCl-like with co-located Ge and Sn (weights 0.5) and Te. The
+    argument is split_site_mixture: False merges Ge and Sn into a GeSn site,
+    and True keeps them as weighted species.
+
+    """
+
+    def _get_velph_toml(split_site_mixture: bool) -> dict:
+        cell = PhonopyAtoms(
+            symbols=["Ge", "Sn", "Te"],
+            cell=np.eye(3) * 4.0,
+            scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            toml_lines = _run_init(
+                cell,
+                VelphInitOptions(
+                    site_mixture="0.5 0.5 1.0",
+                    split_site_mixture=split_site_mixture,
+                    supercell_dimension=(2, 2, 2),
+                ),
+            )
+        assert toml_lines is not None
+        return tomli.loads("\n".join(toml_lines))
+
+    return _get_velph_toml

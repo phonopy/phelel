@@ -1,7 +1,9 @@
 """Tests velph-phono3py-init."""
 
 import pathlib
+from collections.abc import Callable
 
+import click
 import numpy as np
 import pytest
 import tomli
@@ -98,3 +100,20 @@ def test_phono3py_init_default_displacement_settings(tmp_path: pathlib.Path):
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
     assert disps.shape != disps_phonopy.shape or not np.allclose(disps, disps_phonopy)
+
+
+@pytest.mark.parametrize("split_site_mixture", [False, True])
+def test_phono3py_init_site_mixture_is_error(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    split_site_mixture: bool,
+):
+    """Test that a site-mixture cell is an error for phono3py.
+
+    phono3py handles neither merged mixed-species sites nor weighted species.
+
+    """
+    with pytest.raises(click.ClickException, match="site-mixture"):
+        run_init(
+            site_mixture_velph_toml(split_site_mixture), current_directory=tmp_path
+        )

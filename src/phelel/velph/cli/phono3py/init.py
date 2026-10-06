@@ -35,6 +35,11 @@ def run_init(
 
     convcell = parse_cell_dict(toml_dict["unitcell"])
     assert convcell is not None
+    if convcell.has_mixtures or convcell.has_weighted_species:
+        raise click.ClickException(
+            "phono3py does not support site-mixture cells (mixture or weight in "
+            "[unitcell] of velph.toml)."
+        )
 
     supercell_matrix = None
     for key in ("supercell_dimension", "supercell_matrix"):
