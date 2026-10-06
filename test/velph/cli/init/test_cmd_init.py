@@ -16,12 +16,17 @@ import tomli
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.phonopy_yaml import load_phonopy_yaml
 from phonopy.phonon.grid import BZGrid, get_ir_grid_points
-from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import get_primitive
+from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
+from phonopy.structure.cells import (
+    apply_site_mixture,
+    build_mixture_cell,
+    get_primitive,
+)
 
 from phelel.velph.cli.init.init import (
     _collect_init_params,
     _determine_cell_choices,
+    _get_cell_toml_lines,
     _get_cells,
     _get_kpoints_dict,
     _get_supercell_matrices,
@@ -1572,6 +1577,91 @@ def test_run_init_template_init_options_number_of_snapshots(
     err = capsys.readouterr().err
     assert "number_of_snapshots" in err
     assert "[phonopy]" in err
+
+
+def _get_cells_for_cell_toml() -> dict[str, PhonopyAtoms]:
+    lattice = [[4.0, 0.0, 0.0], [0.0, 4.0, 0.0], [0.0, 0.0, 4.0]]
+    two_sites = [[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]]
+    co_located = PhonopyAtoms(
+        cell=lattice,
+        symbols=["Ge", "Sn", "Si"],
+        scaled_positions=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    return {
+        "plain": PhonopyAtoms(
+            cell=lattice, symbols=["Na", "Cl"], scaled_positions=two_sites
+        ),
+        "magmom_scalar": PhonopyAtoms(
+            cell=lattice,
+            symbols=["Fe", "Fe"],
+            scaled_positions=two_sites,
+            magnetic_moments=[1.5, -1.5],
+        ),
+        "magmom_vector": PhonopyAtoms(
+            cell=lattice,
+            symbols=["Fe", "Fe"],
+            scaled_positions=two_sites,
+            magnetic_moments=[[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]],
+        ),
+        "extended_symbol": PhonopyAtoms(
+            cell=lattice, symbols=["Fe1", "Fe2"], scaled_positions=two_sites
+        ),
+        "merged_mixture": build_mixture_cell(co_located, [0.5, 0.5, 1.0]),
+        "weighted_species": apply_site_mixture(co_located, [0.5, 0.5, 1.0]),
+    }
+
+
+@pytest.mark.parametrize("name", list(_get_cells_for_cell_toml()))
+def test_get_cell_toml_lines_roundtrip(name: str):
+    """Test that a cell written in velph.toml is read back by parse_cell_dict.
+
+    Merged mixed-species sites, extended symbols, and weighted species are
+    written as phonopy writes them in yaml.
+
+    """
+    cell = _get_cells_for_cell_toml()[name]
+    toml_dict = tomli.loads("\n".join(_get_cell_toml_lines(cell, "unitcell")))
+    cell2 = parse_cell_dict(toml_dict["unitcell"])
+    assert cell2 is not None
+    assert cell2.symbols == cell.symbols
+    np.testing.assert_allclose(cell2.cell, cell.cell)
+    np.testing.assert_allclose(cell2.scaled_positions, cell.scaled_positions)
+    assert cell.masses is not None
+    assert cell2.masses is not None
+    np.testing.assert_allclose(cell2.masses, cell.masses)
+    assert cell2.has_mixtures == cell.has_mixtures
+    assert cell2.has_weighted_species == cell.has_weighted_species
+    if cell.mixture_weights is None:
+        assert cell2.mixture_weights is None
+    else:
+        assert cell2.mixture_weights is not None
+        np.testing.assert_allclose(cell2.mixture_weights, cell.mixture_weights)
+    if cell.magnetic_moments is None:
+        assert cell2.magnetic_moments is None
+    else:
+        assert cell2.magnetic_moments is not None
+        np.testing.assert_allclose(cell2.magnetic_moments, cell.magnetic_moments)
+
+
+def test_get_cell_toml_lines_old_extended_symbol():
+    """Test that symbol = "Fe1" written by older velph is still read."""
+    toml_dict = tomli.loads(
+        "\n".join(
+            [
+                "[unitcell]",
+                "lattice = [[4.0, 0.0, 0.0], [0.0, 4.0, 0.0], [0.0, 0.0, 4.0]]",
+                "[[unitcell.points]]",
+                'symbol = "Fe1"',
+                "coordinates = [0.0, 0.0, 0.0]",
+                "[[unitcell.points]]",
+                'symbol = "Fe2"',
+                "coordinates = [0.5, 0.5, 0.5]",
+            ]
+        )
+    )
+    cell = parse_cell_dict(toml_dict["unitcell"])
+    assert cell is not None
+    assert cell.symbols == ["Fe1", "Fe2"]
 
 
 def _test_velph_dict_cell_choices(

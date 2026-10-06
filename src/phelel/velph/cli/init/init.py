@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.vasp import get_vasp_structure_lines
 from phonopy.phonon.grid import GridMatrix
-from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phonopy.structure.cells import (
     apply_site_mixture,
     estimate_supercell_matrix,
@@ -1752,53 +1752,46 @@ def _add_calc_type_scheduler_lines(lines: list, vasp_dict: dict, calc_type: str)
 def _get_cell_toml_lines(unitcell: PhonopyAtoms, cell_name: str = "cell") -> list:
     """Return crystal structure lines in toml.
 
+    The content is given by phonopy's get_cell_dict, so that parse_cell_dict
+    reads it back as phonopy reads its yaml: "mixture" for a merged
+    mixed-species site, "extended_symbol" for a species whose symbol differs
+    from the element symbol, and "weight" for weighted species.
+
     Atomic masses are written explicitly. This makes velph.toml self-describing
     and reproducible: the masses no longer depend on the default atomic-mass
     table, and they can be edited (e.g. for isotopes). The masses may differ from
     those used internally by VASP (POMASS).
 
     """
+    cell_dict = get_cell_dict(unitcell)
+    lines = []
     if cell_name:
-        lines = [f"[{cell_name}]"]
+        lines.append(f"[{cell_name}]")
     lines.append("lattice = [")
-    for v, a in zip(unitcell.cell, ("a", "b", "c"), strict=True):
+    for v, a in zip(cell_dict["lattice"], ("a", "b", "c"), strict=True):
         lines.append("  [ %21.15f, %21.15f, %21.15f ], # %s" % (v[0], v[1], v[2], a))
     lines.append("]")
-    if unitcell.masses is None:
-        masses = [None] * len(unitcell.symbols)
-    else:
-        masses = unitcell.masses
-    if unitcell.magnetic_moments is None:
-        magnetic_moments = [None] * len(unitcell.symbols)
-    else:
-        magnetic_moments = unitcell.magnetic_moments
-    if unitcell.mixture_weights is None:
-        weights = [None] * len(unitcell.symbols)
-    else:
-        weights = unitcell.mixture_weights
-    for i, (s, v, m, mag, w) in enumerate(
-        zip(
-            unitcell.symbols,
-            unitcell.scaled_positions,
-            masses,
-            magnetic_moments,
-            weights,
-            strict=True,
-        )
-    ):
+    for i, point in enumerate(cell_dict.get("points", [])):
         lines.append(f"[[{cell_name}.points]]  # {i + 1}")
-        lines.append(f'symbol = "{s}"')
+        lines.append(f'symbol = "{point["symbol"]}"')
+        if "mixture" in point:
+            mix_str = ", ".join(f'["{s}", {w}]' for s, w in point["mixture"])
+            lines.append(f"mixture = [ {mix_str} ]")
+        if "extended_symbol" in point:
+            lines.append(f'extended_symbol = "{point["extended_symbol"]}"')
+        v = point["coordinates"]
         lines.append(f"coordinates = [ {v[0]:18.15f}, {v[1]:18.15f}, {v[2]:18.15f} ]")
-        if m is not None:
-            lines.append(f"mass = {m:f}")
-        if mag is not None:
-            if mag.ndim == 0:
-                mag_str = f"{mag:.8f}"
-            else:
+        if "mass" in point:
+            lines.append(f"mass = {point['mass']:f}")
+        if "magnetic_moment" in point:
+            mag = point["magnetic_moment"]
+            if isinstance(mag, list):
                 mag_str = f"[ {mag[0]:.8f}, {mag[1]:.8f}, {mag[2]:.8f} ]"
+            else:
+                mag_str = f"{mag:.8f}"
             lines.append(f"magnetic_moment = {mag_str}")
-        if w is not None:
-            lines.append(f"weight = {w:.15f}")
+        if "weight" in point:
+            lines.append(f"weight = {point['weight']:.15f}")
     return lines
 
 
