@@ -2,12 +2,15 @@
 
 import itertools
 import pathlib
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 import pytest
 import tomli
 
+import phelel
+from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.init import run_init
 
 cwd = Path(__file__).parent
@@ -144,3 +147,30 @@ def test_phelel_init_default_displacement_settings(tmp_path: pathlib.Path):
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
     assert disps.shape != disps_phonopy.shape or not np.allclose(disps, disps_phonopy)
+
+
+@pytest.mark.parametrize("split_site_mixture", [False, True])
+def test_phelel_init_site_mixture(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    split_site_mixture: bool,
+):
+    """Test that phelel_disp.yaml of a site-mixture cell is read back."""
+    phe = run_init(
+        site_mixture_velph_toml(split_site_mixture), current_directory=tmp_path
+    )
+    filename = tmp_path / "phelel_disp.yaml"
+    finalize_phelel(
+        phe, displacements_mode=True, filename=filename, sys_exit_after_finalize=False
+    )
+    phe2 = phelel.load(filename, log_level=0)
+    if split_site_mixture:
+        assert phe2.unitcell.symbols == ["Ge", "Sn", "Te"]
+        assert phe2.unitcell.has_weighted_species
+        assert not phe2.unitcell.has_mixtures
+    else:
+        assert phe2.unitcell.symbols == ["GeSn", "Te"]
+        assert phe2.unitcell.has_mixtures
+        assert not phe2.unitcell.has_weighted_species
+    assert phe2.supercells_with_displacements is not None
+    assert len(phe2.supercells_with_displacements) > 0

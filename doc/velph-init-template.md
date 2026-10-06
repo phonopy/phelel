@@ -83,7 +83,8 @@ Notes:
 - `site_mixture` and `split_site_mixture` are experimental, and `site_mixture`
   cannot be combined with `magmom`. As in phonopy, co-located atoms are merged
   into mixed-species sites by default, and `split_site_mixture` keeps them as
-  separate weighted species.
+  separate weighted species. phono3py supports neither, so
+  `velph phono3py init` stops with an error for a site-mixture cell.
 -->
 - The file-handling options of `velph init` (`--force`, `--template-toml`,
   `--toml-filename`) are command-line only and have no `[init.options]`

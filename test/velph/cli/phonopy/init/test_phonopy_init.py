@@ -1,8 +1,10 @@
 """Tests velph-phonopy-init."""
 
 import pathlib
+from collections.abc import Callable
 
 import numpy as np
+import phonopy
 import pytest
 import tomli
 
@@ -100,3 +102,28 @@ def test_phonopy_init_default_displacement_settings(tmp_path: pathlib.Path):
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
     assert disps.shape != disps_phonopy.shape or not np.allclose(disps, disps_phonopy)
+
+
+@pytest.mark.parametrize("split_site_mixture", [False, True])
+def test_phonopy_init_site_mixture(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    split_site_mixture: bool,
+):
+    """Test that phonopy_disp.yaml of a site-mixture cell is read back."""
+    ph = run_init(
+        site_mixture_velph_toml(split_site_mixture), current_directory=tmp_path
+    )
+    filename = tmp_path / "phonopy_disp.yaml"
+    ph.save(filename)
+    ph2 = phonopy.load(filename, produce_fc=False, log_level=0)
+    if split_site_mixture:
+        assert ph2.unitcell.symbols == ["Ge", "Sn", "Te"]
+        assert ph2.unitcell.has_weighted_species
+        assert not ph2.unitcell.has_mixtures
+    else:
+        assert ph2.unitcell.symbols == ["GeSn", "Te"]
+        assert ph2.unitcell.has_mixtures
+        assert not ph2.unitcell.has_weighted_species
+    assert ph2.displacements is not None
+    assert len(ph2.displacements) > 0
