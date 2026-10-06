@@ -81,7 +81,9 @@ Notes:
   {ref}`velph_init_template_precedence`.
 <!-- Hidden until site mixture is public:
 - `site_mixture` and `split_site_mixture` are experimental, and `site_mixture`
-  cannot be combined with `magmom`.
+  cannot be combined with `magmom`. As in phonopy, co-located atoms are merged
+  into mixed-species sites by default, and `split_site_mixture` keeps them as
+  separate weighted species.
 -->
 - The file-handling options of `velph init` (`--force`, `--template-toml`,
   `--toml-filename`) are command-line only and have no `[init.options]`
