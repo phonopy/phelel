@@ -150,7 +150,7 @@ class Procar(Projector):
             shape=(nions, ldim, ldim')
 
         """
-        super(Procar, self).__init__(projectors, lm_orbitals)
+        super().__init__(projectors, lm_orbitals)
         self._qtot = qtot
         self._run()
 

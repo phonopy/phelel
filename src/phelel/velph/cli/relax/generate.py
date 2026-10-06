@@ -2,7 +2,6 @@
 
 import pathlib
 import shutil
-from typing import Optional
 
 import click
 import tomli
@@ -21,7 +20,7 @@ from phelel.velph.cli.utils import (
 def write_input_files(
     toml_filename: pathlib.Path,
     directory: pathlib.Path,
-    prev_directory=Optional[pathlib.Path],
+    prev_directory: pathlib.Path | None = None,
 ) -> None:
     """Generate VASP relax inputs."""
     with open(toml_filename, "rb") as f:

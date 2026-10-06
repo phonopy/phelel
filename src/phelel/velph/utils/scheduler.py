@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import copy
-from typing import Optional, Union
 
 
 def get_sge_scheduler_script(
     toml_scheduler_dict: dict,
-    job_id: Optional[Union[str, int]] = None,
+    job_id: str | int | None = None,
 ) -> str:
     """Return scheduler script of SGE.
 
@@ -60,7 +59,7 @@ def get_sge_scheduler_script(
 
 def get_slurm_scheduler_script(
     toml_scheduler_dict: dict,
-    job_id: Optional[Union[str, int]] = None,
+    job_id: str | int | None = None,
 ) -> str:
     """Return scheduler script of SLURM.
 
@@ -98,7 +97,7 @@ def get_slurm_scheduler_script(
 
 
 def get_custom_schedular_script(
-    template: str, toml_scheduler_dict: dict, job_id: Optional[Union[str, int]]
+    template: str, toml_scheduler_dict: dict, job_id: str | int | None
 ) -> str:
     """Return scheduler script with given template.
 

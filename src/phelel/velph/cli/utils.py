@@ -7,9 +7,9 @@ import dataclasses
 import os
 import pathlib
 import xml.parsers.expat
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from enum import Enum
-from typing import Any, Iterator, Literal, cast
+from typing import Any, Literal, cast
 
 import click
 import numpy as np

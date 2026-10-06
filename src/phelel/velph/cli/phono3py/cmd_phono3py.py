@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Optional
 
 import click
 import tomli
@@ -40,7 +39,7 @@ def cmd_phono3py():
 @click.help_option("-h", "--help")
 def cmd_init(
     toml_filename: str,
-    random_displacements: Optional[int],
+    random_displacements: int | None,
 ):
     """Generate displacements and write phono3py_disp.yaml."""
     with open(toml_filename, "rb") as f:
