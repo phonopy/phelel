@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0", "setuptools_scm >= 8"]
+requires = ["setuptools >= 77.0", "setuptools_scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -20,7 +20,8 @@ dependencies = [
     "tomli",
     "tomli-w"
 ]
-license = {file = "LICENSE"}
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
