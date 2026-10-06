@@ -259,6 +259,7 @@ def test_get_toml_lines_medium(nacl_cell: PhonopyAtoms):
     velph_template_dict = _parse_velph_template(velph_template_fp=io.BytesIO(b""))
     velph_dict = _get_velph_dict(velph_template_dict)
     template_init_params = _get_template_init_params(velph_template_dict, None)
+    assert template_init_params is not None
     vip = _collect_init_params(
         cmd_init_options=VelphInitOptions(supercell_dimension=(2, 2, 2)),
         template_init_params=template_init_params,
@@ -1552,6 +1553,25 @@ def test_run_init_template_partial_scheduler(nacl_cell: PhonopyAtoms):
     for key, value in default_template_dict["scheduler"].items():
         if key != "job_name":
             assert scheduler_dict[key] == value
+
+
+def test_run_init_template_init_options_number_of_snapshots(
+    nacl_cell: PhonopyAtoms, capsys: pytest.CaptureFixture
+):
+    """Test that number_of_snapshots in [init.options] is an error.
+
+    It is not an init option. It is read from [phonopy] of velph.toml.
+
+    """
+    toml_lines = _run_init(
+        nacl_cell,
+        VelphInitOptions(),
+        velph_template_fp=io.BytesIO(b"[init.options]\nnumber_of_snapshots = 10\n"),
+    )
+    assert toml_lines is None
+    err = capsys.readouterr().err
+    assert "number_of_snapshots" in err
+    assert "[phonopy]" in err
 
 
 def _test_velph_dict_cell_choices(

@@ -33,6 +33,8 @@
   default or matched by substring (`"primitive_cell"` was taken as
   `"primitive"`). They are now an error in `velph init` and in the generate
   commands.
+- `velph init`: `number_of_snapshots` in `[init.options]` is an error with a
+  message to write it in `[phonopy]` of `velph.toml`. It raised `TypeError`.
 - `velph init`: `[scheduler]` of the template updates the default
   `[scheduler]` key by key. It replaced the whole section, so a template with
   only some keys lost `scheduler_template` and the generate commands stopped

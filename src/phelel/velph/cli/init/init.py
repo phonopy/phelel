@@ -186,6 +186,8 @@ def _run_init(
     template_init_params = _get_template_init_params(
         velph_template_dict, template_toml_filepath
     )
+    if template_init_params is None:
+        return None
     vip = _collect_init_params(
         cmd_init_options,
         template_init_params,
@@ -381,8 +383,13 @@ def _determine_cell_choices(vip: VelphInitParams, velph_dict: dict) -> dict | No
 
 def _get_template_init_params(
     velph_template_dict: dict | None, template_toml_filepath: str | os.PathLike | None
-) -> VelphInitOptions:
-    """Collect init params in [init.options] in velph-toml-template file."""
+) -> VelphInitOptions | None:
+    """Collect init params in [init.options] in velph-toml-template file.
+
+    The keys of VelphInitOptions are collected. None is returned with an error
+    message if number_of_snapshots is given, which is not an init option.
+
+    """
     if not velph_template_dict:
         return VelphInitOptions()
 
@@ -391,13 +398,21 @@ def _get_template_init_params(
     except KeyError:
         return VelphInitOptions()
 
+    if "number_of_snapshots" in vip_keys:
+        msg = """
+------------------------------- ERROR -------------------------------
+"number_of_snapshots" is not an init option of [init.options]. Write it
+in [phonopy] of velph.toml.
+---------------------------------------------------------------------"""
+        click.echo(msg, err=True)
+        return None
+
     template_init_params = {}
-    for _dataclass in (VelphInitParams, DisplacementOptions):
-        for field in dataclasses.fields(_dataclass):
-            key = field.name
-            if key not in vip_keys:
-                continue
-            template_init_params[key] = velph_template_dict["init"]["options"][key]
+    for field in dataclasses.fields(VelphInitOptions):
+        key = field.name
+        if key not in vip_keys:
+            continue
+        template_init_params[key] = velph_template_dict["init"]["options"][key]
 
     # Show parameters specified in velph-toml-template file.
     if template_init_params:
