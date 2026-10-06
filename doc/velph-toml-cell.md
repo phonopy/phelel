@@ -59,7 +59,8 @@ isotopes). These values may differ from the masses used internally by VASP
 (`POMASS`). `magnetic_moment` is written only when the structure carries magnetic
 moments (e.g. set through the `--magmom` option of `velph init`).
 <!-- Hidden until site mixture is public:
-`weight` is written only for site-mixture structures.
+For site-mixture structures, a merged mixed-species site has `mixture` (pairs
+of symbol and weight), and with `split_site_mixture` every atom has `weight`.
 -->
 ```
 

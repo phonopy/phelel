@@ -191,6 +191,9 @@ from phelel.velph.utils.vasp import VaspPotcar
         "[Experimental] Per-atom concentration weights in input-cell atom "
         'order, e.g., "0.5 0.5 0.5 0.5". Weights of co-located atoms (same '
         "fractional position) must sum to 1.0; an isolated atom must be 1.0. "
+        "By default the co-located atoms are merged into mixed-species sites, "
+        "as in phonopy; pass --split-site-mixture to keep them as separate "
+        "weighted species. "
         "Cannot be combined with --magmom. "
         f"(site_mixture: str, default={VelphInitParams.site_mixture})"
     ),
@@ -201,8 +204,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     is_flag=True,
     default=None,
     help=(
-        "[Experimental] Keep co-located atoms as separate weighted species "
-        "instead of merging them (currently the only supported scheme). "
+        "[Experimental] With --site-mixture, keep co-located atoms as separate "
+        "weighted species instead of merging them into mixed-species sites. "
         f"(split_site_mixture: bool, default={VelphInitParams.split_site_mixture})"
     ),
 )

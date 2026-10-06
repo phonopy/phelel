@@ -21,6 +21,7 @@ from phonopy.phonon.grid import GridMatrix
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phonopy.structure.cells import (
     apply_site_mixture,
+    build_mixture_cell,
     estimate_supercell_matrix,
     generate_standardized_cells,
     get_supercell,
@@ -205,7 +206,9 @@ def _run_init(
         input_cell.magnetic_moments = magmom_vals
 
     #
-    # Apply site-mixture per-atom concentration weights (non-merge scheme).
+    # Apply site-mixture per-atom concentration weights. As in phonopy,
+    # co-located atoms are merged into mixed-species sites by default, and they
+    # are kept as separate weighted species with split_site_mixture.
     #
     if vip.site_mixture is not None:
         if vip.magmom is not None:
@@ -214,7 +217,14 @@ def _run_init(
             )
         weights = [float(x) for x in vip.site_mixture.split()]
         try:
-            input_cell = apply_site_mixture(input_cell, weights, symprec=vip.tolerance)
+            if vip.split_site_mixture:
+                input_cell = apply_site_mixture(
+                    input_cell, weights, symprec=vip.tolerance
+                )
+            else:
+                input_cell = build_mixture_cell(
+                    input_cell, weights, symprec=vip.tolerance
+                )
         except ValueError as e:
             raise click.ClickException(str(e)) from e
 

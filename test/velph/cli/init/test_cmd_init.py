@@ -139,11 +139,11 @@ def _run_init_site_mixture(options: VelphInitOptions) -> dict:
 
 @pytest.mark.parametrize("symmetrize_cell", [False, True])
 def test_run_init_site_mixture(symmetrize_cell: bool):
-    """Test --site-mixture writes per-atom weights into velph.toml.
+    """Test --site-mixture with --split-site-mixture writes per-atom weights.
 
-    Weights survive both the default (find_primitive) path and the
-    --symmetrize-cell standardization path, and a pure site carries an
-    explicit weight of 1.0.
+    Co-located atoms are kept as separate weighted species. Weights survive
+    both the default (find_primitive) path and the --symmetrize-cell
+    standardization path, and a pure site carries an explicit weight of 1.0.
 
     """
     velph_dict = _run_init_site_mixture(
@@ -178,6 +178,46 @@ def test_run_init_site_mixture_via_template():
     assert unitcell is not None
     assert unitcell.mixture_weights is not None
     np.testing.assert_allclose(unitcell.mixture_weights, [0.5, 0.5, 1.0])
+
+
+@pytest.mark.parametrize("symmetrize_cell", [False, True])
+def test_run_init_site_mixture_merges_by_default(symmetrize_cell: bool):
+    """Test --site-mixture without --split-site-mixture merges co-located atoms.
+
+    As in phonopy, the co-located Ge and Sn become one mixed-species site.
+
+    """
+    velph_dict = _run_init_site_mixture(
+        VelphInitOptions(
+            site_mixture="0.5 0.5 1.0",
+            symmetrize_cell=symmetrize_cell,
+            supercell_dimension=(2, 2, 2),
+        )
+    )
+    for cell_key in ("unitcell", "primitive_cell"):
+        cell = parse_cell_dict(velph_dict[cell_key])
+        assert cell is not None
+        assert cell.symbols == ["GeSn", "Te"]
+        assert cell.has_mixtures
+        assert not cell.has_weighted_species
+        assert velph_dict[cell_key]["points"][0]["mixture"] == [
+            ["Ge", 0.5],
+            ["Sn", 0.5],
+        ]
+
+
+def test_run_init_site_mixture_via_template_merges():
+    """Test site_mixture in [init.options] without split_site_mixture merges."""
+    toml_lines = _run_init(
+        _site_mixture_cell(),
+        VelphInitOptions(supercell_dimension=(2, 2, 2)),
+        velph_template_fp=io.BytesIO(b'[init.options]\nsite_mixture = "0.5 0.5 1.0"\n'),
+    )
+    assert toml_lines is not None
+    unitcell = parse_cell_dict(tomli.loads("\n".join(toml_lines))["unitcell"])
+    assert unitcell is not None
+    assert unitcell.symbols == ["GeSn", "Te"]
+    assert unitcell.has_mixtures
 
 
 def test_run_init_site_mixture_with_magmom_raises():
