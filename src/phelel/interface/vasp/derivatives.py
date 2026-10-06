@@ -234,7 +234,7 @@ def _read_born(
     primitive: Primitive, primitive_symmetry: Symmetry, log_level: int = 0
 ) -> dict | None:
     if pathlib.Path("BORN").is_file():
-        with open("BORN", "r") as f:
+        with open("BORN") as f:
             nac_params = get_born_parameters(f, primitive, primitive_symmetry)
             if log_level:
                 print('"BORN" was read.')

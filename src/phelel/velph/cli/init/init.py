@@ -1709,7 +1709,7 @@ def _add_incar_lines(lines: list, vasp_dict: dict, incar_commons: dict, calc_typ
 
 
 def _add_kpoints_lines_bands(lines: list, kpt_data: KpointsData) -> None:
-    lines.append("line = {:d}".format(kpt_data.line))
+    lines.append(f"line = {kpt_data.line:d}")
     if kpt_data.path is not None:
         lines.append("path = [")
         for p1, p2 in kpt_data.path:

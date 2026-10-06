@@ -15,8 +15,6 @@ implementation is expected to be numerically more robust.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from phonopy.structure.cells import determinant
 
@@ -42,7 +40,7 @@ class EulerAngles:
         self._angles = None
 
     @property
-    def angles(self) -> Optional[np.ndarray]:
+    def angles(self) -> np.ndarray | None:
         """Return Eular angles."""
         return self._angles
 
@@ -126,7 +124,7 @@ class LyMatrices:
         self._Ly = None
 
     @property
-    def Ly(self) -> Optional[list[np.ndarray]]:
+    def Ly(self) -> list[np.ndarray] | None:
         """Return <lm'|Ly|lm> for all l channel."""
         return self._Ly
 
@@ -162,7 +160,7 @@ class WignerMatricesEularAngle:
         self._d = None
 
     @property
-    def d(self) -> Optional[list[np.ndarray]]:
+    def d(self) -> list[np.ndarray] | None:
         """Return <lm'|e^ibLy|lm> for all l channels."""
         return self._d
 
@@ -243,17 +241,17 @@ class LxLyLzMatrices:
         self._Lz = None
 
     @property
-    def Lx(self) -> Optional[list[np.ndarray]]:
+    def Lx(self) -> list[np.ndarray] | None:
         """Return <lm'|Lx|lm> for all l channel."""
         return self._Lx
 
     @property
-    def Ly(self) -> Optional[list[np.ndarray]]:
+    def Ly(self) -> list[np.ndarray] | None:
         """Return <lm'|Ly|lm> for all l channel."""
         return self._Ly
 
     @property
-    def Lz(self) -> Optional[list[np.ndarray]]:
+    def Lz(self) -> list[np.ndarray] | None:
         """Return <lm'|Lz|lm> for all l channel."""
         return self._Lz
 
@@ -329,7 +327,7 @@ class SHRotationMatrices:
             self._alpha = 2 * np.pi / self._r_order
 
     @property
-    def Delta(self) -> Optional[list[np.ndarray]]:
+    def Delta(self) -> list[np.ndarray] | None:
         """Return rotation matrix of spherical harmonics."""
         return self._Delta
 

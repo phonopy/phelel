@@ -410,7 +410,7 @@ class VaspPotcar:
         if isinstance(fp, io.TextIOBase):
             self._parse(fp)
         else:
-            with open(fp, "r") as _fp:
+            with open(fp) as _fp:
                 self._parse(_fp)
 
     def _parse(self, fp: io.TextIOBase):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import shutil
-from typing import Literal, Optional
+from typing import Literal
 
 import click
 import h5py
@@ -168,7 +168,7 @@ def _estimate_elph_selfen_band_stop(
     vaspout_path: pathlib.Path,
     energy_threshold: float = 0.5,
     occupation_condition: float = 1e-10,
-) -> Optional[int]:
+) -> int | None:
     """Estimate elph_selfen_band_stop from eigenvalues in el-DOS result.
 
     Parameters
