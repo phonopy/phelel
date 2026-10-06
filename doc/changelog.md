@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Python 3.10 is no longer supported. Python 3.11 or later is required.
 - `velph init`: command-line options and `[init.options]` now take
   precedence over `[phelel]`, `[phonopy]`, and `[phono3py]` of the template
   for `amplitude`, `diagonal`, and `plusminus`, as for the supercell matrix.
