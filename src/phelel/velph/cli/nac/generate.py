@@ -5,15 +5,16 @@ import shutil
 
 import click
 import tomli
-from phonopy.interface.calculator import write_crystal_structure
 
 from phelel.velph.cli.utils import (
     assert_kpoints_mesh_symmetry,
     choose_cell_in_dict,
+    echo_vasp_vca_hint,
     get_scheduler_dict,
     write_incar,
     write_kpoints_mesh_mode,
     write_launch_script,
+    write_poscar,
 )
 
 
@@ -29,7 +30,7 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
     # POSCAR
     cell = choose_cell_in_dict(toml_dict, toml_filename, "nac")
     assert cell is not None
-    write_crystal_structure(directory / "POSCAR", cell)
+    write_poscar(directory, cell)
 
     # INCAR
     write_incar(toml_dict["vasp"]["nac"]["incar"], directory, cell=cell)
@@ -54,3 +55,4 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
         write_launch_script(scheduler_dict, directory)
 
     click.echo(f'VASP input files were made in "{directory_name}".')
+    echo_vasp_vca_hint(cell)
