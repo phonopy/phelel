@@ -160,6 +160,9 @@ def test_run_init_site_mixture(symmetrize_cell: bool):
         assert cell.symbols == ["Ge", "Sn", "Te"]
         assert cell.mixture_weights is not None
         np.testing.assert_allclose(cell.mixture_weights, [0.5, 0.5, 1.0])
+    for calc_type in ("phelel", "phonopy"):
+        assert velph_dict[calc_type]["site_mixture_scheme"] == "split"
+    assert "site_mixture_scheme" not in velph_dict["phono3py"]
 
 
 def test_run_init_site_mixture_via_template():
@@ -181,10 +184,12 @@ def test_run_init_site_mixture_via_template():
 
 
 @pytest.mark.parametrize("symmetrize_cell", [False, True])
-def test_run_init_site_mixture_merges_by_default(symmetrize_cell: bool):
-    """Test --site-mixture without --split-site-mixture merges co-located atoms.
+def test_run_init_site_mixture_merge_scheme_by_default(symmetrize_cell: bool):
+    """Test --site-mixture without --split-site-mixture uses the merge scheme.
 
-    As in phonopy, the co-located Ge and Sn become one mixed-species site.
+    The cells in velph.toml keep the co-located Ge and Sn with weights, as in
+    the input structure, and the merge scheme is written in [phelel] and
+    [phonopy]. phonopy merges them into one site.
 
     """
     velph_dict = _run_init_site_mixture(
@@ -197,27 +202,29 @@ def test_run_init_site_mixture_merges_by_default(symmetrize_cell: bool):
     for cell_key in ("unitcell", "primitive_cell"):
         cell = parse_cell_dict(velph_dict[cell_key])
         assert cell is not None
-        assert cell.symbols == ["GeSn", "Te"]
-        assert cell.has_mixtures
-        assert not cell.has_weighted_species
-        assert velph_dict[cell_key]["points"][0]["mixture"] == [
-            ["Ge", 0.5],
-            ["Sn", 0.5],
-        ]
+        assert cell.symbols == ["Ge", "Sn", "Te"]
+        assert not cell.has_mixtures
+        assert cell.mixture_weights is not None
+        np.testing.assert_allclose(cell.mixture_weights, [0.5, 0.5, 1.0])
+    for calc_type in ("phelel", "phonopy"):
+        assert velph_dict[calc_type]["site_mixture_scheme"] == "merge"
+    assert "site_mixture_scheme" not in velph_dict["phono3py"]
 
 
-def test_run_init_site_mixture_via_template_merges():
-    """Test site_mixture in [init.options] without split_site_mixture merges."""
+def test_run_init_site_mixture_via_template_merge_scheme():
+    """Test site_mixture in [init.options] without split_site_mixture."""
     toml_lines = _run_init(
         _site_mixture_cell(),
         VelphInitOptions(supercell_dimension=(2, 2, 2)),
         velph_template_fp=io.BytesIO(b'[init.options]\nsite_mixture = "0.5 0.5 1.0"\n'),
     )
     assert toml_lines is not None
-    unitcell = parse_cell_dict(tomli.loads("\n".join(toml_lines))["unitcell"])
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    unitcell = parse_cell_dict(velph_dict["unitcell"])
     assert unitcell is not None
-    assert unitcell.symbols == ["GeSn", "Te"]
-    assert unitcell.has_mixtures
+    assert unitcell.symbols == ["Ge", "Sn", "Te"]
+    assert unitcell.has_weighted_species
+    assert velph_dict["phonopy"]["site_mixture_scheme"] == "merge"
 
 
 def test_run_init_site_mixture_with_magmom_raises():

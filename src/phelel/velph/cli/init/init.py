@@ -21,7 +21,6 @@ from phonopy.phonon.grid import GridMatrix
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phonopy.structure.cells import (
     apply_site_mixture,
-    build_mixture_cell,
     estimate_supercell_matrix,
     generate_standardized_cells,
     get_supercell,
@@ -206,9 +205,9 @@ def _run_init(
         input_cell.magnetic_moments = magmom_vals
 
     #
-    # Apply site-mixture per-atom concentration weights. As in phonopy,
-    # co-located atoms are merged into mixed-species sites by default, and they
-    # are kept as separate weighted species with split_site_mixture.
+    # Apply site-mixture per-atom concentration weights. The co-located atoms
+    # are kept as the atoms of the input structure. With the merge scheme, they
+    # are merged into sites by phonopy, and the scheme is written in velph.toml.
     #
     if vip.site_mixture is not None:
         if vip.magmom is not None:
@@ -217,14 +216,7 @@ def _run_init(
             )
         weights = [float(x) for x in vip.site_mixture.split()]
         try:
-            if vip.split_site_mixture:
-                input_cell = apply_site_mixture(
-                    input_cell, weights, symprec=vip.tolerance
-                )
-            else:
-                input_cell = build_mixture_cell(
-                    input_cell, weights, symprec=vip.tolerance
-                )
+            input_cell = apply_site_mixture(input_cell, weights, symprec=vip.tolerance)
         except ValueError as e:
             raise click.ClickException(str(e)) from e
 
@@ -1091,6 +1083,9 @@ def _get_toml_lines(
 ) -> list[str] | None:
     """Return velph-toml lines."""
     assert vip.displacement_options is not None
+    site_mixture_scheme = None
+    if unitcell.has_weighted_species:
+        site_mixture_scheme = "split" if vip.split_site_mixture else "merge"
 
     #
     # velph.toml
@@ -1110,6 +1105,7 @@ def _get_toml_lines(
             displacement_options.diagonal,
             displacement_options.plusminus,
             vip.phelel_nosym,
+            site_mixture_scheme,
         )
 
     # [phonopy], [phono3py]
@@ -1127,6 +1123,9 @@ def _get_toml_lines(
                 displacement_options.diagonal,
                 displacement_options.plusminus,
             )
+            # phono3py does not support site mixture.
+            if calc_type == "phonopy" and site_mixture_scheme is not None:
+                lines.append(f'site_mixture_scheme = "{site_mixture_scheme}"')
             lines.append("")
 
     # [vasp.*]
@@ -1681,6 +1680,7 @@ def _get_phelel_lines(
     diagonal: bool,
     plusminus: Literal["auto"] | bool,
     phelel_nosym: bool,
+    site_mixture_scheme: str | None,
 ) -> list:
     lines = []
     lines.append("[phelel]")
@@ -1694,6 +1694,8 @@ def _get_phelel_lines(
 
         if phelel_nosym:
             lines.append("nosym = true")
+        if site_mixture_scheme is not None:
+            lines.append(f'site_mixture_scheme = "{site_mixture_scheme}"')
 
         fft_mesh = _get_fft_mesh(velph_dict, primitive)
         try:
