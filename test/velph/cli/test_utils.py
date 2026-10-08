@@ -14,17 +14,20 @@ import tomli
 from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import apply_site_mixture
 
 from phelel.velph.cli.init.init import _run_init
 from phelel.velph.cli.utils import (
     VelphInitOptions,
     choose_cell_in_dict,
+    echo_vasp_vca_hint,
     get_nac_params,
     get_scheduler_dict,
     kspacing_to_mesh,
     write_incar,
     write_kpoints_mesh_mode,
     write_launch_script,
+    write_poscar,
 )
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import get_reduced_cell
@@ -232,3 +235,46 @@ def test_write_launch_script_with_partial_template_scheduler(tmp_path: pathlib.P
     velph_dict = tomli.loads("\n".join(toml_lines))
     write_launch_script(get_scheduler_dict(velph_dict, "relax"), tmp_path, "relax")
     assert "x-relax" in (tmp_path / "_job.sh").read_text()
+
+
+def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
+    """Return CsCl-like cell with Ge and Sn (0.5 each) co-located and Te."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Ge", "Sn", "Te"],
+        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    return apply_site_mixture(cell, [0.5, 0.5, 1.0])
+
+
+def test_write_poscar_and_incar_of_site_mixture(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+):
+    """A cell with weighted species is written for VASP VCA."""
+    cell = _get_GeSnTe_weighted_cell()
+    write_poscar(tmp_path, cell)
+    lines = (tmp_path / "POSCAR").read_text().splitlines()
+    assert lines[5].split() == ["Ge", "Sn", "Te"]
+    assert lines[6].split() == ["1", "1", "1"]
+    write_incar({"encut": 500}, tmp_path, cell=cell)
+    incar = (tmp_path / "INCAR").read_text()
+    assert "VCA = 0.5 0.5 1.0" in incar
+    echo_vasp_vca_hint(cell)
+    assert "INCAR:               VCA = 0.5 0.5 1" in capsys.readouterr().out
+
+
+def test_write_poscar_and_incar_of_ordinary_cell(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+):
+    """An ordinary cell has no VCA tag and no hint."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Na", "Cl"],
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    write_poscar(tmp_path, cell)
+    assert (tmp_path / "POSCAR").read_text().splitlines()[5].split() == ["Na", "Cl"]
+    write_incar({"encut": 500}, tmp_path, cell=cell)
+    assert "VCA" not in (tmp_path / "INCAR").read_text()
+    echo_vasp_vca_hint(cell)
+    assert capsys.readouterr().out == ""

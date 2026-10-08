@@ -6,16 +6,17 @@ import shutil
 
 import click
 import tomli
-from phonopy.interface.calculator import write_crystal_structure
 from phonopy.structure.atoms import parse_cell_dict
 
 from phelel.velph.cli.utils import (
     assert_kpoints_mesh_symmetry,
+    echo_vasp_vca_hint,
     get_scheduler_dict,
     write_incar,
     write_kpoints_line_mode,
     write_kpoints_mesh_mode,
     write_launch_script,
+    write_poscar,
 )
 
 
@@ -28,14 +29,15 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
     main_directory = pathlib.Path(main_directory_name)
     main_directory.mkdir(parents=True, exist_ok=True)
 
+    primitive = parse_cell_dict(toml_dict["primitive_cell"])
+    assert primitive is not None
     for calc_type in ("bands", "dos"):
         directory_name = f"{main_directory_name}/{calc_type}"
         directory = pathlib.Path(directory_name)
         directory.mkdir(parents=True, exist_ok=True)
 
         # POSCAR
-        primitive = parse_cell_dict(toml_dict["primitive_cell"])
-        write_crystal_structure(directory / "POSCAR", primitive)
+        write_poscar(directory, primitive)
 
         # INCAR
         incar_dict = copy.deepcopy(toml_dict["vasp"]["el_bands"][calc_type]["incar"])
@@ -92,3 +94,5 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
             write_launch_script(scheduler_dict, directory)
 
         click.echo(f'VASP input files were made in "{directory_name}".')
+
+    echo_vasp_vca_hint(primitive)

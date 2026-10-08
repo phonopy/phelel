@@ -6,9 +6,10 @@ import pathlib
 
 import click
 import tomli
-from phonopy.interface.calculator import write_crystal_structure
+from phonopy.interface.vasp import write_vasp
 from phonopy.structure.atoms import parse_cell_dict
 
+from phelel.velph.cli.utils import echo_vasp_vca_hint
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
@@ -65,5 +66,6 @@ def _write_cell(filename: str, toml_cell_dict: dict):
                 err=True,
             )
             return
-        write_crystal_structure(filename, cell)
+        write_vasp(filename, cell, for_vca=cell.has_weighted_species)
         click.echo(f'"{filename}" was generated.')
+        echo_vasp_vca_hint(cell)

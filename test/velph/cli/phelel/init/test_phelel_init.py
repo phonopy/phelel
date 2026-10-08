@@ -165,12 +165,28 @@ def test_phelel_init_site_mixture(
     )
     phe2 = phelel.load(filename, log_level=0)
     if split_site_mixture:
+        assert phe2.site_mixture_scheme == "split"
         assert phe2.unitcell.symbols == ["Ge", "Sn", "Te"]
         assert phe2.unitcell.has_weighted_species
-        assert not phe2.unitcell.has_mixtures
+        assert phe2.unmerged_unitcell is None
     else:
+        assert phe2.site_mixture_scheme == "merge"
         assert phe2.unitcell.symbols == ["GeSn", "Te"]
         assert phe2.unitcell.has_mixtures
-        assert not phe2.unitcell.has_weighted_species
+        assert phe2.unmerged_unitcell is not None
+        assert phe2.unmerged_unitcell.symbols == ["Ge", "Sn", "Te"]
     assert phe2.supercells_with_displacements is not None
     assert len(phe2.supercells_with_displacements) > 0
+
+
+def test_phelel_init_site_mixture_merge_without_nac(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """NAC is not read with the merge scheme of site mixture."""
+    (tmp_path / "nac").mkdir()
+    (tmp_path / "nac" / "vasprun.xml").write_text("")
+    phe = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
+    assert phe.nac_params is None
+    assert "NAC is not supported with the merge scheme" in capsys.readouterr().out

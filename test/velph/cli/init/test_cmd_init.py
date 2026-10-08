@@ -160,6 +160,9 @@ def test_run_init_site_mixture(symmetrize_cell: bool):
         assert cell.symbols == ["Ge", "Sn", "Te"]
         assert cell.mixture_weights is not None
         np.testing.assert_allclose(cell.mixture_weights, [0.5, 0.5, 1.0])
+    for calc_type in ("phelel", "phonopy"):
+        assert velph_dict[calc_type]["site_mixture_scheme"] == "split"
+    assert "site_mixture_scheme" not in velph_dict["phono3py"]
 
 
 def test_run_init_site_mixture_via_template():
@@ -181,10 +184,12 @@ def test_run_init_site_mixture_via_template():
 
 
 @pytest.mark.parametrize("symmetrize_cell", [False, True])
-def test_run_init_site_mixture_merges_by_default(symmetrize_cell: bool):
-    """Test --site-mixture without --split-site-mixture merges co-located atoms.
+def test_run_init_site_mixture_merge_scheme_by_default(symmetrize_cell: bool):
+    """Test --site-mixture without --split-site-mixture uses the merge scheme.
 
-    As in phonopy, the co-located Ge and Sn become one mixed-species site.
+    The cells in velph.toml keep the co-located Ge and Sn with weights, as in
+    the input structure, and the merge scheme is written in [phelel] and
+    [phonopy]. phonopy merges them into one site.
 
     """
     velph_dict = _run_init_site_mixture(
@@ -197,27 +202,29 @@ def test_run_init_site_mixture_merges_by_default(symmetrize_cell: bool):
     for cell_key in ("unitcell", "primitive_cell"):
         cell = parse_cell_dict(velph_dict[cell_key])
         assert cell is not None
-        assert cell.symbols == ["GeSn", "Te"]
-        assert cell.has_mixtures
-        assert not cell.has_weighted_species
-        assert velph_dict[cell_key]["points"][0]["mixture"] == [
-            ["Ge", 0.5],
-            ["Sn", 0.5],
-        ]
+        assert cell.symbols == ["Ge", "Sn", "Te"]
+        assert not cell.has_mixtures
+        assert cell.mixture_weights is not None
+        np.testing.assert_allclose(cell.mixture_weights, [0.5, 0.5, 1.0])
+    for calc_type in ("phelel", "phonopy"):
+        assert velph_dict[calc_type]["site_mixture_scheme"] == "merge"
+    assert "site_mixture_scheme" not in velph_dict["phono3py"]
 
 
-def test_run_init_site_mixture_via_template_merges():
-    """Test site_mixture in [init.options] without split_site_mixture merges."""
+def test_run_init_site_mixture_via_template_merge_scheme():
+    """Test site_mixture in [init.options] without split_site_mixture."""
     toml_lines = _run_init(
         _site_mixture_cell(),
         VelphInitOptions(supercell_dimension=(2, 2, 2)),
         velph_template_fp=io.BytesIO(b'[init.options]\nsite_mixture = "0.5 0.5 1.0"\n'),
     )
     assert toml_lines is not None
-    unitcell = parse_cell_dict(tomli.loads("\n".join(toml_lines))["unitcell"])
+    velph_dict = tomli.loads("\n".join(toml_lines))
+    unitcell = parse_cell_dict(velph_dict["unitcell"])
     assert unitcell is not None
-    assert unitcell.symbols == ["GeSn", "Te"]
-    assert unitcell.has_mixtures
+    assert unitcell.symbols == ["Ge", "Sn", "Te"]
+    assert unitcell.has_weighted_species
+    assert velph_dict["phonopy"]["site_mixture_scheme"] == "merge"
 
 
 def test_run_init_site_mixture_with_magmom_raises():
@@ -1719,3 +1726,53 @@ def _test_velph_dict_cell_choices(
             velph_dict["vasp"][f"{calc_type}"]["cell"]
             == cell_choice_str[dcc[calc_type]]
         )
+
+
+_a_NaCl = 5.69
+_fcc_points: list[list[float]] = [
+    [0.0, 0.0, 0.0],
+    [0.0, 0.5, 0.5],
+    [0.5, 0.0, 0.5],
+    [0.5, 0.5, 0.0],
+]
+_fcc_points_shifted: list[list[float]] = [
+    [(x + 0.5) % 1 for x in p] for p in _fcc_points
+]
+
+
+@pytest.mark.parametrize(
+    "order,is_shown",
+    [("by_element", False), ("interleaved", True), ("primitive", True)],
+)
+def test_get_cells_symmetrize_shows_changed_species_rows(
+    order: str, is_shown: bool, capsys: pytest.CaptureFixture[str]
+):
+    """A message is shown when standardization changes the POSCAR rows."""
+    if order == "primitive":
+        a = _a_NaCl / 2
+        cell = PhonopyAtoms(
+            cell=[[0, a, a], [a, 0, a], [a, a, 0]],
+            symbols=["Na", "Cl"],
+            scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+        )
+    elif order == "by_element":
+        cell = PhonopyAtoms(
+            cell=np.eye(3) * _a_NaCl,
+            symbols=["Na"] * 4 + ["Cl"] * 4,
+            scaled_positions=_fcc_points + _fcc_points_shifted,
+        )
+    else:
+        cell = PhonopyAtoms(
+            cell=np.eye(3) * _a_NaCl,
+            symbols=["Na", "Cl"] * 4,
+            scaled_positions=[
+                p
+                for pair in zip(_fcc_points, _fcc_points_shifted, strict=True)
+                for p in pair
+            ],
+        )
+    _get_cells(cell, 1e-5, True, True, PrimitiveCellChoice.STANDARDIZED)
+    out = capsys.readouterr().out
+    assert ("Number or order of atoms was changed" in out) is is_shown
+    if is_shown:
+        assert "Unit cell:       Na Cl / 4 4" in out

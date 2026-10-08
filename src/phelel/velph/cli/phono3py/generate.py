@@ -8,7 +8,7 @@ import click
 import phono3py
 import tomli
 
-from phelel.velph.cli.phelel.generate import (
+from phelel.velph.cli.supercells import (
     write_phonon_supercells,
     write_supercells,
 )

@@ -11,15 +11,16 @@ import h5py
 import numpy as np
 import tomli
 from numpy.typing import NDArray
-from phonopy.interface.calculator import write_crystal_structure
 from phonopy.structure.atoms import parse_cell_dict
 
 from phelel.velph.cli.utils import (
     assert_kpoints_mesh_symmetry,
+    echo_vasp_vca_hint,
     get_scheduler_dict,
     write_incar,
     write_kpoints_mesh_mode,
     write_launch_script,
+    write_poscar,
 )
 
 
@@ -101,7 +102,7 @@ def write_selfenergy_input_files(
     # POSCAR
     primitive = parse_cell_dict(toml_dict["primitive_cell"])
     assert primitive is not None
-    write_crystal_structure(directory_path / "POSCAR", primitive)
+    write_poscar(directory_path, primitive)
 
     # INCAR
     write_incar(toml_incar_dict, directory_path, cell=primitive)
@@ -142,6 +143,7 @@ def write_selfenergy_input_files(
         write_launch_script(scheduler_dict, directory_path)
 
     click.echo(f'VASP input files were generated in "{directory_path}".')
+    echo_vasp_vca_hint(primitive)
 
 
 def _find_elph_selfen_band_stop(

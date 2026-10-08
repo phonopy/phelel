@@ -209,8 +209,9 @@ def site_mixture_velph_toml() -> Callable[[bool], dict]:
     """Return a function giving velph.toml dict of a site-mixture cell.
 
     The cell is CsCl-like with co-located Ge and Sn (weights 0.5) and Te. The
-    argument is split_site_mixture: False merges Ge and Sn into a GeSn site,
-    and True keeps them as weighted species.
+    cells in velph.toml keep Ge and Sn with weights. The argument is
+    split_site_mixture: False writes the merge scheme, with which phonopy
+    merges Ge and Sn into a GeSn site, and True writes the split scheme.
 
     """
 

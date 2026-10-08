@@ -20,7 +20,12 @@ from phono3py.interface.calculator import (
 from phonopy.interface.calculator import (
     get_default_displacement_distance as get_phonopy_displacement_distance,
 )
-from phonopy.interface.vasp import VasprunxmlExpat
+from phonopy.interface.vasp import (
+    VasprunxmlExpat,
+    get_vasp_vca_hint_lines,
+    get_vasp_vca_weights,
+    write_vasp,
+)
 from phonopy.phonon.grid import BZGrid
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
@@ -276,7 +281,31 @@ def write_incar(
     incar_dict = copy.deepcopy(toml_incar_dict)
     if cell is not None and cell.magnetic_moments is not None:
         incar_dict["magmom"] = cell.magnetic_moments.tolist()
+    if cell is not None and cell.has_weighted_species:
+        incar_dict["vca"] = get_vasp_vca_weights(cell)
     VaspIncar.write(pathlib.Path(directory) / incar_filename, incar_dict)
+
+
+def write_poscar(
+    directory: os.PathLike, cell: PhonopyAtoms, filename: str = "POSCAR"
+) -> None:
+    """Write POSCAR.
+
+    A cell with weighted species of site mixture is written for VASP VCA. Atoms
+    of one symbol and weight that are next to each other in the cell are written
+    in one species row. The INCAR VCA tag is written by ``write_incar``.
+
+    """
+    write_vasp(
+        pathlib.Path(directory) / filename, cell, for_vca=cell.has_weighted_species
+    )
+
+
+def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
+    """Show POSCAR species rows, POTCAR order and VCA tag of site mixture."""
+    if cell.has_weighted_species:
+        for line in get_vasp_vca_hint_lines(cell):
+            click.echo(line)
 
 
 def write_kpoints_mesh_mode(

@@ -21,10 +21,10 @@ from phonopy.phonon.grid import GridMatrix
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phonopy.structure.cells import (
     apply_site_mixture,
-    build_mixture_cell,
     estimate_supercell_matrix,
     generate_standardized_cells,
     get_supercell,
+    group_by_key,
     shape_supercell_matrix,
 )
 from spglib import SpglibDataset, SpglibMagneticDataset
@@ -206,9 +206,9 @@ def _run_init(
         input_cell.magnetic_moments = magmom_vals
 
     #
-    # Apply site-mixture per-atom concentration weights. As in phonopy,
-    # co-located atoms are merged into mixed-species sites by default, and they
-    # are kept as separate weighted species with split_site_mixture.
+    # Apply site-mixture per-atom concentration weights. The co-located atoms
+    # are kept as the atoms of the input structure. With the merge scheme, they
+    # are merged into sites by phonopy, and the scheme is written in velph.toml.
     #
     if vip.site_mixture is not None:
         if vip.magmom is not None:
@@ -217,14 +217,7 @@ def _run_init(
             )
         weights = [float(x) for x in vip.site_mixture.split()]
         try:
-            if vip.split_site_mixture:
-                input_cell = apply_site_mixture(
-                    input_cell, weights, symprec=vip.tolerance
-                )
-            else:
-                input_cell = build_mixture_cell(
-                    input_cell, weights, symprec=vip.tolerance
-                )
+            input_cell = apply_site_mixture(input_cell, weights, symprec=vip.tolerance)
         except ValueError as e:
             raise click.ClickException(str(e)) from e
 
@@ -648,6 +641,42 @@ def _get_calc_type_displacement_options(
     return DisplacementOptions(**options)
 
 
+def _get_species_rows(cell: PhonopyAtoms) -> tuple[list[str], list[int]]:
+    """Return labels and numbers of atoms of species rows of POSCAR.
+
+    A species row is a group of atoms of one species, i.e., of one symbol and
+    weight of site mixture, that are next to each other in the cell. The label
+    has the weight, e.g. "Ge(0.5)", for a weighted species.
+
+    """
+    counts, _, _ = group_by_key(cell.species_ids, consecutive=True)
+    starts = np.cumsum([0] + counts[:-1])
+    weights = cell.mixture_weights
+    labels = []
+    for i in starts:
+        if weights is None or weights[i] == 1.0:
+            labels.append(cell.symbols[i])
+        else:
+            labels.append(f"{cell.symbols[i]}({weights[i]:g})")
+    return labels, counts
+
+
+def _echo_if_species_rows_differ(input_cell: PhonopyAtoms, unitcell: PhonopyAtoms):
+    """Show species rows when standardization changes number or order of atoms."""
+    input_rows = _get_species_rows(input_cell)
+    rows = _get_species_rows(unitcell)
+    if input_rows == rows:
+        return
+    click.echo("Number or order of atoms was changed by the standardization.")
+    for name, (labels, counts) in (
+        ("Input structure", input_rows),
+        ("Unit cell", rows),
+    ):
+        click.echo(
+            f"  {name + ':':17s}{' '.join(labels)} / {' '.join(str(n) for n in counts)}"
+        )
+
+
 def _get_cells(
     input_cell: PhonopyAtoms,
     tolerance: float,
@@ -725,6 +754,7 @@ def _get_cells(
         unitcell, _primitive, tmat = generate_standardized_cells(
             input_cell, sym_dataset, symprec=tolerance
         )
+        _echo_if_species_rows_differ(input_cell, unitcell)
         if find_primitive:
             primitive = _primitive
             if len(_primitive) != len(unitcell):
@@ -1091,6 +1121,9 @@ def _get_toml_lines(
 ) -> list[str] | None:
     """Return velph-toml lines."""
     assert vip.displacement_options is not None
+    site_mixture_scheme = None
+    if unitcell.has_weighted_species:
+        site_mixture_scheme = "split" if vip.split_site_mixture else "merge"
 
     #
     # velph.toml
@@ -1110,6 +1143,7 @@ def _get_toml_lines(
             displacement_options.diagonal,
             displacement_options.plusminus,
             vip.phelel_nosym,
+            site_mixture_scheme,
         )
 
     # [phonopy], [phono3py]
@@ -1127,6 +1161,9 @@ def _get_toml_lines(
                 displacement_options.diagonal,
                 displacement_options.plusminus,
             )
+            # phono3py does not support site mixture.
+            if calc_type == "phonopy" and site_mixture_scheme is not None:
+                lines.append(f'site_mixture_scheme = "{site_mixture_scheme}"')
             lines.append("")
 
     # [vasp.*]
@@ -1681,6 +1718,7 @@ def _get_phelel_lines(
     diagonal: bool,
     plusminus: Literal["auto"] | bool,
     phelel_nosym: bool,
+    site_mixture_scheme: str | None,
 ) -> list:
     lines = []
     lines.append("[phelel]")
@@ -1694,6 +1732,8 @@ def _get_phelel_lines(
 
         if phelel_nosym:
             lines.append("nosym = true")
+        if site_mixture_scheme is not None:
+            lines.append(f'site_mixture_scheme = "{site_mixture_scheme}"')
 
         fft_mesh = _get_fft_mesh(velph_dict, primitive)
         try:
