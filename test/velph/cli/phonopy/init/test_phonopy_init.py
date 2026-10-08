@@ -118,12 +118,28 @@ def test_phonopy_init_site_mixture(
     ph.save(filename)
     ph2 = phonopy.load(filename, produce_fc=False, log_level=0)
     if split_site_mixture:
+        assert ph2.site_mixture_scheme == "split"
         assert ph2.unitcell.symbols == ["Ge", "Sn", "Te"]
         assert ph2.unitcell.has_weighted_species
-        assert not ph2.unitcell.has_mixtures
+        assert ph2.unmerged_unitcell is None
     else:
+        assert ph2.site_mixture_scheme == "merge"
         assert ph2.unitcell.symbols == ["GeSn", "Te"]
         assert ph2.unitcell.has_mixtures
-        assert not ph2.unitcell.has_weighted_species
+        assert ph2.unmerged_unitcell is not None
+        assert ph2.unmerged_unitcell.symbols == ["Ge", "Sn", "Te"]
     assert ph2.displacements is not None
     assert len(ph2.displacements) > 0
+
+
+def test_phonopy_init_site_mixture_merge_without_nac(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """NAC is not read with the merge scheme of site mixture."""
+    (tmp_path / "nac").mkdir()
+    (tmp_path / "nac" / "vasprun.xml").write_text("")
+    ph = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
+    assert ph.nac_params is None
+    assert "NAC is not supported with the merge scheme" in capsys.readouterr().out
