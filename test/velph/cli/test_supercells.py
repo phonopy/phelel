@@ -1,4 +1,4 @@
-"""Tests of velph phelel generate."""
+"""Tests of phelel.velph.cli.supercells."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from collections.abc import Callable
 
 import pytest
 
-from phelel.velph.cli.phelel.generate import write_supercells
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.cli.supercells import write_supercells
 
 
 def test_write_supercells_site_mixture_merge(
