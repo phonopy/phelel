@@ -291,9 +291,9 @@ def write_poscar(
 ) -> None:
     """Write POSCAR.
 
-    A cell with weighted species of site mixture is written for VASP VCA, with
-    one species row per run of consecutive atoms of one symbol and weight. The
-    INCAR VCA tag is written by ``write_incar``.
+    A cell with weighted species of site mixture is written for VASP VCA. Atoms
+    of one symbol and weight that are next to each other in the cell are written
+    in one species row. The INCAR VCA tag is written by ``write_incar``.
 
     """
     write_vasp(

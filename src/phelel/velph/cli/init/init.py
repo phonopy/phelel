@@ -24,6 +24,7 @@ from phonopy.structure.cells import (
     estimate_supercell_matrix,
     generate_standardized_cells,
     get_supercell,
+    group_by_key,
     shape_supercell_matrix,
 )
 from spglib import SpglibDataset, SpglibMagneticDataset
@@ -640,6 +641,42 @@ def _get_calc_type_displacement_options(
     return DisplacementOptions(**options)
 
 
+def _get_species_rows(cell: PhonopyAtoms) -> tuple[list[str], list[int]]:
+    """Return labels and numbers of atoms of species rows of POSCAR.
+
+    A species row is a group of atoms of one species, i.e., of one symbol and
+    weight of site mixture, that are next to each other in the cell. The label
+    has the weight, e.g. "Ge(0.5)", for a weighted species.
+
+    """
+    counts, _, _ = group_by_key(cell.species_ids, consecutive=True)
+    starts = np.cumsum([0] + counts[:-1])
+    weights = cell.mixture_weights
+    labels = []
+    for i in starts:
+        if weights is None or weights[i] == 1.0:
+            labels.append(cell.symbols[i])
+        else:
+            labels.append(f"{cell.symbols[i]}({weights[i]:g})")
+    return labels, counts
+
+
+def _echo_if_species_rows_differ(input_cell: PhonopyAtoms, unitcell: PhonopyAtoms):
+    """Show species rows when standardization changes number or order of atoms."""
+    input_rows = _get_species_rows(input_cell)
+    rows = _get_species_rows(unitcell)
+    if input_rows == rows:
+        return
+    click.echo("Number or order of atoms was changed by the standardization.")
+    for name, (labels, counts) in (
+        ("Input structure", input_rows),
+        ("Unit cell", rows),
+    ):
+        click.echo(
+            f"  {name + ':':17s}{' '.join(labels)} / {' '.join(str(n) for n in counts)}"
+        )
+
+
 def _get_cells(
     input_cell: PhonopyAtoms,
     tolerance: float,
@@ -717,6 +754,7 @@ def _get_cells(
         unitcell, _primitive, tmat = generate_standardized_cells(
             input_cell, sym_dataset, symprec=tolerance
         )
+        _echo_if_species_rows_differ(input_cell, unitcell)
         if find_primitive:
             primitive = _primitive
             if len(_primitive) != len(unitcell):
