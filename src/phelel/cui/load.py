@@ -115,6 +115,7 @@ def load(
             _,
             _nac_params,
             _,
+            site_mixture_scheme,
         ) = _read_phelel_yaml(
             phonopy_yaml, primitive_matrix, None, is_nac, None, symprec
         )
@@ -132,6 +133,7 @@ def load(
         dataset = None
         phonon_dataset = None
         _nac_params = None
+        site_mixture_scheme = None
 
     assert cell is not None
     phelel = Phelel(
@@ -143,6 +145,7 @@ def load(
         symprec=symprec,
         is_symmetry=is_symmetry,
         log_level=log_level,
+        site_mixture_scheme=site_mixture_scheme or "merge",
     )
     if dataset:
         phelel.dataset = dataset
@@ -185,10 +188,12 @@ def load(
         if _fc is not None:
             phelel.force_constants = _fc
     elif force_sets_filename is not None:
-        phelel.phonon_dataset = phonopy_load_helper.select_and_load_dataset(
-            len(phelel.supercell),
-            force_sets_filename=force_sets_filename,
-            log_level=log_level,
+        if phelel.phonon_supercell is None:
+            raise RuntimeError("Phonon instance is not initialized.")
+        phelel.phonon_dataset = phonopy_load_helper.read_force_sets(
+            force_sets_filename,
+            supercell=phelel.phonon_supercell,
+            unmerged_supercell=phelel.phonon_unmerged_supercell,
         )
 
     return phelel
@@ -219,4 +224,15 @@ def _read_phelel_yaml(
         _calculator = phe_yml.calculator
     else:
         _calculator = calculator
-    return cell, smat, pmat, ph_smat, dataset, ph_dataset, fc, _nac_params, _calculator
+    return (
+        cell,
+        smat,
+        pmat,
+        ph_smat,
+        dataset,
+        ph_dataset,
+        fc,
+        _nac_params,
+        _calculator,
+        phe_yml.site_mixture_scheme,
+    )

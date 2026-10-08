@@ -55,6 +55,7 @@ def run_init(
         primitive_matrix=primitive_matrix,
         is_symmetry=is_symmetry,
         calculator="vasp",
+        site_mixture_scheme=toml_dict["phelel"].get("site_mixture_scheme", "merge"),
     )
 
     displacement_options = get_displacement_options(toml_dict["phelel"], "phelel")
@@ -68,7 +69,12 @@ def run_init(
     )
 
     nac_directory = current_directory / "nac"
-    if nac_directory.exists():
+    if nac_directory.exists() and phe.unmerged_unitcell is not None:
+        click.echo(
+            'Found "nac" directory, but NAC is not supported with the merge scheme '
+            "of site mixture. NAC params were not included."
+        )
+    elif nac_directory.exists():
         click.echo('Found "nac" directory. Read NAC params.')
         vasprun_path = nac_directory / "vasprun.xml"
         if vasprun_path.exists():

@@ -16,7 +16,12 @@ from phonopy.interface.phonopy_yaml import (
 )
 from phonopy.physical_units import CalculatorPhysicalUnits
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import Primitive, Supercell, isclose
+from phonopy.structure.cells import (
+    Primitive,
+    Supercell,
+    isclose,
+    merge_weighted_species,
+)
 
 
 @dataclasses.dataclass
@@ -86,10 +91,20 @@ class PhelelYamlLoader(PhonopyYamlLoader):
             )
 
     def _parse_phonon_dataset(self):
-        """Parse force dataset for phonon."""
-        self._data.phonon_dataset = self._get_dataset(
-            self._data.phonon_supercell, key_prefix="phonon_"
-        )
+        """Parse force dataset for phonon.
+
+        With the merge scheme of site mixture, the displacements are of the
+        sites of the phonon supercell.
+
+        """
+        supercell = self._data.phonon_supercell
+        if (
+            supercell is not None
+            and supercell.has_weighted_species
+            and self._data.site_mixture_scheme != "split"
+        ):
+            supercell, _ = merge_weighted_species(supercell)
+        self._data.phonon_dataset = self._get_dataset(supercell, key_prefix="phonon_")
 
 
 class PhelelYamlDumper(PhonopyYamlDumper):

@@ -91,6 +91,7 @@ class Phelel:
         nufft: str | None = None,
         finufft_eps: float | None = None,
         log_level: int = 0,
+        site_mixture_scheme: Literal["merge", "split"] = "merge",
     ):
         """Init method.
 
@@ -133,9 +134,14 @@ class Phelel:
             corresponds to 1e-6.
         log_level : int, optional
             Log level. 0 is most quiet. Default is 0.
+        site_mixture_scheme : Literal["merge", "split"], optional
+            [Experimental] Scheme of site mixture for a unit cell with weighted
+            species. See ``Phonopy``. Derivatives are not calculated with
+            ``"merge"``. Default is ``"merge"``.
 
         """
         self._unitcell = unitcell
+        self._site_mixture_scheme: Literal["merge", "split"] = site_mixture_scheme
         self._symprec = symprec
         self._is_symmetry = is_symmetry
         self._calculator = calculator
@@ -192,8 +198,46 @@ class Phelel:
 
     @property
     def unitcell(self) -> PhonopyAtoms:
-        """Return unitcell."""
-        return self._unitcell
+        """Return unitcell.
+
+        With the merge scheme of site mixture, this is the cell of sites.
+
+        """
+        return self._phelel_phonon.unitcell
+
+    @property
+    def site_mixture_scheme(self) -> Literal["merge", "split"]:
+        """Return scheme of site mixture, "merge" or "split"."""
+        return self._site_mixture_scheme
+
+    @property
+    def unmerged_unitcell(self) -> PhonopyAtoms | None:
+        """Return input unit cell with the merge scheme of site mixture, or None."""
+        return self._phelel_phonon.unmerged_unitcell
+
+    @property
+    def unmerged_primitive(self) -> Primitive | None:
+        """Return primitive cell of ``unmerged_unitcell``, or None."""
+        return self._phelel_phonon.unmerged_primitive
+
+    @property
+    def unmerged_supercell(self) -> Supercell | None:
+        """Return supercell of ``unmerged_unitcell``, or None."""
+        return self._phelel_phonon.unmerged_supercell
+
+    @property
+    def phonon_unmerged_primitive(self) -> Primitive | None:
+        """Return primitive cell of phonon of ``unmerged_unitcell``, or None."""
+        if self._phonon is None:
+            return None
+        return self._phonon.unmerged_primitive
+
+    @property
+    def phonon_unmerged_supercell(self) -> Supercell | None:
+        """Return phonon supercell of ``unmerged_unitcell``, or None."""
+        if self._phonon is None:
+            return None
+        return self._phonon.unmerged_supercell
 
     @property
     def supercell(self) -> Supercell:
@@ -457,6 +501,10 @@ class Phelel:
         Force constants are created to have full matrix shape.
 
         """
+        if self.unmerged_unitcell is not None:
+            raise RuntimeError(
+                "Derivatives are not supported with the merge scheme of site mixture."
+            )
         if self._fft_mesh is None:
             msg = (
                 "fft_mesh for dV/du interpolation has to be set before running this "
@@ -581,13 +629,26 @@ class Phelel:
             configuration=configuration, physical_units=units, settings=settings
         )
         set_data_to_phonopy_yaml(cast(PhonopyYaml, phe_yaml), cast(Phonopy, self))
+        if self._unitcell.has_weighted_species:
+            phe_yaml.site_mixture_scheme = self._site_mixture_scheme
+        # With the merge scheme of site mixture, the unmerged cells are written.
+        if self.unmerged_unitcell is not None:
+            assert self.unmerged_primitive is not None
+            assert self.unmerged_supercell is not None
+            phe_yaml.unitcell = self.unmerged_unitcell
+            phe_yaml.primitive = self.unmerged_primitive
+            phe_yaml.supercell = self.unmerged_supercell
         if self.phonon_supercell_matrix is not None:
             phe_yaml.phonon_supercell_matrix = self.phonon_supercell_matrix
             if self.phonon_dataset is not None:
                 phe_yaml.phonon_dataset = self.phonon_dataset
-            if self.phonon_primitive is not None:
+            if self.phonon_unmerged_primitive is not None:
+                phe_yaml.phonon_primitive = self.phonon_unmerged_primitive
+            elif self.phonon_primitive is not None:
                 phe_yaml.phonon_primitive = self.phonon_primitive
-            if self.phonon_supercell is not None:
+            if self.phonon_unmerged_supercell is not None:
+                phe_yaml.phonon_supercell = self.phonon_unmerged_supercell
+            elif self.phonon_supercell is not None:
                 phe_yaml.phonon_supercell = self.phonon_supercell
         return phe_yaml
 
@@ -638,4 +699,5 @@ class Phelel:
             is_symmetry=self._is_symmetry,
             calculator=self._calculator,
             log_level=self._log_level,
+            site_mixture_scheme=self._site_mixture_scheme,
         )
