@@ -40,13 +40,18 @@ def create_phonopy_yaml(
         is_symmetry=is_symmetry,
     )
     # Forces are those of the phonon supercells when phonon_supercell_matrix is
-    # given, otherwise those of the supercells of phelel.
+    # given, otherwise those of the supercells of phelel. With the merge scheme
+    # of site mixture, the forces are on the atoms of the unmerged supercell.
     if phe.phonon_supercell_matrix is None:
-        supercell = phe.supercell
+        supercell = phe.unmerged_supercell
+        if supercell is None:
+            supercell = phe.supercell
         cells = phe.supercells_with_displacements
         prefix = "disp"
     else:
-        supercell = phe.phonon_supercell
+        supercell = phe.phonon_unmerged_supercell
+        if supercell is None:
+            supercell = phe.phonon_supercell
         cells = phe.phonon_supercells_with_displacements
         prefix = "ph-disp"
     assert supercell is not None

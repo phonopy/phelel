@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import pathlib
+from collections.abc import Callable
 
 import numpy as np
+import phonopy
 import pytest
 from phonopy.structure.atoms import PhonopyAtoms
 
 import phelel.velph.cli.phelel.phonopy as phelel_phonopy
 from phelel import Phelel
+from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.utils import get_num_digits
 
@@ -93,3 +96,34 @@ def test_create_phonopy_yaml_reads_phelel_supercells(
     assert [str(f.parent) for f in filenames] == [
         f"phelel/disp-{i:0{nd}d}" for i in range(len(disps) + 1)
     ]
+
+
+def test_create_phonopy_yaml_site_mixture_merge(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """With the merge scheme, forces are on the atoms of the unmerged supercell."""
+    phe = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
+    assert phe.unmerged_supercell is not None
+    assert phe.supercells_with_displacements is not None
+    n_atoms = len(phe.unmerged_supercell)
+    (tmp_path / "phelel_disp.yaml").write_text(str(phe.to_phelel_yaml()))
+    rng = np.random.default_rng(3)
+
+    def _read_forces(vasprun_filenames, supercell, subtract_rfs, log_level):
+        assert len(supercell) == n_atoms
+        return list(rng.standard_normal((len(vasprun_filenames) - 1, n_atoms, 3)))
+
+    monkeypatch.setattr(phelel_phonopy, "read_forces_from_vasprunxmls", _read_forces)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "velph.toml").write_text("")
+    create_phonopy_yaml(
+        pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
+    )
+
+    ph = phonopy.load(tmp_path / "phelel" / "phonopy_params.yaml", produce_fc=False)
+    assert ph.site_mixture_scheme == "merge"
+    assert ph.unmerged_supercell is not None
+    assert len(ph.unmerged_supercell) == n_atoms
+    assert ph.forces.shape == (len(phe.supercells_with_displacements), n_atoms, 3)

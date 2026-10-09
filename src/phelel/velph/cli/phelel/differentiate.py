@@ -19,6 +19,12 @@ def run_derivatives(
     verbose: bool = False,
 ) -> bool:
     """Calculate derivatives and write phelel_params.hdf5."""
+    if phe.unmerged_unitcell is not None:
+        click.echo(
+            "Derivatives are not supported with the merge scheme of site mixture.",
+            err=True,
+        )
+        return False
     dir_names = []
     if phe.supercells_with_displacements is None:
         raise RuntimeError("supercells_with_displacements is None.")
