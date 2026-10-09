@@ -1,12 +1,14 @@
 """Tests CLIs."""
 
 import pathlib
+from collections.abc import Callable
 
 import h5py
 import pytest
 
 import phelel
 from phelel.velph.cli.phelel.differentiate import run_derivatives
+from phelel.velph.cli.phelel.init import run_init
 
 cwd = pathlib.Path(__file__).parent
 cwd_called = pathlib.Path.cwd()
@@ -91,3 +93,14 @@ def test_run_derivatives_with_wrong_phonon_supercell_matrix():
     """
     phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
     assert not run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
+
+
+def test_run_derivatives_site_mixture_merge(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Derivatives are not calculated with the merge scheme of site mixture."""
+    phe = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
+    assert not run_derivatives(phe, dir_name=tmp_path / "phelel")
+    assert "not supported with the merge scheme" in capsys.readouterr().err
