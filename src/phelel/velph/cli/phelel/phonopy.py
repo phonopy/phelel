@@ -39,40 +39,27 @@ def create_phonopy_yaml(
         str(yaml_filename),
         is_symmetry=is_symmetry,
     )
-    dir_names = []
-
-    assert phe.supercells_with_displacements is not None
-    nd = get_num_digits(phe.supercells_with_displacements)
-    for i, _ in enumerate(
-        [
-            phe.supercell,
-        ]
-        + phe.supercells_with_displacements
-    ):
-        id_number = f"{i:0{nd}d}"
-        dir_names.append(pathlib.Path(f"{dir_name}/disp-{id_number}"))
-
-    if phe.phonon_supercell_matrix is not None:
-        assert phe.phonon_supercells_with_displacements is not None
-        nd = get_num_digits(phe.phonon_supercells_with_displacements)
-        for i, _ in enumerate(
-            [
-                phe.phonon_supercell,
-            ]
-            + phe.phonon_supercells_with_displacements
-        ):
-            id_number = f"{i:0{nd}d}"
-            dir_names.append(pathlib.Path(f"{phelel}/ph-disp-{id_number}"))
+    # Forces are those of the phonon supercells when phonon_supercell_matrix is
+    # given, otherwise those of the supercells of phelel.
+    if phe.phonon_supercell_matrix is None:
+        supercell = phe.supercell
+        cells = phe.supercells_with_displacements
+        prefix = "disp"
+    else:
+        supercell = phe.phonon_supercell
+        cells = phe.phonon_supercells_with_displacements
+        prefix = "ph-disp"
+    assert supercell is not None
+    assert cells is not None
+    nd = get_num_digits(cells)
+    dir_names = [
+        pathlib.Path(f"{dir_name}/{prefix}-{i:0{nd}d}") for i in range(len(cells) + 1)
+    ]
 
     phonopy_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
 
     # NAC params should be contained phelel_disp.yaml.
     # Therefore nac_params is not set to phe here.
-    if phe.phonon_supercell_matrix is None:
-        supercell = phe.supercell
-    else:
-        supercell = phe.phonon_supercell
-    assert supercell is not None
     forces = read_forces_from_vasprunxmls(
         [d / "vasprun.xml" for d in dir_names],
         supercell,
