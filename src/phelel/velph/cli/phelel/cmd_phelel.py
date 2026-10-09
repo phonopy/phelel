@@ -9,7 +9,10 @@ import tomli
 
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
-from phelel.velph.cli.phelel.differentiate import run_derivatives
+from phelel.velph.cli.phelel.differentiate import (
+    get_selfenergy_prec,
+    run_derivatives,
+)
 from phelel.velph.cli.phelel.generate import write_supercell_input_files
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
@@ -143,12 +146,7 @@ def cmd_differentiate(
     )
 
     if encut is not None:
-        try:
-            prec = toml_dict["vasp"]["selfenergy"]["incar"]["prec"]
-        except KeyError:
-            click.echo(f'[vasp.selfenergy.incar] not found in "{toml_filename}".')
-            click.echo('prec = "accurate" is assumed.')
-            prec = "accurate"
+        prec = get_selfenergy_prec(toml_dict, toml_filename)
         click.echo(f"FFT mesh is generated for encut={encut}.")
         phe.fft_mesh = CutoffToFFTMesh.get_FFTMesh(encut, phe.primitive.cell, prec)
 
