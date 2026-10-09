@@ -2,7 +2,7 @@
 
 # Change Log
 
-## Unreleased
+## Oct-9-2026: Version 0.14.0
 
 - Python 3.10 is no longer supported. Python 3.11 or later is required.
 - phonopy 4.8.2 or later and phono3py 4.8.0 or later are required.
