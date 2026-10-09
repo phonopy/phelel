@@ -114,3 +114,24 @@ def _check_file_exists(filepath: pathlib.Path, filename: str) -> bool:
 
     """
     return bool(list(pathlib.Path(filepath).glob(f"{filename}*")))
+
+
+def get_selfenergy_prec(toml_dict: dict, toml_filename: str) -> str | None:
+    """Return prec of [vasp.selfenergy.incar] for the FFT mesh of --encut.
+
+    None is returned when prec is not found. CutoffToFFTMesh takes None as
+    "normal", which is the default of PREC in VASP.
+
+    """
+    try:
+        incar = toml_dict["vasp"]["selfenergy"]["incar"]
+    except KeyError:
+        click.echo(f'[vasp.selfenergy.incar] not found in "{toml_filename}".')
+        click.echo('prec = "normal" (VASP default) is assumed.')
+        return None
+    incar_lower = {key.lower(): value for key, value in incar.items()}
+    if "prec" not in incar_lower:
+        click.echo(f'"prec" not found in [vasp.selfenergy.incar] of "{toml_filename}".')
+        click.echo('prec = "normal" (VASP default) is assumed.')
+        return None
+    return incar_lower["prec"]

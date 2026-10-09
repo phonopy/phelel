@@ -4,11 +4,16 @@ import pathlib
 from collections.abc import Callable
 
 import h5py
+import numpy as np
 import pytest
 
 import phelel
-from phelel.velph.cli.phelel.differentiate import run_derivatives
+from phelel.velph.cli.phelel.differentiate import (
+    get_selfenergy_prec,
+    run_derivatives,
+)
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 cwd = pathlib.Path(__file__).parent
 cwd_called = pathlib.Path.cwd()
@@ -104,3 +109,37 @@ def test_run_derivatives_site_mixture_merge(
     phe = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
     assert not run_derivatives(phe, dir_name=tmp_path / "phelel")
     assert "not supported with the merge scheme" in capsys.readouterr().err
+
+
+def test_get_selfenergy_prec_missing(capsys: pytest.CaptureFixture[str]):
+    """Missing prec gives the FFT mesh of PREC = Normal, the VASP default.
+
+    The meshes of "normal" and "accurate" differ for this lattice, so the test
+    fails if "accurate" is assumed.
+
+    """
+    toml_dict = {"vasp": {"selfenergy": {"incar": {"encut": 500}}}}
+    prec = get_selfenergy_prec(toml_dict, "velph.toml")
+    assert prec is None
+    assert '"prec" not found in [vasp.selfenergy.incar]' in capsys.readouterr().out
+
+    lattice = np.eye(3) * 5.0
+    mesh = CutoffToFFTMesh.get_FFTMesh(500, lattice, prec)
+    np.testing.assert_array_equal(
+        mesh, CutoffToFFTMesh.get_FFTMesh(500, lattice, "normal")
+    )
+    assert not np.array_equal(
+        mesh, CutoffToFFTMesh.get_FFTMesh(500, lattice, "accurate")
+    )
+
+
+def test_get_selfenergy_prec_given():
+    """Prec of [vasp.selfenergy.incar] is used, with the tag name in any case."""
+    toml_dict = {"vasp": {"selfenergy": {"incar": {"PREC": "Accurate"}}}}
+    assert get_selfenergy_prec(toml_dict, "velph.toml") == "Accurate"
+
+
+def test_get_selfenergy_prec_no_section(capsys: pytest.CaptureFixture[str]):
+    """Without [vasp.selfenergy.incar], None (PREC = Normal) is returned."""
+    assert get_selfenergy_prec({"vasp": {}}, "velph.toml") is None
+    assert "[vasp.selfenergy.incar] not found" in capsys.readouterr().out
