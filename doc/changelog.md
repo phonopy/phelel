@@ -5,46 +5,12 @@
 ## Unreleased
 
 - Python 3.10 is no longer supported. Python 3.11 or later is required.
-- `velph init`: command-line options and `[init.options]` now take
-  precedence over `[phelel]`, `[phonopy]`, and `[phono3py]` of the template
-  for `amplitude`, `diagonal`, and `plusminus`, as for the supercell matrix.
-- `velph init`: giving two or more of `max_num_atoms`,
-  `supercell_dimension`, and `supercell_matrix` in one place is an error.
-  A supercell option on the command line is no longer overridden by
-  `max_num_atoms` in `[init.options]`.
-- `velph init`: INCAR tag names in `[vasp.incar]` and
-  `[vasp.CALC_TYPE.incar]` of the template are case-insensitive, as
-  documented. Upper-case tags were ignored or raised an error.
-- `velph init`: `kspacing` in a k-point block of the template is copied
-  to `velph.toml`, and the mesh is computed by the generate commands.
-- velph always writes the k-point files. The INCAR tags `kspacing` and
-  `elph_kspacing` are an error in `velph init` templates and in
-  `velph.toml`.
-- velph computes a k-point mesh from `kspacing` by rounding up, as the VASP
-  INCAR tag `KSPACING` does. It was rounded to the nearest integer, so the
-  mesh can be larger than before. phonopy 4.8.1 or later is required for
-  this.
-- `velph phelel init`, `velph phonopy init`, and `velph phono3py init` use
-  `plusminus = true` and `diagonal = false` when these keys are missing in
-  `velph.toml`, as `velph init` writes and as documented. They used the
-  defaults of phonopy (`"auto"` and `true`).
-- `cell` of `[vasp.relax]` and `[vasp.nac]`, `cell_for_relax`,
-  `cell_for_nac`, and `primitive_cell_choice` accept only the documented
-  values, compared in lower case. Other values were silently replaced by the
-  default or matched by substring (`"primitive_cell"` was taken as
-  `"primitive"`). They are now an error in `velph init` and in the generate
-  commands.
-- `velph init`: `number_of_snapshots` in `[init.options]` is an error with a
-  message to write it in `[phonopy]` of `velph.toml`. It raised `TypeError`.
-- `velph init`: `[scheduler]` of the template updates the default
-  `[scheduler]` key by key. It replaced the whole section, so a template with
-  only some keys lost `scheduler_template` and the generate commands stopped
-  with `KeyError`. A key missing for the job script now stops the generate
-  commands with an error that names the key.
-- `velph init` writes `amplitude = 0.01` in `[phonopy]` instead of 0.03 when
-  the amplitude is not given. `[phelel]` and `[phono3py]` keep 0.03. These are
-  the default displacement distances of phonopy and phono3py for VASP, which
-  the generate commands also use when `amplitude` is missing.
+- phonopy 4.8.2 or later and phono3py 4.8.0 or later are required.
+- Major refactoring of velph.
+- velph computes a k-point mesh from `kspacing` by rounding up, as VASP
+  `KSPACING` does, so the mesh can be larger than before.
+- `velph init` writes `amplitude = 0.01` in `[phonopy]` instead of 0.03 by
+  default.
 
 ## May-13-2026: Version 0.13.3
 

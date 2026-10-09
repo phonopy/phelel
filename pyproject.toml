@@ -12,8 +12,8 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "phonopy >= 4.8.1",
-    "phono3py >= 3.27.1",
+    "phonopy >= 4.8.2",
+    "phono3py >= 4.8.0",
     "spglib >= 2.5.0",
     "finufft",
     "click",
