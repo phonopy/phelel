@@ -32,6 +32,7 @@ from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 from spglib import SpglibDataset, SpglibMagneticDataset
 
+from phelel.velph.config.schema import VASP_KSPACING_TAGS
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
     get_sge_scheduler_script,
@@ -85,10 +86,6 @@ def _parse_choice(value: Any, name: str, choices: tuple[Enum, ...]) -> Enum | No
     allowed = " or ".join(f'"{choice.value}"' for choice in choices)
     click.echo(f'{name} has to be {allowed}, not "{value}".', err=True)
     return None
-
-
-# VASP INCAR tags that make VASP generate k-points without KPOINTS files.
-VASP_KSPACING_TAGS = ("kspacing", "elph_kspacing")
 
 
 @dataclasses.dataclass(frozen=True)
