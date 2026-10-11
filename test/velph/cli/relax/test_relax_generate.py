@@ -15,7 +15,7 @@ from phelel.velph.cli.relax.generate import plan_relax
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import write_velph_toml
 from phelel.velph.config.legacy import parse_legacy_velph_toml
-from phelel.velph.config.schema import Mesh, VaspSection
+from phelel.velph.config.schema import KpointsMesh, VaspSection
 
 
 def test_plan_relax(
@@ -33,7 +33,7 @@ def test_plan_relax(
     assert isinstance(job.poscar, PhonopyAtoms)
     assert len(job.poscar) == 8
     assert job.incar == data["vasp"]["relax"]["incar"]
-    assert job.kpoints == {"KPOINTS": Mesh(mesh=(12, 12, 12))}
+    assert job.kpoints == {"KPOINTS": KpointsMesh(mesh=(12, 12, 12))}
     assert job.scheduler is not None
     assert job.scheduler["job_name"] == "vasp-elph-iter1"
     assert job.copied_files == {"POTCAR": pathlib.Path("POTCAR")}

@@ -6,13 +6,19 @@ A field that is not given is None.
 
 Two kinds of fields can hold a value that velph init converts before it
 writes velph.toml.  A supercell can be given by the maximum number of atoms
-(MaxNumAtoms), and a k-point mesh can be given by a spacing (Spacing).  velph
-init converts them to a supercell matrix and to a mesh, so a velph.toml has
-only Dimension or Matrix as a supercell and only Mesh as a k-point mesh.
+(MaxNumAtoms), and a k-point mesh can be given by a spacing
+(KpointsSpacing).  velph init converts them to a supercell matrix and to a
+mesh, so a velph.toml has only SupercellDimension or SupercellMatrix as a
+supercell and only KpointsMesh as a k-point mesh.
 
 velph init reads settings from several layers: the defaults, the template
 and the command line.  The metadata of each field says how the field is
-merged when two layers give it (see MERGE_KEY and merge.py).
+merged when two layers give it (see MERGE_RULE_KEY and merge.py).
+
+The dataclasses are frozen, and the tables in them, such as the INCAR tags
+and the scheduler settings, are read-only copies (MappingProxyType) of the
+dicts given.  A value in a table, such as a list of MAGMOM, is not copied.
+copy.deepcopy and pickle do not work on these dataclasses.
 
 """
 
@@ -21,9 +27,9 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
-Code = Literal["phelel", "phonopy", "phono3py"]
+CodeName = Literal["phelel", "phonopy", "phono3py"]
 CellChoice = Literal["unitcell", "primitive"]
 PrimitiveCellChoice = Literal["standardized", "reduced"]
 SiteMixtureScheme = Literal["merge", "split"]
@@ -34,41 +40,49 @@ IntMatrix3 = tuple[IntVector3, IntVector3, IntVector3]
 FloatVector3 = tuple[float, float, float]
 FloatMatrix3 = tuple[FloatVector3, FloatVector3, FloatVector3]
 
-CODES: tuple[Code, ...] = ("phelel", "phonopy", "phono3py")
-CELL_CHOICES: tuple[CellChoice, ...] = ("unitcell", "primitive")
-PRIMITIVE_CELL_CHOICES: tuple[PrimitiveCellChoice, ...] = ("standardized", "reduced")
-SITE_MIXTURE_SCHEMES: tuple[SiteMixtureScheme, ...] = ("merge", "split")
+CODES: tuple[CodeName, ...] = get_args(CodeName)
+CELL_CHOICES: tuple[CellChoice, ...] = get_args(CellChoice)
+PRIMITIVE_CELL_CHOICES: tuple[PrimitiveCellChoice, ...] = get_args(PrimitiveCellChoice)
+SITE_MIXTURE_SCHEMES: tuple[SiteMixtureScheme, ...] = get_args(SiteMixtureScheme)
 
 # INCAR tags with which VASP generates the k-points itself and does not read
 # the k-point files that velph writes.
 VASP_KSPACING_TAGS = ("kspacing", "elph_kspacing")
 
 # How a field is merged when two layers give it.  The rule is set by
-# dataclasses.field(metadata={MERGE_KEY: rule}).  A field without MERGE_KEY,
+# dataclasses.field(metadata={MERGE_RULE_KEY: rule}).  A field without MERGE_RULE_KEY,
 # such as a supercell or a k-point block, is replaced as a whole by the value
 # of the upper layer.
-MERGE_KEY = "merge"
+MERGE_RULE_KEY = "merge"
 # A section such as [phelel].  Each of its fields is merged by its own rule.
-RECURSIVE = "recursive"
+MERGE_RECURSIVE = "recursive"
 # A table whose keys are not fixed in the schema, such as INCAR tags or
 # scheduler settings.  A key of the upper layer replaces the same key of the
 # lower layer, and the other keys of both layers are kept.
-KEYS = "keys"
+MERGE_KEYS = "keys"
 # The input sets in [vasp].  An input set given in both layers is merged as a
 # section, and an input set given in one layer is kept.
-SECTIONS = "sections"
+MERGE_SECTIONS = "sections"
 
 
 def _recursive() -> Any:
-    return dataclasses.field(default=None, metadata={MERGE_KEY: RECURSIVE})
+    return dataclasses.field(default=None, metadata={MERGE_RULE_KEY: MERGE_RECURSIVE})
 
 
 def _keys() -> Any:
-    return dataclasses.field(default=None, metadata={MERGE_KEY: KEYS})
+    return dataclasses.field(default=None, metadata={MERGE_RULE_KEY: MERGE_KEYS})
 
 
 def _sections() -> Any:
-    return dataclasses.field(default=None, metadata={MERGE_KEY: SECTIONS})
+    return dataclasses.field(default=None, metadata={MERGE_RULE_KEY: MERGE_SECTIONS})
+
+
+def _make_read_only(section: Any, *names: str) -> None:
+    """Replace the tables in fields of a frozen section by read-only copies."""
+    for name in names:
+        table = getattr(section, name)
+        if table is not None:
+            object.__setattr__(section, name, MappingProxyType(dict(table)))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -84,24 +98,24 @@ class MaxNumAtoms:
 
 
 @dataclasses.dataclass(frozen=True)
-class Dimension:
+class SupercellDimension:
     """Supercell matrix given by its three diagonal elements."""
 
     supercell_dimension: IntVector3
 
 
 @dataclasses.dataclass(frozen=True)
-class Matrix:
+class SupercellMatrix:
     """Supercell matrix."""
 
     supercell_matrix: IntMatrix3
 
 
-SupercellSpec = MaxNumAtoms | Dimension | Matrix
+SupercellSpec = MaxNumAtoms | SupercellDimension | SupercellMatrix
 
 
 @dataclasses.dataclass(frozen=True)
-class Mesh:
+class KpointsMesh:
     """k-point mesh given by three integers.
 
     A 3x3 matrix of integers gives a generalized regular grid instead.
@@ -113,7 +127,7 @@ class Mesh:
 
 
 @dataclasses.dataclass(frozen=True)
-class Spacing:
+class KpointsSpacing:
     """k-point mesh given by a spacing in 1/Angstrom.
 
     velph init computes the mesh from it.  It is accepted only in a template.
@@ -124,7 +138,7 @@ class Spacing:
     shift: FloatVector3 | None = None
 
 
-KpointsSpec = Mesh | Spacing
+KpointsSpec = KpointsMesh | KpointsSpacing
 
 
 @dataclasses.dataclass(frozen=True)
@@ -160,7 +174,7 @@ class CodeSection:
 
 # Keys allowed in [phelel], [phonopy] and [phono3py], besides the three
 # supercell keys.
-CODE_KEYS: Mapping[Code, tuple[str, ...]] = MappingProxyType(
+CODE_KEYS: Mapping[CodeName, tuple[str, ...]] = MappingProxyType(
     {
         "phelel": (
             "amplitude",
@@ -202,21 +216,29 @@ class InputSetSection:
     """
 
     cell: CellChoice | None = None
-    incar: dict[str, Any] | None = _keys()
+    incar: Mapping[str, Any] | None = _keys()
     incar_unset: tuple[str, ...] | None = None
     kpoints: KpointsSpec | None = None
     kpoints_dense: KpointsSpec | None = None
     kpoints_opt: LinePath | None = None
     qpoints: LinePath | None = None
-    scheduler: dict[str, Any] | None = _keys()
+    scheduler: Mapping[str, Any] | None = _keys()
+
+    def __post_init__(self) -> None:
+        """Make incar and scheduler read-only."""
+        _make_read_only(self, "incar", "scheduler")
 
 
 @dataclasses.dataclass(frozen=True)
 class VaspSection:
     """Section [vasp], which holds [vasp.incar] and the input sets."""
 
-    incar: dict[str, Any] | None = _keys()
-    input_sets: dict[str, InputSetSection] | None = _sections()
+    incar: Mapping[str, Any] | None = _keys()
+    input_sets: Mapping[str, InputSetSection] | None = _sections()
+
+    def __post_init__(self) -> None:
+        """Make incar and input_sets read-only."""
+        _make_read_only(self, "incar", "input_sets")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -229,7 +251,7 @@ class InitSection:
 
     """
 
-    codes: tuple[Code, ...] | None = None
+    codes: tuple[CodeName, ...] | None = None
     supercell: SupercellSpec | None = None
     amplitude: float | None = None
     diagonal: bool | None = None
@@ -275,7 +297,11 @@ class VelphConfig:
     phonopy: CodeSection | None = _recursive()
     phono3py: CodeSection | None = _recursive()
     vasp: VaspSection | None = _recursive()
-    scheduler: dict[str, Any] | None = _keys()
+    scheduler: Mapping[str, Any] | None = _keys()
     symmetry: SymmetrySection | None = _recursive()
     unitcell: Mapping[str, Any] | None = None
     primitive_cell: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Make scheduler read-only."""
+        _make_read_only(self, "scheduler")

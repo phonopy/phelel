@@ -24,9 +24,9 @@ from phelel.velph.config.legacy import (
 )
 from phelel.velph.config.schema import (
     CodeSection,
-    Dimension,
+    KpointsMesh,
     LinePath,
-    Mesh,
+    SupercellDimension,
     VelphConfig,
 )
 from phelel.velph.utils.vasp import VaspKpoints
@@ -93,7 +93,7 @@ def test_parse_legacy_velph_toml_converts_sections(nacl_cell: PhonopyAtoms):
 
     assert config.version == data["phelel"]["version"]
     assert config.phelel == CodeSection(
-        supercell=Dimension(supercell_dimension=(2, 2, 2)),
+        supercell=SupercellDimension(supercell_dimension=(2, 2, 2)),
         amplitude=0.03,
         diagonal=False,
         plusminus=True,
@@ -108,7 +108,7 @@ def test_parse_legacy_velph_toml_converts_sections(nacl_cell: PhonopyAtoms):
         for block in ("kpoints", "kpoints_dense"):
             if block in table:
                 mesh = getattr(input_set, block)
-                assert isinstance(mesh, Mesh), (set_name, block)
+                assert isinstance(mesh, KpointsMesh), (set_name, block)
                 assert list(mesh.mesh) == table[block]["mesh"], (set_name, block)
     assert config.vasp.input_sets["relax"].cell == "unitcell"
     assert config.vasp.input_sets["nac"].cell == "primitive"
@@ -199,7 +199,7 @@ def _run_generate_commands(set_names: tuple[str, ...]) -> None:
         assert result.exception is None, (args, result.exception)
 
 
-def _kpoints_text(mesh: Mesh, path: pathlib.Path) -> str:
+def _kpoints_text(mesh: KpointsMesh, path: pathlib.Path) -> str:
     """Return KPOINTS written from mesh in the same way as the generate commands."""
     kpoints: dict[str, Any] = {"mesh": mesh.mesh}
     if mesh.shift is not None:
@@ -216,7 +216,7 @@ def _check_meshes_equal_generate(
         if set_name not in set_names:
             continue
         mesh = getattr(config.vasp.input_sets[set_name], block)
-        assert isinstance(mesh, Mesh), (set_name, block)
+        assert isinstance(mesh, KpointsMesh), (set_name, block)
         written = sorted(tmp_path.glob(pattern))
         assert written, f'"{pattern}" was not written.'
         expected = _kpoints_text(mesh, tmp_path / "expected_KPOINTS")
@@ -252,9 +252,9 @@ def test_kspacing_mesh_equals_generate(
         set_name: config.vasp.input_sets[set_name].kpoints
         for set_name in ("phelel", "relax", "nac")
     }
-    assert meshes["phelel"] == Mesh(mesh=(4, 4, 4))
-    assert meshes["relax"] == Mesh(mesh=(8, 8, 8))
-    assert meshes["nac"] == Mesh(mesh=((-8, 8, 8), (8, -8, 8), (8, 8, -8)))
+    assert meshes["phelel"] == KpointsMesh(mesh=(4, 4, 4))
+    assert meshes["relax"] == KpointsMesh(mesh=(8, 8, 8))
+    assert meshes["nac"] == KpointsMesh(mesh=((-8, 8, 8), (8, -8, 8), (8, 8, -8)))
 
 
 @pytest.mark.parametrize("split_site_mixture", [False, True])

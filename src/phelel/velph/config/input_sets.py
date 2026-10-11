@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal, cast
 
-from phelel.velph.config.schema import Code
+from phelel.velph.config.schema import CodeName
 
 InputSetName = Literal[
     "relax",
@@ -63,7 +63,7 @@ class InputSetEntry:
         k-point block of the input set that gives its contents, for example
         {"KPOINTS": "kpoints", "KPOINTS_ELPH": "kpoints_dense"}.  It is made
         read-only when the row is made.
-    required_code : Code or None
+    required_code : CodeName or None
         Section of velph.toml, [phelel], [phonopy] or [phono3py], that velph
         init needs in order to write the input set.  None means that velph
         init always writes the input set.
@@ -72,7 +72,7 @@ class InputSetEntry:
 
     cell: InputSetCell
     kpoints_files: Mapping[KpointsFileName, KpointsBlock]
-    required_code: Code | None
+    required_code: CodeName | None
 
     def __post_init__(self) -> None:
         """Make kpoints_files read-only."""
