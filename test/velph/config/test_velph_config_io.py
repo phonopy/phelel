@@ -14,6 +14,7 @@ from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phelel.velph.cli.init.init import _merge_incar_commons
 from phelel.velph.cli.utils import get_default_amplitude
 from phelel.velph.config.defaults import get_default_config
+from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
 from phelel.velph.config.io import (
     VelphConfigError,
     dumps_config,
@@ -26,7 +27,6 @@ from phelel.velph.config.io import (
 from phelel.velph.config.merge import merge
 from phelel.velph.config.schema import (
     CODES,
-    INPUT_SET_FIELDS,
     CodeSection,
     Dimension,
     InputSetSection,
@@ -50,8 +50,9 @@ def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
     """
     path = (((0.0, 0.0, 0.0), (0.5, 0.0, 0.5)), ((0.5, 0.0, 0.5), (0.5, 0.25, 0.75)))
     label = (("GAMMA", "X"), ("X", "W"))
-    input_sets = {}
-    for set_name, fields in INPUT_SET_FIELDS.items():
+    input_sets: dict[str, InputSetSection] = {}
+    for set_name in INPUT_SETS:
+        fields = input_set_fields(set_name)
         values: dict[str, Any] = {"kpoints": Mesh(mesh=(4, 4, 4))}
         if "cell" in fields:
             values["cell"] = "primitive"

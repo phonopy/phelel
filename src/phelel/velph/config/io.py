@@ -1,8 +1,9 @@
 """Read and write velph.toml and velph init templates.
 
 parse_template and parse_velph_toml read a parsed TOML document into
-VelphConfig, and load_template and load_velph_toml read a file.  The two
-kinds of files are read in different ways:
+VelphConfig, and load_template and load_velph_toml read a file.  load_toml
+reads a TOML file into a dict.  The two kinds of files are read in different
+ways:
 
 - every field of a template is optional.  [init] is accepted, and so are
   max_num_atoms and kspacing in a k-point block, which velph init converts
@@ -26,17 +27,18 @@ import os
 import re
 import textwrap
 from collections.abc import Iterator, Mapping, Sequence
+from types import MappingProxyType
 from typing import IO, Any, Literal, NoReturn, cast
 
 import tomli
 import tomli_w
 from phonopy.structure.atoms import parse_cell_dict
 
+from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
 from phelel.velph.config.schema import (
     CELL_CHOICES,
     CODE_KEYS,
     CODES,
-    INPUT_SET_FIELDS,
     PRIMITIVE_CELL_CHOICES,
     SITE_MIXTURE_SCHEMES,
     VASP_KSPACING_TAGS,
@@ -61,23 +63,25 @@ VelphFileKind = Literal["template", "velph_toml"]
 SUPERCELL_KEYS = ("max_num_atoms", "supercell_dimension", "supercell_matrix")
 
 # Optional fields of an input set in a velph.toml.  The other fields allowed
-# in the input set (INPUT_SET_FIELDS) are required in a velph.toml.
+# in the input set (input_set_fields) are required in a velph.toml.
 _OPTIONAL_INPUT_SET_FIELDS = ("incar", "incar_unset", "scheduler")
 
-_TOP_KEYS: dict[VelphFileKind, tuple[str, ...]] = {
-    "velph_toml": (
-        "velph",
-        "phelel",
-        "phonopy",
-        "phono3py",
-        "vasp",
-        "scheduler",
-        "symmetry",
-        "unitcell",
-        "primitive_cell",
-    ),
-    "template": ("init", "phelel", "phonopy", "phono3py", "vasp", "scheduler"),
-}
+_TOP_KEYS: Mapping[VelphFileKind, tuple[str, ...]] = MappingProxyType(
+    {
+        "velph_toml": (
+            "velph",
+            "phelel",
+            "phonopy",
+            "phono3py",
+            "vasp",
+            "scheduler",
+            "symmetry",
+            "unitcell",
+            "primitive_cell",
+        ),
+        "template": ("init", "phelel", "phonopy", "phono3py", "vasp", "scheduler"),
+    }
+)
 
 _INIT_KEYS = (
     "codes",
@@ -108,18 +112,25 @@ class VelphConfigError(ValueError):
 #
 # Reading
 #
+def load_toml(filename: str | os.PathLike) -> dict[str, Any]:
+    """Read a TOML file into a dict.
+
+    VelphConfigError is raised when the file is not valid TOML.
+
+    """
+    with open(filename, "rb") as f:
+        return _load_toml(f, str(filename))
+
+
 def load_velph_toml(filename: str | os.PathLike) -> VelphConfig:
     """Read a velph.toml."""
-    with open(filename, "rb") as f:
-        data = _load_toml(f, str(filename))
-    return parse_velph_toml(data, name=str(filename))
+    return parse_velph_toml(load_toml(filename), name=str(filename))
 
 
 def load_template(source: str | os.PathLike | IO[bytes]) -> VelphConfig:
     """Read a velph init template from a file name or a binary file object."""
     if isinstance(source, (str, os.PathLike)):
-        with open(source, "rb") as f:
-            data = _load_toml(f, str(source))
+        data = load_toml(source)
         name = str(source)
     else:
         name = getattr(source, "name", "template")
@@ -200,7 +211,7 @@ def _check_required(config: VelphConfig) -> None:
             _fail(code, '"supercell_dimension" or "supercell_matrix" is required.')
     if config.vasp is not None and config.vasp.input_sets is not None:
         for set_name, input_set in config.vasp.input_sets.items():
-            for field in INPUT_SET_FIELDS[set_name]:
+            for field in input_set_fields(set_name):
                 if field in _OPTIONAL_INPUT_SET_FIELDS:
                     continue
                 if getattr(input_set, field) is None:
@@ -285,7 +296,7 @@ def _parse_supercell(
 
 def _parse_vasp(value: Any, file_kind: VelphFileKind) -> VaspSection:
     table = _table(value, "vasp")
-    _check_keys(table, ("incar", *INPUT_SET_FIELDS), "vasp")
+    _check_keys(table, ("incar", *INPUT_SETS), "vasp")
     incar = _incar(table["incar"], "vasp.incar") if "incar" in table else None
     input_sets = {
         set_name: _parse_input_set(input_set_value, set_name, file_kind)
@@ -300,7 +311,7 @@ def _parse_input_set(
 ) -> InputSetSection:
     where = f"vasp.{set_name}"
     table = _table(value, where)
-    _check_keys(table, INPUT_SET_FIELDS[set_name], where)
+    _check_keys(table, input_set_fields(set_name), where)
     incar_unset = None
     if "incar_unset" in table:
         incar_unset = tuple(
