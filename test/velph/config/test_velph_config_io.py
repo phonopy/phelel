@@ -345,7 +345,8 @@ def test_incar_empty_table_in_velph_toml(nacl_cell: PhonopyAtoms):
     with pytest.raises(VelphConfigError) as e:
         _parse_text(text)
     assert str(e.value) == (
-        '[vasp.relax.incar] "ncore" has a table as value.  Remove "ncore".'
+        '"velph.toml": [vasp.relax.incar] "ncore" has a table as value.  '
+        'Remove "ncore".'
     )
 
 
@@ -356,7 +357,8 @@ def test_velph_toml_rejects_shared_incar(nacl_cell: PhonopyAtoms):
     with pytest.raises(VelphConfigError) as e:
         _parse_text(text + "\n[vasp.incar]\nencut = 500\n")
     assert str(e.value) == (
-        "[vasp.incar] This table cannot be given in velph.toml.  Each input set of "
+        '"velph.toml": [vasp.incar] This table cannot be given in '
+        "velph.toml.  Each input set of "
         "velph.toml holds all of its INCAR tags in [vasp.<input set>.incar].  "
         "Write the tags there, or give [vasp.incar] in a velph init template and "
         'run "velph init" again.'
@@ -366,7 +368,8 @@ def test_velph_toml_rejects_shared_incar(nacl_cell: PhonopyAtoms):
     with pytest.raises(VelphConfigError) as e:
         _parse_text(text)
     assert str(e.value) == (
-        '[vasp.nac] "incar_unset" cannot be given in velph.toml.  It removes tags '
+        '"velph.toml": [vasp.nac] "incar_unset" cannot be given in '
+        "velph.toml.  It removes tags "
         "of [vasp.incar], which only a velph init template has.  Remove the tags "
         'from [vasp.nac.incar], or give "incar_unset" in a velph init template and '
         'run "velph init" again.'

@@ -5,7 +5,7 @@ import pathlib
 import click
 
 from phelel.velph.cli.ph_selfenergy.dump_phono3py import dump_phono3py
-from phelel.velph.cli.selfenergy.generate import write_selfenergy_input_files
+from phelel.velph.cli.selfenergy.generate import write_input_files
 from phelel.velph.cli.utils import check_fft
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
@@ -38,7 +38,7 @@ def cmd_generate(toml_filename: str, dry_run: bool):
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 
-    write_selfenergy_input_files(pathlib.Path(toml_filename), dry_run, "ph_selfenergy")
+    write_input_files(pathlib.Path(toml_filename), "ph_selfenergy", dry_run)
 
 
 @cmd_ph_selfenergy.command("check-fft")

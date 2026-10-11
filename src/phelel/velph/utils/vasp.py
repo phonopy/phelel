@@ -635,3 +635,66 @@ def read_freqs_and_ph_gammas_from_vaspout_h5(
     )
 
     return freqs_calcs, gammas_calcs, temps_calcs, indices
+
+
+def estimate_elph_selfen_band_stop(
+    vaspout_path: str | os.PathLike,
+    energy_threshold: float = 0.5,
+    occupation_condition: float = 1e-10,
+) -> int | None:
+    """Estimate elph_selfen_band_stop from eigenvalues in el-DOS result.
+
+    velph does not use this function, because VASP estimates a similar value
+    itself.  It is kept for use by hand.
+
+    Parameters
+    ----------
+    vaspout_path : str or os.PathLike
+        "vaspout.h5" path.
+    energy_threshold : float
+        Energy threshold (gap) in eV to estimate elph_selfen_band_stop. Default
+        is 0.5 eV.
+    occupation_condition : float
+        Condition to determine either if bands are occupied or not. This value
+        is used as occupation_number > occupation_condition. Default is 1e-10.
+
+    Returns
+    -------
+    int or None
+        Possibly occupied band index by counting from 0. Even if
+        occupation number is zero, if some of bands can be occuped by
+        excitation, this band index is returned.
+
+    """
+    with h5py.File(vaspout_path) as f:
+        eigenvalues: NDArray = f[
+            "results/electron_eigenvalues_kpoints_opt/eigenvalues"
+        ][:]  # type: ignore
+        occupations: NDArray = f[
+            "results/electron_eigenvalues_kpoints_opt/fermiweights"
+        ][:]  # type: ignore
+
+    nbands = eigenvalues.shape[2]
+    unoccupied_band_index = None
+    for i in range(nbands):
+        if (occupations[:, :, i] < occupation_condition).all():
+            unoccupied_band_index = i
+            break
+    if unoccupied_band_index is None:
+        return None
+
+    occupied_eigvals = np.sort(
+        np.extract(
+            occupations[:, :, unoccupied_band_index - 1] > occupation_condition * 0.9,
+            eigenvalues[:, :, unoccupied_band_index - 1],
+        )
+    )
+
+    max_occupied_eigval = np.max(occupied_eigvals)
+
+    for band_index in range(unoccupied_band_index, nbands):
+        min_unoccupied = np.min(eigenvalues[:, :, band_index])
+        if max_occupied_eigval + energy_threshold < min_unoccupied:
+            return band_index - 1
+
+    return None

@@ -4,7 +4,7 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.transport.generate import write_input_files
+from phelel.velph.cli.selfenergy.generate import write_input_files
 from phelel.velph.cli.utils import check_fft
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
@@ -37,7 +37,7 @@ def cmd_generate(toml_filename: str, dry_run: bool):
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 
-    write_input_files(pathlib.Path(toml_filename), dry_run)
+    write_input_files(pathlib.Path(toml_filename), "transport", dry_run)
 
 
 @cmd_transport.command("check-fft")

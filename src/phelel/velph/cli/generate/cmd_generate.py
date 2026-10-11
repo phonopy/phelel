@@ -5,12 +5,12 @@ from __future__ import annotations
 import pathlib
 
 import click
-import tomli
 from phonopy.interface.vasp import write_vasp
-from phonopy.structure.atoms import parse_cell_dict
+from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.utils import echo_vasp_vca_hint
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.vasp_job import get_cell, read_velph_toml
 
 
 #
@@ -45,27 +45,15 @@ def cmd_generate(toml_filename: str, prefix: str):
 
 def _run_generate(toml_filename: str, prefix: str) -> None:
     """Generate {prefix}-unitcell and {prefix}-primitive."""
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    filename = f"{prefix}-unitcell"
-    _write_cell(filename, toml_dict["unitcell"])
-    if "primitive_cell" in toml_dict:
-        filename = f"{prefix}-primitive"
-        _write_cell(filename, toml_dict["primitive_cell"])
+    config = read_velph_toml(toml_filename)
+    _write_cell(f"{prefix}-unitcell", get_cell(config, "unitcell"))
+    _write_cell(f"{prefix}-primitive", get_cell(config, "primitive"))
 
 
-def _write_cell(filename: str, toml_cell_dict: dict):
+def _write_cell(filename: str, cell: PhonopyAtoms):
     if pathlib.Path(filename).exists():
         click.echo(f'"{filename}" was not overwritten because it exists.', err=True)
-    else:
-        cell = parse_cell_dict(toml_cell_dict)
-        if cell is None:
-            click.echo(
-                f'"{filename}" was not generated because of invalid cell data.',
-                err=True,
-            )
-            return
-        write_vasp(filename, cell, for_vca=cell.has_weighted_species)
-        click.echo(f'"{filename}" was generated.')
-        echo_vasp_vca_hint(cell)
+        return
+    write_vasp(filename, cell, for_vca=cell.has_weighted_species)
+    click.echo(f'"{filename}" was generated.')
+    echo_vasp_vca_hint(cell)
