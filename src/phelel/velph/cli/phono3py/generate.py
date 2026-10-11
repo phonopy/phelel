@@ -6,31 +6,25 @@ import pathlib
 
 import click
 import phono3py
-import tomli
 
-from phelel.velph.cli.supercells import (
-    write_phonon_supercells,
-    write_supercells,
-)
+from phelel.velph.cli.supercells import plan_supercells
+from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.jobs.vasp_job import read_velph_toml, write_vasp_job
 
 
 def write_supercell_input_files(
-    toml_filename: pathlib.Path,
-    phono3py_yaml_filename: pathlib.Path,
+    toml_filename: pathlib.Path, yaml_filename: pathlib.Path
 ) -> None:
-    """Generate supercells."""
-    if not phono3py_yaml_filename.exists():
-        click.echo(f'File "{phono3py_yaml_filename}" not found.', err=True)
-        click.echo('Run "velph phono3py init" if necessary.', err=True)
-        return None
-
-    ph3py = phono3py.load(phono3py_yaml_filename)
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    write_supercells(ph3py, toml_dict, dir_name="phono3py")
-    if ph3py.phonon_supercell_matrix is not None:
-        if "phonon" in toml_dict["vasp"]["phono3py"]:
-            write_phonon_supercells(ph3py, toml_dict, dir_name="phono3py")
-        else:
-            print(f'[vasp.phono3py.phonon.*] not found in "{toml_filename}"')
+    """Generate VASP inputs of the supercells written in yaml_filename."""
+    if not yaml_filename.exists():
+        raise click.ClickException(
+            f'"{yaml_filename}" not found.\nRun "velph phono3py init" to make it.'
+        )
+    config = read_velph_toml(toml_filename, "phono3py")
+    ph = phono3py.load(yaml_filename)
+    jobs = plan_supercells(config, "phono3py", ph)
+    for job in jobs:
+        write_vasp_job(job)
+        click.echo(f'VASP input files were generated in "{job.directory}".')
+    assert not isinstance(jobs[0].poscar, pathlib.Path)
+    echo_vasp_vca_hint(jobs[0].poscar)

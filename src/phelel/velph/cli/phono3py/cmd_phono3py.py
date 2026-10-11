@@ -5,11 +5,11 @@ from __future__ import annotations
 import pathlib
 
 import click
-import tomli
 
 from phelel.velph.cli.phono3py.generate import write_supercell_input_files
 from phelel.velph.cli.phono3py.init import run_init
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.vasp_job import read_velph_toml
 
 
 @cmd_root.group("phono3py")
@@ -42,16 +42,11 @@ def cmd_init(
     random_displacements: int | None,
 ):
     """Generate displacements and write phono3py_disp.yaml."""
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    if "phono3py" not in toml_dict:
-        click.echo(f'[phono3py] section not found in "{toml_filename}" file.', err=True)
-        return
-
+    config = read_velph_toml(toml_filename)
     ph3 = run_init(
-        toml_dict,
+        config,
         number_of_snapshots=random_displacements,
+        toml_filename=toml_filename,
     )
 
     phono3py_yaml_filename = pathlib.Path("phono3py/phono3py_disp.yaml")

@@ -9,10 +9,13 @@ import pytest
 import tomli
 
 from phelel.velph.cli.phono3py.init import run_init
+from phelel.velph.config.schema import VelphConfig
 
 
 @pytest.mark.parametrize("distance", [0.03, 0.05])
-def test_phono3py_init_random_displacements(distance: float):
+def test_phono3py_init_random_displacements(
+    distance: float, code_init_config: Callable[[dict], VelphConfig]
+):
     """Test of plusminus and diagonal with Ti."""
     phelel_str = f"""title = "VASP el-ph settings"
 
@@ -47,7 +50,7 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
         tomli.loads(phono3py_str + unitcell_str),
         tomli.loads(phelel_str + phono3py_str + unitcell_str),
     ):
-        ph3 = run_init(toml_dict, number_of_snapshots=10)
+        ph3 = run_init(code_init_config(toml_dict), number_of_snapshots=10)
         assert ph3 is not None
         np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([2, 2, 1]))
 
@@ -73,16 +76,23 @@ coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
 
 
 def _get_phono3py_displacements(
-    displacement_lines: list[str], tmp_path: pathlib.Path
+    displacement_lines: list[str],
+    tmp_path: pathlib.Path,
+    code_init_config: Callable[[dict], VelphConfig],
 ) -> np.ndarray:
     toml_str = "\n".join(
         ["[phono3py]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
-    ph3 = run_init(tomli.loads(toml_str + _TI_UNITCELL), current_directory=tmp_path)
+    ph3 = run_init(
+        code_init_config(tomli.loads(toml_str + _TI_UNITCELL)),
+        current_directory=tmp_path,
+    )
     return np.array(ph3.displacements)
 
 
-def test_phono3py_init_default_displacement_settings(tmp_path: pathlib.Path):
+def test_phono3py_init_default_displacement_settings(
+    tmp_path: pathlib.Path, code_init_config: Callable[[dict], VelphConfig]
+):
     """Test defaults of plusminus, diagonal, and amplitude in [phono3py].
 
     When they are not given, the values written by velph init (plusminus=true,
@@ -90,12 +100,16 @@ def test_phono3py_init_default_displacement_settings(tmp_path: pathlib.Path):
     differ from those with the defaults of phonopy ("auto", true, and 0.01).
 
     """
-    disps = _get_phono3py_displacements([], tmp_path)
+    disps = _get_phono3py_displacements([], tmp_path, code_init_config)
     disps_velph = _get_phono3py_displacements(
-        ["plusminus = true", "diagonal = false", "amplitude = 0.03"], tmp_path
+        ["plusminus = true", "diagonal = false", "amplitude = 0.03"],
+        tmp_path,
+        code_init_config,
     )
     disps_phonopy = _get_phono3py_displacements(
-        ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"], tmp_path
+        ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"],
+        tmp_path,
+        code_init_config,
     )
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
@@ -105,6 +119,7 @@ def test_phono3py_init_default_displacement_settings(tmp_path: pathlib.Path):
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_phono3py_init_site_mixture_is_error(
     site_mixture_velph_toml: Callable[[bool], dict],
+    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     split_site_mixture: bool,
 ):
@@ -115,5 +130,18 @@ def test_phono3py_init_site_mixture_is_error(
     """
     with pytest.raises(click.ClickException, match="site-mixture"):
         run_init(
-            site_mixture_velph_toml(split_site_mixture), current_directory=tmp_path
+            code_init_config(site_mixture_velph_toml(split_site_mixture)),
+            current_directory=tmp_path,
         )
+
+
+def test_phono3py_init_number_of_snapshots_of_section(
+    code_init_config: Callable[[dict], VelphConfig],
+):
+    """Without --rd, number_of_snapshots of [phono3py] gives random displacements."""
+    toml_str = "\n".join(
+        ["[phono3py]", "supercell_dimension = [2, 2, 1]", "number_of_snapshots = 7"]
+    )
+    config = code_init_config(tomli.loads(toml_str + _TI_UNITCELL))
+    assert run_init(config).displacements.shape == (7, 8, 3)
+    assert run_init(config, number_of_snapshots=5).displacements.shape == (5, 8, 3)

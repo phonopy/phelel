@@ -13,6 +13,7 @@ from phelel.velph.cli.phelel.differentiate import (
     run_derivatives,
 )
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.config.schema import VelphConfig
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 cwd = pathlib.Path(__file__).parent
@@ -102,11 +103,14 @@ def test_run_derivatives_with_wrong_phonon_supercell_matrix():
 
 def test_run_derivatives_site_mixture_merge(
     site_mixture_velph_toml: Callable[[bool], dict],
+    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
 ):
     """Derivatives are not calculated with the merge scheme of site mixture."""
-    phe = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
+    phe = run_init(
+        code_init_config(site_mixture_velph_toml(False)), current_directory=tmp_path
+    )
     assert not run_derivatives(phe, dir_name=tmp_path / "phelel")
     assert "not supported with the merge scheme" in capsys.readouterr().err
 

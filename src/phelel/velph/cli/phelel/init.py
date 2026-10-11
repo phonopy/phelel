@@ -1,93 +1,50 @@
-"""Implementation of velph-supercell-init."""
+"""Implementation of velph-phelel-init."""
 
 from __future__ import annotations
 
 import pathlib
 
-import click
-import numpy as np
-from phonopy.structure.atoms import parse_cell_dict
-
 from phelel import Phelel
 from phelel.cui.create_supercells import generate_phelel_supercells
-from phelel.velph.cli.utils import get_displacement_options, get_nac_params
+from phelel.velph.cli.supercells import (
+    get_cells,
+    get_code_section,
+    get_supercell_matrix,
+    set_nac_params,
+)
+from phelel.velph.config.schema import VelphConfig
 
 
 def run_init(
-    toml_dict: dict,
+    config: VelphConfig,
     current_directory: pathlib.Path = pathlib.Path(""),
+    toml_filename: str | pathlib.Path = "velph.toml",
 ) -> Phelel:
-    """Generate supercell and displacements.
+    """Return Phelel with the supercells with displacements of [phelel].
 
-    current_directory : Path
-        Used for test.
+    current_directory is where the directory "nac" is looked for.  toml_filename
+    is used in error messages.
 
     """
-    convcell = parse_cell_dict(toml_dict["unitcell"])
-    assert convcell is not None
-    supercell_matrix = None
-    phonon_supercell_matrix = None
-    for key in ("supercell_dimension", "supercell_matrix"):
-        if key in toml_dict["phelel"]:
-            supercell_matrix = toml_dict["phelel"][key]
-    for key in ("phonon_supercell_dimension", "phonon_supercell_matrix"):
-        if key in toml_dict["phelel"]:
-            phonon_supercell_matrix = toml_dict["phelel"][key]
-    if "primitive_cell" in toml_dict:
-        primitive = parse_cell_dict(toml_dict["primitive_cell"])
-        assert primitive is not None
-        primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
-    else:
-        primitive = convcell
-        primitive_matrix = None
-
-    is_symmetry = True
-    try:
-        if toml_dict["phelel"]["nosym"] is True:
-            is_symmetry = False
-    except KeyError:
-        pass
-
+    section = get_code_section(config, "phelel", toml_filename)
+    # The defaults of velph init give these fields.
+    assert section.plusminus is not None and section.diagonal is not None
+    unitcell, _, primitive_matrix = get_cells(config)
+    is_symmetry = not section.nosym
     phe = Phelel(
-        convcell,
-        supercell_matrix=supercell_matrix,
-        phonon_supercell_matrix=phonon_supercell_matrix,
+        unitcell,
+        supercell_matrix=get_supercell_matrix(section),
         primitive_matrix=primitive_matrix,
         is_symmetry=is_symmetry,
         calculator="vasp",
-        site_mixture_scheme=toml_dict["phelel"].get("site_mixture_scheme", "merge"),
+        site_mixture_scheme=section.site_mixture_scheme or "merge",
     )
-
-    displacement_options = get_displacement_options(toml_dict["phelel"], "phelel")
-
     generate_phelel_supercells(
         phe,
         interface_mode="vasp",
-        distance=displacement_options.amplitude,
-        is_plusminus=displacement_options.plusminus,
-        is_diagonal=displacement_options.diagonal,
+        distance=section.amplitude,
+        is_plusminus=section.plusminus,
+        is_diagonal=section.diagonal,
     )
-
-    nac_directory = current_directory / "nac"
-    if nac_directory.exists() and phe.unmerged_unitcell is not None:
-        click.echo(
-            'Found "nac" directory, but NAC is not supported with the merge scheme '
-            "of site mixture. NAC params were not included."
-        )
-    elif nac_directory.exists():
-        click.echo('Found "nac" directory. Read NAC params.')
-        vasprun_path = nac_directory / "vasprun.xml"
-        if vasprun_path.exists():
-            nac_params = get_nac_params(
-                toml_dict,
-                vasprun_path,
-                primitive,
-                convcell,
-                is_symmetry,
-            )
-            if nac_params is not None:
-                phe.nac_params = nac_params
-        else:
-            click.echo('Not found "nac/vasprun.xml". NAC params were not included.')
-
+    set_nac_params(phe, config, is_symmetry, current_directory)
     return phe
