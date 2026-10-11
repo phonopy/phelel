@@ -75,13 +75,13 @@ def write_vasp_job(job: VaspJob) -> None:
 
 
 def read_velph_toml(
-    toml_filename: str | os.PathLike, set_name: InputSetName
+    toml_filename: str | os.PathLike, set_name: InputSetName | None = None
 ) -> VelphConfig:
-    """Read velph.toml for the generate command of an input set.
+    """Read velph.toml for a velph command.
 
     A velph.toml of the new format or of velph 0.14 is read.
     click.ClickException is raised when the file does not exist, when it has an
-    error, or when it does not have [vasp.<set_name>].
+    error, or, with set_name, when it does not have [vasp.<set_name>].
 
     """
     if not pathlib.Path(toml_filename).exists():
@@ -90,6 +90,8 @@ def read_velph_toml(
         config = load_velph_toml_any_version(toml_filename)
     except VelphConfigError as e:
         raise click.ClickException(str(e)) from e
+    if set_name is None:
+        return config
     if (
         config.vasp is None
         or config.vasp.input_sets is None

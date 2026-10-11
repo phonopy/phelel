@@ -37,7 +37,7 @@ def cmd_generate(toml_filename: str, dry_run: bool):
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 
-    write_input_files(pathlib.Path(toml_filename), dry_run)
+    write_input_files(pathlib.Path(toml_filename), "selfenergy", dry_run)
 
 
 @cmd_selfenergy.command("check-fft")

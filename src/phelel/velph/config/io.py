@@ -160,7 +160,15 @@ def parse_velph_toml(data: Mapping[str, Any], name: str = "velph.toml") -> Velph
 def _parse_config(
     data: Mapping[str, Any], file_kind: VelphFileKind, name: str
 ) -> VelphConfig:
+    """Return VelphConfig of data, with the name of the file in an error."""
     _check_old_forms(data, file_kind, name)
+    try:
+        return _parse_sections(data, file_kind)
+    except VelphConfigError as e:
+        raise VelphConfigError(f'"{name}": {e}') from e
+
+
+def _parse_sections(data: Mapping[str, Any], file_kind: VelphFileKind) -> VelphConfig:
     _check_keys(data, _TOP_KEYS[file_kind], "", top=True)
 
     version = None
