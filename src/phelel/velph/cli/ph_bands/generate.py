@@ -1,84 +1,56 @@
 """Implementation of velph-ph_bands-generate."""
 
+from __future__ import annotations
+
 import pathlib
-import shutil
 
 import click
-import tomli
-from phonopy.structure.atoms import parse_cell_dict
 
-from phelel.velph.cli.utils import (
-    echo_vasp_vca_hint,
-    get_scheduler_dict,
-    write_incar,
-    write_kpoints_line_mode,
-    write_kpoints_mesh_mode,
-    write_launch_script,
-    write_poscar,
+from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS
+from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.vasp_job import (
+    VaspJob,
+    add_cell_tags,
+    effective_scheduler,
+    find_potcar,
+    get_cell,
+    get_input_set,
+    get_kpoints,
+    read_velph_toml,
+    write_vasp_job,
 )
 
 
-def write_input_files(
-    toml_filename: pathlib.Path,
-    dir_name: str = "phelel",
-) -> None:
-    """Generate VASP inputs to generate phonon band structure."""
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
+def plan_ph_bands(config: VelphConfig) -> VaspJob:
+    """Return the VASP job of ph_bands in the directory "ph_bands".
 
-    main_directory_name = "ph_bands"
-    main_directory = pathlib.Path(main_directory_name)
-    main_directory.mkdir(parents=True, exist_ok=True)
+    The cell is [primitive_cell].  QPOINTS is the band path of
+    [vasp.ph_bands.qpoints], or the band path that seekpath gives when it does
+    not give "path".  phelel/phelel_params.hdf5 is copied to the directory, and
+    click.ClickException is raised when it does not exist.
 
-    directory_name = f"{main_directory_name}/bands"
-    directory = pathlib.Path(directory_name)
-    directory.mkdir(parents=True, exist_ok=True)
-
-    # POSCAR
-    primitive = parse_cell_dict(toml_dict["primitive_cell"])
-    assert primitive is not None
-    write_poscar(directory, primitive)
-
-    # INCAR
-    write_incar(toml_dict["vasp"]["ph_bands"]["incar"], directory, cell=primitive)
-
-    # KPOINTS
-    write_kpoints_mesh_mode(
-        toml_dict["vasp"]["ph_bands"]["incar"],
-        directory,
-        "vasp.ph_bands.kpoints",
-        toml_dict["vasp"]["ph_bands"]["kpoints"],
-    )
-
-    # QPOINTS
-    if "path" in toml_dict["vasp"]["ph_bands"]["qpoints"]:
-        click.echo("Seek-path (https://github.com/giovannipizzi/seekpath) is used.")
-
-    write_kpoints_line_mode(
-        primitive,
-        directory,
-        "vasp.ph_bands.qpoints",
-        toml_dict["vasp"]["ph_bands"]["qpoints"],
-        kpoints_filename="QPOINTS",
-    )
-
-    # phelel_params.hdf5
-    if pathlib.Path(f"{dir_name}/phelel_params.hdf5").exists():
-        shutil.copy2(
-            f"{dir_name}/phelel_params.hdf5", "ph_bands/bands/phelel_params.hdf5"
+    """
+    if not PHELEL_PARAMS.exists():
+        raise click.ClickException(
+            f'"{PHELEL_PARAMS}" not found.  It is copied to "ph_bands".\n'
+            'Run "velph phelel differentiate" to make it.'
         )
-    else:
-        click.echo(f'"{dir_name}/bands/phelel_params.hdf5" not found.', err=True)
-        return None
+    cell = get_cell(config, "primitive")
+    return VaspJob(
+        directory=pathlib.Path("ph_bands"),
+        poscar=cell,
+        incar=add_cell_tags(get_input_set(config, "ph_bands").incar or {}, cell),
+        kpoints=get_kpoints(config, "ph_bands", cell=cell),
+        scheduler=effective_scheduler(config, "ph_bands"),
+        copied_files={**find_potcar(), PHELEL_PARAMS.name: PHELEL_PARAMS},
+    )
 
-    # POTCAR
-    if pathlib.Path("POTCAR").exists():
-        shutil.copy2(pathlib.Path("POTCAR"), directory / "POTCAR")
 
-    # Scheduler launch script
-    if "scheduler" in toml_dict:
-        scheduler_dict = get_scheduler_dict(toml_dict, "ph_bands")
-        write_launch_script(scheduler_dict, directory)
-
-    click.echo(f'VASP input files were made in "{directory_name}".')
-    echo_vasp_vca_hint(primitive)
+def write_input_files(toml_filename: pathlib.Path) -> None:
+    """Generate VASP inputs of the phonon band structure."""
+    config = read_velph_toml(toml_filename, "ph_bands")
+    job = plan_ph_bands(config)
+    write_vasp_job(job)
+    click.echo(f'VASP input files were made in "{job.directory}".')
+    echo_vasp_vca_hint(get_cell(config, "primitive"))

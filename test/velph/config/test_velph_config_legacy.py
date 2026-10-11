@@ -47,9 +47,9 @@ _KPOINTS_FILES = {
     ("transport", "kpoints_dense"): "transport/KPOINTS_ELPH",
     ("ph_selfenergy", "kpoints"): "ph_selfenergy/KPOINTS",
     ("ph_selfenergy", "kpoints_dense"): "ph_selfenergy/KPOINTS_ELPH",
-    ("el_bands", "kpoints"): "el_bands/bands/KPOINTS",
-    ("el_dos", "kpoints"): "el_bands/dos/KPOINTS",
-    ("el_dos", "kpoints_dense"): "el_bands/dos/KPOINTS_OPT",
+    ("el_bands", "kpoints"): "el_bands/KPOINTS",
+    ("el_dos", "kpoints"): "el_dos/KPOINTS",
+    ("el_dos", "kpoints_dense"): "el_dos/KPOINTS_OPT",
 }
 
 
@@ -177,14 +177,16 @@ _GENERATE_COMMANDS = {
     "transport": (["transport", "generate", "--dry-run"],),
     "ph_selfenergy": (["ph_selfenergy", "generate", "--dry-run"],),
     "el_bands": (["el_bands", "generate"],),
-    "el_dos": (["el_bands", "generate"],),
+    "el_dos": (["el_dos", "generate"],),
 }
 
 
 def _run_generate_commands(set_names: tuple[str, ...]) -> None:
-    """Run the commands of velph 0.14 that write the input sets.
+    """Run the commands that write the input sets.
 
-    The commands are run in the current directory.
+    The commands are run in the current directory.  The generate commands read
+    velph.toml of velph 0.14 through the legacy loader, so only the commands
+    that are not rewritten yet are those of velph 0.14.
 
     """
     commands: list[list[str]] = []

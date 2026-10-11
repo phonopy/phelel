@@ -60,7 +60,7 @@ def cmd_generate(toml_filename: str):
 @click.help_option("-h", "--help")
 def cmd_plot(use_ordinary_frequency: bool, save_plot: bool):
     """Plot phonon band structure."""
-    vaspout_filename = pathlib.Path("ph_bands/bands/vaspout.h5")
+    vaspout_filename = pathlib.Path("ph_bands/vaspout.h5")
     if not vaspout_filename.exists():
         click.echo(f'"{vaspout_filename}" not found.')
     plot_ph_bandstructures(

@@ -28,8 +28,10 @@ from phelel.velph.config.schema import (
     CellChoice,
     InputSetSection,
     KpointsMesh,
+    LinePath,
     VelphConfig,
 )
+from phelel.velph.utils.kpath import get_seekpath_line_path
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
@@ -39,7 +41,8 @@ class VaspJob:
 
     poscar is the cell written as POSCAR, or the path of a file copied as
     POSCAR, such as CONTCAR of the previous relax.  incar is the INCAR as it is
-    written.  kpoints maps the name of each k-point file to its mesh.
+    written.  kpoints maps the name of each k-point file to its mesh, or to
+    its band path, which has to give "path".
     scheduler is the scheduler settings of _job.sh, in which job_name is the
     one written.  _job.sh is not written when scheduler is None.
     copied_files maps a file name in the directory to the file copied there,
@@ -50,7 +53,7 @@ class VaspJob:
     directory: pathlib.Path
     poscar: PhonopyAtoms | pathlib.Path
     incar: Mapping[str, Any]
-    kpoints: Mapping[KpointsFileName, KpointsMesh]
+    kpoints: Mapping[KpointsFileName, KpointsMesh | LinePath]
     scheduler: Mapping[str, Any] | None = None
     copied_files: Mapping[str, pathlib.Path] = dataclasses.field(default_factory=dict)
 
@@ -63,11 +66,19 @@ def write_vasp_job(job: VaspJob) -> None:
     else:
         write_poscar(job.directory, job.poscar)
     VaspIncar.write(job.directory / "INCAR", dict(job.incar))
-    for filename, mesh in job.kpoints.items():
-        kpoints: dict[str, Any] = {"mesh": mesh.mesh}
-        if mesh.shift is not None:
-            kpoints["shift"] = mesh.shift
-        VaspKpoints.write_mesh_mode(job.directory / filename, kpoints)
+    for filename, block in job.kpoints.items():
+        kpoints: dict[str, Any]
+        if isinstance(block, LinePath):
+            assert block.path is not None
+            kpoints = {"line": block.line, "path": block.path}
+            if block.label is not None:
+                kpoints["label"] = block.label
+            VaspKpoints.write_line_mode(job.directory / filename, kpoints)
+        else:
+            kpoints = {"mesh": block.mesh}
+            if block.shift is not None:
+                kpoints["shift"] = block.shift
+            VaspKpoints.write_mesh_mode(job.directory / filename, kpoints)
     for name, source in job.copied_files.items():
         shutil.copy2(source, job.directory / name)
     if job.scheduler is not None:
@@ -160,23 +171,44 @@ def get_cell(config: VelphConfig, cell_choice: CellChoice) -> PhonopyAtoms:
 
 
 def get_kpoints(
-    config: VelphConfig, set_name: InputSetName
-) -> dict[KpointsFileName, KpointsMesh]:
-    """Return the meshes of the k-point files of an input set.
+    config: VelphConfig, set_name: InputSetName, cell: PhonopyAtoms | None = None
+) -> dict[KpointsFileName, KpointsMesh | LinePath]:
+    """Return the meshes and band paths of the k-point files of an input set.
 
-    The k-point files and the k-point blocks that give their meshes are those
-    of INPUT_SETS.  The loader of velph.toml checks that the blocks exist and
-    that a block other than a line path gives a mesh.  A block given by a line
-    path is not supported yet.
+    The k-point files and the k-point blocks that give them are those of
+    INPUT_SETS.  The loader of velph.toml checks that the blocks exist and that
+    a block other than a line block gives a mesh.  A line block without "path"
+    gets the band path that seekpath gives for cell, which is then required.
+    click.ClickException is raised when seekpath is not installed.
 
     """
     input_set = get_input_set(config, set_name)
-    kpoints = {}
+    kpoints: dict[KpointsFileName, KpointsMesh | LinePath] = {}
     for filename, block in INPUT_SETS[set_name].kpoints_files.items():
-        mesh = getattr(input_set, block)
-        assert isinstance(mesh, KpointsMesh)
-        kpoints[filename] = mesh
+        value = getattr(input_set, block)
+        if isinstance(value, LinePath):
+            if value.path is None:
+                assert cell is not None
+                value = _seekpath_line_path(
+                    cell, value.line, f"vasp.{set_name}.{block}"
+                )
+        else:
+            assert isinstance(value, KpointsMesh)
+        kpoints[filename] = value
     return kpoints
+
+
+def _seekpath_line_path(cell: PhonopyAtoms, line: int, where: str) -> LinePath:
+    try:
+        return get_seekpath_line_path(cell, line)
+    except ModuleNotFoundError as e:
+        if e.name != "seekpath":
+            raise
+        raise click.ClickException(
+            f'[{where}] does not give "path", and seekpath, which makes the band '
+            "path, is not installed.\n"
+            f'Install seekpath, or give "path" and "label" in [{where}].'
+        ) from e
 
 
 def find_potcar() -> dict[str, pathlib.Path]:

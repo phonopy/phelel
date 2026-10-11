@@ -9,10 +9,6 @@ import click
 from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.utils.plot_eigenvalues import (
-    cmd_plot_eigenvalues,
-    eigenvalue_plot_options,
-)
 
 
 @cmd_root.group("el_bands")
@@ -61,40 +57,17 @@ def cmd_generate(toml_filename: str):
 @click.help_option("-h", "--help")
 def cmd_plot(window: tuple[float, float], save_plot: bool):
     """Plot electronic band structure."""
-    vaspout_filename_bands = pathlib.Path("el_bands/bands/vaspout.h5")
-    vaspout_filename_dos = pathlib.Path("el_bands/dos/vaspout.h5")
+    vaspout_filename_bands = pathlib.Path("el_bands/vaspout.h5")
+    vaspout_filename_dos = pathlib.Path("el_dos/vaspout.h5")
     if not vaspout_filename_bands.exists():
         click.echo(f'"{vaspout_filename_bands}" not found.')
     if not vaspout_filename_dos.exists():
-        click.echo(f'"{vaspout_filename_dos}" not found.')
+        click.echo(
+            f'"{vaspout_filename_dos}" not found.  The Fermi level is taken from the '
+            'DOS calculation.\nRun "velph el_dos generate" and VASP in "el_dos".'
+        )
 
     if vaspout_filename_bands.exists() and vaspout_filename_dos.exists():
         plot_el_bandstructures(
             window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
         )
-
-
-@cmd_el_bands.command("plot_eigenvalues")
-@click.option(
-    "--vaspout-filename",
-    "vaspout_filename",
-    type=click.Path(),
-    default="el_bands/dos/vaspout.h5",
-)
-@eigenvalue_plot_options
-def cmd_plot_transport_eigenvalues(
-    vaspout_filename: str,
-    temperature: float,
-    cutoff_occupancy: float,
-    mu: float | None,
-):
-    """Show eigenvalues in transports."""
-    cmd_plot_eigenvalues(
-        vaspout_filename,
-        temperature,
-        cutoff_occupancy,
-        mu,
-        None,
-        None,
-        calc_type="el_bands",
-    )

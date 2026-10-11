@@ -321,19 +321,6 @@ def write_kpoints_mesh_mode(
         click.echo(f'Invalid setting of [{tag}]. "{kpoints_filename}" was not made.')
 
 
-def write_kpoints_line_mode(
-    cell: PhonopyAtoms,
-    directory: os.PathLike,
-    tag: str,
-    toml_kpoints_dict: dict,
-    kpoints_filename: str | os.PathLike = "KPOINTS",
-) -> None:
-    """Write KPOINTS file in line mode."""
-    VaspKpoints.write_line_mode(
-        pathlib.Path(directory) / kpoints_filename, cell, toml_kpoints_dict
-    )
-
-
 def write_launch_script(
     toml_scheduler_dict: dict, directory: os.PathLike, job_id: str | None = None
 ) -> None:
