@@ -10,12 +10,12 @@ from phelel.velph.config.io import parse_template
 from phelel.velph.config.merge import merge
 from phelel.velph.config.schema import (
     CodeSection,
-    Dimension,
     InputSetSection,
-    Matrix,
+    KpointsMesh,
+    KpointsSpacing,
     MaxNumAtoms,
-    Mesh,
-    Spacing,
+    SupercellDimension,
+    SupercellMatrix,
     VaspSection,
     VelphConfig,
 )
@@ -37,12 +37,12 @@ def test_merge_none():
 def test_merge_supercell_is_atomic():
     """A supercell of the upper layer replaces the lower one as a whole."""
     lower = CodeSection(
-        supercell=Matrix(supercell_matrix=((0, 2, 2), (2, 0, 2), (2, 2, 0))),
+        supercell=SupercellMatrix(supercell_matrix=((0, 2, 2), (2, 0, 2), (2, 2, 0))),
         amplitude=0.03,
     )
-    upper = CodeSection(supercell=Dimension(supercell_dimension=(2, 2, 2)))
+    upper = CodeSection(supercell=SupercellDimension(supercell_dimension=(2, 2, 2)))
     assert merge(lower, upper) == CodeSection(
-        supercell=Dimension(supercell_dimension=(2, 2, 2)), amplitude=0.03
+        supercell=SupercellDimension(supercell_dimension=(2, 2, 2)), amplitude=0.03
     )
     upper = CodeSection(supercell=MaxNumAtoms(max_num_atoms=120))
     merged = merge(lower, upper)
@@ -56,9 +56,9 @@ def test_merge_kpoints_is_atomic():
     The shift of the lower block is not kept.
 
     """
-    lower = InputSetSection(kpoints=Spacing(kspacing=0.1, shift=(0.5, 0.5, 0.5)))
-    upper = InputSetSection(kpoints=Mesh(mesh=(4, 4, 4)))
-    assert merge(lower, upper) == InputSetSection(kpoints=Mesh(mesh=(4, 4, 4)))
+    lower = InputSetSection(kpoints=KpointsSpacing(kspacing=0.1, shift=(0.5, 0.5, 0.5)))
+    upper = InputSetSection(kpoints=KpointsMesh(mesh=(4, 4, 4)))
+    assert merge(lower, upper) == InputSetSection(kpoints=KpointsMesh(mesh=(4, 4, 4)))
 
 
 def test_merge_incar_and_scheduler_key_by_key():
@@ -87,14 +87,18 @@ def test_merge_input_sets_one_by_one():
     )
     upper = VaspSection(
         input_sets={
-            "relax": InputSetSection(incar={"isif": 2}, kpoints=Mesh(mesh=(4, 4, 4))),
+            "relax": InputSetSection(
+                incar={"isif": 2}, kpoints=KpointsMesh(mesh=(4, 4, 4))
+            ),
             "nac": InputSetSection(cell="primitive"),
         },
     )
     merged = merge(lower, upper)
     assert merged is not None and merged.input_sets is not None
     assert merged.input_sets["relax"] == InputSetSection(
-        cell="unitcell", incar={"nsw": 10, "isif": 2}, kpoints=Mesh(mesh=(4, 4, 4))
+        cell="unitcell",
+        incar={"nsw": 10, "isif": 2},
+        kpoints=KpointsMesh(mesh=(4, 4, 4)),
     )
     assert merged.input_sets["nac"] == InputSetSection(cell="primitive")
 
@@ -133,3 +137,33 @@ def test_merge_type_mismatch():
     """Sections of different types are not merged."""
     with pytest.raises(TypeError):
         merge(CodeSection(), InputSetSection())
+
+
+def test_tables_are_read_only_copies():
+    """The tables in the sections are read-only copies of the dicts given.
+
+    A change of a dict given does not change the section, and the tables of a
+    merged section, which can be those of a layer, cannot be changed.
+
+    """
+    incar = {"encut": 500}
+    relax = InputSetSection(scheduler={"nodes": 1})
+    lower = VaspSection(incar=incar, input_sets={"relax": relax})
+    incar["encut"] = 600
+    assert lower.incar == {"encut": 500}
+
+    merged = merge(lower, VaspSection())
+    assert merged.incar is not None and merged.input_sets is not None
+    with pytest.raises(TypeError):
+        merged.incar["encut"] = 600  # type: ignore[index]
+    with pytest.raises(TypeError):
+        merged.input_sets["nac"] = InputSetSection()  # type: ignore[index]
+    scheduler = merged.input_sets["relax"].scheduler
+    assert scheduler is not None
+    with pytest.raises(TypeError):
+        scheduler["nodes"] = 2  # type: ignore[index]
+
+    config = VelphConfig(scheduler={"nodes": 1})
+    assert config.scheduler is not None
+    with pytest.raises(TypeError):
+        config.scheduler["nodes"] = 2  # type: ignore[index]

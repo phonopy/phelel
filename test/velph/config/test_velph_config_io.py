@@ -28,13 +28,13 @@ from phelel.velph.config.merge import merge
 from phelel.velph.config.schema import (
     CODES,
     CodeSection,
-    Dimension,
     InputSetSection,
+    KpointsMesh,
+    KpointsSpacing,
     LinePath,
-    Matrix,
     MaxNumAtoms,
-    Mesh,
-    Spacing,
+    SupercellDimension,
+    SupercellMatrix,
     SymmetrySection,
     VaspSection,
     VelphConfig,
@@ -53,28 +53,32 @@ def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
     input_sets: dict[str, InputSetSection] = {}
     for set_name in INPUT_SETS:
         fields = input_set_fields(set_name)
-        values: dict[str, Any] = {"kpoints": Mesh(mesh=(4, 4, 4))}
+        values: dict[str, Any] = {"kpoints": KpointsMesh(mesh=(4, 4, 4))}
         if "cell" in fields:
             values["cell"] = "primitive"
         if "kpoints_dense" in fields:
-            values["kpoints_dense"] = Mesh(mesh=(8, 8, 8), shift=(0.5, 0.5, 0.5))
+            values["kpoints_dense"] = KpointsMesh(mesh=(8, 8, 8), shift=(0.5, 0.5, 0.5))
         if "kpoints_opt" in fields:
             values["kpoints_opt"] = LinePath(line=51, path=path, label=label)
         if "qpoints" in fields:
             values["qpoints"] = LinePath(line=101)
         input_sets[set_name] = InputSetSection(**values)
     input_sets["phelel"] = InputSetSection(
-        kpoints=Mesh(mesh=((-2, 2, 2), (2, -2, 2), (2, 2, -2))),
+        kpoints=KpointsMesh(mesh=((-2, 2, 2), (2, -2, 2), (2, 2, -2))),
         scheduler={"job_name": "phelel-job"},
     )
     resolved = VelphConfig(
         version="0.15.0",
-        phelel=CodeSection(supercell=Dimension(supercell_dimension=(2, 2, 2))),
+        phelel=CodeSection(supercell=SupercellDimension(supercell_dimension=(2, 2, 2))),
         phonopy=CodeSection(
-            supercell=Matrix(supercell_matrix=((0, 2, 2), (2, 0, 2), (2, 2, 0))),
+            supercell=SupercellMatrix(
+                supercell_matrix=((0, 2, 2), (2, 0, 2), (2, 2, 0))
+            ),
             number_of_snapshots=10,
         ),
-        phono3py=CodeSection(supercell=Dimension(supercell_dimension=(1, 1, 1))),
+        phono3py=CodeSection(
+            supercell=SupercellDimension(supercell_dimension=(1, 1, 1))
+        ),
         vasp=VaspSection(input_sets=input_sets),
         symmetry=SymmetrySection(
             tolerance=1e-5,
@@ -154,7 +158,7 @@ def test_defaults_match_default_template_dict():
         assert effective == expected, set_name
     assert vasp.input_sets["el_bands"].kpoints_opt == LinePath(line=51)
     assert vasp.input_sets["ph_bands"].qpoints == LinePath(line=51)
-    assert vasp.input_sets["ph_bands"].kpoints == Mesh(mesh=(1, 1, 1))
+    assert vasp.input_sets["ph_bands"].kpoints == KpointsMesh(mesh=(1, 1, 1))
     assert vasp.input_sets["relax"].cell == "unitcell"
     assert vasp.input_sets["nac"].cell == "primitive"
     assert get_default_config().scheduler == default_template_dict["scheduler"]
@@ -254,7 +258,7 @@ def test_template_intent_forms():
     )
     assert config.phelel == CodeSection(supercell=MaxNumAtoms(max_num_atoms=120))
     assert config.vasp is not None and config.vasp.input_sets is not None
-    assert config.vasp.input_sets["relax"].kpoints == Spacing(
+    assert config.vasp.input_sets["relax"].kpoints == KpointsSpacing(
         kspacing=0.2, shift=(0.5, 0.5, 0.5)
     )
 
@@ -289,7 +293,7 @@ def test_supercell_keys():
     assert "Give only one of" in str(e.value)
     config = _template("[init]\nsupercell_matrix = [0, 2, 2, 2, 0, 2, 2, 2, 0]")
     assert config.init is not None
-    assert config.init.supercell == Matrix(
+    assert config.init.supercell == SupercellMatrix(
         supercell_matrix=((0, 2, 2), (2, 0, 2), (2, 2, 0))
     )
 

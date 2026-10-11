@@ -24,7 +24,12 @@ from phelel.velph.cli.utils import write_launch_script, write_poscar
 from phelel.velph.config.input_sets import INPUT_SETS, InputSetName, KpointsFileName
 from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.legacy import load_velph_toml_any_version
-from phelel.velph.config.schema import CellChoice, InputSetSection, Mesh, VelphConfig
+from phelel.velph.config.schema import (
+    CellChoice,
+    InputSetSection,
+    KpointsMesh,
+    VelphConfig,
+)
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
@@ -45,7 +50,7 @@ class VaspJob:
     directory: pathlib.Path
     poscar: PhonopyAtoms | pathlib.Path
     incar: Mapping[str, Any]
-    kpoints: Mapping[KpointsFileName, Mesh]
+    kpoints: Mapping[KpointsFileName, KpointsMesh]
     scheduler: Mapping[str, Any] | None = None
     copied_files: Mapping[str, pathlib.Path] = dataclasses.field(default_factory=dict)
 
@@ -174,7 +179,7 @@ def get_cell(config: VelphConfig, cell_choice: CellChoice) -> PhonopyAtoms:
 
 def get_kpoints(
     config: VelphConfig, set_name: InputSetName
-) -> dict[KpointsFileName, Mesh]:
+) -> dict[KpointsFileName, KpointsMesh]:
     """Return the meshes of the k-point files of an input set.
 
     The k-point files and the k-point blocks that give their meshes are those
@@ -187,7 +192,7 @@ def get_kpoints(
     kpoints = {}
     for filename, block in INPUT_SETS[set_name].kpoints_files.items():
         mesh = getattr(input_set, block)
-        assert isinstance(mesh, Mesh)
+        assert isinstance(mesh, KpointsMesh)
         kpoints[filename] = mesh
     return kpoints
 

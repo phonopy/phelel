@@ -13,7 +13,12 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
 
 from phelel.velph.config.legacy import parse_legacy_velph_toml
-from phelel.velph.config.schema import InputSetSection, Mesh, VaspSection, VelphConfig
+from phelel.velph.config.schema import (
+    InputSetSection,
+    KpointsMesh,
+    VaspSection,
+    VelphConfig,
+)
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
@@ -123,8 +128,8 @@ def test_write_vasp_job(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
         poscar=nacl_cell,
         incar={"encut": 500, "lepsilon": True},
         kpoints={
-            "KPOINTS": Mesh(mesh=(4, 4, 4)),
-            "KPOINTS_ELPH": Mesh(
+            "KPOINTS": KpointsMesh(mesh=(4, 4, 4)),
+            "KPOINTS_ELPH": KpointsMesh(
                 mesh=((-8, 8, 8), (8, -8, 8), (8, 8, -8)), shift=(0.5, 0.5, 0.5)
             ),
         },
@@ -169,7 +174,7 @@ def test_write_vasp_job_copied_poscar(nacl_cell: PhonopyAtoms, tmp_path: pathlib
         directory=tmp_path / "relax" / "iter2",
         poscar=contcar,
         incar={"nsw": 10},
-        kpoints={"KPOINTS": Mesh(mesh=(4, 4, 4))},
+        kpoints={"KPOINTS": KpointsMesh(mesh=(4, 4, 4))},
     )
     write_vasp_job(job)
     directory = tmp_path / "relax" / "iter2"
@@ -227,6 +232,6 @@ def test_get_kpoints(nacl_velph_toml_v014: Callable[[], dict]):
     assert selfenergy["kpoints"]["mesh"] != selfenergy["kpoints_dense"]["mesh"]
     config = parse_legacy_velph_toml(data)
     assert get_kpoints(config, "selfenergy") == {
-        "KPOINTS": Mesh(mesh=tuple(selfenergy["kpoints"]["mesh"])),
-        "KPOINTS_ELPH": Mesh(mesh=tuple(selfenergy["kpoints_dense"]["mesh"])),
+        "KPOINTS": KpointsMesh(mesh=tuple(selfenergy["kpoints"]["mesh"])),
+        "KPOINTS_ELPH": KpointsMesh(mesh=tuple(selfenergy["kpoints_dense"]["mesh"])),
     }

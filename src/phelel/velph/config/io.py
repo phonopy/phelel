@@ -43,15 +43,15 @@ from phelel.velph.config.schema import (
     SITE_MIXTURE_SCHEMES,
     VASP_KSPACING_TAGS,
     CodeSection,
-    Dimension,
     InitSection,
     InputSetSection,
+    KpointsMesh,
+    KpointsSpacing,
     KpointsSpec,
     LinePath,
-    Matrix,
     MaxNumAtoms,
-    Mesh,
-    Spacing,
+    SupercellDimension,
+    SupercellMatrix,
     SupercellSpec,
     SymmetrySection,
     VaspSection,
@@ -290,8 +290,12 @@ def _parse_supercell(
             _intent_error(where, key)
         return MaxNumAtoms(max_num_atoms=_int(table[key], where, key))
     if key == "supercell_dimension":
-        return Dimension(supercell_dimension=_int_vector3(table[key], where, key))
-    return Matrix(supercell_matrix=_int_matrix3(table[key], where, key, flat=True))
+        return SupercellDimension(
+            supercell_dimension=_int_vector3(table[key], where, key)
+        )
+    return SupercellMatrix(
+        supercell_matrix=_int_matrix3(table[key], where, key, flat=True)
+    )
 
 
 def _parse_vasp(value: Any, file_kind: VelphFileKind) -> VaspSection:
@@ -376,7 +380,7 @@ def _kpoints(value: Any, where: str, file_kind: VelphFileKind) -> KpointsSpec:
     if "kspacing" in table:
         if file_kind == "velph_toml":
             _intent_error(where, "kspacing")
-        return Spacing(
+        return KpointsSpacing(
             kspacing=_float(table["kspacing"], where, "kspacing"), shift=shift
         )
     if "mesh" not in table:
@@ -387,7 +391,7 @@ def _kpoints(value: Any, where: str, file_kind: VelphFileKind) -> KpointsSpec:
         mesh = _int_matrix3(mesh_value, where, "mesh")
     else:
         mesh = _int_vector3(mesh_value, where, "mesh")
-    return Mesh(mesh=mesh, shift=shift)
+    return KpointsMesh(mesh=mesh, shift=shift)
 
 
 def _line_path(value: Any, where: str) -> LinePath:
@@ -753,9 +757,9 @@ def _section_to_table(section: Any) -> dict[str, Any]:
     for name, value in vars(section).items():
         if value is None:
             continue
-        if isinstance(value, (MaxNumAtoms, Dimension, Matrix)):
+        if isinstance(value, (MaxNumAtoms, SupercellDimension, SupercellMatrix)):
             table.update(_section_to_table(value))
-        elif isinstance(value, (Mesh, Spacing, LinePath)):
+        elif isinstance(value, (KpointsMesh, KpointsSpacing, LinePath)):
             table[name] = _section_to_table(value)
         else:
             table[name] = value
