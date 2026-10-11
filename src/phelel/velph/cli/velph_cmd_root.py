@@ -11,6 +11,7 @@ def cmd_root():
 
 
 from phelel.velph.cli.el_bands.cmd_el_bands import cmd_el_bands  # noqa: E402, F401
+from phelel.velph.cli.el_dos.cmd_el_dos import cmd_el_dos  # noqa: E402, F401
 from phelel.velph.cli.generate.cmd_generate import cmd_generate  # noqa: E402, F401
 from phelel.velph.cli.init.cmd_init import cmd_init  # noqa: E402, F401
 from phelel.velph.cli.nac.cmd_nac import cmd_nac  # noqa: E402, F401

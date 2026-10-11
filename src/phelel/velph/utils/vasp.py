@@ -165,13 +165,14 @@ class VaspKpoints:
 
     @classmethod
     def write_line_mode(
-        cls,
-        fp: str | os.PathLike | io.IOBase,
-        cell: PhonopyAtoms,
-        toml_dict: dict,
+        cls, fp: str | os.PathLike | io.IOBase, toml_dict: dict
     ) -> None:
-        """Write KPOINTS with line mode."""
-        lines = cls._get_line_mode(toml_dict, cell)
+        """Write KPOINTS with line mode.
+
+        toml_dict has "line" and "path", and optionally "label".
+
+        """
+        lines = cls._get_line_mode(toml_dict)
         cls._write_lines(fp, lines)
 
     @staticmethod
@@ -183,44 +184,22 @@ class VaspKpoints:
                 print("\n".join(lines), file=w)
 
     @staticmethod
-    def _get_line_mode(toml_dict: dict, cell: PhonopyAtoms) -> list:
-        """Return KPOINTS lines.
-
-        toml_dict['line'] is necessary.
-
-        """
-        if "line" not in toml_dict:
-            raise RuntimeError("line in toml_dict is not found.")
+    def _get_line_mode(toml_dict: dict) -> list:
+        """Return KPOINTS lines."""
         lines = []
         lines.append("k points along high symmetry lines by velph")
         lines.append(str(toml_dict["line"]))
         lines.append("line mode")
         lines.append("fractional")
-
-        if "path" in toml_dict:
-            label = toml_dict.get("label")
-            for i_point, p in enumerate(toml_dict["path"]):
-                for i in range(2):
-                    coord = " ".join([f"{p[i][j]:.8f}" for j in range(3)])
-                    if label is not None:
-                        lines.append(f"{coord} {label[i_point][i]}")
-                    else:
-                        lines.append(f"{coord}")
-                lines.append("")
-        else:
-            try:
-                import seekpath
-            except ImportError as exc:
-                raise ModuleNotFoundError("You need to install seekpath.") from exc
-
-            band_path = seekpath.get_path(cell.totuple())
-            for p in list(band_path["path"]):
-                for i in range(2):
-                    coord = " ".join(
-                        [f"{band_path['point_coords'][p[i]][j]:.8f}" for j in range(3)]
-                    )
-                    lines.append(f"{coord} {p[i]}")
-                lines.append("")
+        label = toml_dict.get("label")
+        for i_point, p in enumerate(toml_dict["path"]):
+            for i in range(2):
+                coord = " ".join([f"{p[i][j]:.8f}" for j in range(3)])
+                if label is not None:
+                    lines.append(f"{coord} {label[i_point][i]}")
+                else:
+                    lines.append(f"{coord}")
+            lines.append("")
         return lines
 
     @classmethod

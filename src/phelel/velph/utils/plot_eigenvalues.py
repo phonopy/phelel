@@ -73,7 +73,7 @@ def cmd_plot_eigenvalues(
     mu: float | None,
     tid: int | None,
     calcid: int | None,
-    calc_type: Literal["transport", "ph_selfenergy", "el_bands"] = "transport",
+    calc_type: Literal["transport", "ph_selfenergy", "el_dos"] = "transport",
 ):
     """Show eigenvalues in transports.
 
@@ -127,7 +127,7 @@ def _plot_eigenvalues(
     cutoff_occupancy: float = 1e-2,
     mu: float | None = None,
     time_reversal: bool = True,
-    calc_type: Literal["transport", "ph_selfenergy", "el_bands"] = "transport",
+    calc_type: Literal["transport", "ph_selfenergy", "el_dos"] = "transport",
 ) -> tuple[NDArray, NDArray, NDArray] | None:
     """Show eigenvalues, occupation, k-points and Fermi-Dirac distribution.
 
@@ -174,7 +174,7 @@ def _plot_eigenvalues(
         if mu is None:
             if calc_type in ("transport", "ph_selfenergy"):
                 _mu = f_h5py["results/electron_phonon/electrons/dos/efermi"][()]  # type: ignore
-            elif calc_type == "el_bands":
+            elif calc_type == "el_dos":
                 _mu = f_h5py["results/electron_dos/efermi"][()]  # type: ignore
             else:
                 raise ValueError(f"Invalid calc_type: {calc_type}")

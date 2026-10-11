@@ -5,10 +5,8 @@ import pathlib
 import tempfile
 
 import numpy as np
-import pytest
 import tomli
 from phonopy.interface.phonopy_yaml import read_cell_yaml
-from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.utils.vasp import (
     CutoffToFFTMesh,
@@ -20,7 +18,7 @@ from phelel.velph.utils.vasp import (
 cwd = pathlib.Path(__file__).parent
 
 
-def test_write_kpoints_line_mode(nacl_cell: PhonopyAtoms):
+def test_write_kpoints_line_mode():
     """Test of KPOINTS writer in line mode."""
     toml_str = """line = 51
 path = [[[0.000000, 0.000000, 0.000000], [0.500000, 0.000000, 0.500000]],
@@ -45,44 +43,14 @@ fractional
 0.37500000 0.37500000 0.75000000 K
 0.00000000 0.00000000 0.00000000 GAMMA
 """
-    kpoints_str = _get_str_of_write_kpoints_line_mode(toml_str, nacl_cell)
+    kpoints_str = _get_str_of_write_kpoints_line_mode(toml_str)
     assert kpoints_str == ref_str
 
 
-def test_write_kpoints_line_mode_seekpath(nacl_cell: PhonopyAtoms):
-    """Test of KPOINTS writer in line mode with seekpath."""
-    pytest.importorskip("seekpath")
-    toml_str = """line = 51"""
-    ref_str = """k points along high symmetry lines by velph
-51
-line mode
-fractional
-0.00000000 0.00000000 0.00000000 GAMMA
-0.50000000 0.00000000 0.50000000 X
-
-0.50000000 0.00000000 0.50000000 X
-0.62500000 0.25000000 0.62500000 U
-
-0.37500000 0.37500000 0.75000000 K
-0.00000000 0.00000000 0.00000000 GAMMA
-
-0.00000000 0.00000000 0.00000000 GAMMA
-0.50000000 0.50000000 0.50000000 L
-
-0.50000000 0.50000000 0.50000000 L
-0.50000000 0.25000000 0.75000000 W
-
-0.50000000 0.25000000 0.75000000 W
-0.50000000 0.00000000 0.50000000 X
-"""
-    kpoints_str = _get_str_of_write_kpoints_line_mode(toml_str, nacl_cell)
-    assert kpoints_str == ref_str
-
-
-def _get_str_of_write_kpoints_line_mode(toml_str, cell):
+def _get_str_of_write_kpoints_line_mode(toml_str):
     toml_dict = tomli.loads(toml_str)
     with tempfile.TemporaryFile() as fp:
-        VaspKpoints.write_line_mode(fp, cell, toml_dict)
+        VaspKpoints.write_line_mode(fp, toml_dict)
         fp.seek(0)
         kpoints_str = fp.read().decode("utf-8")
     return kpoints_str
