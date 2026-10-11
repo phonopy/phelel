@@ -1,58 +1,52 @@
 """Implementation of velph-nac-generate."""
 
+from __future__ import annotations
+
 import pathlib
-import shutil
 
 import click
-import tomli
+from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.cli.utils import (
-    assert_kpoints_mesh_symmetry,
-    choose_cell_in_dict,
-    echo_vasp_vca_hint,
-    get_scheduler_dict,
-    write_incar,
-    write_kpoints_mesh_mode,
-    write_launch_script,
-    write_poscar,
+from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.vasp_job import (
+    VaspJob,
+    add_cell_tags,
+    effective_incar,
+    effective_scheduler,
+    find_potcar,
+    get_cell,
+    get_input_set,
+    get_kpoints,
+    read_velph_toml,
+    write_vasp_job,
 )
+
+
+def plan_nac(config: VelphConfig) -> VaspJob:
+    """Return the VASP job of nac in the directory "nac".
+
+    The cell is the one given by "cell" of [vasp.nac].
+
+    """
+    input_set = get_input_set(config, "nac")
+    assert input_set.cell is not None
+    cell = get_cell(config, input_set.cell)
+    return VaspJob(
+        directory=pathlib.Path("nac"),
+        poscar=cell,
+        incar=add_cell_tags(effective_incar(config, "nac"), cell),
+        kpoints=get_kpoints(config, "nac"),
+        scheduler=effective_scheduler(config, "nac"),
+        copied_files=find_potcar(),
+    )
 
 
 def write_input_files(toml_filename: pathlib.Path) -> None:
     """Generate VASP nac inputs."""
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    directory_name = "nac"
-    directory = pathlib.Path(directory_name)
-    directory.mkdir(parents=True, exist_ok=True)
-
-    # POSCAR
-    cell = choose_cell_in_dict(toml_dict, toml_filename, "nac")
-    assert cell is not None
-    write_poscar(directory, cell)
-
-    # INCAR
-    write_incar(toml_dict["vasp"]["nac"]["incar"], directory, cell=cell)
-
-    # KPOINTS
-    kpoints_dict = toml_dict["vasp"]["nac"]["kpoints"]
-    assert_kpoints_mesh_symmetry(toml_dict, kpoints_dict, cell)
-    write_kpoints_mesh_mode(
-        toml_dict["vasp"]["nac"]["incar"],
-        directory,
-        "vasp.nac.kpoints",
-        toml_dict["vasp"]["nac"]["kpoints"],
-    )
-
-    # POTCAR
-    if pathlib.Path("POTCAR").exists():
-        shutil.copy2(pathlib.Path("POTCAR"), directory / "POTCAR")
-
-    # Scheduler launch script
-    if "scheduler" in toml_dict:
-        scheduler_dict = get_scheduler_dict(toml_dict, "nac")
-        write_launch_script(scheduler_dict, directory)
-
-    click.echo(f'VASP input files were made in "{directory_name}".')
-    echo_vasp_vca_hint(cell)
+    config = read_velph_toml(toml_filename, "nac")
+    job = plan_nac(config)
+    write_vasp_job(job)
+    click.echo(f'VASP input files were made in "{job.directory}".')
+    assert isinstance(job.poscar, PhonopyAtoms)
+    echo_vasp_vca_hint(job.poscar)

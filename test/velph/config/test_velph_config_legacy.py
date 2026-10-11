@@ -18,7 +18,10 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phelel.velph.cli.init.init import _run_init
 from phelel.velph.cli.utils import VelphInitOptions
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.legacy import load_legacy_velph_toml, parse_legacy_velph_toml
+from phelel.velph.config.legacy import (
+    load_velph_toml_any_version,
+    parse_legacy_velph_toml,
+)
 from phelel.velph.config.schema import (
     CodeSection,
     Dimension,
@@ -241,7 +244,7 @@ def test_kspacing_mesh_equals_generate(
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     _run_generate_commands(set_names)
-    config = load_legacy_velph_toml(tmp_path / "velph.toml")
+    config = load_velph_toml_any_version(tmp_path / "velph.toml")
     _check_meshes_equal_generate(config, set_names, tmp_path)
 
     assert config.vasp is not None and config.vasp.input_sets is not None
@@ -283,5 +286,5 @@ def test_kspacing_mesh_equals_generate_site_mixture(
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     _run_generate_commands(set_names)
-    config = load_legacy_velph_toml(tmp_path / "velph.toml")
+    config = load_velph_toml_any_version(tmp_path / "velph.toml")
     _check_meshes_equal_generate(config, set_names, tmp_path)

@@ -234,3 +234,24 @@ def site_mixture_velph_toml() -> Callable[[bool], dict]:
         return tomli.loads("\n".join(toml_lines))
 
     return _get_velph_toml
+
+
+@pytest.fixture(scope="session")
+def nacl_velph_toml_v014(nacl_cell: PhonopyAtoms) -> Callable[[], dict]:
+    """Return a function giving velph.toml dict that velph 0.14 writes for NaCl.
+
+    The supercell is 2x2x2 of the conventional unit cell, and [scheduler] is
+    written.  Each call returns a new dict, so a test can modify it.
+
+    """
+    with contextlib.redirect_stdout(io.StringIO()):
+        toml_lines = _run_init(
+            nacl_cell, VelphInitOptions(supercell_dimension=(2, 2, 2))
+        )
+    assert toml_lines is not None
+    toml_str = "\n".join(toml_lines)
+
+    def _get_velph_toml() -> dict:
+        return tomli.loads(toml_str)
+
+    return _get_velph_toml

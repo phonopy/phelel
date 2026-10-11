@@ -2,9 +2,10 @@
 
 The generate commands read velph.toml through VelphConfig after they are
 rewritten.  Until "velph init" writes the new format, the velph.toml files that
-users have are in the format of velph 0.14.  load_legacy_velph_toml converts
-such a file to the new format and reads it into VelphConfig, so that the
-generate commands write the same VASP input files as before.
+users have are in the format of velph 0.14.  load_velph_toml_any_version reads
+a velph.toml of either format.  A file of velph 0.14 is converted to the new
+format and read into VelphConfig, so that the generate commands write the same
+VASP input files as before.
 
 The conversion is as follows.
 
@@ -35,7 +36,6 @@ import os
 from collections.abc import Mapping
 from typing import Any
 
-import tomli
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.cells import (
     get_supercell,
@@ -44,7 +44,7 @@ from phonopy.structure.cells import (
 )
 
 from phelel.velph.cli.utils import kspacing_to_mesh
-from phelel.velph.config.io import VelphConfigError, parse_velph_toml
+from phelel.velph.config.io import load_toml, parse_velph_toml
 from phelel.velph.config.schema import CODES, VelphConfig
 
 # Tolerance with which Phelel, Phonopy and Phono3py make the supercell.
@@ -75,13 +75,17 @@ _PRIMITIVE_CELL_INPUT_SETS = (
 )
 
 
-def load_legacy_velph_toml(filename: str | os.PathLike) -> VelphConfig:
-    """Read a velph.toml of velph 0.14 into VelphConfig."""
-    with open(filename, "rb") as f:
-        try:
-            data = tomli.load(f)
-        except tomli.TOMLDecodeError as e:
-            raise VelphConfigError(f'Error in reading "{filename}": {e}') from e
+def load_velph_toml_any_version(filename: str | os.PathLike) -> VelphConfig:
+    """Read a velph.toml of the new format or of velph 0.14 into VelphConfig.
+
+    A velph.toml with [velph] version is read in the new format.  Otherwise it
+    is read as a velph.toml of velph 0.14.
+
+    """
+    data = load_toml(filename)
+    velph = data.get("velph")
+    if isinstance(velph, Mapping) and "version" in velph:
+        return parse_velph_toml(data, name=str(filename))
     return parse_legacy_velph_toml(data, name=str(filename))
 
 

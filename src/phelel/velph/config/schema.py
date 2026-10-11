@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any, Literal
 
 Code = Literal["phelel", "phonopy", "phono3py"]
@@ -159,24 +160,32 @@ class CodeSection:
 
 # Keys allowed in [phelel], [phonopy] and [phono3py], besides the three
 # supercell keys.
-CODE_KEYS: dict[Code, tuple[str, ...]] = {
-    "phelel": ("amplitude", "diagonal", "plusminus", "nosym", "site_mixture_scheme"),
-    "phonopy": (
-        "amplitude",
-        "diagonal",
-        "plusminus",
-        "nosym",
-        "number_of_snapshots",
-        "site_mixture_scheme",
-    ),
-    "phono3py": (
-        "amplitude",
-        "diagonal",
-        "plusminus",
-        "nosym",
-        "number_of_snapshots",
-    ),
-}
+CODE_KEYS: Mapping[Code, tuple[str, ...]] = MappingProxyType(
+    {
+        "phelel": (
+            "amplitude",
+            "diagonal",
+            "plusminus",
+            "nosym",
+            "site_mixture_scheme",
+        ),
+        "phonopy": (
+            "amplitude",
+            "diagonal",
+            "plusminus",
+            "nosym",
+            "number_of_snapshots",
+            "site_mixture_scheme",
+        ),
+        "phono3py": (
+            "amplitude",
+            "diagonal",
+            "plusminus",
+            "nosym",
+            "number_of_snapshots",
+        ),
+    }
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -187,8 +196,8 @@ class InputSetSection:
     its INCAR tags, k-point blocks, cell choice and scheduler settings.
     incar holds only the INCAR tags of this input set.  The generate commands
     add the tags of [vasp.incar] that incar does not give, except the tags
-    listed in incar_unset.  INPUT_SET_FIELDS gives the fields allowed in each
-    input set.
+    listed in incar_unset.  input_set_fields in input_sets.py gives the fields
+    allowed in each input set.
 
     """
 
@@ -200,24 +209,6 @@ class InputSetSection:
     kpoints_opt: LinePath | None = None
     qpoints: LinePath | None = None
     scheduler: dict[str, Any] | None = _keys()
-
-
-_INPUT_SET_COMMON = ("incar", "incar_unset", "kpoints", "scheduler")
-
-# Fields of InputSetSection allowed in each input set.
-INPUT_SET_FIELDS: dict[str, tuple[str, ...]] = {
-    "relax": _INPUT_SET_COMMON + ("cell",),
-    "nac": _INPUT_SET_COMMON + ("cell",),
-    "phelel": _INPUT_SET_COMMON,
-    "phonopy": _INPUT_SET_COMMON,
-    "phono3py": _INPUT_SET_COMMON,
-    "selfenergy": _INPUT_SET_COMMON + ("kpoints_dense",),
-    "transport": _INPUT_SET_COMMON + ("kpoints_dense",),
-    "ph_selfenergy": _INPUT_SET_COMMON + ("kpoints_dense",),
-    "el_bands": _INPUT_SET_COMMON + ("kpoints_opt",),
-    "el_dos": _INPUT_SET_COMMON + ("kpoints_dense",),
-    "ph_bands": _INPUT_SET_COMMON + ("qpoints",),
-}
 
 
 @dataclasses.dataclass(frozen=True)
