@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 import tomli
-from phelel.velph.config.resolve import resolve_incar
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 
 from phelel.velph.cli.init.init import _merge_incar_commons
@@ -26,6 +25,7 @@ from phelel.velph.config.io import (
     write_velph_toml,
 )
 from phelel.velph.config.merge import merge
+from phelel.velph.config.resolve import resolve_incar
 from phelel.velph.config.schema import (
     CODES,
     CodeSection,
