@@ -112,26 +112,6 @@ def get_input_set(config: VelphConfig, set_name: InputSetName) -> InputSetSectio
     return config.vasp.input_sets[set_name]
 
 
-def effective_incar(config: VelphConfig, set_name: InputSetName) -> dict[str, Any]:
-    """Return the INCAR tags of an input set.
-
-    These are the tags of [vasp.incar], except those listed in incar_unset of
-    the input set, together with the tags of the input set.  A tag given in
-    both [vasp.incar] and the input set has the value of the input set.
-
-    """
-    input_set = get_input_set(config, set_name)
-    assert config.vasp is not None
-    unset = set(input_set.incar_unset or ())
-    incar = {
-        tag: value
-        for tag, value in (config.vasp.incar or {}).items()
-        if tag not in unset
-    }
-    incar.update(input_set.incar or {})
-    return incar
-
-
 def effective_scheduler(
     config: VelphConfig, set_name: InputSetName, job_id: str | None = None
 ) -> dict[str, Any] | None:

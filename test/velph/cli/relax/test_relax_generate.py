@@ -68,20 +68,19 @@ def test_relax_generate_new_format(
 ):
     """Velph relax generate reads velph.toml of the new format.
 
-    The INCAR has the tags of [vasp.incar] except those in incar_unset of
-    [vasp.relax].  The second run uses CONTCAR of the first one, and it stops
-    without making a directory when CONTCAR does not exist.
+    The INCAR has the tags of [vasp.relax.incar].  The second run uses CONTCAR
+    of the first one, and it stops without making a directory when CONTCAR
+    does not exist.
 
     """
     config = parse_legacy_velph_toml(nacl_velph_toml_v014())
     assert config.vasp is not None and config.vasp.input_sets is not None
-    relax = dataclasses.replace(config.vasp.input_sets["relax"], incar_unset=("npar",))
+    relax = config.vasp.input_sets["relax"]
+    assert relax.incar is not None and "algo" not in relax.incar
+    relax = dataclasses.replace(relax, incar={**relax.incar, "algo": "Fast"})
     config = dataclasses.replace(
         config,
-        vasp=VaspSection(
-            incar={"algo": "Fast", "npar": 4},
-            input_sets={**config.vasp.input_sets, "relax": relax},
-        ),
+        vasp=VaspSection(input_sets={**config.vasp.input_sets, "relax": relax}),
     )
     write_velph_toml(config, tmp_path / "velph.toml")
     monkeypatch.chdir(tmp_path)
@@ -91,7 +90,6 @@ def test_relax_generate_new_format(
     assert result.exit_code == 0, result.output
     incar = (tmp_path / "relax" / "iter1" / "INCAR").read_text()
     assert "ALGO = Fast" in incar
-    assert "NPAR" not in incar
     assert "ISIF = 3" in incar
 
     result = runner.invoke(cmd_root, ["relax", "generate"])

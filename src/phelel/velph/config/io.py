@@ -7,10 +7,11 @@ ways:
 
 - every field of a template is optional.  [init] is accepted, and so are
   max_num_atoms and kspacing in a k-point block, which velph init converts
-  to a supercell matrix and to a mesh.
+  to a supercell matrix and to a mesh, and [vasp.incar] and incar_unset,
+  from which velph init makes the INCAR tags of each input set.
 - a velph.toml has to give [velph] version, the cells and the fields that
-  the generate commands read.  max_num_atoms and kspacing in a k-point
-  block are errors.
+  the generate commands read.  max_num_atoms, kspacing in a k-point block,
+  [vasp.incar] and incar_unset are errors.
 
 An unknown key is an error in both kinds of files.
 
@@ -301,7 +302,17 @@ def _parse_supercell(
 def _parse_vasp(value: Any, file_kind: VelphFileKind) -> VaspSection:
     table = _table(value, "vasp")
     _check_keys(table, ("incar", *INPUT_SETS), "vasp")
-    incar = _incar(table["incar"], "vasp.incar") if "incar" in table else None
+    if "incar" in table and file_kind == "velph_toml":
+        _fail(
+            "vasp.incar",
+            "This table cannot be given in velph.toml.  Each input set of "
+            "velph.toml holds all of its INCAR tags in [vasp.<input set>.incar].  "
+            "Write the tags there, or give [vasp.incar] in a velph init template "
+            'and run "velph init" again.',
+        )
+    incar = (
+        _incar(table["incar"], "vasp.incar", file_kind) if "incar" in table else None
+    )
     input_sets = {
         set_name: _parse_input_set(input_set_value, set_name, file_kind)
         for set_name, input_set_value in table.items()
@@ -317,6 +328,14 @@ def _parse_input_set(
     table = _table(value, where)
     _check_keys(table, input_set_fields(set_name), where)
     incar_unset = None
+    if "incar_unset" in table and file_kind == "velph_toml":
+        _fail(
+            where,
+            '"incar_unset" cannot be given in velph.toml.  It removes tags of '
+            "[vasp.incar], which only a velph init template has.  Remove the tags "
+            f'from [{where}.incar], or give "incar_unset" in a velph init template '
+            'and run "velph init" again.',
+        )
     if "incar_unset" in table:
         incar_unset = tuple(
             _str(tag, where, "incar_unset").lower()
@@ -324,7 +343,9 @@ def _parse_input_set(
         )
     return InputSetSection(
         cell=_opt_choice(table, "cell", CELL_CHOICES, where),
-        incar=_incar(table["incar"], f"{where}.incar") if "incar" in table else None,
+        incar=_incar(table["incar"], f"{where}.incar", file_kind)
+        if "incar" in table
+        else None,
         incar_unset=incar_unset,
         kpoints=_kpoints(table["kpoints"], f"{where}.kpoints", file_kind)
         if "kpoints" in table
@@ -346,7 +367,7 @@ def _parse_input_set(
     )
 
 
-def _incar(value: Any, where: str) -> dict[str, Any]:
+def _incar(value: Any, where: str, file_kind: VelphFileKind) -> dict[str, Any]:
     """Return the INCAR tags of a table, with the tag names in lower case."""
     table = _table(value, where)
     incar: dict[str, Any] = {}
@@ -361,6 +382,8 @@ def _incar(value: Any, where: str) -> dict[str, Any]:
                 "writes the k-point files.  Give kspacing in a k-point block.",
             )
         if isinstance(tag_value, Mapping):
+            if file_kind == "velph_toml":
+                _fail(where, f'"{key}" has a table as value.  Remove "{key}".')
             _fail(
                 where,
                 f'"{key}" has a table as value.  A section does not inherit the '

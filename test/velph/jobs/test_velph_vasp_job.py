@@ -22,7 +22,6 @@ from phelel.velph.config.schema import (
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
-    effective_incar,
     effective_scheduler,
     get_kpoints,
     read_velph_toml,
@@ -31,44 +30,14 @@ from phelel.velph.jobs.vasp_job import (
 
 
 def _config_with_nac(
-    base_incar: dict | None,
-    nac: InputSetSection,
-    scheduler: dict | None = None,
+    nac: InputSetSection, scheduler: dict | None = None
 ) -> VelphConfig:
-    return VelphConfig(
-        vasp=VaspSection(incar=base_incar, input_sets={"nac": nac}),
-        scheduler=scheduler,
-    )
-
-
-def test_effective_incar():
-    """Tags of [vasp.incar] are inherited, except those in incar_unset.
-
-    A tag given in both [vasp.incar] and the input set has the value of the
-    input set.
-
-    """
-    config = _config_with_nac(
-        {"encut": 500, "npar": 4, "ismear": 0},
-        InputSetSection(incar={"lepsilon": True, "ismear": -5}, incar_unset=("npar",)),
-    )
-    assert effective_incar(config, "nac") == {
-        "encut": 500,
-        "ismear": -5,
-        "lepsilon": True,
-    }
-
-
-def test_effective_incar_without_base():
-    """Without [vasp.incar], the INCAR tags are those of the input set."""
-    config = _config_with_nac(None, InputSetSection(incar={"lepsilon": True}))
-    assert effective_incar(config, "nac") == {"lepsilon": True}
+    return VelphConfig(vasp=VaspSection(input_sets={"nac": nac}), scheduler=scheduler)
 
 
 def test_effective_scheduler():
     """Settings of the input set have priority, and job_id is appended."""
     config = _config_with_nac(
-        None,
         InputSetSection(scheduler={"walltime": "1:00:00"}),
         scheduler={"job_name": "vasp", "walltime": "96:00:00", "nodes": 1},
     )
@@ -90,7 +59,7 @@ def test_effective_scheduler_without_scheduler_section():
     The settings of the input set are not used alone, as in velph 0.14.
 
     """
-    config = _config_with_nac(None, InputSetSection(scheduler={"nodes": 2}))
+    config = _config_with_nac(InputSetSection(scheduler={"nodes": 2}))
     assert effective_scheduler(config, "nac") is None
 
 
