@@ -25,6 +25,7 @@ from phelel.velph.config.io import (
     write_velph_toml,
 )
 from phelel.velph.config.merge import merge
+from phelel.velph.config.resolve import resolve_incar
 from phelel.velph.config.schema import (
     CODES,
     CodeSection,
@@ -45,7 +46,8 @@ from phelel.velph.templates import default_template_dict
 def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
     """Return a complete velph.toml config.
 
-    It is made of the defaults and of values that velph init would compute.
+    It is made of the defaults and of values that velph init would compute,
+    with the INCAR tags of each input set resolved.
 
     """
     path = (((0.0, 0.0, 0.0), (0.5, 0.0, 0.5)), ((0.5, 0.0, 0.5), (0.5, 0.25, 0.75)))
@@ -90,7 +92,7 @@ def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
     )
     config = merge(get_default_config(), resolved)
     assert config is not None
-    return dataclasses.replace(config, init=None)
+    return dataclasses.replace(resolve_incar(config), init=None)
 
 
 def _velph_toml_text(cell: PhonopyAtoms) -> str:
@@ -133,13 +135,12 @@ def test_defaults_init_acts_on_no_section():
 def test_defaults_match_default_template_dict():
     """The defaults give the INCARs that the present velph init gives.
 
-    The effective INCAR of each input set, the base [vasp.incar] without
-    incar_unset and with the tags of the input set, is compared with the INCAR that
-    _merge_incar_commons builds from default_template_dict.
+    The INCAR of each input set resolved by resolve_incar is compared with the
+    INCAR that _merge_incar_commons builds from default_template_dict.
 
     """
-    vasp = get_default_config().vasp
-    assert vasp is not None and vasp.incar is not None and vasp.input_sets is not None
+    vasp = resolve_incar(get_default_config()).vasp
+    assert vasp is not None and vasp.input_sets is not None
     old_vasp = default_template_dict["vasp"]
     renamed = {
         "el_bands.bands": "el_bands",
@@ -149,13 +150,8 @@ def test_defaults_match_default_template_dict():
         if old_name == "incar":
             continue
         set_name = renamed.get(old_name, old_name)
-        input_set = vasp.input_sets[set_name]
-        unset = input_set.incar_unset or ()
-        effective = {
-            tag: value for tag, value in vasp.incar.items() if tag not in unset
-        } | (input_set.incar or {})
         expected = _merge_incar_commons(old_vasp[old_name]["incar"], old_vasp["incar"])
-        assert effective == expected, set_name
+        assert vasp.input_sets[set_name].incar == expected, set_name
     assert vasp.input_sets["el_bands"].kpoints_opt == LinePath(line=51)
     assert vasp.input_sets["ph_bands"].qpoints == LinePath(line=51)
     assert vasp.input_sets["ph_bands"].kpoints == KpointsMesh(mesh=(1, 1, 1))
@@ -328,14 +324,53 @@ def test_incar():
         assert message in str(e.value)
 
 
+def test_incar_table_value():
+    """In a template, an INCAR tag with a table as value is an error.
+
+    The message points to incar_unset.  An empty table, the form of velph
+    earlier than 0.15, is reported by the digest of old forms instead.
+
+    """
+    with pytest.raises(VelphConfigError) as e:
+        _template("[vasp.incar]\nncore = {value = 1}")
+    assert '"ncore" has a table as value.  A section does not inherit' in str(e.value)
+
+
 def test_incar_empty_table_in_velph_toml(nacl_cell: PhonopyAtoms):
-    """An INCAR tag set to {} is an error that points to incar_unset."""
+    """In a velph.toml, an INCAR tag set to {} is an error that asks to remove it."""
     text = _velph_toml_text(nacl_cell).replace(
-        "[vasp.incar]\n", "[vasp.incar]\nncore = {}\n"
+        "[vasp.relax.incar]\n", "[vasp.relax.incar]\nncore = {}\n"
     )
+    assert "ncore = {}" in text
     with pytest.raises(VelphConfigError) as e:
         _parse_text(text)
-    assert '"ncore" has a table as value.  A section does not inherit' in str(e.value)
+    assert str(e.value) == (
+        '[vasp.relax.incar] "ncore" has a table as value.  Remove "ncore".'
+    )
+
+
+def test_velph_toml_rejects_shared_incar(nacl_cell: PhonopyAtoms):
+    """[vasp.incar] and incar_unset are not allowed in a velph.toml."""
+    text = _velph_toml_text(nacl_cell)
+    assert "[vasp.incar]" not in text and "incar_unset" not in text
+    with pytest.raises(VelphConfigError) as e:
+        _parse_text(text + "\n[vasp.incar]\nencut = 500\n")
+    assert str(e.value) == (
+        "[vasp.incar] This table cannot be given in velph.toml.  Each input set of "
+        "velph.toml holds all of its INCAR tags in [vasp.<input set>.incar].  "
+        "Write the tags there, or give [vasp.incar] in a velph init template and "
+        'run "velph init" again.'
+    )
+    text = text.replace("[vasp.nac]\n", '[vasp.nac]\nincar_unset = ["npar"]\n')
+    assert "incar_unset" in text
+    with pytest.raises(VelphConfigError) as e:
+        _parse_text(text)
+    assert str(e.value) == (
+        '[vasp.nac] "incar_unset" cannot be given in velph.toml.  It removes tags '
+        "of [vasp.incar], which only a velph init template has.  Remove the tags "
+        'from [vasp.nac.incar], or give "incar_unset" in a velph init template and '
+        'run "velph init" again.'
+    )
 
 
 def test_choices():

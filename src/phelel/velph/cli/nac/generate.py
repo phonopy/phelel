@@ -12,7 +12,6 @@ from phelel.velph.config.schema import VelphConfig
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
-    effective_incar,
     effective_scheduler,
     find_potcar,
     get_cell,
@@ -35,7 +34,7 @@ def plan_nac(config: VelphConfig) -> VaspJob:
     return VaspJob(
         directory=pathlib.Path("nac"),
         poscar=cell,
-        incar=add_cell_tags(effective_incar(config, "nac"), cell),
+        incar=add_cell_tags(input_set.incar or {}, cell),
         kpoints=get_kpoints(config, "nac"),
         scheduler=effective_scheduler(config, "nac"),
         copied_files=find_potcar(),

@@ -207,11 +207,12 @@ class InputSetSection:
     """Input set: section [vasp.<input set>], such as [vasp.relax].
 
     An input set holds the VASP input settings of one kind of calculation:
-    its INCAR tags, k-point blocks, cell choice and scheduler settings.
-    incar holds only the INCAR tags of this input set.  The generate commands
-    add the tags of [vasp.incar] that incar does not give, except the tags
-    listed in incar_unset.  input_set_fields in input_sets.py gives the fields
-    allowed in each input set.
+    its INCAR tags, k-point blocks, cell choice and scheduler settings.  In a
+    velph init template, velph init adds to incar the tags of [vasp.incar]
+    that incar does not give, except the tags listed in incar_unset (see
+    resolve.py).  In velph.toml, incar holds all the INCAR tags of the input
+    set, and incar_unset is not given.  input_set_fields in input_sets.py gives
+    the fields allowed in each input set.
 
     """
 
@@ -231,7 +232,12 @@ class InputSetSection:
 
 @dataclasses.dataclass(frozen=True)
 class VaspSection:
-    """Section [vasp], which holds [vasp.incar] and the input sets."""
+    """Section [vasp], which holds the input sets.
+
+    incar is [vasp.incar], the INCAR tags shared by the input sets, which only
+    a velph init template has.
+
+    """
 
     incar: Mapping[str, Any] | None = _keys()
     input_sets: Mapping[str, InputSetSection] | None = _sections()
