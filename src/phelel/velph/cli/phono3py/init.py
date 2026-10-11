@@ -5,123 +5,57 @@ from __future__ import annotations
 import pathlib
 
 import click
-import numpy as np
 from phono3py import Phono3py
-from phonopy.structure.atoms import parse_cell_dict
 
-from phelel.velph.cli.utils import (
-    DisplacementOptions,
-    get_displacement_options,
-    get_nac_params,
+from phelel.velph.cli.supercells import (
+    get_cells,
+    get_code_section,
+    get_supercell_matrix,
+    set_nac_params,
 )
+from phelel.velph.config.schema import VelphConfig
 
 
 def run_init(
-    toml_dict: dict,
+    config: VelphConfig,
     current_directory: pathlib.Path = pathlib.Path(""),
     number_of_snapshots: int | None = None,
+    toml_filename: str | pathlib.Path = "velph.toml",
 ) -> Phono3py:
-    """Generate displacements and write phono3py_disp.yaml.
+    """Return Phono3py with the supercells with displacements of [phono3py].
 
-    current_directory : Path
-        Used for test.
+    number_of_snapshots, given by --rd of velph phono3py init, has priority over
+    that of [phono3py].  With it, the displacements are random, and diagonal and
+    plusminus are not used.  current_directory is where the directory "nac" is
+    looked for.  toml_filename is used in error messages.
 
     """
-    if "phono3py" not in toml_dict:
-        raise RuntimeError("[phono3py] section not found in toml file.")
-
-    if "unitcell" not in toml_dict:
-        raise RuntimeError("[unitcell] section not found in toml file.")
-
-    convcell = parse_cell_dict(toml_dict["unitcell"])
-    assert convcell is not None
-    if convcell.has_mixtures or convcell.has_weighted_species:
+    section = get_code_section(config, "phono3py", toml_filename)
+    # The defaults of velph init give these fields.
+    assert section.plusminus is not None and section.diagonal is not None
+    unitcell, _, primitive_matrix = get_cells(config)
+    if unitcell.has_mixtures or unitcell.has_weighted_species:
         raise click.ClickException(
             "phono3py does not support site-mixture cells (mixture or weight in "
-            "[unitcell] of velph.toml)."
+            f'[unitcell] of "{toml_filename}").'
         )
-
-    supercell_matrix = None
-    for key in ("supercell_dimension", "supercell_matrix"):
-        if key in toml_dict["phono3py"]:
-            supercell_matrix = toml_dict["phono3py"][key]
-    if "primitive_cell" in toml_dict:
-        primitive = parse_cell_dict(toml_dict["primitive_cell"])
-        assert primitive is not None
-        primitive_matrix = np.dot(np.linalg.inv(convcell.cell.T), primitive.cell.T)
-    else:
-        primitive = convcell
-        primitive_matrix = None
-
-    is_symmetry = True
-    try:
-        if toml_dict["phono3py"]["nosym"] is True:
-            is_symmetry = False
-    except KeyError:
-        pass
-
+    is_symmetry = not section.nosym
     ph3py = Phono3py(
-        convcell,
-        supercell_matrix=supercell_matrix,
+        unitcell,
+        supercell_matrix=get_supercell_matrix(section),
         primitive_matrix=primitive_matrix,
         is_symmetry=is_symmetry,
         calculator="vasp",
     )
-
-    displacement_options = get_displacement_options(
-        toml_dict["phono3py"], "phono3py", number_of_snapshots=number_of_snapshots
+    if number_of_snapshots is None:
+        number_of_snapshots = section.number_of_snapshots
+    ph3py.generate_displacements(
+        distance=section.amplitude,
+        is_plusminus=False if number_of_snapshots else section.plusminus,
+        is_diagonal=False if number_of_snapshots else section.diagonal,
+        number_of_snapshots=number_of_snapshots,
     )
-
-    _generate_phono3py_supercells(ph3py, displacement_options)
-
-    nac_directory = current_directory / "nac"
-    if nac_directory.exists():
-        click.echo('Found "nac" directory. Read NAC params.')
-        vasprun_path = nac_directory / "vasprun.xml"
-        if vasprun_path.exists():
-            nac_params = get_nac_params(
-                toml_dict,
-                vasprun_path,
-                primitive,
-                convcell,
-                is_symmetry,
-            )
-            if nac_params is not None:
-                ph3py.nac_params = nac_params
-        else:
-            click.echo('Not found "nac/vasprun.xml". NAC params were not included.')
-
+    click.echo(f"Displacement distance: {section.amplitude}")
+    click.echo(f"Number of displacements: {len(ph3py.supercells_with_displacements)}")
+    set_nac_params(ph3py, config, is_symmetry, current_directory)
     return ph3py
-
-
-def _generate_phono3py_supercells(
-    phono3py: Phono3py,
-    displacement_options: DisplacementOptions,
-    number_of_snapshots_fc2: int | None = None,
-):
-    """Generate phono3py supercells with displacements."""
-    distance = displacement_options.amplitude
-    phono3py.generate_displacements(
-        distance=distance,
-        is_plusminus=displacement_options.plusminus,
-        is_diagonal=displacement_options.diagonal,
-        number_of_snapshots=displacement_options.number_of_snapshots,
-    )
-    click.echo(f"Displacement distance: {distance}")
-    click.echo(
-        f"Number of displacements: {len(phono3py.supercells_with_displacements)}"
-    )
-
-    if phono3py.phonon_supercell_matrix is not None:
-        # For estimating number of displacements for harmonic phonon
-        if number_of_snapshots_fc2 is None:
-            phono3py.generate_fc2_displacements(
-                distance=distance, is_plusminus="auto", is_diagonal=False
-            )
-        else:
-            phono3py.generate_fc2_displacements(
-                distance=distance,
-                number_of_snapshots=number_of_snapshots_fc2,
-            )
-        n_snapshots = len(phono3py.phonon_supercells_with_displacements)
-        click.echo(f"Number of displacements for phonon: {n_snapshots}")

@@ -5,11 +5,11 @@ from __future__ import annotations
 import pathlib
 
 import click
-import tomli
 
 import phelel
 from phelel.interface.vasp.derivatives import read_forces_from_vasprunxmls
 from phelel.velph.cli.utils import get_num_digits
+from phelel.velph.jobs.vasp_job import read_velph_toml
 
 
 def create_phonopy_yaml(
@@ -21,19 +21,13 @@ def create_phonopy_yaml(
     """Calculate derivatives and write phelel_params.hdf5."""
     phonopy_yaml_filename = pathlib.Path(f"{dir_name}/phonopy_params.yaml")
 
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
+    config = read_velph_toml(toml_filename)
     is_symmetry = True
-    try:
-        if toml_dict["phelel"]["nosym"] is True:
-            click.echo(
-                'Found "nosym = true" in [phelel] section. '
-                "Symmetrization is turned off."
-            )
-            is_symmetry = False
-    except KeyError:
-        pass
+    if config.phelel is not None and config.phelel.nosym:
+        click.echo(
+            'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
+        )
+        is_symmetry = False
 
     phe = phelel.load(
         str(yaml_filename),

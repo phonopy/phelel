@@ -12,6 +12,7 @@ import tomli
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.config.schema import VelphConfig
 
 cwd = Path(__file__).parent
 
@@ -19,7 +20,9 @@ cwd = Path(__file__).parent
 @pytest.mark.parametrize(
     "plusminus,diagonal", itertools.product([True, False], repeat=2)
 )
-def test_supercell_init_plusminus_diagonal(plusminus: bool, diagonal: bool):
+def test_supercell_init_plusminus_diagonal(
+    plusminus: bool, diagonal: bool, code_init_config: Callable[[dict], VelphConfig]
+):
     """Test of plusminus and diagonal with Ti."""
     if plusminus:
         pm_str = "true"
@@ -73,7 +76,7 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]
 
     print(toml_str)
     toml_dict = tomli.loads(toml_str)
-    phe = run_init(toml_dict)
+    phe = run_init(code_init_config(toml_dict))
     np.testing.assert_array_equal(phe.supercell_matrix, np.diag([4, 4, 2]))
     print(phe.dataset["first_atoms"])
     if plusminus and diagonal:
@@ -119,17 +122,24 @@ coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
 
 
 def _get_phelel_displacements(
-    displacement_lines: list[str], tmp_path: pathlib.Path
+    displacement_lines: list[str],
+    tmp_path: pathlib.Path,
+    code_init_config: Callable[[dict], VelphConfig],
 ) -> np.ndarray:
     toml_str = "\n".join(
         ["[phelel]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
-    phe = run_init(tomli.loads(toml_str + _TI_UNITCELL), current_directory=tmp_path)
+    phe = run_init(
+        code_init_config(tomli.loads(toml_str + _TI_UNITCELL)),
+        current_directory=tmp_path,
+    )
     assert phe.dataset is not None
     return np.array([a["displacement"] for a in phe.dataset["first_atoms"]])
 
 
-def test_phelel_init_default_displacement_settings(tmp_path: pathlib.Path):
+def test_phelel_init_default_displacement_settings(
+    tmp_path: pathlib.Path, code_init_config: Callable[[dict], VelphConfig]
+):
     """Test defaults of plusminus, diagonal, and amplitude in [phelel].
 
     When they are not given, the values written by velph init (plusminus=true,
@@ -137,12 +147,16 @@ def test_phelel_init_default_displacement_settings(tmp_path: pathlib.Path):
     differ from those with the defaults of phonopy ("auto", true, and 0.01).
 
     """
-    disps = _get_phelel_displacements([], tmp_path)
+    disps = _get_phelel_displacements([], tmp_path, code_init_config)
     disps_velph = _get_phelel_displacements(
-        ["plusminus = true", "diagonal = false", "amplitude = 0.03"], tmp_path
+        ["plusminus = true", "diagonal = false", "amplitude = 0.03"],
+        tmp_path,
+        code_init_config,
     )
     disps_phonopy = _get_phelel_displacements(
-        ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"], tmp_path
+        ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"],
+        tmp_path,
+        code_init_config,
     )
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
@@ -152,12 +166,14 @@ def test_phelel_init_default_displacement_settings(tmp_path: pathlib.Path):
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_phelel_init_site_mixture(
     site_mixture_velph_toml: Callable[[bool], dict],
+    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     split_site_mixture: bool,
 ):
     """Test that phelel_disp.yaml of a site-mixture cell is read back."""
     phe = run_init(
-        site_mixture_velph_toml(split_site_mixture), current_directory=tmp_path
+        code_init_config(site_mixture_velph_toml(split_site_mixture)),
+        current_directory=tmp_path,
     )
     filename = tmp_path / "phelel_disp.yaml"
     finalize_phelel(
@@ -181,12 +197,15 @@ def test_phelel_init_site_mixture(
 
 def test_phelel_init_site_mixture_merge_without_nac(
     site_mixture_velph_toml: Callable[[bool], dict],
+    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
 ):
     """NAC is not read with the merge scheme of site mixture."""
     (tmp_path / "nac").mkdir()
     (tmp_path / "nac" / "vasprun.xml").write_text("")
-    phe = run_init(site_mixture_velph_toml(False), current_directory=tmp_path)
+    phe = run_init(
+        code_init_config(site_mixture_velph_toml(False)), current_directory=tmp_path
+    )
     assert phe.nac_params is None
     assert "NAC is not supported with the merge scheme" in capsys.readouterr().out

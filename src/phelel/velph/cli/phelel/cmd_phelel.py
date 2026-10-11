@@ -17,6 +17,7 @@ from phelel.velph.cli.phelel.generate import write_supercell_input_files
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.vasp_job import read_velph_toml
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 
@@ -42,10 +43,8 @@ def cmd_init(toml_filename: str):
     """Generate displacements and write phelel_disp.yaml."""
     dir_name = "phelel"
 
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    phe = run_init(toml_dict)
+    config = read_velph_toml(toml_filename)
+    phe = run_init(config, toml_filename=toml_filename)
 
     phelel_yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
     phelel_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -79,9 +78,7 @@ def cmd_generate(toml_filename: str):
         click.echo('"POTCAR" not found in current directory.')
 
     yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
-    write_supercell_input_files(
-        pathlib.Path(toml_filename), yaml_filename, dir_name=dir_name
-    )
+    write_supercell_input_files(pathlib.Path(toml_filename), yaml_filename)
 
 
 #

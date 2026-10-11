@@ -129,35 +129,6 @@ def get_default_amplitude(calc_type: SupercellCalcType) -> float:
     return get_phono3py_displacement_distance("vasp")
 
 
-def get_displacement_options(
-    calc_dict: dict,
-    calc_type: SupercellCalcType,
-    number_of_snapshots: int | None = None,
-) -> DisplacementOptions:
-    """Return displacement options in a velph.toml section.
-
-    calc_dict is [phelel], [phonopy], or [phono3py] of velph.toml given by
-    calc_type. A missing key gives the default that velph init writes:
-    get_default_amplitude for amplitude and the defaults of
-    DisplacementOptions for diagonal and plusminus. With number_of_snapshots
-    (random displacements), diagonal and plusminus are False.
-
-    """
-    amplitude = calc_dict.get("amplitude", get_default_amplitude(calc_type))
-    if number_of_snapshots:
-        return DisplacementOptions(
-            amplitude=amplitude,
-            diagonal=False,
-            plusminus=False,
-            number_of_snapshots=number_of_snapshots,
-        )
-    return DisplacementOptions(
-        amplitude=amplitude,
-        diagonal=calc_dict.get("diagonal", DisplacementOptions.diagonal),
-        plusminus=calc_dict.get("plusminus", DisplacementOptions.plusminus),
-    )
-
-
 @dataclasses.dataclass(frozen=True)
 class VelphInitParams:
     """Basic init parameters of velph.
@@ -520,24 +491,17 @@ def check_fft(toml_filename: str, calculation_name: str) -> None:
 
 
 def get_nac_params(
-    toml_dict: dict,
+    nac_cell: PhonopyAtoms,
     vasprun_path: pathlib.Path,
-    primitive: PhonopyAtoms | None,
-    convcell: PhonopyAtoms,
+    primitive: PhonopyAtoms,
     is_symmetry: bool,
     symprec: float = 1e-5,
 ) -> dict | None:
-    """Collect NAC parameters from vasprun.xml and return them."""
-    nac_cell = convcell
-    if "cell" in toml_dict["vasp"].get("nac", {}):
-        cell_choice = parse_cell_choice(
-            toml_dict["vasp"]["nac"]["cell"], "cell in [vasp.nac]"
-        )
-        if cell_choice is None:
-            return None
-        if cell_choice is CellChoice.PRIMITIVE:
-            nac_cell = primitive
+    """Collect NAC parameters from vasprun.xml and return them.
 
+    nac_cell is the cell of the NAC calculation, given by "cell" of [vasp.nac].
+
+    """
     with open(vasprun_path, "rb") as f:
         try:
             vasprun = VasprunxmlExpat(f)
@@ -546,7 +510,6 @@ def get_nac_params(
             click.echo(f'Parsing "{vasprun_path}" failed.')
             return None
 
-    assert nac_cell is not None
     borns_, epsilon_ = symmetrize_borns_and_epsilon(
         vasprun.born,
         vasprun.epsilon,

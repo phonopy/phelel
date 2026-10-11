@@ -4,6 +4,7 @@ import contextlib
 import io
 import pathlib
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pytest
@@ -12,6 +13,14 @@ from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.init.init import _run_init
 from phelel.velph.cli.utils import VelphInitOptions
+from phelel.velph.config.io import parse_template
+from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.schema import (
+    CODES,
+    InputSetSection,
+    VaspSection,
+    VelphConfig,
+)
 
 cwd = pathlib.Path(__file__).parent
 
@@ -255,3 +264,38 @@ def nacl_velph_toml_v014(nacl_cell: PhonopyAtoms) -> Callable[[], dict]:
         return tomli.loads(toml_str)
 
     return _get_velph_toml
+
+
+@pytest.fixture(scope="session")
+def code_init_config() -> Callable[[dict], VelphConfig]:
+    """Return a function giving VelphConfig that the init of a code reads.
+
+    The argument is a dict of velph.toml that gives [phelel], [phonopy] or
+    [phono3py], [unitcell], and optionally [primitive_cell] and "cell" of
+    [vasp.nac].  Without [primitive_cell], the unit cell is used.  Other keys,
+    such as fft_mesh and [vasp.supercell] of velph 0.14, are ignored.  A dict
+    with [phelel] version, which velph init of velph 0.14 writes, is read by
+    the legacy loader.
+
+    """
+
+    def _get_config(data: dict) -> VelphConfig:
+        if "version" in data.get("phelel", {}):
+            return parse_legacy_velph_toml(data)
+        sections: dict[str, Any] = {
+            code: {key: value for key, value in data[code].items() if key != "fft_mesh"}
+            for code in CODES
+            if code in data
+        }
+        template = parse_template(sections)
+        cell = data.get("vasp", {}).get("nac", {}).get("cell")
+        return VelphConfig(
+            phelel=template.phelel,
+            phonopy=template.phonopy,
+            phono3py=template.phono3py,
+            vasp=VaspSection(input_sets={"nac": InputSetSection(cell=cell)}),
+            unitcell=data["unitcell"],
+            primitive_cell=data.get("primitive_cell", data["unitcell"]),
+        )
+
+    return _get_config

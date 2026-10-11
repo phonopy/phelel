@@ -21,7 +21,6 @@ from phelel.velph.cli.utils import (
     VelphInitOptions,
     choose_cell_in_dict,
     echo_vasp_vca_hint,
-    get_nac_params,
     get_scheduler_dict,
     kspacing_to_mesh,
     write_incar,
@@ -182,25 +181,6 @@ def test_choose_cell_in_dict_invalid(
     velph_dict["vasp"]["relax"]["cell"] = value
     assert choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax") is None
     assert f'"{value}"' in capsys.readouterr().err
-
-
-def test_get_nac_params_invalid_cell(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture
-):
-    """Test that an invalid cell of [vasp.nac] is an error.
-
-    The cell is checked before vasprun.xml is read.
-
-    """
-    velph_dict = _get_nacl_velph_dict()
-    velph_dict["vasp"]["nac"]["cell"] = "primitiv"
-    cell = choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax")
-    assert cell is not None
-    nac_params = get_nac_params(
-        velph_dict, tmp_path / "vasprun.xml", None, cell, is_symmetry=True
-    )
-    assert nac_params is None
-    assert '"primitiv"' in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(

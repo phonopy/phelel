@@ -1,16 +1,18 @@
 """Tests CLIs."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 import tomli
 
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.config.schema import VelphConfig
 
 cwd = Path(__file__).parent
 
 
-def test_nac_NaCl_pcell(request):
+def test_nac_NaCl_pcell(request, code_init_config: Callable[[dict], VelphConfig]):
     """Test of different NAC cell."""
     toml_str = """title = "VASP el-ph settings"
 
@@ -102,7 +104,7 @@ coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
 """
 
     toml_dict = tomli.loads(toml_str)
-    phe = run_init(toml_dict, current_directory=request.path.parent)
+    phe = run_init(code_init_config(toml_dict), current_directory=request.path.parent)
     ref_born = 1.54116678
     ref_dielectric = 3.24483954
     np.testing.assert_array_almost_equal(
