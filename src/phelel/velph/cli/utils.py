@@ -473,23 +473,6 @@ def kspacing_to_mesh(
     return symmetry_dataset
 
 
-def check_fft(toml_filename: str, calculation_name: str) -> None:
-    """Show [NGX, NGY, NGZ] in vasprun.xml."""
-    vasprun_path = pathlib.Path(calculation_name) / "vasprun.xml"
-    if vasprun_path.is_file():
-        with open(vasprun_path, "rb") as f:
-            vasprun = VasprunxmlExpat(f)
-            vasprun.parse()
-            click.echo(
-                f'Modify [phelel] section in "{toml_filename}" '
-                f'as "fft_mesh = {vasprun.fft_grid}"'
-            )
-    else:
-        click.echo(f'"{vasprun_path}" not found.')
-        click.echo("For estimating FFT mesh numbers, prepare dry-run by")
-        click.echo(f"velph elph generate -d -c {calculation_name}")
-
-
 def get_nac_params(
     nac_cell: PhonopyAtoms,
     vasprun_path: pathlib.Path,
