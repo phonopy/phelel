@@ -1,19 +1,21 @@
 """Tests CLIs."""
 
 import pathlib
+import shutil
 from collections.abc import Callable
 
+import click
 import h5py
 import numpy as np
 import pytest
+import tomli_w
+from click.testing import CliRunner
 
 import phelel
-from phelel.velph.cli.phelel.differentiate import (
-    get_selfenergy_prec,
-    run_derivatives,
-)
+from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
 from phelel.velph.cli.phelel.init import run_init
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.config.schema import InputSetSection, VaspSection, VelphConfig
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 cwd = pathlib.Path(__file__).parent
@@ -115,35 +117,133 @@ def test_run_derivatives_site_mixture_merge(
     assert "not supported with the merge scheme" in capsys.readouterr().err
 
 
-def test_get_selfenergy_prec_missing(capsys: pytest.CaptureFixture[str]):
-    """Missing prec gives the FFT mesh of PREC = Normal, the VASP default.
+def _elph_config(incars: dict[str, dict]) -> VelphConfig:
+    """Return VelphConfig with the electron-phonon input sets of incars."""
+    return VelphConfig(
+        vasp=VaspSection(
+            input_sets={
+                name: InputSetSection(incar=incar) for name, incar in incars.items()
+            }
+        )
+    )
 
-    The meshes of "normal" and "accurate" differ for this lattice, so the test
-    fails if "accurate" is assumed.
+
+_LATTICE = np.eye(3) * 5.0
+
+
+def test_get_fft_mesh_from_input_sets():
+    """The mesh is that of ENCUT and PREC of the input sets.
+
+    A missing PREC is Normal, the default of VASP.  The meshes of Normal and
+    Accurate differ for this lattice, so the test fails if Accurate is assumed.
 
     """
-    toml_dict = {"vasp": {"selfenergy": {"incar": {"encut": 500}}}}
-    prec = get_selfenergy_prec(toml_dict, "velph.toml")
-    assert prec is None
-    assert '"prec" not found in [vasp.selfenergy.incar]' in capsys.readouterr().out
-
-    lattice = np.eye(3) * 5.0
-    mesh = CutoffToFFTMesh.get_FFTMesh(500, lattice, prec)
+    mesh = get_fft_mesh(_elph_config({"selfenergy": {"encut": 500}}), _LATTICE)
     np.testing.assert_array_equal(
-        mesh, CutoffToFFTMesh.get_FFTMesh(500, lattice, "normal")
+        mesh, CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "normal")
     )
     assert not np.array_equal(
-        mesh, CutoffToFFTMesh.get_FFTMesh(500, lattice, "accurate")
+        mesh, CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "accurate")
+    )
+    config = _elph_config(
+        {
+            "selfenergy": {"encut": 500, "prec": "accurate"},
+            "transport": {"encut": 500, "prec": "high"},
+        }
+    )
+    np.testing.assert_array_equal(
+        get_fft_mesh(config, _LATTICE),
+        CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "accurate"),
     )
 
 
-def test_get_selfenergy_prec_given():
-    """Prec of [vasp.selfenergy.incar] is used, with the tag name in any case."""
-    toml_dict = {"vasp": {"selfenergy": {"incar": {"PREC": "Accurate"}}}}
-    assert get_selfenergy_prec(toml_dict, "velph.toml") == "Accurate"
+def test_get_fft_mesh_different_meshes():
+    """Different meshes of the input sets are an error.
+
+    Different ENCUTs that give the same mesh are not an error: 400 and 500 eV
+    with Accurate give 36 points for this lattice, and 300 eV gives 28.  --encut
+    replaces ENCUT of the input sets, but not PREC.
+
+    """
+    config = _elph_config(
+        {
+            "selfenergy": {"encut": 500, "prec": "accurate"},
+            "transport": {"encut": 400, "prec": "accurate"},
+        }
+    )
+    np.testing.assert_array_equal(get_fft_mesh(config, _LATTICE), [36, 36, 36])
+    config = _elph_config(
+        {
+            "selfenergy": {"encut": 500, "prec": "accurate"},
+            "transport": {"encut": 300, "prec": "accurate"},
+        }
+    )
+    with pytest.raises(click.ClickException) as e:
+        get_fft_mesh(config, _LATTICE)
+    assert e.value.message.startswith(
+        'The FFT meshes of the electron-phonon input sets of "velph.toml" differ:\n'
+        "  [vasp.selfenergy]: encut = 500, prec = accurate, mesh = "
+    )
+    assert e.value.message.endswith("or give ENCUT by --encut.")
+    np.testing.assert_array_equal(
+        get_fft_mesh(config, _LATTICE, encut=600),
+        CutoffToFFTMesh.get_FFTMesh(600, _LATTICE, "accurate"),
+    )
+    config = _elph_config(
+        {"selfenergy": {"encut": 500}, "transport": {"encut": 500, "prec": "accurate"}}
+    )
+    with pytest.raises(click.ClickException) as e:
+        get_fft_mesh(config, _LATTICE, encut=500)
+    assert e.value.message.endswith(
+        'Make "prec" of these input sets give the same mesh.'
+    )
 
 
-def test_get_selfenergy_prec_no_section(capsys: pytest.CaptureFixture[str]):
-    """Without [vasp.selfenergy.incar], None (PREC = Normal) is returned."""
-    assert get_selfenergy_prec({"vasp": {}}, "velph.toml") is None
-    assert "[vasp.selfenergy.incar] not found" in capsys.readouterr().out
+def test_get_fft_mesh_without_encut():
+    """ENCUT has to be given by the input sets or by --encut."""
+    with pytest.raises(click.ClickException) as e:
+        get_fft_mesh(_elph_config({"selfenergy": {"prec": "accurate"}}), _LATTICE)
+    assert e.value.message == (
+        '[vasp.selfenergy.incar] of "velph.toml" does not give "encut".\n'
+        'Give "encut" there, or give ENCUT by --encut.'
+    )
+    with pytest.raises(click.ClickException) as e:
+        get_fft_mesh(VelphConfig(), _LATTICE)
+    assert e.value.message == (
+        '"velph.toml" has no electron-phonon input set, [vasp.selfenergy], '
+        "[vasp.transport] or [vasp.ph_selfenergy], from which ENCUT is taken.\n"
+        "Give ENCUT by --encut."
+    )
+    np.testing.assert_array_equal(
+        get_fft_mesh(VelphConfig(), _LATTICE, encut=500),
+        CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, None),
+    )
+
+
+def test_differentiate_writes_fft_mesh(
+    nacl_velph_toml_v014: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Velph phelel differentiate writes the mesh of [vasp.selfenergy] in hdf5.
+
+    The INCARs of the electron-phonon input sets written by velph init of velph
+    0.14 give the same ENCUT and PREC.
+
+    """
+    data = nacl_velph_toml_v014()
+    selfenergy_incar = data["vasp"]["selfenergy"]["incar"]
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
+    shutil.copytree(cwd / "C111" / "phelel", tmp_path / "phelel")
+    shutil.copy(
+        cwd / "C111" / "phelel_disp_C111.yaml", tmp_path / "phelel" / "phelel_disp.yaml"
+    )
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cmd_root, ["phelel", "differentiate"])
+    assert result.exit_code == 0, result.output
+    phe = phelel.load(tmp_path / "phelel" / "phelel_disp.yaml")
+    expected = CutoffToFFTMesh.get_FFTMesh(
+        selfenergy_incar["encut"], phe.primitive.cell, selfenergy_incar.get("prec")
+    )
+    with h5py.File(tmp_path / "phelel" / "phelel_params.hdf5") as f:
+        np.testing.assert_array_equal(f["FFT_mesh"][:], expected)

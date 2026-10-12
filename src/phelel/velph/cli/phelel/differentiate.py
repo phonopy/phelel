@@ -6,10 +6,14 @@ import os
 import pathlib
 
 import click
+import numpy as np
+from numpy.typing import NDArray
 
 from phelel import Phelel
 from phelel.interface.vasp.derivatives import create_derivatives
 from phelel.velph.cli.utils import get_num_digits
+from phelel.velph.config.schema import VelphConfig
+from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 
 def run_derivatives(
@@ -116,22 +120,80 @@ def _check_file_exists(filepath: pathlib.Path, filename: str) -> bool:
     return bool(list(pathlib.Path(filepath).glob(f"{filename}*")))
 
 
-def get_selfenergy_prec(toml_dict: dict, toml_filename: str) -> str | None:
-    """Return prec of [vasp.selfenergy.incar] for the FFT mesh of --encut.
+# Input sets whose VASP calculations read phelel_params.hdf5.  Their FFT grid
+# has to be the FFT mesh of the local potentials in phelel_params.hdf5.
+ELPH_INPUT_SETS = ("selfenergy", "transport", "ph_selfenergy")
 
-    None is returned when prec is not found. CutoffToFFTMesh takes None as
-    "normal", which is the default of PREC in VASP.
+
+def get_fft_mesh(
+    config: VelphConfig,
+    lattice: NDArray,
+    encut: float | None = None,
+    toml_filename: str | os.PathLike = "velph.toml",
+) -> NDArray:
+    """Return the FFT mesh of the local potentials for phelel_params.hdf5.
+
+    The mesh is that of VASP for ENCUT and PREC on the primitive cell, whose
+    basis vectors are the rows of lattice.  ENCUT is encut, or that of the INCAR
+    of each electron-phonon input set of velph.toml.  PREC is that of the INCAR
+    of each electron-phonon input set; a missing PREC is Normal, the default of
+    VASP.  The meshes of all these input sets have to be the same, because VASP
+    stops when its FFT grid differs from the mesh in phelel_params.hdf5.  With
+    encut and no electron-phonon input set, PREC is Normal.
+
+    click.ClickException is raised when ENCUT is not found or when the meshes
+    differ.
 
     """
-    try:
-        incar = toml_dict["vasp"]["selfenergy"]["incar"]
-    except KeyError:
-        click.echo(f'[vasp.selfenergy.incar] not found in "{toml_filename}".')
-        click.echo('prec = "normal" (VASP default) is assumed.')
-        return None
-    incar_lower = {key.lower(): value for key, value in incar.items()}
-    if "prec" not in incar_lower:
-        click.echo(f'"prec" not found in [vasp.selfenergy.incar] of "{toml_filename}".')
-        click.echo('prec = "normal" (VASP default) is assumed.')
-        return None
-    return incar_lower["prec"]
+    input_sets = (config.vasp.input_sets or {}) if config.vasp is not None else {}
+    incars = {
+        set_name: input_sets[set_name].incar or {}
+        for set_name in ELPH_INPUT_SETS
+        if set_name in input_sets
+    }
+    if not incars:
+        if encut is None:
+            raise click.ClickException(
+                f'"{toml_filename}" has no electron-phonon input set, '
+                "[vasp.selfenergy], [vasp.transport] or [vasp.ph_selfenergy], from "
+                "which ENCUT is taken.\nGive ENCUT by --encut."
+            )
+        return CutoffToFFTMesh.get_FFTMesh(encut, lattice, None)
+    meshes = {}
+    for set_name, incar in incars.items():
+        set_encut = encut if encut is not None else incar.get("encut")
+        if set_encut is None:
+            raise click.ClickException(
+                f'[vasp.{set_name}.incar] of "{toml_filename}" does not give '
+                '"encut".\nGive "encut" there, or give ENCUT by --encut.'
+            )
+        meshes[set_name] = (
+            tuple(
+                int(n)
+                for n in CutoffToFFTMesh.get_FFTMesh(
+                    set_encut, lattice, incar.get("prec")
+                )
+            ),
+            set_encut,
+            incar.get("prec"),
+        )
+    distinct_meshes = {mesh for mesh, _, _ in meshes.values()}
+    if len(distinct_meshes) > 1:
+        lines = [
+            f"  [vasp.{set_name}]: encut = {set_encut}, "
+            f"prec = {prec if prec is not None else 'not given (Normal)'}, "
+            f"mesh = {list(mesh)}"
+            for set_name, (mesh, set_encut, prec) in meshes.items()
+        ]
+        if encut is None:
+            advice = (
+                'Make "encut" and "prec" of these input sets give the same mesh, '
+                "or give ENCUT by --encut."
+            )
+        else:
+            advice = 'Make "prec" of these input sets give the same mesh.'
+        raise click.ClickException(
+            "The FFT meshes of the electron-phonon input sets of "
+            f'"{toml_filename}" differ:\n' + "\n".join(lines) + "\n" + advice
+        )
+    return np.array(distinct_meshes.pop())

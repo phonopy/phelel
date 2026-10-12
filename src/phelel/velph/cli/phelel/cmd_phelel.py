@@ -5,20 +5,15 @@ from __future__ import annotations
 import pathlib
 
 import click
-import tomli
 
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
-from phelel.velph.cli.phelel.differentiate import (
-    get_selfenergy_prec,
-    run_derivatives,
-)
+from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
 from phelel.velph.cli.phelel.generate import write_supercell_input_files
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.vasp_job import read_velph_toml
-from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 
 @cmd_root.group("phelel")
@@ -96,8 +91,8 @@ def cmd_generate(toml_filename: str):
     type=float,
     default=None,
     help=(
-        "Cutoff energy corresponding to FFT mesh of local potential grid. "
-        "(encut: float, default=None)"
+        "ENCUT in eV for the FFT mesh of the local potentials, in place of encut "
+        "of the electron-phonon input sets of velph.toml."
     ),
 )
 @click.option(
@@ -113,47 +108,32 @@ def cmd_differentiate(
     encut: float | None,
     verbose: bool,
 ) -> None:
-    """Calculate derivatives and write phelel_params.hdf5."""
+    """Calculate derivatives and write phelel_params.hdf5.
+
+    The FFT mesh of the local potentials is that of VASP for ENCUT and PREC of
+    the electron-phonon input sets of velph.toml, or for --encut.
+
+    """
     dir_name = "phelel"
     hdf5_filename = pathlib.Path(f"{dir_name}/phelel_params.hdf5")
     yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
 
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    if "phelel" not in toml_dict or "fft_mesh" not in toml_dict["phelel"]:
-        click.echo('"fft_mesh" has to be specified in [phelel] section.', err=True)
-        return None
-
+    config = read_velph_toml(toml_filename)
     is_symmetry = True
-    try:
-        if toml_dict["phelel"]["nosym"] is True:
-            click.echo(
-                'Found "nosym = true" in [phelel] section. '
-                "Symmetrization is turned off."
-            )
-            is_symmetry = False
-    except KeyError:
-        pass
+    if config.phelel is not None and config.phelel.nosym:
+        click.echo(
+            'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
+        )
+        is_symmetry = False
 
-    phe = phelel.load(
-        yaml_filename,
-        fft_mesh=toml_dict["phelel"]["fft_mesh"],
-        is_symmetry=is_symmetry,
+    phe = phelel.load(yaml_filename, is_symmetry=is_symmetry)
+    phe.fft_mesh = get_fft_mesh(
+        config, phe.primitive.cell, encut=encut, toml_filename=toml_filename
     )
-
-    if encut is not None:
-        prec = get_selfenergy_prec(toml_dict, toml_filename)
-        click.echo(f"FFT mesh is generated for encut={encut}.")
-        phe.fft_mesh = CutoffToFFTMesh.get_FFTMesh(encut, phe.primitive.cell, prec)
-
-    if phe.fft_mesh is None:
-        click.echo("FFT mesh is not specified.", err=True)
+    if encut is None:
+        click.echo(f"FFT mesh: {phe.fft_mesh}.")
     else:
-        if encut is None:
-            click.echo(f"FFT mesh: {phe.fft_mesh}.")
-        else:
-            click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
+        click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
 
     if run_derivatives(phe, dir_name=dir_name, verbose=verbose):
         pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)

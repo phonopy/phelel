@@ -6,7 +6,6 @@ import click
 
 from phelel.velph.cli.ph_selfenergy.dump_phono3py import dump_phono3py
 from phelel.velph.cli.selfenergy.generate import write_input_files
-from phelel.velph.cli.utils import check_fft
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
@@ -39,19 +38,6 @@ def cmd_generate(toml_filename: str, dry_run: bool):
         click.echo('"POTCAR" not found in current directory.')
 
     write_input_files(pathlib.Path(toml_filename), "ph_selfenergy", dry_run)
-
-
-@cmd_ph_selfenergy.command("check-fft")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
-@click.help_option("-h", "--help")
-def cmd_check_fft(toml_filename: str):
-    """Show [NGX, NGY, NGZ] in vasprun.xml."""
-    check_fft(toml_filename, "ph_selfenergy")
 
 
 @cmd_ph_selfenergy.command("dump_phono3py")
