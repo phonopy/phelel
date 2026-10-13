@@ -2,7 +2,7 @@
 
 import pathlib
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import click
 import h5py
@@ -10,19 +10,22 @@ import numpy as np
 import pytest
 import tomli_w
 from click.testing import CliRunner
+from phonopy import Phonopy
 
 import phelel
+import phelel.velph.cli.phelel.differentiate as differentiate
+from phelel import Phelel
 from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.schema import InputSetSection, VaspSection, VelphConfig
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 cwd = pathlib.Path(__file__).parent
-cwd_called = pathlib.Path.cwd()
 
 
-def test_run_derivatives():
+def test_run_derivatives(tmp_path: pathlib.Path):
     """Test of run_derivatives.
 
     This test just checks the creation of hdf5 file and go through this command.
@@ -31,54 +34,46 @@ def test_run_derivatives():
     phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
     assert run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
 
-    phe.save_hdf5()
-    for created_filename in ["phelel_params.hdf5"]:
-        file_path = pathlib.Path(cwd_called / created_filename)
-        assert file_path.exists()
-
-        with h5py.File(created_filename) as f:
-            try:
-                assert set(f) == set(
-                    (
-                        "atom_indices_in_derivatives",  # This key is deprecated.
-                        "Dij",
-                        "FFT_mesh",
-                        "dDijdu",
-                        "dVdu",
-                        "direct_rotations",
-                        "displacements_atom_indices",
-                        "displacements_vectors",
-                        "dqijdu",
-                        "force_constants",
-                        "grid_point",
-                        "lattice_point",
-                        "p2s_map",
-                        "primitive_lattice",
-                        "primitive_masses",
-                        "primitive_matrix",
-                        "primitive_numbers",
-                        "primitive_positions",
-                        "qij",
-                        "s2p_map",
-                        "shortest_vector_multiplicities",
-                        "shortest_vectors",
-                        "spacegroup_number",
-                        "supercell_lattice",
-                        "supercell_masses",
-                        "supercell_matrix",
-                        "supercell_numbers",
-                        "supercell_positions",
-                        "transformation_matrix",
-                        "unitcell_lattice",
-                        "unitcell_masses",
-                        "unitcell_numbers",
-                        "unitcell_positions",
-                    )
-                )
-            except AssertionError as e:
-                file_path.unlink()
-                raise AssertionError(str(e)) from e
-        file_path.unlink()
+    hdf5_filename = tmp_path / "phelel_params.hdf5"
+    phe.save_hdf5(filename=hdf5_filename)
+    with h5py.File(hdf5_filename) as f:
+        assert set(f) == set(
+            (
+                "atom_indices_in_derivatives",  # This key is deprecated.
+                "Dij",
+                "FFT_mesh",
+                "dDijdu",
+                "dVdu",
+                "direct_rotations",
+                "displacements_atom_indices",
+                "displacements_vectors",
+                "dqijdu",
+                "force_constants",
+                "grid_point",
+                "lattice_point",
+                "p2s_map",
+                "primitive_lattice",
+                "primitive_masses",
+                "primitive_matrix",
+                "primitive_numbers",
+                "primitive_positions",
+                "qij",
+                "s2p_map",
+                "shortest_vector_multiplicities",
+                "shortest_vectors",
+                "spacegroup_number",
+                "supercell_lattice",
+                "supercell_masses",
+                "supercell_matrix",
+                "supercell_numbers",
+                "supercell_positions",
+                "transformation_matrix",
+                "unitcell_lattice",
+                "unitcell_masses",
+                "unitcell_numbers",
+                "unitcell_positions",
+            )
+        )
 
 
 def test_run_derivatives_with_wrong_supercell_matrix():
@@ -93,14 +88,154 @@ def test_run_derivatives_with_wrong_supercell_matrix():
         run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
 
 
-def test_run_derivatives_with_wrong_phonon_supercell_matrix():
-    """Test of run_derivatives.
+def test_run_derivatives_without_phonopy_disp_yaml(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+):
+    """With the phonon supercell, phonopy_disp.yaml of velph phonopy is needed."""
+    phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
+    assert not run_derivatives(
+        phe, dir_name=cwd / "C111" / "phelel", phonon_dir_name=tmp_path / "phonopy"
+    )
+    assert 'phonopy_disp.yaml" does not exist' in capsys.readouterr().err
 
-    Phonon supercell matrix is inconsistent. Therefore it will return False.
+
+def _init_phonon_from_phonopy(
+    phonopy_lines: Sequence[str],
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+) -> tuple[Phelel, list[pathlib.Path], list[pathlib.Path]]:
+    """Return Phelel with the phonon supercells of phonopy and the directories.
+
+    The directories, phelel/disp-* with an empty vaspout.h5 and phonopy/disp-*,
+    are made in tmp_path.
 
     """
-    phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
-    assert not run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
+    config = code_init_config(ti_velph_toml(phonopy_lines))
+    write_phonopy_disp_yaml(config, tmp_path)
+    phe = run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+    assert phe.supercells_with_displacements is not None
+    assert phe.phonon_supercells_with_displacements is not None
+    dir_names = []
+    for code, cells in (
+        ("phelel", phe.supercells_with_displacements),
+        ("phonopy", phe.phonon_supercells_with_displacements),
+    ):
+        nd = get_num_digits(cells)
+        dir_names.append(
+            [tmp_path / code / f"disp-{i:0{nd}d}" for i in range(len(cells) + 1)]
+        )
+        for dir_name in dir_names[-1]:
+            dir_name.mkdir(parents=True)
+            (dir_name / "vaspout.h5").touch()
+    return phe, dir_names[0], dir_names[1]
+
+
+def test_run_derivatives_phonon_from_phonopy(
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The forces of the phonon supercells are those of phonopy/disp-*."""
+    phe, phelel_dir_names, phonopy_dir_names = _init_phonon_from_phonopy(
+        ["amplitude = 0.01"],
+        ti_velph_toml,
+        code_init_config,
+        write_phonopy_disp_yaml,
+        tmp_path,
+    )
+    calls = []
+
+    def _create_derivatives(phe, dir_names, subtract_rfs=False, log_level=0):
+        calls.append(dir_names)
+
+    monkeypatch.setattr(differentiate, "create_derivatives", _create_derivatives)
+    assert run_derivatives(
+        phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
+    )
+    assert calls == [phelel_dir_names + phonopy_dir_names]
+
+
+@pytest.mark.parametrize(
+    "phonopy_lines", [["amplitude = 0.02"], ["number_of_snapshots = 2"]]
+)
+def test_run_derivatives_phonopy_disp_yaml_changed(
+    phonopy_lines: list[str],
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """phonopy_disp.yaml written again after velph phelel init is an error.
+
+    The supercells of phonopy/disp-* are then not the phonon supercells of
+    phelel, with the same number of them (amplitude) or not.
+
+    """
+    phe, _, _ = _init_phonon_from_phonopy(
+        ["amplitude = 0.01"],
+        ti_velph_toml,
+        code_init_config,
+        write_phonopy_disp_yaml,
+        tmp_path,
+    )
+    write_phonopy_disp_yaml(code_init_config(ti_velph_toml(phonopy_lines)), tmp_path)
+    assert not run_derivatives(
+        phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
+    )
+    assert "differ from those of" in capsys.readouterr().err
+
+
+def test_run_derivatives_without_phonopy_directory(
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """A missing directory of the phonon supercells is named."""
+    phe, _, phonopy_dir_names = _init_phonon_from_phonopy(
+        ["amplitude = 0.01"],
+        ti_velph_toml,
+        code_init_config,
+        write_phonopy_disp_yaml,
+        tmp_path,
+    )
+    shutil.rmtree(phonopy_dir_names[-1])
+    assert not run_derivatives(
+        phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
+    )
+    assert f'"{phonopy_dir_names[-1]}" does not exist' in capsys.readouterr().err
+
+
+def test_run_derivatives_without_force_files(
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """FileNotFoundError of a missing force file is click.ClickException."""
+    phe, _, _ = _init_phonon_from_phonopy(
+        ["amplitude = 0.01"],
+        ti_velph_toml,
+        code_init_config,
+        write_phonopy_disp_yaml,
+        tmp_path,
+    )
+
+    def _create_derivatives(phe, dir_names, subtract_rfs=False, log_level=0):
+        raise FileNotFoundError('Neither "vaspout.h5" nor "vasprun.xml" is found.')
+
+    monkeypatch.setattr(differentiate, "create_derivatives", _create_derivatives)
+    with pytest.raises(click.ClickException, match="Neither"):
+        run_derivatives(
+            phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
+        )
 
 
 def test_run_derivatives_site_mixture_merge(

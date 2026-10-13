@@ -33,13 +33,25 @@ def cmd_phelel():
     type=click.Path(),
     default="velph.toml",
 )
+@click.option(
+    "--phonon-from-phonopy",
+    "phonon_from_phonopy",
+    is_flag=True,
+    default=False,
+    help=(
+        "Take the phonon supercells from phonopy/phonopy_disp.yaml written by "
+        '"velph phonopy init".'
+    ),
+)
 @click.help_option("-h", "--help")
-def cmd_init(toml_filename: str):
+def cmd_init(toml_filename: str, phonon_from_phonopy: bool):
     """Generate displacements and write phelel_disp.yaml."""
     dir_name = "phelel"
 
     config = read_velph_toml(toml_filename)
-    phe = run_init(config, toml_filename=toml_filename)
+    phe = run_init(
+        config, phonon_from_phonopy=phonon_from_phonopy, toml_filename=toml_filename
+    )
 
     phelel_yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
     phelel_yaml_filename.parent.mkdir(parents=True, exist_ok=True)

@@ -36,16 +36,28 @@ def cmd_phono3py():
     type=int,
     help="Number of snapshots of supercells with random directional displacement.",
 )
+@click.option(
+    "--phonon-from-phonopy",
+    "phonon_from_phonopy",
+    is_flag=True,
+    default=False,
+    help=(
+        "Take the phonon supercells from phonopy/phonopy_disp.yaml written by "
+        '"velph phonopy init".'
+    ),
+)
 @click.help_option("-h", "--help")
 def cmd_init(
     toml_filename: str,
     random_displacements: int | None,
+    phonon_from_phonopy: bool,
 ):
     """Generate displacements and write phono3py_disp.yaml."""
     config = read_velph_toml(toml_filename)
     ph3 = run_init(
         config,
         number_of_snapshots=random_displacements,
+        phonon_from_phonopy=phonon_from_phonopy,
         toml_filename=toml_filename,
     )
 

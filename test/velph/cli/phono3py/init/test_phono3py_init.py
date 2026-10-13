@@ -1,12 +1,14 @@
 """Tests velph-phono3py-init."""
 
 import pathlib
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import click
 import numpy as np
+import phono3py
 import pytest
 import tomli
+from phonopy import Phonopy
 
 from phelel.velph.cli.phono3py.init import run_init
 from phelel.velph.config.schema import VelphConfig
@@ -145,3 +147,61 @@ def test_phono3py_init_number_of_snapshots_of_section(
     config = code_init_config(tomli.loads(toml_str + _TI_UNITCELL))
     assert run_init(config).displacements.shape == (7, 8, 3)
     assert run_init(config, number_of_snapshots=5).displacements.shape == (5, 8, 3)
+
+
+@pytest.mark.parametrize(
+    "phonopy_lines", [["amplitude = 0.01"], ["number_of_snapshots = 3"]]
+)
+def test_phono3py_init_phonon_from_phonopy(
+    phonopy_lines: list[str],
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+):
+    """The fc2 supercells are those of phonopy/phonopy_disp.yaml.
+
+    They are kept through phono3py_disp.yaml, also with random displacements of
+    fc3.  The amplitude of [phonopy] differs from that of [phono3py], with which
+    phono3py would generate other fc2 supercells.  With number_of_snapshots,
+    the displacements of fc2 are random.
+
+    """
+    config = code_init_config(ti_velph_toml(phonopy_lines))
+    ph = write_phonopy_disp_yaml(config, tmp_path)
+    ph3 = run_init(
+        config,
+        current_directory=tmp_path,
+        number_of_snapshots=4,
+        phonon_from_phonopy=True,
+    )
+    yaml_filename = tmp_path / "phono3py_disp.yaml"
+    ph3.save(yaml_filename)
+    ph3_loaded = phono3py.load(yaml_filename, produce_fc=False)
+    assert ph.supercells_with_displacements is not None
+    for ph3_cells in (
+        ph3.phonon_supercells_with_displacements,
+        ph3_loaded.phonon_supercells_with_displacements,
+    ):
+        assert ph3_cells is not None
+        assert len(ph3_cells) == len(ph.supercells_with_displacements)
+        for cell, ref_cell in zip(
+            ph3_cells, ph.supercells_with_displacements, strict=True
+        ):
+            np.testing.assert_allclose(cell.cell, ref_cell.cell)
+            np.testing.assert_allclose(cell.positions, ref_cell.positions)
+    np.testing.assert_array_equal(
+        ph3_loaded.phonon_supercell_matrix, ph.supercell_matrix
+    )
+    assert ph3_loaded.displacements.shape == (4, 2, 3)
+
+
+def test_phono3py_init_phonon_from_phonopy_without_phonopy_disp_yaml(
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    tmp_path: pathlib.Path,
+):
+    """Without phonopy/phonopy_disp.yaml, velph phonopy init is asked for."""
+    config = code_init_config(ti_velph_toml([]))
+    with pytest.raises(click.ClickException, match='"velph phonopy init" first'):
+        run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)

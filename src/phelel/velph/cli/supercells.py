@@ -4,7 +4,8 @@ These are used by velph phelel init and generate, velph phonopy init and
 generate, and velph phono3py init and generate.  The init commands make the
 supercells from velph.toml and write <code>/<code>_disp.yaml.  The generate
 commands read the yaml file and write the VASP input files of each supercell
-in <code>/disp-*.
+in <code>/disp-*.  velph phelel init and velph phono3py init can take the
+phonon supercells from phonopy/phonopy_disp.yaml written by velph phonopy init.
 
 """
 
@@ -17,7 +18,9 @@ import numpy as np
 from numpy.typing import NDArray
 from phono3py import Phono3py
 from phonopy import Phonopy
+from phonopy.interface.phonopy_yaml import PhonopyYaml
 from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import isclose
 
 from phelel import Phelel
 from phelel.velph.cli.utils import get_nac_params, get_num_digits
@@ -39,6 +42,8 @@ from phelel.velph.jobs.vasp_job import (
     get_input_set,
     get_kpoints,
 )
+
+PHONOPY_DISP_YAML = pathlib.Path("phonopy") / "phonopy_disp.yaml"
 
 
 def get_code_section(
@@ -123,6 +128,65 @@ def set_nac_params(
     nac_params = get_nac_params(nac_cell, vasprun_path, primitive, is_symmetry)
     if nac_params is not None:
         ph.nac_params = nac_params
+
+
+def load_phonopy_yaml(
+    filename: str | pathlib.Path, is_symmetry: bool = True
+) -> Phonopy:
+    """Return Phonopy with the cells, dataset and NAC params of a yaml file.
+
+    filename is phonopy_disp.yaml or a file of its format, such as
+    phelel_disp.yaml, whose phonon supercell is not read.  Unlike phonopy.load,
+    files in the current directory, such as FORCE_SETS and BORN, are not read.
+
+    """
+    ph_yaml = PhonopyYaml().read(filename)
+    assert ph_yaml.unitcell is not None
+    ph = Phonopy(
+        ph_yaml.unitcell,
+        supercell_matrix=ph_yaml.supercell_matrix,
+        primitive_matrix=ph_yaml.primitive_matrix,
+        is_symmetry=is_symmetry,
+        calculator=ph_yaml.calculator,
+        site_mixture_scheme=ph_yaml.site_mixture_scheme or "merge",
+    )
+    if ph_yaml.dataset is not None:
+        ph.dataset = ph_yaml.dataset
+    if ph_yaml.nac_params is not None:
+        ph.nac_params = ph_yaml.nac_params
+    return ph
+
+
+def read_phonopy_phonon(
+    config: VelphConfig,
+    current_directory: pathlib.Path,
+    toml_filename: str | pathlib.Path,
+) -> Phonopy:
+    """Return Phonopy of phonopy/phonopy_disp.yaml in current_directory.
+
+    Its supercell matrix and dataset are the phonon supercell matrix and the
+    phonon dataset of phelel and phono3py.  click.ClickException is raised when
+    the file is not found, or when its unit cell or primitive matrix differs
+    from that of velph.toml.
+
+    """
+    filename = current_directory / PHONOPY_DISP_YAML
+    if not filename.exists():
+        raise click.ClickException(
+            f'"{filename}" is not found.\nRun "velph phonopy init" first.'
+        )
+    ph = load_phonopy_yaml(filename)
+    unitcell, _, primitive_matrix = get_cells(config)
+    ph_unitcell = ph.unitcell if ph.unmerged_unitcell is None else ph.unmerged_unitcell
+    if not (
+        isclose(ph_unitcell, unitcell)
+        and np.allclose(ph.primitive_matrix, primitive_matrix)
+    ):
+        raise click.ClickException(
+            f'The unit cell or the primitive cell of "{filename}" differs from that '
+            f'of "{toml_filename}".\nRun "velph phonopy init" again.'
+        )
+    return ph
 
 
 def plan_supercells(
