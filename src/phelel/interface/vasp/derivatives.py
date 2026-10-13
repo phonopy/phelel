@@ -18,7 +18,6 @@ from phonopy.structure.symmetry import Symmetry
 from phelel import Phelel
 from phelel.api_phelel import PhelelDataset
 from phelel.interface.vasp.file_IO import (
-    read_forces_vaspouth5,
     read_inwap_vaspouth5,
     read_inwap_yaml,
     read_local_potential,
@@ -76,34 +75,13 @@ def read_files(
         supercell = phelel.supercell
     assert supercell is not None
 
-    vaspout5_exists = True
-    vaspout_filenames = []
-    for dir_name in _dir_names:
-        filename = pathlib.Path(dir_name) / "vaspout.h5"
-        if filename.is_file():
-            vaspout_filenames.append(filename)
-        else:
-            vaspout5_exists = False
-            break
-    if vaspout5_exists:
-        forces = _read_forces_from_vaspout_h5(
-            vaspout_filenames, subtract_rfs=subtract_rfs, log_level=log_level
-        )
-    else:
-        vasprun_filenames = _get_vasprun_filenames(_dir_names)
-        forces = read_forces_from_vasprunxmls(
-            vasprun_filenames,
-            supercell,
-            subtract_rfs=subtract_rfs,
-            log_level=log_level,
-        )
-
-    if forces[0].shape[0] != len(supercell):
-        raise ValueError(
-            "Number of ions in the phonon supercell is different from the number of "
-            "atoms in the vasprun.xml file."
-        )
-
+    force_filenames = get_vasp_force_filenames(_dir_names)
+    forces = read_vasp_forces(
+        force_filenames[1:],
+        supercell,
+        perfect_filename=force_filenames[0] if subtract_rfs else None,
+        log_level=log_level,
+    )
     phelel.forces = forces
 
     if phelel.nac_params is None:
@@ -175,60 +153,67 @@ def read_Rij(dir_name: str | os.PathLike, inwap_per: dict) -> NDArray:
     return read_PAW_Dij_qij(inwap_per, "%s/PAW-Rnij.bin" % dir_name, is_Rij=True)
 
 
-def read_forces_from_vasprunxmls(
-    vasprun_filenames: list | tuple,
+def read_vasp_forces(
+    filenames: Sequence[str | os.PathLike],
     supercell: PhonopyAtoms,
-    subtract_rfs: bool = False,
+    perfect_filename: str | os.PathLike | None = None,
     log_level: int = 0,
 ) -> list[NDArray]:
-    """Read forces from vasprun.xml's."""
+    """Read forces of the supercells with displacements from VASP output files.
+
+    filenames are those of the supercells with displacements.  With
+    perfect_filename, the residual forces of the perfect supercell read from it
+    are subtracted from the forces.  A file whose name ends with ".h5" is read
+    as vaspout.h5, which can not be compressed.  vasprun.xml can be compressed.
+
+    """
+    all_filenames = list(filenames)
+    if perfect_filename is not None:
+        all_filenames.insert(0, perfect_filename)
     if log_level:
-        for filename in vasprun_filenames:
+        for filename in all_filenames:
             print(f'Forces were read from "{filename}".')
 
-    calc_dataset = parse_set_of_forces(len(supercell), vasprun_filenames, verbose=False)
+    calc_dataset = parse_set_of_forces(len(supercell), all_filenames, verbose=False)
+    if not calc_dataset:
+        raise ValueError(
+            f"Forces of the {len(supercell)} atoms of the supercell could not be "
+            "read from the VASP output files."
+        )
     forces = calc_dataset["forces"]
-
-    return _subtract_residual_forces(forces, subtract_rfs, log_level)
-
-
-def _subtract_residual_forces(
-    forces: list[NDArray], subtract_rfs: bool, log_level: int
-) -> list[NDArray]:
-    if subtract_rfs:
-        _forces = [fset - forces[0] for fset in forces[1:]]
-        if log_level:
-            print(
-                "Residual forces of perfect supercell were subtracted from "
-                "supercell forces."
-            )
-    else:
-        _forces = forces[1:]
-
-    return _forces
+    if perfect_filename is None:
+        return forces
+    if log_level:
+        print(
+            "Residual forces of perfect supercell were subtracted from supercell "
+            "forces."
+        )
+    return [fset - forces[0] for fset in forces[1:]]
 
 
-def _get_vasprun_filenames(dir_names):
-    vasprun_filenames = []
+def get_vasp_force_filenames(
+    dir_names: Sequence[str | os.PathLike],
+) -> list[pathlib.Path]:
+    """Return the VASP output file to read forces from, of each directory.
+
+    vaspout.h5 is chosen when it is found, otherwise vasprun.xml, which can be
+    compressed (vasprun.xml.xz etc.).  FileNotFoundError is raised for a
+    directory with neither.
+
+    """
+    filenames = []
     for dir_name in dir_names:
-        filename = next(pathlib.Path(dir_name).glob("vasprun.xml*"))
-        vasprun_filenames.append(filename)
-    return vasprun_filenames
-
-
-def _read_forces_from_vaspout_h5(
-    vaspout_filenames: list | tuple,
-    subtract_rfs: bool = False,
-    log_level: int = 0,
-) -> list[NDArray]:
-    """Read forces from vaspout.h5's."""
-    forces = []
-    for filename in vaspout_filenames:
-        if log_level:
-            print(f'Forces were read from "{filename}".')
-        forces.append(read_forces_vaspouth5(filename))
-
-    return _subtract_residual_forces(forces, subtract_rfs, log_level)
+        vaspout_filename = pathlib.Path(dir_name) / "vaspout.h5"
+        if vaspout_filename.is_file():
+            filenames.append(vaspout_filename)
+            continue
+        vasprun_filenames = sorted(pathlib.Path(dir_name).glob("vasprun.xml*"))
+        if not vasprun_filenames:
+            raise FileNotFoundError(
+                f'Neither "vaspout.h5" nor "vasprun.xml" is found in "{dir_name}".'
+            )
+        filenames.append(vasprun_filenames[0])
+    return filenames
 
 
 def _read_born(

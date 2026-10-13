@@ -11,29 +11,45 @@ import pytest
 from numpy.typing import NDArray
 from phonopy import Phonopy
 
+import phelel.interface.vasp.derivatives as derivatives
 from phelel import Phelel
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.interface.vasp.derivatives import (
     create_derivatives,
     read_files,
-    read_forces_from_vasprunxmls,
+    read_vasp_forces,
 )
 
 cwd = Path(__file__).parent
 
 
-def test_read_forces_from_vasprunxmls_NaCl111(phelel_empty_NaCl111: Phelel):
-    """Test by NaCl conv. unit cell 1x1x1."""
+def test_read_vasp_forces_NaCl111(phelel_empty_NaCl111: Phelel):
+    """Test by NaCl conv. unit cell 1x1x1.
+
+    With the file of the perfect supercell, its residual forces are subtracted.
+    Without it, the forces of all the files are returned as they are.  The
+    residual forces of NaCl are zero by symmetry, so the subtraction is checked
+    by giving disp001 as the file of the perfect supercell.
+
+    """
     phe = phelel_empty_NaCl111
     filenames = [
         cwd / f"vasprun_NaCl111_disp{num}.xml.xz" for num in ["000", "001", "002"]
     ]
-    forces = read_forces_from_vasprunxmls(
-        filenames,
+    forces = read_vasp_forces(
+        filenames[1:],
         phe.supercell,
-        subtract_rfs=True,
+        perfect_filename=filenames[0],
         log_level=0,
     )
+    raw_forces = read_vasp_forces(filenames, phe.supercell)
+    assert len(raw_forces) == 3
+    np.testing.assert_allclose(np.array(raw_forces[1:]) - raw_forces[0], forces)
+    assert np.abs(raw_forces[1]).max() > 1e-3
+    (forces_from_disp001,) = read_vasp_forces(
+        filenames[2:], phe.supercell, perfect_filename=filenames[1]
+    )
+    np.testing.assert_allclose(forces_from_disp001, raw_forces[2] - raw_forces[1])
 
     ref = [
         [
@@ -123,18 +139,26 @@ def test_create_derivatives_C111_phonon_supercell_C222(dataset_key: str, atol: f
     np.testing.assert_allclose(phelel.force_constants, ph.force_constants, atol=atol)
 
 
-def test_create_derivatives_C111_phonon_supercell_C222_vaspout_h5(tmp_path: Path):
+@pytest.mark.parametrize(
+    "vaspout_names", [("C222_disp-000", "C222_disp-001"), ("C222_disp-000",)]
+)
+def test_create_derivatives_C111_phonon_supercell_C222_vaspout_h5(
+    tmp_path: Path, vaspout_names: tuple[str, ...]
+):
     """Test reading forces of the phonon supercells from vaspout.h5.
 
-    vaspout.h5 is read when it is found in all the directories of the phonon
-    supercells.  h5py does not read a compressed file, so vaspout.h5 is
-    decompressed into tmp_path, where vasprun.xml is not found.  The force
-    constants have to be those from the forces in vasprun.xml, from which they
-    differ by about 4e-7.
+    vaspout.h5 is read in each directory where it is found, and vasprun.xml in
+    the others.  h5py does not read a compressed file, so vaspout.h5 of the
+    directories of vaspout_names is decompressed into tmp_path, where
+    vasprun.xml is not found.  The force constants have to be those from the
+    forces in vasprun.xml, from which they differ by about 4e-7.
 
     """
     phonon_dir_names = []
     for name in ("C222_disp-000", "C222_disp-001"):
+        if name not in vaspout_names:
+            phonon_dir_names.append(cwd / name)
+            continue
         (tmp_path / name).mkdir()
         with lzma.open(cwd / name / "vaspout.h5.xz") as f:
             (tmp_path / name / "vaspout.h5").write_bytes(f.read())
@@ -151,6 +175,55 @@ def test_create_derivatives_C111_phonon_supercell_C222_vaspout_h5(tmp_path: Path
     create_derivatives(phelel, dir_names + phonon_dir_names, subtract_rfs=True)
     assert phelel.force_constants is not None and ph.force_constants is not None
     np.testing.assert_allclose(phelel.force_constants, ph.force_constants, atol=1e-5)
+
+
+def test_read_files_without_force_files(tmp_path: Path):
+    """Without vaspout.h5 and vasprun.xml, the directory is named in the error."""
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    (tmp_path / "disp-001").mkdir()
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    with pytest.raises(FileNotFoundError, match="disp-001"):
+        read_files(
+            phelel, dir_names, phonon_dir_names=[dir_names[0], tmp_path / "disp-001"]
+        )
+
+
+@pytest.mark.parametrize("subtract_rfs", [True, False])
+def test_read_files_perfect_supercell_forces(
+    subtract_rfs: bool, monkeypatch: pytest.MonkeyPatch
+):
+    """The file of the first directory is the perfect supercell only to subtract.
+
+    The residual forces of C-1x1x1 are nearly zero by symmetry, so whether they
+    are subtracted is checked by the arguments given to read_vasp_forces.
+
+    """
+    calls = []
+
+    def _read_vasp_forces(filenames, supercell, perfect_filename=None, log_level=0):
+        calls.append((filenames, perfect_filename))
+        return [np.zeros((len(supercell), 3))] * len(filenames)
+
+    monkeypatch.setattr(derivatives, "read_vasp_forces", _read_vasp_forces)
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    read_files(phelel, dir_names, subtract_rfs=subtract_rfs)
+    ((filenames, perfect_filename),) = calls
+    assert [f.parent.name for f in filenames] == ["C111_disp-001"]
+    if subtract_rfs:
+        assert perfect_filename.parent.name == "C111_disp-000"
+    else:
+        assert perfect_filename is None
+
+
+def test_read_vasp_forces_wrong_number_of_atoms():
+    """Forces of a supercell of a different number of atoms are an error."""
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    with pytest.raises(ValueError, match="Forces of the 8 atoms"):
+        read_vasp_forces(
+            [cwd / f"C222_disp-{i:03d}" / "vasprun.xml.xz" for i in range(2)],
+            phelel.supercell,
+        )
 
 
 def test_create_derivatives_C111_phonon_supercell_without_dataset():
@@ -212,9 +285,9 @@ def _get_phonopy_C222(phelel: Phelel) -> Phonopy:
 
 def _produce_force_constants_C222(ph: Phonopy) -> None:
     """Produce force constants from vasprun.xml of C222_disp-*."""
-    ph.forces = read_forces_from_vasprunxmls(
-        [cwd / name / "vasprun.xml.xz" for name in ("C222_disp-000", "C222_disp-001")],
+    ph.forces = read_vasp_forces(
+        [cwd / "C222_disp-001" / "vasprun.xml.xz"],
         ph.supercell,
-        subtract_rfs=True,
+        perfect_filename=cwd / "C222_disp-000" / "vasprun.xml.xz",
     )
     ph.produce_force_constants()
