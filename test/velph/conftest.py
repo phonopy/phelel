@@ -3,15 +3,18 @@
 import contextlib
 import io
 import pathlib
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
 import pytest
 import tomli
+from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.init.init import _run_init
+from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
+from phelel.velph.cli.supercells import PHONOPY_DISP_YAML
 from phelel.velph.cli.utils import VelphInitOptions
 from phelel.velph.config.io import parse_template
 from phelel.velph.config.legacy import parse_legacy_velph_toml
@@ -299,3 +302,65 @@ def code_init_config() -> Callable[[dict], VelphConfig]:
         )
 
     return _get_config
+
+
+_TI_UNITCELL = """
+[unitcell]
+lattice = [
+  [ 2.930720886111760, 0.000000000000000, 0.000000000000000 ],
+  [ -1.465360443055880, 2.538078738774425, 0.000000000000000 ],
+  [ 0.000000000000000, 0.000000000000000, 4.646120482318025 ],
+]
+[[unitcell.points]]
+symbol = "Ti"
+coordinates = [ 0.333333333333336, 0.666666666666664, 0.25 ]
+[[unitcell.points]]
+symbol = "Ti"
+coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
+"""
+
+
+@pytest.fixture(scope="session")
+def ti_velph_toml() -> Callable[[Sequence[str]], dict]:
+    """Return a function giving velph.toml dict of hcp Ti with a phonon supercell.
+
+    [phelel] and [phono3py] give the 1x1x1 supercell and [phonopy] the 2x2x1
+    supercell.  The argument is the lines added to [phonopy], such as
+    "amplitude = 0.01".
+
+    """
+
+    def _get_velph_toml(phonopy_lines: Sequence[str]) -> dict:
+        toml_str = "\n".join(
+            [
+                "[phelel]",
+                "supercell_dimension = [1, 1, 1]",
+                "[phono3py]",
+                "supercell_dimension = [1, 1, 1]",
+                "[phonopy]",
+                "supercell_dimension = [2, 2, 1]",
+                *phonopy_lines,
+            ]
+        )
+        return tomli.loads(toml_str + _TI_UNITCELL)
+
+    return _get_velph_toml
+
+
+@pytest.fixture(scope="session")
+def write_phonopy_disp_yaml() -> Callable[[VelphConfig, pathlib.Path], Phonopy]:
+    """Return a function writing phonopy/phonopy_disp.yaml as velph phonopy init.
+
+    The arguments are the config and the directory where phonopy/ is made.  The
+    function returns Phonopy written in the file.
+
+    """
+
+    def _write(config: VelphConfig, directory: pathlib.Path) -> Phonopy:
+        ph = run_phonopy_init(config, current_directory=directory)
+        filename = directory / PHONOPY_DISP_YAML
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        ph.save(filename)
+        return ph
+
+    return _write

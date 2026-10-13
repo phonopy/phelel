@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 
 from phelel import Phelel
 from phelel.interface.vasp.derivatives import create_derivatives
+from phelel.velph.cli.supercells import load_phonopy_yaml
 from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.config.schema import VelphConfig
 from phelel.velph.utils.vasp import CutoffToFFTMesh
@@ -20,9 +21,18 @@ def run_derivatives(
     phe: Phelel,
     subtract_residual_forces: bool = True,
     dir_name: str | os.PathLike = "phelel",
+    phonon_dir_name: str | os.PathLike = "phonopy",
     verbose: bool = False,
 ) -> bool:
-    """Calculate derivatives and write phelel_params.hdf5."""
+    """Calculate derivatives and write phelel_params.hdf5.
+
+    With the phonon supercell, the forces of the phonon supercells are read from
+    <phonon_dir_name>/disp-*, whose supercells have to be those of
+    <phonon_dir_name>/phonopy_disp.yaml.  False is returned when a directory or
+    a file is missing, or when the supercells differ.  click.ClickException is
+    raised when neither vaspout.h5 nor vasprun.xml is found in a directory.
+
+    """
     if phe.unmerged_unitcell is not None:
         click.echo(
             "Derivatives are not supported with the merge scheme of site mixture.",
@@ -52,31 +62,61 @@ def run_derivatives(
             return False
 
     if phe.phonon_supercell_matrix is not None:
-        if phe.phonon_supercells_with_displacements is None:
-            raise RuntimeError("phonon_supercells_with_displacements is None.")
-        nd = get_num_digits(phe.phonon_supercells_with_displacements)
-        for i, _ in enumerate(
-            [
-                phe.phonon_supercell,
-            ]
-            + phe.phonon_supercells_with_displacements
-        ):
-            id_number = f"{i:0{nd}d}"
-            filepath = pathlib.Path(f"{dir_name}/ph-disp-{id_number}")
-            if filepath.exists():
-                dir_names.append(filepath)
-            else:
-                click.echo(f'"{filepath}" does not exist.', err=True)
-                return False
+        phonon_dir_names = _get_phonon_dir_names(phe, pathlib.Path(phonon_dir_name))
+        if phonon_dir_names is None:
+            return False
+        dir_names += phonon_dir_names
 
-    create_derivatives(
-        phe,
-        dir_names,
-        subtract_rfs=subtract_residual_forces,
-        log_level=int(verbose),
-    )
+    try:
+        create_derivatives(
+            phe,
+            dir_names,
+            subtract_rfs=subtract_residual_forces,
+            log_level=int(verbose),
+        )
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e)) from e
 
     return True
+
+
+def _get_phonon_dir_names(
+    phe: Phelel, phonon_dir_name: pathlib.Path
+) -> list[pathlib.Path] | None:
+    """Return the directories of the phonon supercells made by velph phonopy.
+
+    None is returned when phonopy_disp.yaml or a directory is not found, or when
+    the phonon supercells of phe differ from the supercells of phonopy_disp.yaml,
+    for example after velph phonopy init was run again.
+
+    """
+    cells = phe.phonon_supercells_with_displacements
+    assert cells is not None
+    yaml_filename = phonon_dir_name / "phonopy_disp.yaml"
+    if not yaml_filename.exists():
+        click.echo(f'"{yaml_filename}" does not exist.', err=True)
+        return None
+    phonopy_cells = load_phonopy_yaml(yaml_filename).supercells_with_displacements
+    assert phonopy_cells is not None
+    if len(cells) != len(phonopy_cells) or not all(
+        np.allclose(cell.cell, phonopy_cell.cell)
+        and np.allclose(cell.positions, phonopy_cell.positions)
+        for cell, phonopy_cell in zip(cells, phonopy_cells, strict=True)
+    ):
+        click.echo(
+            "The phonon supercells with displacements differ from those of "
+            f'"{yaml_filename}".\nRun "velph phelel init --phonon-from-phonopy" '
+            "again.",
+            err=True,
+        )
+        return None
+    nd = get_num_digits(cells)
+    dir_names = [phonon_dir_name / f"disp-{i:0{nd}d}" for i in range(len(cells) + 1)]
+    for filepath in dir_names:
+        if not filepath.exists():
+            click.echo(f'"{filepath}" does not exist.', err=True)
+            return None
+    return dir_names
 
 
 def _check_files_exist(filepath: pathlib.Path) -> bool:

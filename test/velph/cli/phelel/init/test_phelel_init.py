@@ -2,12 +2,15 @@
 
 import itertools
 import pathlib
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
+import click
 import numpy as np
 import pytest
 import tomli
+from phonopy import Phonopy
+from phonopy.structure.atoms import PhonopyAtoms
 
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
@@ -209,3 +212,74 @@ def test_phelel_init_site_mixture_merge_without_nac(
     )
     assert phe.nac_params is None
     assert "NAC is not supported with the merge scheme" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "phonopy_lines", [["amplitude = 0.01"], ["number_of_snapshots = 3"]]
+)
+def test_phelel_init_phonon_from_phonopy(
+    phonopy_lines: list[str],
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+):
+    """The phonon supercells are those of phonopy/phonopy_disp.yaml.
+
+    They are kept through phelel_disp.yaml.  The amplitude of [phonopy] differs
+    from that of [phelel], with which phelel would generate other phonon
+    supercells.  With number_of_snapshots, the displacements are random.
+
+    """
+    config = code_init_config(ti_velph_toml(phonopy_lines))
+    ph = write_phonopy_disp_yaml(config, tmp_path)
+    phe = run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+    np.testing.assert_array_equal(phe.phonon_supercell_matrix, ph.supercell_matrix)
+    assert len(phe.supercell) == 2
+    yaml_filename = tmp_path / "phelel_disp.yaml"
+    yaml_filename.write_text(str(phe.to_phelel_yaml()))
+    assert ph.supercells_with_displacements is not None
+    for phe_cells in (
+        phe.phonon_supercells_with_displacements,
+        phelel.load(yaml_filename).phonon_supercells_with_displacements,
+    ):
+        assert phe_cells is not None
+        _assert_same_cells(phe_cells, ph.supercells_with_displacements)
+
+
+def test_phelel_init_phonon_from_phonopy_without_phonopy_disp_yaml(
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    tmp_path: pathlib.Path,
+):
+    """Without phonopy/phonopy_disp.yaml, velph phonopy init is asked for."""
+    config = code_init_config(ti_velph_toml([]))
+    with pytest.raises(click.ClickException, match='"velph phonopy init" first'):
+        run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+
+
+def test_phelel_init_phonon_from_phonopy_of_other_unit_cell(
+    ti_velph_toml: Callable[[Sequence[str]], dict],
+    code_init_config: Callable[[dict], VelphConfig],
+    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    tmp_path: pathlib.Path,
+):
+    """phonopy_disp.yaml of another unit cell is an error."""
+    data = ti_velph_toml([])
+    write_phonopy_disp_yaml(code_init_config(data), tmp_path)
+    data["unitcell"]["lattice"] = (
+        np.array(data["unitcell"]["lattice"]) * 1.01
+    ).tolist()
+    with pytest.raises(click.ClickException, match="differs"):
+        run_init(
+            code_init_config(data),
+            current_directory=tmp_path,
+            phonon_from_phonopy=True,
+        )
+
+
+def _assert_same_cells(cells: list[PhonopyAtoms], ref_cells: list[PhonopyAtoms]):
+    assert len(cells) == len(ref_cells)
+    for cell, ref_cell in zip(cells, ref_cells, strict=True):
+        np.testing.assert_allclose(cell.cell, ref_cell.cell)
+        np.testing.assert_allclose(cell.positions, ref_cell.positions)
