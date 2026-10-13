@@ -671,6 +671,10 @@ class Phelel:
             ph.dataset = dataset
         if forces is not None:
             ph.forces = forces
+        # The traditional calculator can not process a dataset in which all atoms
+        # are displaced.  phonopy also chooses symfc for it.
+        if fc_calculator is None and ph.dataset and "displacements" in ph.dataset:
+            fc_calculator = "symfc"
         try:
             ph.produce_force_constants(
                 calculate_full_force_constants=calculate_full_force_constants,

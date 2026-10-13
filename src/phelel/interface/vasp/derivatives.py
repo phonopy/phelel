@@ -53,7 +53,7 @@ def read_files(
     if log_level:
         print(f'Parameters were collected from "{inwap_path}".')
 
-    dataset, _ = _get_datasets(phelel)
+    dataset, phonon_dataset = _get_datasets(phelel)
     loc_pots = _read_local_potentials(dir_names, inwap_per, log_level=log_level)
     if loc_pots is None:
         raise ValueError(
@@ -70,7 +70,7 @@ def read_files(
     else:
         _dir_names = phonon_dir_names
 
-    if phelel.phonon_supercell_matrix:
+    if phelel.phonon_supercell_matrix is not None:
         supercell = phelel.phonon_supercell
     else:
         supercell = phelel.supercell
@@ -121,6 +121,7 @@ def read_files(
         lm_channels=inwap_per["lm_orbitals"],
         kinetic_potentials=kin_pots,
         dataset=dataset,
+        phonon_dataset=phonon_dataset,
         forces=np.array(forces, dtype="double", order="C"),
     )
 
@@ -148,7 +149,7 @@ def create_derivatives(
     """
     dataset, phonon_dataset = _get_datasets(phelel)
     num_disp = len(dataset["first_atoms"]) + 1
-    num_disp_ph = len(phonon_dataset["first_atoms"]) + 1
+    num_disp_ph = _get_number_of_displacements(phonon_dataset) + 1
     if len(dir_names) == num_disp:
         phonon_dir_names = dir_names
     elif len(dir_names) == num_disp + num_disp_ph:
@@ -158,7 +159,7 @@ def create_derivatives(
 
     phe_input = read_files(
         phelel,
-        dir_names,
+        dir_names[:num_disp],
         phonon_dir_names=phonon_dir_names,
         subtract_rfs=subtract_rfs,
         log_level=log_level,
@@ -243,23 +244,35 @@ def _read_born(
         return None
 
 
-def _get_datasets(phelel: Phelel) -> tuple:
-    """Return inwap dataset and phonopy dataset."""
-    assert phelel.dataset is not None
-    if "first_atoms" in phelel.dataset:
-        dataset = phelel.dataset
-        if (
-            phelel.phonon_supercell_matrix
-            and phelel.phonon_dataset is not None
-            and "first_atoms" in phelel.phonon_dataset
-        ):
-            phonon_dataset = phelel.phonon_dataset
-        else:
-            phonon_dataset = dataset
-    else:
-        raise RuntimeError("Displacement dataset has to be stored in Phelel instance.")
+def _get_datasets(phelel: Phelel) -> tuple[dict, dict]:
+    """Return inwap dataset and phonopy dataset.
 
-    return dataset, phonon_dataset
+    Without the phonon supercell, the phonopy dataset is the inwap dataset.
+
+    """
+    assert phelel.dataset is not None
+    if "first_atoms" not in phelel.dataset:
+        raise RuntimeError("Displacement dataset has to be stored in Phelel instance.")
+    if phelel.phonon_supercell_matrix is None:
+        return phelel.dataset, phelel.dataset
+    if phelel.phonon_dataset is None:
+        raise RuntimeError(
+            "The phonon dataset has to be stored in Phelel instance when the phonon "
+            "supercell matrix is given."
+        )
+    return phelel.dataset, phelel.phonon_dataset
+
+
+def _get_number_of_displacements(dataset: dict) -> int:
+    """Return the number of supercells with displacements of a dataset.
+
+    The dataset has "first_atoms" when one atom is displaced in each supercell,
+    or "displacements" when all atoms are displaced.
+
+    """
+    if "first_atoms" in dataset:
+        return len(dataset["first_atoms"])
+    return len(dataset["displacements"])
 
 
 def _read_local_potentials(
