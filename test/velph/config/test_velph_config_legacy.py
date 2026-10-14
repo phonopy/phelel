@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
-import contextlib
 import copy
-import io
 import pathlib
 from collections.abc import Callable
 from typing import Any
 
 import pytest
-import tomli
 import tomli_w
 from click.testing import CliRunner
-from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.cli.init.init import _run_init
-from phelel.velph.cli.utils import VelphInitOptions
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.legacy import (
     load_velph_toml_any_version,
@@ -53,14 +47,6 @@ _KPOINTS_FILES = {
 }
 
 
-def _present_velph_toml(cell: PhonopyAtoms, **options: Any) -> dict[str, Any]:
-    """Return the contents of velph.toml that velph init of velph 0.14 writes."""
-    with contextlib.redirect_stdout(io.StringIO()):
-        toml_lines = _run_init(cell, VelphInitOptions(**options))
-    assert toml_lines is not None
-    return tomli.loads("\n".join(toml_lines))
-
-
 def _input_set_tables(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Return the input set tables of a velph.toml of velph 0.14.
 
@@ -77,7 +63,9 @@ def _input_set_tables(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return tables
 
 
-def test_parse_legacy_velph_toml_converts_sections(nacl_cell: PhonopyAtoms):
+def test_parse_legacy_velph_toml_converts_sections(
+    nacl_velph_toml_v014: Callable[[], dict],
+):
     """The sections of velph 0.14 are read in the new format.
 
     The INCAR tags and k-point meshes of each input set are those of the file,
@@ -85,7 +73,7 @@ def test_parse_legacy_velph_toml_converts_sections(nacl_cell: PhonopyAtoms):
     and [vasp.el_dos], and data is not modified.
 
     """
-    data = _present_velph_toml(nacl_cell, supercell_dimension=(2, 2, 2))
+    data = nacl_velph_toml_v014()
     original = copy.deepcopy(data)
     assert "fft_mesh" in data["phelel"]
     config = parse_legacy_velph_toml(data)
@@ -116,16 +104,20 @@ def test_parse_legacy_velph_toml_converts_sections(nacl_cell: PhonopyAtoms):
     assert config.vasp.input_sets["ph_bands"].qpoints == LinePath(line=51)
 
 
-def test_parse_legacy_velph_toml_without_supercell(nacl_cell: PhonopyAtoms):
+def test_parse_legacy_velph_toml_without_supercell(
+    velph_toml_v014: Callable[[str], dict],
+):
     """[phelel] that has only version is not read as a section."""
-    data = _present_velph_toml(nacl_cell)
+    data = velph_toml_v014("nacl.toml")
     assert data["phelel"] == {"version": data["phelel"]["version"]}
     config = parse_legacy_velph_toml(data)
     assert config.version == data["phelel"]["version"]
     assert config.phelel is None
 
 
-def test_parse_legacy_velph_toml_removed_keys(nacl_cell: PhonopyAtoms):
+def test_parse_legacy_velph_toml_removed_keys(
+    nacl_velph_toml_v014: Callable[[], dict],
+):
     """Keys that the new format does not have are not read.
 
     These are [vasp.incar], phonon_supercell_dimension, [vasp.phelel.phonon]
@@ -134,7 +126,7 @@ def test_parse_legacy_velph_toml_removed_keys(nacl_cell: PhonopyAtoms):
     in lower case.
 
     """
-    data = _present_velph_toml(nacl_cell, supercell_dimension=(2, 2, 2))
+    data = nacl_velph_toml_v014()
     data["vasp"]["incar"] = {"encut": 300}
     for code in ("phelel", "phono3py"):
         data[code]["phonon_supercell_dimension"] = [3, 3, 3]
@@ -226,7 +218,7 @@ def _check_meshes_equal_generate(
 
 
 def test_kspacing_mesh_equals_generate(
-    nacl_cell: PhonopyAtoms,
+    nacl_velph_toml_v014: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -240,9 +232,7 @@ def test_kspacing_mesh_equals_generate(
 
     """
     set_names = tuple(_GENERATE_COMMANDS)
-    data = _velph_toml_with_kspacing(
-        _present_velph_toml(nacl_cell, supercell_dimension=(2, 2, 2))
-    )
+    data = _velph_toml_with_kspacing(nacl_velph_toml_v014())
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     _run_generate_commands(set_names)

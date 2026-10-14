@@ -1,6 +1,5 @@
 """Tests cli/utils.py."""
 
-import copy
 import io
 import itertools
 import pathlib
@@ -9,41 +8,16 @@ from collections.abc import Callable
 import click
 import numpy as np
 import pytest
-import tomli
-from phonopy.interface.calculator import read_crystal_structure
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
 
-from phelel.velph.cli.init.init import _run_init
 from phelel.velph.cli.utils import (
-    VelphInitOptions,
-    choose_cell_in_dict,
     echo_vasp_vca_hint,
-    get_scheduler_dict,
-    write_incar,
-    write_kpoints_mesh_mode,
     write_launch_script,
     write_poscar,
 )
-from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import get_reduced_cell
-
-
-def test_get_scheduler_dict():
-    """Test get_scheduler_dict."""
-    toml_dict = copy.deepcopy(default_template_dict)
-    scheduler_dict = get_scheduler_dict(toml_dict, "phelel")
-    assert scheduler_dict["vasp_binary"] == "vasp_std"
-
-    phonon_dict = copy.deepcopy(toml_dict["vasp"]["phelel"])
-    toml_dict["vasp"]["phelel"]["phonon"] = phonon_dict
-    scheduler_dict = get_scheduler_dict(toml_dict, "phelel.phonon")
-    assert scheduler_dict["vasp_binary"] == "vasp_std"
-
-    toml_dict["vasp"]["phelel"]["scheduler"] = {"vasp_binary": "vasp_gam"}
-    scheduler_dict = get_scheduler_dict(toml_dict, "phelel")
-    assert scheduler_dict["vasp_binary"] == "vasp_gam"
 
 
 def test_get_reduced_cell_bi2te3(
@@ -102,65 +76,6 @@ points:
         raise AssertionError(msg)
 
 
-@pytest.mark.parametrize("tag", ["kspacing", "elph_kspacing", "KSPACING"])
-def test_write_incar_kspacing_is_error(tmp_path: pathlib.Path, tag: str):
-    """Test that kspacing and elph_kspacing in INCAR are errors."""
-    with pytest.raises(click.ClickException, match=tag):
-        write_incar({"encut": 500, tag: 0.2}, tmp_path)
-    assert not (tmp_path / "INCAR").exists()
-
-
-@pytest.mark.parametrize(
-    "kpoints_filename,incar_tag",
-    [("KPOINTS", "kspacing"), ("KPOINTS_ELPH", "elph_kspacing")],
-)
-def test_write_kpoints_mesh_mode_always_writes(
-    tmp_path: pathlib.Path, kpoints_filename: str, incar_tag: str
-):
-    """Test that KPOINTS is written regardless of the INCAR dict."""
-    write_kpoints_mesh_mode(
-        {incar_tag: 0.2},
-        tmp_path,
-        "vasp.relax.kpoints",
-        {"mesh": [4, 4, 4]},
-        kpoints_filename=kpoints_filename,
-    )
-    assert (tmp_path / kpoints_filename).exists()
-
-
-def _get_nacl_velph_dict() -> dict:
-    cell, _ = read_crystal_structure(
-        pathlib.Path(__file__).parent / "init" / "POSCAR_NaCl", interface_mode="vasp"
-    )
-    assert cell is not None
-    toml_lines = _run_init(cell, VelphInitOptions())
-    assert toml_lines is not None
-    return tomli.loads("\n".join(toml_lines))
-
-
-@pytest.mark.parametrize(
-    "value,num_atoms", [("unitcell", 8), ("Unitcell", 8), ("Primitive", 2)]
-)
-def test_choose_cell_in_dict(tmp_path: pathlib.Path, value: str, num_atoms: int):
-    """Test that the cell of [vasp.relax] is chosen case-insensitively."""
-    velph_dict = _get_nacl_velph_dict()
-    velph_dict["vasp"]["relax"]["cell"] = value
-    cell = choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax")
-    assert cell is not None
-    assert len(cell) == num_atoms
-
-
-@pytest.mark.parametrize("value", ["primitiv", "primitive_cell", "unitcel"])
-def test_choose_cell_in_dict_invalid(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture, value: str
-):
-    """Test that an invalid cell of [vasp.relax] is an error."""
-    velph_dict = _get_nacl_velph_dict()
-    velph_dict["vasp"]["relax"]["cell"] = value
-    assert choose_cell_in_dict(velph_dict, tmp_path / "velph.toml", "relax") is None
-    assert f'"{value}"' in capsys.readouterr().err
-
-
 @pytest.mark.parametrize(
     "scheduler_dict,missing",
     [
@@ -178,23 +93,6 @@ def test_write_launch_script_missing_keys(
     assert not (tmp_path / "_job.sh").exists()
 
 
-def test_write_launch_script_with_partial_template_scheduler(tmp_path: pathlib.Path):
-    """Test that velph.toml from a template with a partial [scheduler] works."""
-    cell, _ = read_crystal_structure(
-        pathlib.Path(__file__).parent / "init" / "POSCAR_NaCl", interface_mode="vasp"
-    )
-    assert cell is not None
-    toml_lines = _run_init(
-        cell,
-        VelphInitOptions(),
-        velph_template_fp=io.BytesIO(b'[scheduler]\njob_name = "x"\n'),
-    )
-    assert toml_lines is not None
-    velph_dict = tomli.loads("\n".join(toml_lines))
-    write_launch_script(get_scheduler_dict(velph_dict, "relax"), tmp_path, "relax")
-    assert "x-relax" in (tmp_path / "_job.sh").read_text()
-
-
 def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
     """Return CsCl-like cell with Ge and Sn (0.5 each) co-located and Te."""
     cell = PhonopyAtoms(
@@ -205,26 +103,23 @@ def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
     return apply_site_mixture(cell, [0.5, 0.5, 1.0])
 
 
-def test_write_poscar_and_incar_of_site_mixture(
+def test_write_poscar_of_site_mixture(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ):
-    """A cell with weighted species is written for VASP VCA."""
+    """A cell with weighted species is written for VASP VCA with the hint."""
     cell = _get_GeSnTe_weighted_cell()
     write_poscar(tmp_path, cell)
     lines = (tmp_path / "POSCAR").read_text().splitlines()
     assert lines[5].split() == ["Ge", "Sn", "Te"]
     assert lines[6].split() == ["1", "1", "1"]
-    write_incar({"encut": 500}, tmp_path, cell=cell)
-    incar = (tmp_path / "INCAR").read_text()
-    assert "VCA = 0.5 0.5 1.0" in incar
     echo_vasp_vca_hint(cell)
     assert "INCAR:               VCA = 0.5 0.5 1" in capsys.readouterr().out
 
 
-def test_write_poscar_and_incar_of_ordinary_cell(
+def test_write_poscar_of_ordinary_cell(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ):
-    """An ordinary cell has no VCA tag and no hint."""
+    """An ordinary cell is written without the hint of VCA."""
     cell = PhonopyAtoms(
         cell=np.eye(3) * 4.0,
         symbols=["Na", "Cl"],
@@ -232,7 +127,5 @@ def test_write_poscar_and_incar_of_ordinary_cell(
     )
     write_poscar(tmp_path, cell)
     assert (tmp_path / "POSCAR").read_text().splitlines()[5].split() == ["Na", "Cl"]
-    write_incar({"encut": 500}, tmp_path, cell=cell)
-    assert "VCA" not in (tmp_path / "INCAR").read_text()
     echo_vasp_vca_hint(cell)
     assert capsys.readouterr().out == ""
