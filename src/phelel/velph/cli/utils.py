@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import dataclasses
 import os
 import pathlib
 import xml.parsers.expat
-from collections.abc import Iterator, Sequence
-from enum import Enum
-from typing import Any, Literal, cast
+from collections.abc import Sequence
 
 import click
-from numpy.typing import NDArray
 from phono3py.interface.calculator import (
     get_default_displacement_distance as get_phono3py_displacement_distance,
 )
@@ -27,6 +23,7 @@ from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
+from phelel.velph.config.schema import CodeName
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
     get_sge_scheduler_script,
@@ -34,82 +31,7 @@ from phelel.velph.utils.scheduler import (
 )
 
 
-class CellChoice(Enum):
-    """Cell choice for specific calculations."""
-
-    UNSPECIFIED = "unspecified"
-    UNITCELL = "unitcell"
-    PRIMITIVE = "primitive"
-
-
-class PrimitiveCellChoice(Enum):
-    """Primitive cell choice."""
-
-    STANDARDIZED = "standardized"
-    REDUCED = "reduced"
-
-
-def parse_cell_choice(value: Any, name: str) -> CellChoice | None:
-    """Return CellChoice of "primitive" or "unitcell".
-
-    value is compared in lower case. Otherwise None is returned with an error
-    message, in which name tells where value is given.
-
-    """
-    choice = _parse_choice(value, name, (CellChoice.PRIMITIVE, CellChoice.UNITCELL))
-    return cast(CellChoice | None, choice)
-
-
-def parse_primitive_cell_choice(value: Any, name: str) -> PrimitiveCellChoice | None:
-    """Return PrimitiveCellChoice of "standardized" or "reduced".
-
-    See parse_cell_choice.
-
-    """
-    choice = _parse_choice(value, name, tuple(PrimitiveCellChoice))
-    return cast(PrimitiveCellChoice | None, choice)
-
-
-def _parse_choice(value: Any, name: str, choices: tuple[Enum, ...]) -> Enum | None:
-    if isinstance(value, str):
-        for choice in choices:
-            if value.lower() == choice.value:
-                return choice
-    allowed = " or ".join(f'"{choice.value}"' for choice in choices)
-    click.echo(f'{name} has to be {allowed}, not "{value}".', err=True)
-    return None
-
-
-@dataclasses.dataclass(frozen=True)
-class DefaultCellChoices:
-    """Default cell choices."""
-
-    nac: CellChoice = CellChoice.PRIMITIVE
-    relax: CellChoice = CellChoice.UNITCELL
-
-
-SupercellCalcType = Literal["phelel", "phonopy", "phono3py"]
-
-
-@dataclasses.dataclass(frozen=True)
-class DisplacementOptions:
-    """Options for generating displacements.
-
-    amplitude=None means the default of each calculation type given by
-    get_default_amplitude.
-
-    """
-
-    amplitude: float | None = None
-    diagonal: bool = False
-    max_num_atoms: int | None = None
-    number_of_snapshots: int | None = None
-    plusminus: bool | Literal["auto"] = True
-    supercell_dimension: tuple[int, int, int] | None = None
-    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
-
-
-def get_default_amplitude(calc_type: SupercellCalcType) -> float:
+def get_default_amplitude(calc_type: CodeName) -> float:
     """Return default displacement distance of a calculation type.
 
     The default displacement distances of phonopy (for phonopy) and phono3py
@@ -119,104 +41,6 @@ def get_default_amplitude(calc_type: SupercellCalcType) -> float:
     if calc_type == "phonopy":
         return get_phonopy_displacement_distance("vasp")
     return get_phono3py_displacement_distance("vasp")
-
-
-@dataclasses.dataclass(frozen=True)
-class VelphInitParams:
-    """Basic init parameters of velph.
-
-    amplitude, diagonal, plusminus, phelel_nosym can be parameters for [phelel].
-    These are treated specially.
-
-    Except for amplitude, diagonal, plusminus, phelel_nosym, None is equivalent
-    to its default value.
-
-    """
-
-    cell_for_nac: CellChoice = CellChoice.UNSPECIFIED
-    cell_for_relax: CellChoice = CellChoice.UNSPECIFIED
-    find_primitive: bool = True
-    displacement_options: DisplacementOptions = DisplacementOptions()
-    kspacing: float = 0.1
-    kspacing_dense: float = 0.05
-    magmom: str | None = None
-    site_mixture: str | None = None
-    split_site_mixture: bool = False
-    phelel_displacement_options: DisplacementOptions | None = None
-    phonopy_displacement_options: DisplacementOptions | None = None
-    phono3py_displacement_options: DisplacementOptions | None = None
-    phelel_nosym: bool = False
-    primitive_cell_choice: PrimitiveCellChoice = PrimitiveCellChoice.STANDARDIZED
-    symmetrize_cell: bool = False
-    tolerance: float = 1e-5
-    use_grg: bool = False
-
-    def __contains__(self, key) -> bool:  # noqa: D105
-        return hasattr(self, key)
-
-    def __getitem__(self, key) -> Any:  # noqa: D105
-        return getattr(self, key)
-
-
-@dataclasses.dataclass(frozen=True)
-class VelphInitOptions:
-    """Options for velph-init command.
-
-    This is shared in velph-init options and [init.options] in template-toml.
-
-    """
-
-    amplitude: float | None = None
-    cell_for_nac: Literal["primitive", "unitcell"] | None = None
-    cell_for_relax: Literal["primitive", "unitcell"] | None = None
-    diagonal: bool | None = None
-    find_primitive: bool | None = None
-    kspacing: float | None = None
-    kspacing_dense: float | None = None
-    magmom: str | None = None
-    max_num_atoms: int | None = None
-    site_mixture: str | None = None
-    split_site_mixture: bool | None = None
-    phelel_nosym: bool | None = None
-    plusminus: bool | Literal["auto"] | None = None
-    primitive_cell_choice: Literal["standardized", "reduced"] | None = None
-    supercell_dimension: tuple[int, int, int] | None = None
-    supercell_matrix: tuple[int, int, int, int, int, int, int, int, int] | None = None
-    symmetrize_cell: bool | None = None
-    tolerance: float | None = None
-    use_grg: bool | None = None
-
-    def __getitem__(self, key) -> Any:  # noqa: D105
-        return getattr(self, key)
-
-    def __iter__(self) -> Iterator[str]:  # noqa: D105
-        return (f.name for f in dataclasses.fields(self))
-
-    def items(self) -> Iterator[tuple[str, Any]]:  # noqa: D102
-        return ((f.name, getattr(self, f.name)) for f in dataclasses.fields(self))
-
-
-@dataclasses.dataclass(frozen=True)
-class VelphFilePaths:
-    """File paths or pointers used in velph-init."""
-
-    cell_filepath: os.PathLike
-    velph_template_filepath: os.PathLike | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class KpointsData:
-    """K-points data for VASP calculations."""
-
-    mesh: NDArray | None = None
-    D_diag: NDArray | None = None
-    shift: NDArray | None = None
-    kspacing: float | None = None
-    line: int | None = None
-    path: (
-        tuple[tuple[tuple[float, float, float], tuple[float, float, float]]] | None
-    ) = None
-    label: tuple[tuple[str, str]] | None = None
 
 
 def write_poscar(

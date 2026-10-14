@@ -4,22 +4,53 @@ from __future__ import annotations
 
 import pathlib
 import shutil
-from typing import Literal
+from typing import Any, Literal
 
 import click
+from phonopy.interface.calculator import read_crystal_structure
 
-from phelel.velph.cli.init.init import run_init
-from phelel.velph.cli.utils import (
-    DefaultCellChoices,
-    DisplacementOptions,
-    PrimitiveCellChoice,
-    VelphFilePaths,
-    VelphInitOptions,
-    VelphInitParams,
-    get_default_amplitude,
-)
+from phelel.velph.cli.init.build import build_velph_config
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.config.defaults import get_default_config
+from phelel.velph.config.io import (
+    VelphConfigError,
+    load_template,
+    parse_init,
+    write_velph_toml,
+)
+from phelel.velph.config.schema import CODES, CodeName, InitSection, VelphConfig
 from phelel.velph.utils.vasp import VaspPotcar
+
+_DEFAULTS = get_default_config()
+
+# Keys of [init] for the supercell and their options.
+_SUPERCELL_OPTIONS = {
+    "supercell_dimension": "--dim",
+    "supercell_matrix": "--supercell-matrix",
+    "max_num_atoms": "--max-num-atoms",
+}
+
+
+def _init_default(name: str) -> Any:
+    """Return the default of a key of [init] that the defaults give."""
+    assert _DEFAULTS.init is not None
+    return getattr(_DEFAULTS.init, name)
+
+
+def _code_default(name: str) -> str:
+    """Return the default of a field of [phelel], [phonopy] and [phono3py]."""
+    values = {code: getattr(getattr(_DEFAULTS, code), name) for code in CODES}
+    if len(set(values.values())) == 1:
+        return str(values[CODES[0]])
+    return ", ".join(f"{value} for {code}" for code, value in values.items())
+
+
+def _cell_default(set_name: str) -> str:
+    """Return the default cell of an input set."""
+    assert _DEFAULTS.vasp is not None and _DEFAULTS.vasp.input_sets is not None
+    cell = _DEFAULTS.vasp.input_sets[set_name].cell
+    assert cell is not None
+    return cell
 
 
 #
@@ -43,8 +74,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Distance of displacements in Angstrom. "
-        f"(amplitude: float, default={get_default_amplitude('phelel')} for "
-        f"phelel and phono3py, {get_default_amplitude('phonopy')} for phonopy)"
+        f"(amplitude: float, default={_code_default('amplitude')})"
     ),
 )
 @click.option(
@@ -54,7 +84,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         'Cell choice for NAC, "primitive" or "unitcell" '
-        f'(cell_for_nac: str, default="{DefaultCellChoices.nac.value}")'
+        f'(cell_for_nac: str, default="{_cell_default("nac")}")'
     ),
 )
 @click.option(
@@ -64,7 +94,18 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         'Cell choice for relax, "primitive" or "unitcell" '
-        f'(cell_for_relax: str, default="{DefaultCellChoices.relax.value}")'
+        f'(cell_for_relax: str, default="{_cell_default("relax")}")'
+    ),
+)
+@click.option(
+    "--code",
+    "codes",
+    type=click.Choice(CODES),
+    multiple=True,
+    help=(
+        "Code whose section is written in velph.toml, repeated for more than "
+        "one code, e.g., --code phelel --code phonopy. "
+        f"(codes: list[str], default={list(_init_default('codes'))})"
     ),
 )
 @click.option(
@@ -73,8 +114,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     type=bool,
     default=None,
     help=(
-        "Generate displacements in diagonal directions or only along axes."
-        f"(diagonal: bool, default={DisplacementOptions.diagonal})"
+        "Generate displacements in diagonal directions or only along axes. "
+        f"(diagonal: bool, default={_code_default('diagonal')})"
     ),
 )
 @click.option(
@@ -88,8 +129,7 @@ from phelel.velph.utils.vasp import VaspPotcar
         "For specifiying nine integers, use --supercell-matrix. "
         "This option is a shortcut for diagonal supercell matrix, where "
         "three integers correspond to the diagonal elements. "
-        "(supercell_dimension: tuple[int, int, int], "
-        f"default={DisplacementOptions.supercell_matrix})"
+        "(supercell_dimension: tuple[int, int, int], default=None)"
     ),
 )
 @click.option(
@@ -106,7 +146,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Define k-point grid by KSPACING. "
-        f"(kspacing: float, default={VelphInitParams.kspacing})"
+        f"(kspacing: float, default={_init_default('kspacing')})"
     ),
 )
 @click.option(
@@ -116,7 +156,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Define dense k-point grid by KSPACING_DENSE. "
-        f"(kspacing_dense: float, default={VelphInitParams.kspacing_dense})"
+        f"(kspacing_dense: float, default={_init_default('kspacing_dense')})"
     ),
 )
 @click.option(
@@ -125,8 +165,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     type=str,
     default=None,
     help=(
-        'String corresponding to INCAR MAGMOM tag value, e.g., "24*1" or "0 0 1"'
-        f"(magmom: str, default={VelphInitParams.magmom})"
+        'String corresponding to INCAR MAGMOM tag value, e.g., "24*1" or "0 0 1" '
+        f"(magmom: str, default={_init_default('magmom')})"
     ),
 )
 @click.option(
@@ -136,8 +176,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     type=int,
     help=(
         "Determine supercell dimension so that number of atoms in supercell "
-        "is less than this number. This must be used with --symmmetrize-cell. "
-        f"(max_num_atoms: int, default={DisplacementOptions.max_num_atoms})"
+        "is less than this number. This must be used with --symmetrize-cell. "
+        "(max_num_atoms: int, default=None)"
     ),
 )
 @click.option(
@@ -148,17 +188,17 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Disable finding primitive cell in input cell. "
-        f"(find_primitive: bool, default={VelphInitParams.find_primitive})"
+        f"(find_primitive: bool, default={_init_default('find_primitive')})"
     ),
 )
 @click.option(
-    "--phelel-nosym",
-    "phelel_nosym",
+    "--nosym",
+    "nosym",
     is_flag=True,
     default=None,
     help=(
-        'Invoke "phelel --nosym". '
-        f"(phelel_nosym: bool, default={VelphInitParams.phelel_nosym})"
+        "Generate displacements without symmetry, as phonopy --nosym. "
+        f"(nosym: bool, default={_code_default('nosym')})"
     ),
 )
 @click.option(
@@ -168,7 +208,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Plus-minus displacements in supercell, otherwise auto. "
-        f"(plusminus: bool or 'auto', default={DisplacementOptions.plusminus})"
+        f"(plusminus: bool or 'auto', default={_code_default('plusminus')})"
     ),
 )
 @click.option(
@@ -179,7 +219,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     help=(
         'Primitive cell choice, "standardized" or "reduced" '
         "(primitive_cell_choice: str, "
-        f'default="{PrimitiveCellChoice.STANDARDIZED.value}")'
+        f'default="{_init_default("primitive_cell_choice")}")'
     ),
 )
 @click.option(
@@ -195,7 +235,7 @@ from phelel.velph.utils.vasp import VaspPotcar
         "as in phonopy; pass --split-site-mixture to keep them as separate "
         "weighted species. "
         "Cannot be combined with --magmom. "
-        f"(site_mixture: str, default={VelphInitParams.site_mixture})"
+        f"(site_mixture: str, default={_init_default('site_mixture')})"
     ),
 )
 @click.option(
@@ -206,7 +246,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     help=(
         "[Experimental] With --site-mixture, keep co-located atoms as separate "
         "weighted species instead of merging them into mixed-species sites. "
-        f"(split_site_mixture: bool, default={VelphInitParams.split_site_mixture})"
+        f"(split_site_mixture: bool, default={_init_default('split_site_mixture')})"
     ),
 )
 @click.option(
@@ -216,9 +256,8 @@ from phelel.velph.utils.vasp import VaspPotcar
     type=int,
     default=None,
     help=(
-        "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0."
-        "(supercell_matrix: tuple[int, ...], "
-        f"default={DisplacementOptions.supercell_matrix})"
+        "Specify supercell dimensions by nine integers like 0 2 2 2 0 2 2 2 0. "
+        "(supercell_matrix: tuple[int, ...], default=None)"
     ),
 )
 @click.option(
@@ -228,7 +267,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Symmetrize input crystal structure. "
-        f"(symmetrize_cell: bool, default={VelphInitParams.symmetrize_cell})"
+        f"(symmetrize_cell: bool, default={_init_default('symmetrize_cell')})"
     ),
 )
 @click.option(
@@ -236,10 +275,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     "template_toml_filename",
     type=click.Path(),
     default=None,
-    help=(
-        "File name of template in toml to update velph.toml in python's "
-        "dict.update() style."
-    ),
+    help="File name of velph init template in toml.",
 )
 @click.option(
     "--tolerance",
@@ -248,7 +284,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Tolerance to find crystal symmetry. "
-        f"(tolerance: float, default={VelphInitParams.tolerance})"
+        f"(tolerance: float, default={_init_default('tolerance')})"
     ),
 )
 @click.option(
@@ -265,7 +301,7 @@ from phelel.velph.utils.vasp import VaspPotcar
     default=None,
     help=(
         "Use generalized regular grid when needed. "
-        f"(use_grg: bool, default={VelphInitParams.use_grg})"
+        f"(use_grg: bool, default={_init_default('use_grg')})"
     ),
 )
 @click.help_option("-h", "--help")
@@ -274,6 +310,7 @@ def cmd_init(
     cell_filename: str,
     cell_for_nac: Literal["primitive", "unitcell"] | None,
     cell_for_relax: Literal["primitive", "unitcell"] | None,
+    codes: tuple[CodeName, ...],
     diagonal: bool | None,
     find_primitive: bool | None,
     force_create: bool | None,
@@ -281,7 +318,7 @@ def cmd_init(
     kspacing_dense: float | None,
     magmom: str | None,
     max_num_atoms: int | None,
-    phelel_nosym: bool | None,
+    nosym: bool | None,
     plusminus: bool | None,
     primitive_cell_choice: Literal["standardized", "reduced"] | None,
     project_folder: str,
@@ -300,111 +337,124 @@ def cmd_init(
     Crystal structure (CELL_FILENAME) and new folder where new velph project
     is created have to be specified as command-line arguments.
 
-    Some command options can be specified in the [init.options] section of the
-    velph.toml-template file. Each option's key and its corresponding type are
-    indicated in parentheses within echo help documentation, for example,
+    The command options except --force, --template-toml and --toml-filename
+    can be specified in the [init] section of the velph init template.  Each
+    option's key and its corresponding type are indicated in parentheses
+    within the help of the option, for example,
 
     \b
-    [init.options]
+    [init]
+    codes = ["phelel", "phonopy"]
     kspacing = 0.2
     kspacing_dense = 0.1
     max_num_atoms = 120
 
     """  # noqa: D301
-    if not pathlib.Path(cell_filename).exists():
-        click.echo(f'"{cell_filename}" not found.', err=True)
-        return
-
-    if plusminus is True:
-        _plusminus = True
-    elif plusminus is False:
-        _plusminus = "auto"
-    else:
-        _plusminus = None
-
-    vip_cmd_options = VelphInitOptions(
-        amplitude=amplitude,
-        cell_for_nac=cell_for_nac,
-        cell_for_relax=cell_for_relax,
-        diagonal=diagonal,
-        find_primitive=find_primitive,
-        kspacing=kspacing,
-        kspacing_dense=kspacing_dense,
-        magmom=magmom,
-        max_num_atoms=max_num_atoms,
-        phelel_nosym=phelel_nosym,
-        plusminus=_plusminus,
-        primitive_cell_choice=primitive_cell_choice,
-        site_mixture=site_mixture,
-        split_site_mixture=split_site_mixture,
-        supercell_dimension=supercell_dimension,
-        supercell_matrix=supercell_matrix,
-        symmetrize_cell=symmetrize_cell,
-        tolerance=tolerance,
-        use_grg=use_grg,
+    options = _init_section(
+        {
+            "codes": codes or None,
+            "supercell_dimension": supercell_dimension,
+            "supercell_matrix": supercell_matrix,
+            "max_num_atoms": max_num_atoms,
+            "amplitude": amplitude,
+            "diagonal": diagonal,
+            "plusminus": {True: True, False: "auto", None: None}[plusminus],
+            "nosym": nosym,
+            "cell_for_relax": cell_for_relax,
+            "cell_for_nac": cell_for_nac,
+            "tolerance": tolerance,
+            "symmetrize_cell": symmetrize_cell,
+            "find_primitive": find_primitive,
+            "primitive_cell_choice": primitive_cell_choice,
+            "use_grg": use_grg,
+            "kspacing": kspacing,
+            "kspacing_dense": kspacing_dense,
+            "magmom": magmom,
+            "site_mixture": site_mixture,
+            "split_site_mixture": split_site_mixture,
+        }
     )
 
     cell_filepath = pathlib.Path(cell_filename)
-    if cell_filepath.exists():
-        vfp_dict = {"cell_filepath": cell_filepath}
-    else:
-        click.echo(f'"{cell_filename}" not found.', err=True)
-        return
+    if not cell_filepath.exists():
+        raise click.ClickException(f'"{cell_filename}" not found.')
+    template_filepath = None
+    if template_toml_filename is not None:
+        template_filepath = pathlib.Path(template_toml_filename)
+        if not template_filepath.exists():
+            raise click.ClickException(f'"{template_toml_filename}" not found.')
 
     project_folder_path = pathlib.Path(project_folder)
     if project_folder_path.exists():
+        if not project_folder_path.is_dir():
+            raise click.ClickException(f'"{project_folder}" is not a folder.')
         if project_folder_path.samefile(pathlib.Path()):
             click.echo(f'Project directory: "{project_folder}".')
-        else:
-            click.echo(f'File or folder "{project_folder}" already exists.')
-            if not force_create:
-                return
-
-    if template_toml_filename is not None:
-        velph_tmpl_filepath = pathlib.Path(template_toml_filename)
-        if velph_tmpl_filepath.exists():
-            vfp_dict["velph_template_filepath"] = velph_tmpl_filepath
-        else:
-            click.echo(f'"{template_toml_filename}" not found.', err=True)
-            return
+        elif not force_create:
+            raise click.ClickException(
+                f'Folder "{project_folder}" already exists.  Use --force to write '
+                "velph.toml in it."
+            )
 
     if toml_filename is None:
         toml_filepath = project_folder_path / "velph.toml"
     else:
         toml_filepath = project_folder_path / toml_filename
-
     if toml_filepath.exists():
-        if force_create:
-            click.echo(f'"{toml_filepath}" exists, but will be overwritten.', err=True)
-        else:
-            click.echo(
-                f'"{toml_filepath}" was not overwritten because it exists.', err=True
+        if not force_create:
+            raise click.ClickException(
+                f'"{toml_filepath}" exists.  Use --force to overwrite it.'
             )
-            return
+        click.echo(f'"{toml_filepath}" exists, but will be overwritten.')
 
-    vfp = VelphFilePaths(**vfp_dict)
-    toml_lines = run_init(vip_cmd_options, vfp)
+    input_cell, _ = read_crystal_structure(cell_filepath, interface_mode="vasp")
+    if input_cell is None:
+        raise click.ClickException(
+            f'Crystal structure file "{cell_filename}" could not be read.'
+        )
+    click.echo(f'Read crystal structure file "{cell_filename}".')
 
-    # Write velph.toml.
-    if toml_lines:
-        if not project_folder_path.exists():
-            project_folder_path.mkdir()
-            click.echo(f'Created new folder "{project_folder}".')
-        with open(toml_filepath, "w") as w:
-            w.write("\n".join(toml_lines))
-            w.write("\n")
-        click.echo(f'Initial settings were written to "{toml_filepath}".')
-        if pathlib.Path("POTCAR").exists():
-            vasp_potcar = VaspPotcar("POTCAR")
-            click.echo('Found "POTCAR".')
-            for elem in vasp_potcar.titel:
-                print(f"  {elem}")
-            enmax = max(vasp_potcar.enmax)
-            click.echo(f'  Max ENMAX in "POTCAR" is {enmax}.')
-            if project_folder is not None:
-                if not (project_folder_path / "POTCAR").exists():
-                    shutil.copy2(pathlib.Path("POTCAR"), project_folder_path / "POTCAR")
-                    click.echo(f'"POTCAR" was copied to "{project_folder}/POTCAR".')
-    else:
-        click.echo("")
-        click.echo(f'"{toml_filepath}" was not created.')
+    template: VelphConfig | None = None
+    if template_filepath is not None:
+        try:
+            template = load_template(template_filepath)
+        except VelphConfigError as e:
+            raise click.ClickException(str(e)) from e
+        click.echo(f'Read velph init template "{template_toml_filename}".')
+
+    config = build_velph_config(input_cell, template, options)
+
+    if not project_folder_path.exists():
+        project_folder_path.mkdir()
+        click.echo(f'Created new folder "{project_folder}".')
+    write_velph_toml(config, toml_filepath)
+    click.echo(f'Initial settings were written to "{toml_filepath}".')
+
+    if pathlib.Path("POTCAR").exists():
+        vasp_potcar = VaspPotcar("POTCAR")
+        click.echo('Found "POTCAR".')
+        for elem in vasp_potcar.titel:
+            click.echo(f"  {elem}")
+        enmax = max(vasp_potcar.enmax)
+        click.echo(f'  Max ENMAX in "POTCAR" is {enmax}.')
+        if not (project_folder_path / "POTCAR").exists():
+            shutil.copy2(pathlib.Path("POTCAR"), project_folder_path / "POTCAR")
+            click.echo(f'"POTCAR" was copied to "{project_folder}/POTCAR".')
+
+
+def _init_section(options: dict[str, Any]) -> InitSection:
+    """Return InitSection of the options given on the command line.
+
+    options maps the keys of [init] to the values of the options, None for an
+    option not given.
+
+    """
+    given = [
+        option for key, option in _SUPERCELL_OPTIONS.items() if options[key] is not None
+    ]
+    if len(given) > 1:
+        raise click.UsageError(f"Give only one of {', '.join(given)}.")
+    try:
+        return parse_init({k: v for k, v in options.items() if v is not None})
+    except VelphConfigError as e:
+        raise click.UsageError(str(e)) from e
