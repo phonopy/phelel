@@ -1,6 +1,5 @@
 """Tests cli/utils.py."""
 
-import contextlib
 import copy
 import io
 import itertools
@@ -22,7 +21,6 @@ from phelel.velph.cli.utils import (
     choose_cell_in_dict,
     echo_vasp_vca_hint,
     get_scheduler_dict,
-    kspacing_to_mesh,
     write_incar,
     write_kpoints_mesh_mode,
     write_launch_script,
@@ -128,26 +126,6 @@ def test_write_kpoints_mesh_mode_always_writes(
         kpoints_filename=kpoints_filename,
     )
     assert (tmp_path / kpoints_filename).exists()
-
-
-@pytest.mark.parametrize("use_grg", [True, False])
-def test_kspacing_to_mesh_follows_vasp_kspacing(use_grg: bool):
-    """Test that the mesh from kspacing follows VASP KSPACING.
-
-    VASP gives N_i = max(1, ceiling(|b_i| 2 pi / KSPACING)). For the
-    conventional unit cell of NaCl (a = 5.69 Angstrom) with spacing 0.25,
-    |b_i| 2 pi / KSPACING is 4.42, which gives 5. GR-grid can not be used for
-    this non-primitive cell.
-
-    """
-    cell, _ = read_crystal_structure(
-        pathlib.Path(__file__).parent / "init" / "POSCAR_NaCl", interface_mode="vasp"
-    )
-    assert cell is not None
-    kpoints_dict = {"kspacing": 0.25}
-    with pytest.warns() if use_grg else contextlib.nullcontext():
-        kspacing_to_mesh(kpoints_dict, cell, use_grg=use_grg)
-    assert kpoints_dict["mesh"] == [5, 5, 5]
 
 
 def _get_nacl_velph_dict() -> dict:

@@ -12,7 +12,6 @@ from enum import Enum
 from typing import Any, Literal, cast
 
 import click
-import numpy as np
 from numpy.typing import NDArray
 from phono3py.interface.calculator import (
     get_default_displacement_distance as get_phono3py_displacement_distance,
@@ -26,11 +25,9 @@ from phonopy.interface.vasp import (
     get_vasp_vca_weights,
     write_vasp,
 )
-from phonopy.phonon.grid import BZGrid
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
-from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel.velph.config.schema import VASP_KSPACING_TAGS
 from phelel.velph.utils.scheduler import (
@@ -38,7 +35,6 @@ from phelel.velph.utils.scheduler import (
     get_sge_scheduler_script,
     get_slurm_scheduler_script,
 )
-from phelel.velph.utils.structure import get_symmetry_dataset
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
@@ -371,27 +367,6 @@ def get_scheduler_dict(toml_dict: dict, calc_type: str) -> dict:
     return scheduler_dict
 
 
-def assert_kpoints_mesh_symmetry(
-    toml_dict: dict, kpoints_dict: dict, primitive: PhonopyAtoms
-):
-    """Check if mesh grid respects crystallographic point group or not."""
-    if "kspacing" in kpoints_dict:
-        symmetry_dataset = kspacing_to_mesh(kpoints_dict, primitive)
-        if "symmetry" in toml_dict:
-            if isinstance(symmetry_dataset, SpglibDataset):
-                if "spacegroup_type" in toml_dict["symmetry"]:
-                    assert (
-                        symmetry_dataset.international
-                        == toml_dict["symmetry"]["spacegroup_type"]
-                    )
-            else:
-                if "uni_number" in toml_dict["symmetry"]:
-                    assert (
-                        symmetry_dataset.uni_number
-                        == toml_dict["symmetry"]["uni_number"]
-                    )
-
-
 def choose_cell_in_dict(
     toml_dict: dict,
     toml_filename: pathlib.Path,
@@ -433,44 +408,6 @@ def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:
     if nd < min_length:
         nd = min_length
     return nd
-
-
-def kspacing_to_mesh(
-    kpoints_dict: dict, unitcell: PhonopyAtoms, use_grg: bool = True
-) -> SpglibDataset | SpglibMagneticDataset:
-    """Update kpoints_dict by mesh corresponding to kspacing.
-
-    The mesh numbers follow the VASP INCAR tag KSPACING,
-    max(1, ceiling(|b_i| 2 pi / kspacing)).
-
-    Parameters
-    ----------
-    kpoints_dict : dict
-        E.g., {"kspacing": 0.5}
-    lattice : array_like
-        Basis vectors in row vectors.
-        shape=(3, 3)
-
-    Returns
-    -------
-    SpglibDataset, SpglibMagneticDataset
-        Symmetry dataset of spglib.
-
-    """
-    kspacing = kpoints_dict["kspacing"]
-    symmetry_dataset = get_symmetry_dataset(unitcell)
-    gm = BZGrid(
-        2 * np.pi / kspacing,
-        lattice=unitcell.cell,
-        symmetry_dataset=symmetry_dataset,
-        use_grg=use_grg,
-        rounding="ceiling",
-    )
-    if gm.grid_matrix is None:
-        kpoints_dict["mesh"] = gm.D_diag.tolist()
-    else:
-        kpoints_dict["mesh"] = gm.grid_matrix.tolist()
-    return symmetry_dataset
 
 
 def get_nac_params(
