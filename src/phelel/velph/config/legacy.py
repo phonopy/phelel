@@ -27,13 +27,23 @@ The conversion is as follows.
 This module is kept after "velph init" writes the new format, so that the
 generate commands read the velph.toml files written by velph 0.14.
 
+A velph.toml of velph 0.14 is converted to a file of the new format by
+
+    python -m phelel.velph.config.legacy OLD NEW
+
+which does not overwrite an existing file, and prints what was removed and
+which kspacing was replaced by mesh.
+
 """
 
 from __future__ import annotations
 
+import argparse
 import copy
 import os
-from collections.abc import Mapping
+import pathlib
+import sys
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
@@ -43,7 +53,12 @@ from phonopy.structure.cells import (
     shape_supercell_matrix,
 )
 
-from phelel.velph.config.io import load_toml, parse_velph_toml
+from phelel.velph.config.io import (
+    VelphConfigError,
+    load_toml,
+    parse_velph_toml,
+    write_velph_toml,
+)
 from phelel.velph.config.schema import CODES, VelphConfig
 from phelel.velph.utils.mesh import kspacing_to_mesh
 
@@ -106,6 +121,100 @@ def parse_legacy_velph_toml(
         _convert_vasp_section(vasp)
         _convert_kspacing(converted)
     return parse_velph_toml(converted, name=name)
+
+
+def convert_legacy_velph_toml(
+    old_filename: str | os.PathLike, new_filename: str | os.PathLike
+) -> list[str]:
+    """Write the velph.toml of velph 0.14 old_filename in the new format.
+
+    The messages on what was removed and on which kspacing was replaced by mesh
+    are returned.  FileExistsError is raised when new_filename exists, and
+    VelphConfigError when old_filename is in the new format or cannot be
+    converted.  Nothing is written then.
+
+    """
+    if pathlib.Path(new_filename).exists():
+        raise FileExistsError(
+            f'"{new_filename}" exists.  Give the name of a file that does not exist.'
+        )
+    data = load_toml(old_filename)
+    velph = data.get("velph")
+    if isinstance(velph, Mapping) and "version" in velph:
+        raise VelphConfigError(
+            f'"{old_filename}" has [velph] version, so it is in the new format.'
+        )
+    config = parse_legacy_velph_toml(data, name=str(old_filename))
+    write_velph_toml(config, new_filename)
+    return _conversion_messages(data)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run "python -m phelel.velph.config.legacy OLD NEW"."""
+    parser = argparse.ArgumentParser(
+        prog="python -m phelel.velph.config.legacy",
+        description="Convert a velph.toml written by velph 0.14 to the new format.",
+    )
+    parser.add_argument("old", help="velph.toml written by velph 0.14")
+    parser.add_argument("new", help="velph.toml to be written, which must not exist")
+    args = parser.parse_args(argv)
+    try:
+        messages = convert_legacy_velph_toml(args.old, args.new)
+    except (OSError, VelphConfigError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    for message in messages:
+        print(message)
+    print(f'"{args.new}" has been written from "{args.old}".')
+    return 0
+
+
+def _conversion_messages(data: Mapping[str, Any]) -> list[str]:
+    """Return what the conversion removes from data and where it replaces kspacing.
+
+    The section names are those of velph 0.14.
+
+    """
+    messages = []
+    vasp = data.get("vasp")
+    if not isinstance(vasp, Mapping):
+        vasp = {}
+    if "incar" in vasp:
+        messages.append("[vasp.incar] was removed.")
+    for code in CODES:
+        section = data.get(code)
+        if not isinstance(section, Mapping):
+            continue
+        for key in _REMOVED_CODE_KEYS:
+            if key in section:
+                messages.append(f"{key} of [{code}] was removed.")
+    for code in ("phelel", "phono3py"):
+        input_set = vasp.get(code)
+        if isinstance(input_set, Mapping) and "phonon" in input_set:
+            messages.append(f"[vasp.{code}.phonon] was removed.")
+    for name, input_set in _legacy_input_sets(vasp):
+        for block in ("kpoints", "kpoints_dense"):
+            kpoints = input_set.get(block)
+            if isinstance(kpoints, Mapping) and "kspacing" in kpoints:
+                messages.append(
+                    f"kspacing of [vasp.{name}.{block}] was replaced by mesh."
+                )
+    return messages
+
+
+def _legacy_input_sets(
+    vasp: Mapping[str, Any],
+) -> Iterator[tuple[str, Mapping[str, Any]]]:
+    """Yield the names and tables of the input sets of [vasp] of velph 0.14."""
+    for set_name, table in vasp.items():
+        if set_name == "incar" or not isinstance(table, Mapping):
+            continue
+        if set_name == "el_bands" and {"bands", "dos"} & set(table):
+            for sub_name in ("bands", "dos"):
+                if isinstance(table.get(sub_name), Mapping):
+                    yield f"el_bands.{sub_name}", table[sub_name]
+        else:
+            yield set_name, table
 
 
 def _convert_code_sections(data: dict[str, Any]) -> None:
@@ -227,3 +336,7 @@ def _supercell(data: Mapping[str, Any], code: str) -> PhonopyAtoms | None:
         shape_supercell_matrix(supercell_matrix),
         symprec=_SUPERCELL_SYMPREC,
     )
+
+
+if __name__ == "__main__":
+    sys.exit(main())

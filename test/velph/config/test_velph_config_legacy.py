@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import copy
 import pathlib
+import subprocess
+import sys
 from collections.abc import Callable
 from typing import Any
 
@@ -12,8 +14,11 @@ import tomli_w
 from click.testing import CliRunner
 
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.config.io import load_velph_toml
 from phelel.velph.config.legacy import (
+    convert_legacy_velph_toml,
     load_velph_toml_any_version,
+    main,
     parse_legacy_velph_toml,
 )
 from phelel.velph.config.schema import (
@@ -280,3 +285,144 @@ def test_kspacing_mesh_equals_generate_site_mixture(
     _run_generate_commands(set_names)
     config = load_velph_toml_any_version(tmp_path / "velph.toml")
     _check_meshes_equal_generate(config, set_names, tmp_path)
+
+
+_VELPH_TOML_V014_DIR = pathlib.Path(__file__).parent.parent / "data" / "velph_toml_v014"
+
+
+@pytest.mark.parametrize(
+    "filename,messages",
+    [
+        ("nacl.toml", []),
+        ("nacl_222.toml", ["fft_mesh of [phelel] was removed."]),
+        ("gesnte_merge_222.toml", ["fft_mesh of [phelel] was removed."]),
+        ("gesnte_split_222.toml", ["fft_mesh of [phelel] was removed."]),
+    ],
+)
+def test_convert_legacy_velph_toml(
+    velph_toml_v014: Callable[[str], dict],
+    filename: str,
+    messages: list[str],
+    tmp_path: pathlib.Path,
+):
+    """The converted file is read into the VelphConfig of the original file."""
+    new_filename = tmp_path / "velph.toml"
+    assert (
+        convert_legacy_velph_toml(_VELPH_TOML_V014_DIR / filename, new_filename)
+        == messages
+    )
+    assert load_velph_toml(new_filename) == parse_legacy_velph_toml(
+        velph_toml_v014(filename)
+    )
+
+
+def test_convert_legacy_velph_toml_kspacing_and_removed_keys(
+    nacl_velph_toml_v014: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """The kspacing is replaced by mesh, and the removed keys are reported.
+
+    The section names in the messages are those of velph 0.14.
+
+    """
+    data = _velph_toml_with_kspacing(nacl_velph_toml_v014())
+    data["vasp"]["incar"] = {"encut": 300}
+    for code in ("phelel", "phono3py"):
+        data[code]["phonon_supercell_dimension"] = [3, 3, 3]
+        data["vasp"][code]["phonon"] = {"incar": {"encut": 300}}
+    old_filename = tmp_path / "velph_v014.toml"
+    old_filename.write_text(tomli_w.dumps(data))
+    new_filename = tmp_path / "velph.toml"
+
+    assert main([str(old_filename), str(new_filename)]) == 0
+    assert "kspacing" not in new_filename.read_text()
+    config = load_velph_toml(new_filename)
+    assert config == parse_legacy_velph_toml(data)
+    assert config.vasp is not None and config.vasp.input_sets is not None
+    assert config.vasp.input_sets["nac"].kpoints == KpointsMesh(
+        mesh=((-8, 8, 8), (8, -8, 8), (8, 8, -8))
+    )
+    replaced = [
+        f"kspacing of [vasp.{block}] was replaced by mesh."
+        for block in (
+            "phelel.kpoints",
+            "phonopy.kpoints",
+            "phono3py.kpoints",
+            "selfenergy.kpoints",
+            "selfenergy.kpoints_dense",
+            "transport.kpoints",
+            "transport.kpoints_dense",
+            "ph_selfenergy.kpoints",
+            "ph_selfenergy.kpoints_dense",
+            "relax.kpoints",
+            "nac.kpoints",
+            "el_bands.bands.kpoints",
+            "el_bands.dos.kpoints",
+            "el_bands.dos.kpoints_dense",
+        )
+    ]
+    assert capsys.readouterr().out.splitlines() == [
+        "[vasp.incar] was removed.",
+        "fft_mesh of [phelel] was removed.",
+        "phonon_supercell_dimension of [phelel] was removed.",
+        "phonon_supercell_dimension of [phono3py] was removed.",
+        "[vasp.phelel.phonon] was removed.",
+        "[vasp.phono3py.phonon] was removed.",
+        *replaced,
+        f'"{new_filename}" has been written from "{old_filename}".',
+    ]
+
+
+@pytest.mark.parametrize("case", ["new_exists", "new_format", "invalid"])
+def test_convert_legacy_velph_toml_error(
+    nacl_velph_toml_v014: Callable[[], dict],
+    case: str,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Nothing is written when the file cannot be converted."""
+    data = nacl_velph_toml_v014()
+    new_filename = tmp_path / "velph.toml"
+    if case == "new_exists":
+        new_filename.write_text("x = 1\n")
+        expected = 'velph.toml" exists'
+    elif case == "new_format":
+        data["velph"] = {"version": data["phelel"].pop("version")}
+        expected = "it is in the new format"
+    else:
+        data["phelel"]["supercell_dimension"] = [2, 2]
+        expected = "[phelel]"
+    old_filename = tmp_path / "velph_v014.toml"
+    old_filename.write_text(tomli_w.dumps(data))
+
+    assert main([str(old_filename), str(new_filename)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("Error: ")
+    assert expected in captured.err
+    if case == "new_exists":
+        assert new_filename.read_text() == "x = 1\n"
+    else:
+        assert not new_filename.exists()
+
+
+def test_convert_legacy_velph_toml_python_m(tmp_path: pathlib.Path):
+    """The converter runs as "python -m phelel.velph.config.legacy OLD NEW"."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "error",
+            "-m",
+            "phelel.velph.config.legacy",
+            str(_VELPH_TOML_V014_DIR / "nacl_222.toml"),
+            "velph.toml",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    assert (tmp_path / "velph.toml").exists()
