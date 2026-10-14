@@ -21,11 +21,11 @@ The conversion is as follows.
   for nac.
 - kspacing in [vasp.<input set>.kpoints] and [vasp.<input set>.kpoints_dense]
   is converted to mesh in the same way as the generate commands of velph 0.14
-  do.  kspacing_to_mesh is used with its default use_grg=True, so the mesh is
-  a generalized regular grid when the cell allows it.
+  do, that is, with use_grg=True, so the mesh is a generalized regular grid
+  when the cell has a single lattice point.
 
-This module is temporary.  It is removed when "velph init" writes the new
-format.
+This module is kept after "velph init" writes the new format, so that the
+generate commands read the velph.toml files written by velph 0.14.
 
 """
 
@@ -43,9 +43,9 @@ from phonopy.structure.cells import (
     shape_supercell_matrix,
 )
 
-from phelel.velph.cli.utils import kspacing_to_mesh
 from phelel.velph.config.io import load_toml, parse_velph_toml
 from phelel.velph.config.schema import CODES, VelphConfig
+from phelel.velph.utils.mesh import kspacing_to_mesh
 
 # Tolerance with which Phelel, Phonopy and Phono3py make the supercell.
 # "velph phelel init", "velph phonopy init" and "velph phono3py init" of velph
@@ -162,8 +162,9 @@ def _convert_kspacing(data: dict[str, Any]) -> None:
             cell = _cell_of_input_set(data, set_name)
             if cell is None:
                 continue
-            kspacing_to_mesh(kpoints, cell)
-            del kpoints["kspacing"]
+            kpoints["mesh"] = kspacing_to_mesh(
+                kpoints.pop("kspacing"), cell, use_grg=True
+            )
 
 
 def _cell_of_input_set(data: Mapping[str, Any], set_name: str) -> PhonopyAtoms | None:

@@ -45,9 +45,9 @@ from phelel.velph.cli.utils import (
     VelphFilePaths,
     VelphInitOptions,
     VelphInitParams,
-    kspacing_to_mesh,
 )
 from phelel.velph.templates import default_template_dict
+from phelel.velph.utils.mesh import kspacing_to_mesh
 from phelel.velph.utils.structure import get_symmetry_dataset
 
 cwd = pathlib.Path(__file__).parent
@@ -1477,8 +1477,8 @@ def test_run_init_template_kpoints_kspacing_to_mesh(
     assert kpoints_dict == {"kspacing": 0.2, "shift": [0.5, 0.5, 0.5]}
     unitcell = load_phonopy_yaml(velph_dict["unitcell"]).unitcell
     assert unitcell is not None
-    kspacing_to_mesh(kpoints_dict, unitcell)
-    assert np.array(kpoints_dict["mesh"]).shape in ((3,), (3, 3))
+    mesh = kspacing_to_mesh(kpoints_dict["kspacing"], unitcell)
+    assert np.array(mesh).shape in ((3,), (3, 3))
 
 
 def _get_vasp_kspacing_mesh(cell: PhonopyAtoms, kspacing: float) -> list[int]:
