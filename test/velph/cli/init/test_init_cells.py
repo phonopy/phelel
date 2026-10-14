@@ -265,6 +265,56 @@ def test_make_cells_site_mixture_error(options: dict[str, str], message: str):
         _make_cells(_site_mixture_cell(), **options)
 
 
+_A_NACL = 5.69
+_FCC_POINTS: list[list[float]] = [
+    [0.0, 0.0, 0.0],
+    [0.0, 0.5, 0.5],
+    [0.5, 0.0, 0.5],
+    [0.5, 0.5, 0.0],
+]
+_FCC_POINTS_SHIFTED: list[list[float]] = [
+    [(x + 0.5) % 1 for x in p] for p in _FCC_POINTS
+]
+
+
+@pytest.mark.parametrize(
+    "order,is_shown",
+    [("by_element", False), ("interleaved", True), ("primitive", True)],
+)
+def test_make_cells_shows_changed_species_rows(
+    order: str, is_shown: bool, capsys: pytest.CaptureFixture[str]
+):
+    """A message is shown when symmetrize_cell changes the POSCAR rows."""
+    if order == "primitive":
+        a = _A_NACL / 2
+        cell = PhonopyAtoms(
+            cell=[[0, a, a], [a, 0, a], [a, a, 0]],
+            symbols=["Na", "Cl"],
+            scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+        )
+    elif order == "by_element":
+        cell = PhonopyAtoms(
+            cell=np.eye(3) * _A_NACL,
+            symbols=["Na"] * 4 + ["Cl"] * 4,
+            scaled_positions=_FCC_POINTS + _FCC_POINTS_SHIFTED,
+        )
+    else:
+        cell = PhonopyAtoms(
+            cell=np.eye(3) * _A_NACL,
+            symbols=["Na", "Cl"] * 4,
+            scaled_positions=[
+                p
+                for pair in zip(_FCC_POINTS, _FCC_POINTS_SHIFTED, strict=True)
+                for p in pair
+            ],
+        )
+    _make_cells(cell, symmetrize_cell=True)
+    out = capsys.readouterr().out
+    assert ("Number or order of atoms was changed" in out) is is_shown
+    if is_shown:
+        assert "Unit cell:       Na Cl / 4 4" in out
+
+
 @pytest.mark.parametrize(
     "supercell,expected",
     [

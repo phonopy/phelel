@@ -5,13 +5,14 @@ from __future__ import annotations
 import dataclasses
 import io
 import pathlib
-from typing import Any
+from typing import Any, cast
 
+import numpy as np
 import pytest
 import tomli
-from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
+from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict, parse_cell_dict
+from phonopy.structure.cells import apply_site_mixture, build_mixture_cell
 
-from phelel.velph.cli.init.init import _merge_incar_commons
 from phelel.velph.cli.utils import get_default_amplitude
 from phelel.velph.config.defaults import get_default_config
 from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
@@ -40,7 +41,6 @@ from phelel.velph.config.schema import (
     VaspSection,
     VelphConfig,
 )
-from phelel.velph.templates import default_template_dict
 
 
 def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
@@ -132,34 +132,6 @@ def test_defaults_init_acts_on_no_section():
         assert getattr(init, name) is None
 
 
-def test_defaults_match_default_template_dict():
-    """The defaults give the INCARs that the present velph init gives.
-
-    The INCAR of each input set resolved by resolve_incar is compared with the
-    INCAR that _merge_incar_commons builds from default_template_dict.
-
-    """
-    vasp = resolve_incar(get_default_config()).vasp
-    assert vasp is not None and vasp.input_sets is not None
-    old_vasp = default_template_dict["vasp"]
-    renamed = {
-        "el_bands.bands": "el_bands",
-        "el_bands.dos": "el_dos",
-    }
-    for old_name in old_vasp:
-        if old_name == "incar":
-            continue
-        set_name = renamed.get(old_name, old_name)
-        expected = _merge_incar_commons(old_vasp[old_name]["incar"], old_vasp["incar"])
-        assert vasp.input_sets[set_name].incar == expected, set_name
-    assert vasp.input_sets["el_bands"].kpoints_opt == LinePath(line=51)
-    assert vasp.input_sets["ph_bands"].qpoints == LinePath(line=51)
-    assert vasp.input_sets["ph_bands"].kpoints == KpointsMesh(mesh=(1, 1, 1))
-    assert vasp.input_sets["relax"].cell == "unitcell"
-    assert vasp.input_sets["nac"].cell == "primitive"
-    assert get_default_config().scheduler == default_template_dict["scheduler"]
-
-
 def test_round_trip(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
     """What is written is read back to the same config."""
     config = _resolved_config(nacl_cell)
@@ -184,6 +156,92 @@ def test_round_trip_template():
     assert _template(dumps_config(config)) == config
 
 
+def _cells_for_round_trip() -> dict[str, PhonopyAtoms]:
+    lattice = [[4.0, 0.0, 0.0], [0.0, 4.0, 0.0], [0.0, 0.0, 4.0]]
+    two_sites = [[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]]
+    co_located = PhonopyAtoms(
+        cell=lattice,
+        symbols=["Ge", "Sn", "Si"],
+        scaled_positions=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.5, 0.5, 0.5]],
+    )
+    return {
+        "plain": PhonopyAtoms(
+            cell=lattice, symbols=["Na", "Cl"], scaled_positions=two_sites
+        ),
+        "magmom_scalar": PhonopyAtoms(
+            cell=lattice,
+            symbols=["Fe", "Fe"],
+            scaled_positions=two_sites,
+            magnetic_moments=[1.5, -1.5],
+        ),
+        "magmom_vector": PhonopyAtoms(
+            cell=lattice,
+            symbols=["Fe", "Fe"],
+            scaled_positions=two_sites,
+            magnetic_moments=[[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]],
+        ),
+        "extended_symbol": PhonopyAtoms(
+            cell=lattice, symbols=["Fe1", "Fe2"], scaled_positions=two_sites
+        ),
+        "merged_mixture": build_mixture_cell(co_located, [0.5, 0.5, 1.0]),
+        "weighted_species": apply_site_mixture(co_located, [0.5, 0.5, 1.0]),
+    }
+
+
+@pytest.mark.parametrize("name", list(_cells_for_round_trip()))
+def test_round_trip_cell(name: str):
+    """A cell written in velph.toml is read back by parse_cell_dict of phonopy.
+
+    Merged mixed-species sites, extended symbols, magnetic moments and
+    weighted species are written as phonopy writes them in yaml.
+
+    """
+    cell = _cells_for_round_trip()[name]
+    config = _parse_text(_velph_toml_text(cell))
+    assert config.unitcell is not None
+    cell2 = parse_cell_dict(cast(Any, config.unitcell))
+    assert cell2 is not None
+    assert cell2.symbols == cell.symbols
+    np.testing.assert_allclose(cell2.cell, cell.cell)
+    np.testing.assert_allclose(cell2.scaled_positions, cell.scaled_positions)
+    assert cell.masses is not None
+    assert cell2.masses is not None
+    np.testing.assert_allclose(cell2.masses, cell.masses)
+    assert cell2.has_mixtures == cell.has_mixtures
+    assert cell2.has_weighted_species == cell.has_weighted_species
+    if cell.mixture_weights is None:
+        assert cell2.mixture_weights is None
+    else:
+        assert cell2.mixture_weights is not None
+        np.testing.assert_allclose(cell2.mixture_weights, cell.mixture_weights)
+    if cell.magnetic_moments is None:
+        assert cell2.magnetic_moments is None
+    else:
+        assert cell2.magnetic_moments is not None
+        np.testing.assert_allclose(cell2.magnetic_moments, cell.magnetic_moments)
+
+
+def test_cell_old_extended_symbol():
+    """Symbol = "Fe1" written by velph earlier than 0.15 is still read."""
+    toml_dict = tomli.loads(
+        "\n".join(
+            [
+                "[unitcell]",
+                "lattice = [[4.0, 0.0, 0.0], [0.0, 4.0, 0.0], [0.0, 0.0, 4.0]]",
+                "[[unitcell.points]]",
+                'symbol = "Fe1"',
+                "coordinates = [0.0, 0.0, 0.0]",
+                "[[unitcell.points]]",
+                'symbol = "Fe2"',
+                "coordinates = [0.5, 0.5, 0.5]",
+            ]
+        )
+    )
+    cell = parse_cell_dict(toml_dict["unitcell"])
+    assert cell is not None
+    assert cell.symbols == ["Fe1", "Fe2"]
+
+
 def test_dumps_format(nacl_cell: PhonopyAtoms):
     """Matrices are written with one row per line, and points with numbers."""
     text = _velph_toml_text(nacl_cell)
@@ -193,6 +251,36 @@ def test_dumps_format(nacl_cell: PhonopyAtoms):
     assert "[[unitcell.points]]  # 1" in text
     assert "[[unitcell.points]]  # 2" in text
     assert max(len(line) for line in text.split("\n") if "temps" not in line) <= 88
+
+
+def test_dumps_long_element(nacl_cell: PhonopyAtoms):
+    """A list with an element longer than the line width is written per line.
+
+    Each element is on its own line, and no line has only spaces.
+
+    """
+    config = _resolved_config(nacl_cell)
+    assert config.scheduler is not None
+    names = ["x" * 85, "y"]
+    config = dataclasses.replace(config, scheduler={**config.scheduler, "names": names})
+    text = dumps_config(config)
+    assert f'names = [\n  "{"x" * 85}",\n  "y",\n]' in text
+    assert all(line.strip() or not line for line in text.split("\n"))
+    assert _parse_text(text).scheduler["names"] == names  # type: ignore[index]
+
+
+def test_dumps_quoted_keys(nacl_cell: PhonopyAtoms):
+    """A key that is not a bare key of TOML is written in quotes."""
+    config = _resolved_config(nacl_cell)
+    assert config.scheduler is not None
+    keys = {"a b": 1, "a.b": 2, "a = b": 3, 'x"y': 4, "job-name": 5}
+    config = dataclasses.replace(config, scheduler={**config.scheduler, **keys})
+    text = dumps_config(config)
+    assert '"a = b" = 3' in text
+    assert "job-name = 5" in text
+    scheduler = _parse_text(text).scheduler
+    assert scheduler is not None
+    assert {key: scheduler[key] for key in keys} == keys
 
 
 def test_write_velph_toml_checks(tmp_path: pathlib.Path):

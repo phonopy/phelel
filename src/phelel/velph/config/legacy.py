@@ -75,7 +75,7 @@ _REMOVED_CODE_KEYS = (
 )
 
 # Cells that the generate commands of velph 0.14 use for relax and nac when
-# "cell" is not given (DefaultCellChoices in velph/cli/utils.py).
+# "cell" is not given (DefaultCellChoices in velph/cli/utils.py of 0.14).
 _DEFAULT_CELLS = {"relax": "unitcell", "nac": "primitive"}
 
 # Input sets whose k-point meshes the generate commands of velph 0.14 compute
