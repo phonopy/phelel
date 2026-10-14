@@ -1,7 +1,5 @@
 """Pytest conftest."""
 
-import contextlib
-import io
 import pathlib
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -12,10 +10,8 @@ import tomli
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.cli.init.init import _run_init
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
 from phelel.velph.cli.supercells import PHONOPY_DISP_YAML
-from phelel.velph.cli.utils import VelphInitOptions
 from phelel.velph.config.io import parse_template
 from phelel.velph.config.legacy import parse_legacy_velph_toml
 from phelel.velph.config.schema import (
@@ -26,6 +22,7 @@ from phelel.velph.config.schema import (
 )
 
 cwd = pathlib.Path(__file__).parent
+VELPH_TOML_V014_DIR = cwd / "data" / "velph_toml_v014"
 
 
 @pytest.fixture(scope="session")
@@ -220,53 +217,51 @@ def helper_methods() -> Callable:
 def site_mixture_velph_toml() -> Callable[[bool], dict]:
     """Return a function giving velph.toml dict of a site-mixture cell.
 
-    The cell is CsCl-like with co-located Ge and Sn (weights 0.5) and Te. The
-    cells in velph.toml keep Ge and Sn with weights. The argument is
-    split_site_mixture: False writes the merge scheme, with which phonopy
-    merges Ge and Sn into a GeSn site, and True writes the split scheme.
+    The dict is that of a velph.toml written by velph init of velph 0.14 for a
+    CsCl-like cell with co-located Ge and Sn (weights 0.5) and Te, with the
+    2x2x2 supercell. The cells in velph.toml keep Ge and Sn with weights. The
+    argument is split_site_mixture: False gives the merge scheme, with which
+    phonopy merges Ge and Sn into a GeSn site, and True gives the split scheme.
 
     """
 
     def _get_velph_toml(split_site_mixture: bool) -> dict:
-        cell = PhonopyAtoms(
-            symbols=["Ge", "Sn", "Te"],
-            cell=np.eye(3) * 4.0,
-            scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
-        )
-        with contextlib.redirect_stdout(io.StringIO()):
-            toml_lines = _run_init(
-                cell,
-                VelphInitOptions(
-                    site_mixture="0.5 0.5 1.0",
-                    split_site_mixture=split_site_mixture,
-                    supercell_dimension=(2, 2, 2),
-                ),
-            )
-        assert toml_lines is not None
-        return tomli.loads("\n".join(toml_lines))
+        scheme = "split" if split_site_mixture else "merge"
+        return _load_velph_toml_v014(f"gesnte_{scheme}_222.toml")
 
     return _get_velph_toml
 
 
 @pytest.fixture(scope="session")
-def nacl_velph_toml_v014(nacl_cell: PhonopyAtoms) -> Callable[[], dict]:
+def nacl_velph_toml_v014() -> Callable[[], dict]:
     """Return a function giving velph.toml dict that velph 0.14 writes for NaCl.
 
     The supercell is 2x2x2 of the conventional unit cell, and [scheduler] is
     written.  Each call returns a new dict, so a test can modify it.
 
     """
-    with contextlib.redirect_stdout(io.StringIO()):
-        toml_lines = _run_init(
-            nacl_cell, VelphInitOptions(supercell_dimension=(2, 2, 2))
-        )
-    assert toml_lines is not None
-    toml_str = "\n".join(toml_lines)
 
     def _get_velph_toml() -> dict:
-        return tomli.loads(toml_str)
+        return _load_velph_toml_v014("nacl_222.toml")
 
     return _get_velph_toml
+
+
+@pytest.fixture(scope="session")
+def velph_toml_v014() -> Callable[[str], dict]:
+    """Return a function giving velph.toml dict of a file of velph 0.14.
+
+    The argument is the name of a file in data/velph_toml_v014, which is
+    written by velph init of velph 0.14 as its header says.
+
+    """
+    return _load_velph_toml_v014
+
+
+def _load_velph_toml_v014(filename: str) -> dict:
+    """Return velph.toml dict of a file written by velph init of velph 0.14."""
+    with open(VELPH_TOML_V014_DIR / filename, "rb") as f:
+        return tomli.load(f)
 
 
 @pytest.fixture(scope="session")

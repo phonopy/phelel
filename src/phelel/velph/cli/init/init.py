@@ -31,7 +31,6 @@ from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel import __version__
 from phelel.velph.cli.utils import (
-    VASP_KSPACING_TAGS,
     CellChoice,
     DefaultCellChoices,
     DisplacementOptions,
@@ -45,6 +44,7 @@ from phelel.velph.cli.utils import (
     parse_cell_choice,
     parse_primitive_cell_choice,
 )
+from phelel.velph.config.schema import VASP_KSPACING_TAGS
 from phelel.velph.templates import default_template_dict
 from phelel.velph.utils.structure import (
     get_primitive_cell,

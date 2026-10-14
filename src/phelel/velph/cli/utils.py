@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import dataclasses
 import os
 import pathlib
@@ -22,20 +21,17 @@ from phonopy.interface.calculator import (
 from phonopy.interface.vasp import (
     VasprunxmlExpat,
     get_vasp_vca_hint_lines,
-    get_vasp_vca_weights,
     write_vasp,
 )
 from phonopy.physical_units import get_physical_units
-from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
+from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
-from phelel.velph.config.schema import VASP_KSPACING_TAGS
 from phelel.velph.utils.scheduler import (
     get_custom_schedular_script,
     get_sge_scheduler_script,
     get_slurm_scheduler_script,
 )
-from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
 class CellChoice(Enum):
@@ -223,33 +219,6 @@ class KpointsData:
     label: tuple[tuple[str, str]] | None = None
 
 
-def write_incar(
-    toml_incar_dict: dict,
-    directory: os.PathLike,
-    cell: PhonopyAtoms | None = None,
-    incar_filename: str | os.PathLike = "INCAR",
-) -> None:
-    """Write INCAR file.
-
-    kspacing and elph_kspacing are not accepted, because velph always writes
-    KPOINTS files.
-
-    """
-    for key in toml_incar_dict:
-        if key.lower() in VASP_KSPACING_TAGS:
-            raise click.ClickException(
-                f'INCAR tag "{key}" cannot be used in velph, because velph '
-                "always writes KPOINTS files. Remove it from velph.toml and give "
-                "the k-point mesh in the kpoints blocks."
-            )
-    incar_dict = copy.deepcopy(toml_incar_dict)
-    if cell is not None and cell.magnetic_moments is not None:
-        incar_dict["magmom"] = cell.magnetic_moments.tolist()
-    if cell is not None and cell.has_weighted_species:
-        incar_dict["vca"] = get_vasp_vca_weights(cell)
-    VaspIncar.write(pathlib.Path(directory) / incar_filename, incar_dict)
-
-
 def write_poscar(
     directory: os.PathLike, cell: PhonopyAtoms, filename: str = "POSCAR"
 ) -> None:
@@ -270,22 +239,6 @@ def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
     if cell.has_weighted_species:
         for line in get_vasp_vca_hint_lines(cell):
             click.echo(line)
-
-
-def write_kpoints_mesh_mode(
-    toml_incar_dict: dict,
-    directory: os.PathLike,
-    tag: str,
-    toml_kpoints_dict: dict,
-    kpoints_filename="KPOINTS",
-) -> None:
-    """Write KPOINTS file in mesh mode."""
-    try:
-        VaspKpoints.write_mesh_mode(
-            pathlib.Path(directory) / kpoints_filename, toml_kpoints_dict
-        )
-    except KeyError:
-        click.echo(f'Invalid setting of [{tag}]. "{kpoints_filename}" was not made.')
 
 
 def write_launch_script(
@@ -336,70 +289,6 @@ def write_launch_script(
     if sched_string:
         with open(pathlib.Path(directory) / "_job.sh", "w") as w:
             w.write(sched_string)
-
-
-def get_scheduler_dict(toml_dict: dict, calc_type: str) -> dict:
-    """Collect and return scheduler information.
-
-    This function extracts scheduler dict from ``toml_dict``.
-
-    Scheduler information is written in [scheduler] section. This information
-    can be overwritten in ``each calc_type`` by writing parameters in
-    [vasp.calc_type.scheduler] section.
-
-    Parameters
-    ----------
-    toml_dict : dict
-        Dictionary after parsing velph.toml.
-    calc_type : str
-        This can be written in either way "supercell" or "supercell.phonon".
-        This string is splitted by period (".") and the list of strings is used
-        as keys of ``toml_dict["vasp"]["key1"]["key2"]``.
-
-    """
-    scheduler_dict = copy.deepcopy(toml_dict["scheduler"])
-    calc_type_keys = calc_type.split(".")
-    tmp_dict = toml_dict["vasp"]
-    for key in calc_type_keys:
-        tmp_dict = tmp_dict[key]
-    if "scheduler" in tmp_dict:
-        scheduler_dict.update(tmp_dict["scheduler"])
-    return scheduler_dict
-
-
-def choose_cell_in_dict(
-    toml_dict: dict,
-    toml_filename: pathlib.Path,
-    calc_type: Literal["relax", "nac"],
-) -> PhonopyAtoms | None:
-    """Return unit cell, primitive cell, or Niggli reduced cell from toml_dict.
-
-    Unit cell and primitive cell have to exist in velph.toml. But Niggli reduced
-    cell is optional.
-
-    """
-    if "cell" in toml_dict["vasp"][calc_type]:
-        cell_choice = parse_cell_choice(
-            toml_dict["vasp"][calc_type]["cell"],
-            f"cell in [vasp.{calc_type}] of {toml_filename}",
-        )
-        if cell_choice is None:
-            return None
-        if cell_choice is CellChoice.UNITCELL:
-            cell = parse_cell_dict(toml_dict["unitcell"])
-        else:
-            cell = parse_cell_dict(toml_dict["primitive_cell"])
-    else:
-        if dataclasses.asdict(DefaultCellChoices())[calc_type] is CellChoice.PRIMITIVE:
-            cell = parse_cell_dict(toml_dict["primitive_cell"])
-            click.echo(f"Primitive cell was used for {calc_type}.")
-        elif dataclasses.asdict(DefaultCellChoices())[calc_type] is CellChoice.UNITCELL:
-            cell = parse_cell_dict(toml_dict["unitcell"])
-            click.echo(f"Unitcell was used for {calc_type}.")
-        else:
-            raise RuntimeError("This should not happen.")
-
-    return cell
 
 
 def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:

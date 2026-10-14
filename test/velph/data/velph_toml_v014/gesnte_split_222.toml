@@ -1,0 +1,334 @@
+# Written by velph init of velph 0.14 (commit 63c4abe) for
+# a CsCl-like cell (a = 4 Angstrom) of Ge and Sn at (0, 0, 0) and Te at (1/2,
+# 1/2, 1/2), --site-mixture "0.5 0.5 1.0" --split-site-mixture --dim 2 2 2
+
+[phelel]
+version = "0.14.1.dev37+g63c4abe06"
+supercell_dimension = [2, 2, 2]
+amplitude = 0.03
+diagonal = false
+plusminus = true
+site_mixture_scheme = "split"
+fft_mesh = [30, 30, 30]
+
+[phonopy]
+supercell_dimension = [2, 2, 2]
+amplitude = 0.01
+diagonal = false
+plusminus = true
+site_mixture_scheme = "split"
+
+[phono3py]
+supercell_dimension = [2, 2, 2]
+amplitude = 0.03
+diagonal = false
+plusminus = true
+
+[vasp.phelel.incar]
+elph_prepare = true
+isym = 0
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.phelel.kpoints]
+mesh = [8, 8, 8]
+
+[vasp.phonopy.incar]
+addgrid = true
+isym = 0
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.phonopy.kpoints]
+mesh = [8, 8, 8]
+
+[vasp.phono3py.incar]
+addgrid = true
+isym = 0
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.phono3py.kpoints]
+mesh = [8, 8, 8]
+
+[vasp.selfenergy.incar]
+elph_run = true
+elph_selfen_fan = true
+elph_selfen_dw = true
+elph_selfen_delta = 0.01
+elph_selfen_temps = [
+    0,
+    300,
+]
+elph_ismear = -24
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.selfenergy.kpoints]
+mesh = [16, 16, 16]
+[vasp.selfenergy.kpoints_dense]
+mesh = [32, 32, 32]
+
+[vasp.transport.incar]
+elph_fermi_nedos = 501
+elph_ismear = -24
+elph_mode = "transport"
+elph_selfen_carrier_den = 0.0
+elph_scattering_approx = [
+    "serta",
+    "mrta_lambda",
+]
+elph_selfen_temps = [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    70,
+    80,
+    90,
+    100,
+    110,
+    120,
+    130,
+    140,
+    150,
+    160,
+    170,
+    180,
+    190,
+    200,
+    210,
+    220,
+    230,
+    240,
+    250,
+    260,
+    270,
+    280,
+    290,
+    300,
+    400,
+    500,
+    600,
+    700,
+    800,
+    900,
+    1000,
+    1100,
+    1200,
+    1300,
+    1400,
+]
+elph_transport_nedos = 501
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.transport.kpoints]
+mesh = [16, 16, 16]
+[vasp.transport.kpoints_dense]
+mesh = [32, 32, 32]
+
+[vasp.ph_selfenergy.incar]
+elph_fermi_nedos = 501
+elph_run = true
+elph_selfen_temps = [
+    0,
+    300,
+]
+elph_ismear = -24
+elph_driver = "ph"
+elph_mode = "superconductivity"
+elph_selfen_carrier_den = 0.0
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.ph_selfenergy.kpoints]
+mesh = [16, 16, 16]
+[vasp.ph_selfenergy.kpoints_dense]
+mesh = [32, 32, 32]
+
+[vasp.relax]
+cell = "unitcell"
+[vasp.relax.incar]
+ediffg = -1e-06
+ibrion = 2
+isif = 3
+nsw = 10
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.relax.kpoints]
+mesh = [16, 16, 16]
+
+[vasp.nac]
+cell = "primitive"
+[vasp.nac.incar]
+lepsilon = true
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.nac.kpoints]
+mesh = [16, 16, 16]
+
+[vasp.el_bands.bands.incar]
+ibrion = -1
+nsw = 0
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.el_bands.bands.kpoints]
+mesh = [16, 16, 16]
+[vasp.el_bands.bands.kpoints_opt]
+line = 51
+
+[vasp.el_bands.dos.incar]
+ibrion = -1
+nsw = 0
+lorbit = 11
+nedos = 5001
+ismear = -5
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.el_bands.dos.kpoints]
+mesh = [16, 16, 16]
+[vasp.el_bands.dos.kpoints_dense]
+mesh = [32, 32, 32]
+
+[vasp.ph_bands.incar]
+ibrion = -1
+nsw = 0
+elph_run = true
+encut = 500
+prec = "accurate"
+[vasp.ph_bands.kpoints]
+mesh = [1, 1, 1]
+[vasp.ph_bands.qpoints]
+line = 51
+
+[scheduler]
+job_name = "vasp-elph"
+mpirun_command = "mpirun"
+vasp_binary = "vasp_std"
+prepend_text = ""
+append_text = ""
+nodes = 1
+walltime = "96:00:00"
+scheduler_template = """\
+#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --nodes={nodes}
+#SBATCH --time={walltime}
+#SBATCH --output=ci_%j.log
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+"""
+
+[symmetry]
+spacegroup_type = "Pm-3m"
+tolerance = 1e-05
+[unitcell]
+lattice = [
+  [     4.000000000000000,     0.000000000000000,     0.000000000000000 ], # a
+  [     0.000000000000000,     4.000000000000000,     0.000000000000000 ], # b
+  [     0.000000000000000,     0.000000000000000,     4.000000000000000 ], # c
+]
+[[unitcell.points]]  # 1
+symbol = "Ge"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 72.640000
+weight = 0.500000000000000
+[[unitcell.points]]  # 2
+symbol = "Sn"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 118.710000
+weight = 0.500000000000000
+[[unitcell.points]]  # 3
+symbol = "Te"
+coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
+mass = 127.600000
+weight = 1.000000000000000
+[primitive_cell]
+lattice = [
+  [     4.000000000000000,     0.000000000000000,     0.000000000000000 ], # a
+  [     0.000000000000000,     4.000000000000000,     0.000000000000000 ], # b
+  [     0.000000000000000,     0.000000000000000,     4.000000000000000 ], # c
+]
+[[primitive_cell.points]]  # 1
+symbol = "Ge"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 72.640000
+weight = 0.500000000000000
+[[primitive_cell.points]]  # 2
+symbol = "Sn"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 118.710000
+weight = 0.500000000000000
+[[primitive_cell.points]]  # 3
+symbol = "Te"
+coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
+mass = 127.600000
+weight = 1.000000000000000
