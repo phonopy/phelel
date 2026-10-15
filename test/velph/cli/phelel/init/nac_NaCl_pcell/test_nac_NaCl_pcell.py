@@ -14,26 +14,10 @@ cwd = Path(__file__).parent
 
 def test_nac_NaCl_pcell(request, code_init_config: Callable[[dict], VelphConfig]):
     """Test of different NAC cell."""
-    toml_str = """title = "VASP el-ph settings"
-
-[phelel]
+    toml_str = """[phelel]
 supercell_dimension = [2, 2, 2]
 amplitude = 0.03
 plusminus = true
-fft_mesh = [30, 30, 30]
-
-[vasp.supercell.incar]
-system = "default"
-ismear = 0
-sigma = 0.1
-prec = "accurate"
-ediff = 1e-06
-elph_prepare = true
-lreal = false
-lwave = false
-lcharg = false
-[vasp.supercell.kpoints]
-mesh = [1, 1, 1]
 
 [vasp.nac]
 cell = "primitive"
