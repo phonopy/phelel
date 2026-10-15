@@ -2,58 +2,66 @@
 # `velph.toml`-`[vasp]` section
 
 The `[vasp]` section is the largest part of `velph.toml`. It stores the VASP
-`INCAR` tags, k-point sampling, and per-step job-script settings used to generate
-the input files for each calculation step of the workflow.
+`INCAR` tags, k-point sampling, and job-script settings used to generate the
+input files of each calculation of the workflow.
 
-Each calculation step has its own sub-section `[vasp.CALC_TYPE]`. The recognized
-calculation types are:
+The settings of one kind of calculation are called an input set, and each input
+set is a sub-section `[vasp.<input set>]`. The generate command of an input set,
+for example `velph relax generate` for `[vasp.relax]`, writes the VASP input
+files in the directory of the same name. The input sets are:
 
-| `CALC_TYPE`        | Purpose                                              | Subcommand                          |
-| ------------------ | ---------------------------------------------------- | ----------------------------------- |
-| `relax`            | Crystal structure relaxation                         | {ref}`velph relax <velph_subcommands>` |
-| `nac`              | Dielectric constant and Born effective charges       | {ref}`velph nac <velph_nac_subcommand>` |
-| `phelel`           | Supercells for derivatives of potentials/PAW strengths | {ref}`velph phelel <velph_phelel_subcommand>` |
-| `phonopy`          | Supercells for phonon (phonopy)                      | {ref}`velph phonopy <velph_phonopy_subcommand>` |
-| `phono3py`         | Supercells for anharmonic phonon (phono3py)          | {ref}`velph phono3py <velph_phono3py_subcommand>` |
-| `selfenergy`       | Fan self-energy (electron-phonon)                    | `velph selfenergy`                  |
-| `transport`        | Transport properties (electron-phonon)               | `velph transport`                   |
-| `el_bands`         | Electronic band structure and DOS                    | `velph el_bands`                    |
-| `ph_bands`         | Phonon band structure                                | `velph ph_bands`                    |
+| Input set          | Purpose                                                | Subcommand                                    | Written by `velph init`       |
+| ------------------ | ------------------------------------------------------ | --------------------------------------------- | ----------------------------- |
+| `relax`            | Crystal structure relaxation                           | {ref}`velph relax <velph_subcommands>`        | always                        |
+| `nac`              | Dielectric constant and Born effective charges         | {ref}`velph nac <velph_nac_subcommand>`       | always                        |
+| `phelel`           | Supercells for derivatives of potentials/PAW strengths | {ref}`velph phelel <velph_phelel_subcommand>` | with `[phelel]`               |
+| `phonopy`          | Supercells for phonon (phonopy)                        | {ref}`velph phonopy <velph_phonopy_subcommand>` | with `[phonopy]`            |
+| `phono3py`         | Supercells for anharmonic phonon (phono3py)            | {ref}`velph phono3py <velph_phono3py_subcommand>` | with `[phono3py]`         |
+| `selfenergy`       | Fan self-energy (electron-phonon)                      | `velph selfenergy`                            | with `[phelel]`               |
+| `transport`        | Transport properties (electron-phonon)                 | `velph transport`                             | with `[phelel]`               |
+| `el_bands`         | Electronic band structure                              | `velph el_bands`                              | always                        |
+| `el_dos`           | Electronic density of states                           | `velph el_dos`                                | always                        |
+| `ph_bands`         | Phonon band structure                                  | `velph ph_bands`                              | with `[phelel]`               |
 <!-- Hidden until ph_selfenergy is public in VASP:
-| `ph_selfenergy`    | Phonon self-energy (superconductivity)               | `velph ph_selfenergy`               |
+| `ph_selfenergy`    | Phonon self-energy (superconductivity)                 | `velph ph_selfenergy`                         | with `[phelel]`               |
 -->
 
-
-Two calculation types are split into sub-types that are calculated separately and
-therefore have their own sub-sections:
-
-- `[vasp.el_bands.bands]` and `[vasp.el_bands.dos]`
-- `[vasp.phono3py.phonon]` (the larger phonon supercell used together with the
-  smaller third-order supercell)
+The VASP input files of `relax` are written in `relax/iter1`, `relax/iter2`, ....
+Those of the supercells of `phelel` are written in `phelel/disp-000`,
+`phelel/disp-001`, ..., and those of `phonopy` and `phono3py` in the same way.
 
 ## Common sub-block structure
 
-With a few exceptions noted below, every `[vasp.CALC_TYPE]` is built from the
-same four kinds of sub-blocks:
+Every input set is built from the following kinds of sub-blocks:
 
 ```toml
-[vasp.CALC_TYPE.incar]      # INCAR tags
-[vasp.CALC_TYPE.kpoints]    # k-point sampling mesh
-[vasp.CALC_TYPE.kpoints_dense]  # dense mesh (only some calc types)
-[vasp.CALC_TYPE.scheduler]  # per-step job-script overrides
+[vasp.<input set>.incar]          # INCAR tags
+[vasp.<input set>.kpoints]        # k-point sampling mesh
+[vasp.<input set>.kpoints_dense]  # dense mesh (only some input sets)
+[vasp.<input set>.kpoints_opt]    # band path (el_bands only)
+[vasp.<input set>.qpoints]        # q-point path (ph_bands only)
+[vasp.<input set>.scheduler]      # job-script settings of this input set
 ```
 
-- `incar` is written for all calculation types.
-- `kpoints` is written for all calculation types. For band-structure steps it
-  holds the regular mesh and is accompanied by a separate line-mode block
-  (`kpoints_opt` or `qpoints`, see below).
-- `kpoints_dense` is written only for the electron-phonon steps (`selfenergy`,
-  `transport`<!-- , `ph_selfenergy` -->) and for `el_bands.dos`. It provides the dense
-  charge-density mesh used for the "sandwich" calculation.
-- `scheduler` is optional. When present, it overrides the top-level
-  {ref}`[scheduler] <velph_toml_scheduler>` settings for this step only.
+Each k-point block is written to one k-point file of VASP:
 
-The `relax` and `nac` sections additionally carry a `cell` key:
+| Input set                                     | `KPOINTS`  | Second k-point file              |
+| --------------------------------------------- | ---------- | -------------------------------- |
+| `relax`, `nac`, `phelel`, `phonopy`, `phono3py` | `kpoints` | —                                |
+| `selfenergy`, `transport`<!-- , `ph_selfenergy` --> | `kpoints` | `KPOINTS_ELPH` from `kpoints_dense` |
+| `el_bands`                                    | `kpoints`  | `KPOINTS_OPT` from `kpoints_opt` |
+| `el_dos`                                      | `kpoints`  | `KPOINTS_OPT` from `kpoints_dense` |
+| `ph_bands`                                    | `kpoints`  | `QPOINTS` from `qpoints`         |
+
+In `velph.toml`, the k-point blocks of this table are required. `incar` and
+`scheduler` are optional:
+
+- `incar` is written by `velph init` for all input sets.
+- `scheduler` is optional. When present, it overrides the top-level
+  {ref}`[scheduler] <velph_toml_scheduler>` settings for this input set only.
+
+The `relax` and `nac` sections also have a `cell` key, which is required in
+`velph.toml`:
 
 ```toml
 [vasp.relax]
@@ -62,150 +70,127 @@ cell = "unitcell"
 cell = "primitive"
 ```
 
-`cell` selects whether the unit cell or the primitive cell is used for that step.
-The defaults are `unitcell` for `relax` and `primitive` for `nac`, and they can
-be set with the `velph init` options `--cell-for-relax` and `--cell-for-nac`
-(see {ref}`velph_init`). The value is `"unitcell"` or `"primitive"`, compared in
-lower case. Any other value, such as `"primitive_cell"`, is an error in
-`velph init` and in the generate commands.
+`cell` selects whether the unit cell or the primitive cell is used for that input
+set. The defaults of `velph init` are `unitcell` for `relax` and `primitive` for
+`nac`, and they can be set with the `velph init` options `--cell-for-relax` and
+`--cell-for-nac` (see {ref}`velph_init`). The value is `"unitcell"` or
+`"primitive"`, compared in lower case. Any other value, such as
+`"primitive_cell"`, is an error in `velph init` and in the generate commands.
+
+The other input sets use a fixed cell: the supercells with displacements for
+`phelel`, `phonopy` and `phono3py`, and `[primitive_cell]` for the others.
 
 (velph_toml_vasp_incar)=
 ## INCAR settings
 
-### `[vasp.incar]` : base settings
-
-`[vasp.incar]` holds the base INCAR tags shared by all calculation types. It does
-not correspond to a calculation step on its own; instead its tags are merged into
-every `[vasp.CALC_TYPE.incar]` (see the layering rule below). Settings that are
-common to the whole project, such as the plane-wave cutoff (`encut`) and the
-parallelization tags (`ncore`, `kpar`, ...), belong here.
+Each input set holds all of its INCAR tags in `[vasp.<input set>.incar]`. The
+generate command of the input set writes them to the `INCAR` file as they are.
 
 ```toml
-[vasp.incar]
+[vasp.phelel.incar]
 ismear = 0
 sigma = 0.01
-ediff = 1e-8
+ediff = 1e-08
 encut = 500
 prec = "accurate"
 lreal = false
 lwave = false
 lcharg = false
+elph_prepare = true
+isym = 0
 ```
 
-The values above are the defaults written by `velph init`.
+INCAR tags are written as plain key-value pairs. Tag names are case-insensitive
+and are normalized to lower case. A tag given twice in different cases, such as
+`encut` and `ENCUT`, is an error.
 
-### `[vasp.CALC_TYPE.incar]` and layering
+velph always writes the k-point files from the k-point blocks described below.
+For this reason, the VASP tags `kspacing` and `elph_kspacing`, which make VASP
+generate the k-points without these files, cannot be written in an INCAR
+section. If a template has one of them, `velph init` stops with an error, and if
+a `velph.toml` has one of them, the generate commands stop with an error. To give
+the k-point mesh by a spacing, write `kspacing` in a k-point block of the
+template instead (see {ref}`velph_toml_vasp_kpoints`).
 
-INCAR parameters are propagated in two stages. `velph init` merges the base
-settings into each calculation type and writes the fully merged result into
-`velph.toml`. Later, `velph CALC_TYPE generate` writes that merged block verbatim
-to the `INCAR` file.
+### INCAR tags shared by the input sets in a template
+
+A template of `velph init` can give the INCAR tags shared by the input sets in
+`[vasp.incar]`. `velph init` adds them to the INCAR tags of each input set that
+does not give them. A tag listed in `incar_unset` of an input set is not added
+to that input set. For example, with the template
+
+```toml
+[vasp.incar]
+encut = 520
+ncore = 4
+
+[vasp.relax]
+incar_unset = ["ncore"]
+```
+
+`velph init` writes `encut = 520` in the INCAR tags of all input sets, and
+`ncore = 4` in those of all input sets except `relax` and `nac`. `nac` does not
+have `ncore`, because `incar_unset` of `nac` in the default settings lists it
+(see the table below). The tags of the template are added to the default tags, and
+`incar_unset` of an input set in the template replaces that of the default
+settings.
+
+`[vasp.incar]` and `incar_unset` are used only by `velph init`, so `velph.toml`
+cannot have them. To change a tag after `velph init`, edit it in each
+`[vasp.<input set>.incar]` that uses it. See {ref}`velph_init_template_incar` for
+how these settings are used in a template.
 
 ```{mermaid}
 flowchart LR
   subgraph INIT["velph init"]
     direction TB
-    DEF["defaults:<br/>base vasp.incar<br/>+ per-calc-type"]
-    TMPL["template toml:<br/>vasp.incar /<br/>vasp.CALC_TYPE.incar"]
-    MERGE{{"merge base into<br/>each calc type;<br/>drop empty tags"}}
+    DEF["defaults:<br/>vasp.incar<br/>+ vasp.INPUT_SET.incar"]
+    TMPL["template toml:<br/>vasp.incar /<br/>vasp.INPUT_SET.incar"]
+    MERGE{{"add vasp.incar to<br/>each input set,<br/>except incar_unset"}}
     DEF --> MERGE
     TMPL --> MERGE
   end
-  MERGE --> MERGED["velph.toml:<br/>vasp.CALC_TYPE.incar<br/>(fully merged)"]
-  MERGED --> GEN["velph CALC_TYPE<br/>generate"]
+  MERGE --> MERGED["velph.toml:<br/>vasp.INPUT_SET.incar<br/>(all tags)"]
+  MERGED --> GEN["velph INPUT_SET<br/>generate"]
   GEN --> INCAR["INCAR file"]
 ```
 
-```{note}
-The base-to-calc-type merge happens **only** at `velph init`. In a generated
-`velph.toml`, the base `[vasp.incar]` section is informational: `generate` reads
-only `[vasp.CALC_TYPE.incar]`. To change a tag after initialization, edit the
-relevant `[vasp.CALC_TYPE.incar]`, not `[vasp.incar]`.
-```
+### Default INCAR tags by input set
 
-INCAR tags are written as plain key-value pairs. Tag names are case-insensitive
-and are normalized to lower case:
+The default settings of `velph init` give the following tags in `[vasp.incar]`:
 
 ```toml
-[vasp.phelel.incar]
-elph_prepare = true
-isym = 0
-encut = 500
+[vasp.incar]
 ismear = 0
 sigma = 0.01
 ediff = 1e-08
+encut = 500
 prec = "accurate"
 lreal = false
 lwave = false
 lcharg = false
 ```
 
-velph always writes the k-point files from the k-point blocks described below.
-The `kpoints` block is written to `KPOINTS`, and the `kpoints_dense` block is
-written to `KPOINTS_ELPH` for the electron-phonon steps and to `KPOINTS_OPT` for
-`el_bands.dos`. For this reason, the VASP tags `kspacing` and `elph_kspacing`,
-which make VASP generate the k-points without these files, cannot be written in
-an INCAR section. If a template has one of them, `velph init` stops with an
-error, and if a `velph.toml` has one of them, the generate commands stop with an
-error. To give the k-point mesh by a spacing, write `kspacing` in the k-point
-block instead (see {ref}`velph_toml_vasp_kpoints`).
+and the following tags in each input set:
 
-The base INCAR settings are defined once in the `[vasp.incar]` section and are
-merged into every `[vasp.CALC_TYPE.incar]` for any tag that the calculation type
-does not define itself. See {ref}`velph_init_template_incar` for how this base
-section is used by the template. The effective INCAR for a step is therefore:
-
-1. the tags written in `[vasp.CALC_TYPE.incar]`, overriding
-2. the base tags from `[vasp.incar]`.
-
-To **suppress** an inherited base tag for a particular calculation type, set it to
-an empty table `{}`. The tag is then removed instead of being inherited. This is
-how, e.g., `ph_bands` drops the smearing and I/O tags that the base section
-provides:
-
-```toml
-[vasp.ph_bands.incar]
-ibrion = -1
-nsw = 0
-elph_run = true
-ismear = {}
-sigma = {}
-ediff = {}
-lreal = {}
-lwave = {}
-lcharg = {}
-```
-
-```{note}
-The empty-table suppression only matters in the *template* (`velph-tmpl.toml`)
-and in the default settings, because that is where the base-to-calc-type merge
-happens. In a generated `velph.toml`, each `[vasp.CALC_TYPE.incar]` already
-contains the fully merged result.
-```
-
-### Default INCAR tags by calculation type
-
-In addition to the base `[vasp.incar]` tags, each calculation type contributes
-the following defaults:
-
-| `CALC_TYPE`        | Default INCAR tags                                                                                   |
+| Input set          | Default INCAR tags                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------- |
 | `relax`            | `ediffg = -1e-6`, `ibrion = 2`, `isif = 3`, `nsw = 10`                                               |
-| `nac`              | `lepsilon = true` (and `npar`/`ncore`/`kpar` suppressed with `{}`)                                   |
+| `nac`              | `lepsilon = true` (and `incar_unset = ["npar", "ncore", "kpar"]`)                                   |
 | `phelel`           | `elph_prepare = true`, `isym = 0`                                                                    |
 | `phonopy`          | `addgrid = true`, `isym = 0`                                                                          |
 | `phono3py`         | `addgrid = true`, `isym = 0`                                                                          |
 | `selfenergy`       | `elph_run = true`, `elph_selfen_fan = true`, `elph_selfen_dw = true`, `elph_selfen_delta = 0.01`, `elph_selfen_temps = [0, 300]`, `elph_ismear = -24` |
 | `transport`        | `elph_fermi_nedos = 501`, `elph_ismear = -24`, `elph_mode = "transport"`, `elph_selfen_carrier_den = 0.0`, `elph_scattering_approx = ["serta", "mrta_lambda"]`, `elph_selfen_temps = [...]`, `elph_transport_nedos = 501` |
-| `el_bands.dos`     | `ibrion = -1`, `nsw = 0`, `lorbit = 11`, `nedos = 5001`, `ismear = -5`                               |
-| `el_bands.bands`   | `ibrion = -1`, `nsw = 0`                                                                             |
-| `ph_bands`         | `ibrion = -1`, `nsw = 0`, `elph_run = true` (base smearing/I/O tags suppressed)                      |
+| `el_bands`         | `ibrion = -1`, `nsw = 0`                                                                             |
+| `el_dos`           | `ibrion = -1`, `nsw = 0`, `lorbit = 11`, `nedos = 5001`, `ismear = -5`                               |
+| `ph_bands`         | `ibrion = -1`, `nsw = 0`, `elph_run = true` (and `incar_unset = ["ismear", "sigma", "ediff", "lreal", "lwave", "lcharg"]`) |
 <!-- Hidden until ph_selfenergy is public in VASP:
 | `ph_selfenergy`    | `elph_fermi_nedos = 501`, `elph_run = true`, `elph_selfen_temps = [0, 300]`, `elph_ismear = -24`, `elph_driver = "ph"`, `elph_mode = "superconductivity"`, `elph_selfen_carrier_den = 0.0` |
 -->
 
-These calculation-type tags are merged on top of the base `[vasp.incar]` settings
-shown above.
+A tag of an input set has priority over the same tag of `[vasp.incar]`, as
+`ismear = -5` of `el_dos` does.
 
 ```{note}
 These tags are starting points. Review the generated `INCAR` files and adjust
@@ -214,9 +199,10 @@ parallelization tags (`ncore`, `kpar`, ...).
 ```
 
 (velph_toml_vasp_kpoints)=
-## `[vasp.CALC_TYPE.kpoints]` : sampling mesh
+## `[vasp.<input set>.kpoints]` : sampling mesh
 
-A k-point block describes a regular sampling mesh. It accepts the following keys:
+A k-point block of `velph.toml` gives a regular sampling mesh with the following
+keys:
 
 ```toml
 [vasp.phelel.kpoints]
@@ -239,36 +225,27 @@ shift = [0.5, 0.5, 0.5]
 - `shift` : optional shift of the mesh relative to neighboring grid points, in
   units of the grid spacing. `0.5` is a half-grid shift.
 
-- `kspacing` : optional. Instead of an explicit `mesh`, a target spacing (in
-  1/Angstrom) can be given and the mesh is computed from it at the time the input
-  files are generated. The number of divisions along each reciprocal basis
-  vector b_i is max(1, ceiling(|b_i| 2π / `kspacing`)), the same rule as the
-  VASP INCAR tag `KSPACING`:
+In a template of `velph init`, a k-point block can give `kspacing`, a spacing in
+1/Angstrom, instead of `mesh`:
 
-  ```toml
-  [vasp.relax.kpoints]
-  kspacing = 0.2
-  ```
+```toml
+[vasp.relax.kpoints]
+kspacing = 0.2
+```
 
-  Give either `mesh` or `kspacing` in one block. If a `velph.toml` has both in
-  one block, the generate commands use `kspacing` and ignore `mesh`. If a
-  template of `velph init` has both in one block, `velph init` stops with an
-  error.
+`velph init` computes the mesh from it on the cell of the input set and writes
+the mesh as `mesh` in `velph.toml`. The number of divisions along each
+reciprocal basis vector b_i is max(1, ceiling(|b_i| 2π / `kspacing`)), the same
+rule as the VASP INCAR tag `KSPACING`. Give either `mesh` or `kspacing` in one
+block. A block that gives neither takes the `kspacing` or `kspacing_dense` option
+of `velph init` (see {ref}`velph_init`).
 
-  `kspacing` can be used in the `kpoints` blocks, except in
-  `[vasp.ph_bands.kpoints]`, and in the `kpoints_dense` blocks. In
-  `[vasp.ph_bands.kpoints]`, give `mesh`. If a template of `velph init` has
-  `kspacing` in `[vasp.ph_bands.kpoints]`, `velph init` stops with an error.
+### `[vasp.<input set>.kpoints_dense]`
 
-The `kspacing` and `kspacing_dense` values used by `velph init` to populate the
-`kpoints` and `kpoints_dense` blocks come from the `velph init` options of the
-same name (see {ref}`velph_init`).
-
-### `[vasp.CALC_TYPE.kpoints_dense]`
-
-The electron-phonon calculation steps (`selfenergy`,
-`transport`<!-- , `ph_selfenergy` -->) and `el_bands.dos` use a second, denser mesh for the
-charge-density part of the sandwich calculation. It has the same syntax as
+The electron-phonon input sets (`selfenergy`,
+`transport`<!-- , `ph_selfenergy` -->) use a second, denser mesh for the
+charge-density part of the sandwich calculation, and `el_dos` uses it as the mesh
+on which VASP computes the density of states. It has the same syntax as
 `kpoints`:
 
 ```toml
@@ -281,13 +258,13 @@ mesh = [24, 24, 24]
 (velph_toml_vasp_bands)=
 ## Band and q-point paths (`kpoints_opt`, `qpoints`)
 
-Band-structure steps add a line-mode block on top of the regular `kpoints` mesh:
+Band-structure input sets add a line-mode block on top of the regular `kpoints`
+mesh:
 
-- `[vasp.el_bands.bands.kpoints_opt]` for the electronic band structure.
+- `[vasp.el_bands.kpoints_opt]` for the electronic band structure.
 - `[vasp.ph_bands.qpoints]` for the phonon band structure.
 
-Both use the same line-mode syntax. `kspacing` cannot be used in these blocks,
-and `velph init` stops with an error if a template has it there.
+Both use the same line-mode syntax:
 
 ```toml
 [vasp.ph_bands.qpoints]
@@ -302,23 +279,28 @@ label = [
 ]
 ```
 
-- `line` : number of sampling points per path segment (default `51`).
+- `line` : number of sampling points per path segment. It is required, and
+  `velph init` writes `line = 51`.
 - `path` : a list of segments, each segment being a pair of endpoints in
-  fractional reciprocal coordinates.
+  fractional coordinates of the reciprocal basis of `[primitive_cell]`.
 - `label` : optional labels for the endpoints of each segment, used when
   plotting.
 
-For `el_bands`, the regular `[vasp.el_bands.bands.kpoints]` mesh is still
-required (VASP reads it as the self-consistent mesh), while the band path lives in
-the `kpoints_opt` block. For `ph_bands`, `[vasp.ph_bands.kpoints]` is the
-Gamma-only SCF mesh and the q-point path lives in `qpoints`.
+`velph init` writes `line` only. When `path` is not given, the generate command
+writes the band path that seekpath gives, so seekpath has to be installed.
+
+For `el_bands`, the regular `[vasp.el_bands.kpoints]` mesh is still required
+(VASP reads it as the self-consistent mesh), and the band path is given in the
+`kpoints_opt` block. For `ph_bands`, `[vasp.ph_bands.kpoints]` is the
+Gamma-only SCF mesh, and the q-point path is given in `qpoints`.
 
 (velph_toml_vasp_scheduler)=
-## `[vasp.CALC_TYPE.scheduler]`
+## `[vasp.<input set>.scheduler]`
 
-A per-step `scheduler` block overrides the top-level `[scheduler]` settings for
-that calculation type only. Any key written here replaces the corresponding key
-of `[scheduler]`; keys that are not written are inherited. See
+A `scheduler` block of an input set overrides the top-level `[scheduler]`
+settings for that input set only. Any key written here replaces the
+corresponding key of `[scheduler]`; keys that are not written are inherited.
+Without the top-level `[scheduler]`, `_job.sh` is not written. See
 {ref}`velph_toml_scheduler` for the full description of the scheduler mechanism
 and the `scheduler_template` format.
 
@@ -333,9 +315,7 @@ pe = "paris 24"
 
 ## Section ordering
 
-`velph init` writes the `[vasp.*]` sub-sections in this order: the supercell
-types (`phelel`, `phonopy`, `phono3py`), the electron-phonon types
-(`selfenergy`, `transport`<!-- , `ph_selfenergy` -->), `relax`, `nac`,
-`el_bands.bands`, `el_bands.dos`, and `ph_bands`. Only the sub-sections relevant
-to the chosen project are written. The ordering has no semantic meaning; TOML
-sections can appear in any order.
+`velph init` writes the input sets in the order of the table at the top of this
+page<!-- , with `ph_selfenergy` after `transport` -->. Only the input sets
+relevant to the chosen codes are written. The ordering has no semantic meaning;
+TOML sections can appear in any order.

@@ -1,15 +1,15 @@
 (velph_toml_scheduler)=
 # `velph.toml`-`[scheduler]` section
 
-Job scripts `_job.sh` for calculation steps are generated following the settings
-of the `[scheduler]` section. Calculation-step specific settings may be written
-in `[vasp.CALC_TYPE.scheduler]`.
+Job scripts `_job.sh` for the calculations are generated following the settings
+of the `[scheduler]` section. Settings specific to an input set may be written
+in `[vasp.<input set>.scheduler]`.
 
 The string lines defined by the `scheduler_template` key are used as the
 template of the job submission script `_job.sh`. String values of keys in this
 section are inserted through the keyword argument style of [Python format string
 syntax](https://docs.python.org/3/library/string.html#formatstrings). For
-example, by `velph-relax-generate`
+example, by `velph relax generate`
 
 ```toml
 [scheduler]
@@ -34,10 +34,10 @@ sleep 10
 
 as `_job.sh`. The `job_name` key is a special one. For supercell
 calculations, the value is replaced by `{job_name}-000`, `{job_name}-001`, ...,
-and for `velph-relax` calculations `{job_name}-iter1`, `{job_name}-iter2`, ...
+and for `velph relax` calculations `{job_name}-iter1`, `{job_name}-iter2`, ...
 
-If `[vasp.CALC_TYPE.scheduler]` is specified, `[scheduler]` settings are
-overwritten by the settings for `[vasp.CALC_TYPE]`.
+If `[vasp.<input set>.scheduler]` is specified, `[scheduler]` settings are
+overwritten by the settings for `[vasp.<input set>]`.
 
 In a template of `velph init`, `[scheduler]` updates the default `[scheduler]`
 key by key. For example, a template with only `job_name = "PbTe"` in
