@@ -13,19 +13,18 @@ from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.relax.generate import plan_relax
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import write_velph_toml
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import KpointsMesh, VaspSection
 
 
 def test_plan_relax(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """The job of the first relax is made from [vasp.relax] and [scheduler]."""
-    data = nacl_velph_toml_v014()
-    config = parse_legacy_velph_toml(data)
+    data = nacl_velph_toml()
+    config = parse_velph_toml(data)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "POTCAR").write_text("potcar\n")
     job = plan_relax(config, pathlib.Path("relax/iter1"))
@@ -41,10 +40,10 @@ def test_plan_relax(
 
 
 def test_plan_relax_contcar(
-    nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Path
+    nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path
 ):
     """CONTCAR of the previous relax is used as POSCAR when it exists."""
-    config = parse_legacy_velph_toml(nacl_velph_toml_v014())
+    config = parse_velph_toml(nacl_velph_toml())
     prev_directory = tmp_path / "relax" / "iter1"
     directory = tmp_path / "relax" / "iter2"
     with pytest.raises(click.ClickException) as e:
@@ -62,7 +61,7 @@ def test_plan_relax_contcar(
 
 
 def test_relax_generate_new_format(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -73,7 +72,7 @@ def test_relax_generate_new_format(
     does not exist.
 
     """
-    config = parse_legacy_velph_toml(nacl_velph_toml_v014())
+    config = parse_velph_toml(nacl_velph_toml())
     assert config.vasp is not None and config.vasp.input_sets is not None
     relax = config.vasp.input_sets["relax"]
     assert relax.incar is not None and "algo" not in relax.incar

@@ -19,6 +19,7 @@ from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import InputSetSection, VaspSection, VelphConfig
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
@@ -240,13 +241,12 @@ def test_run_derivatives_without_force_files(
 
 def test_run_derivatives_site_mixture_merge(
     site_mixture_velph_toml: Callable[[bool], dict],
-    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
 ):
     """Derivatives are not calculated with the merge scheme of site mixture."""
     phe = run_init(
-        code_init_config(site_mixture_velph_toml(False)), current_directory=tmp_path
+        parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
     )
     assert not run_derivatives(phe, dir_name=tmp_path / "phelel")
     assert "not supported with the merge scheme" in capsys.readouterr().err
@@ -356,17 +356,17 @@ def test_get_fft_mesh_without_encut():
 
 
 def test_differentiate_writes_fft_mesh(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Velph phelel differentiate writes the mesh of [vasp.selfenergy] in hdf5.
 
-    The INCARs of the electron-phonon input sets written by velph init of velph
-    0.14 give the same ENCUT and PREC.
+    The INCARs of the electron-phonon input sets written by velph init give the
+    same ENCUT and PREC.
 
     """
-    data = nacl_velph_toml_v014()
+    data = nacl_velph_toml()
     selfenergy_incar = data["vasp"]["selfenergy"]["incar"]
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     shutil.copytree(cwd / "C111" / "phelel", tmp_path / "phelel")

@@ -12,7 +12,7 @@ import tomli_w
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
 
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import (
     InputSetSection,
     KpointsMesh,
@@ -151,10 +151,8 @@ def test_write_vasp_job_copied_poscar(nacl_cell: PhonopyAtoms, tmp_path: pathlib
     assert sorted(p.name for p in directory.iterdir()) == ["INCAR", "KPOINTS", "POSCAR"]
 
 
-def test_read_velph_toml(
-    nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Path
-):
-    """velph.toml of velph 0.14 is read, and errors are click.ClickException.
+def test_read_velph_toml(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
+    """velph.toml is read, and errors are click.ClickException.
 
     The errors are a missing file, a missing input set, an unknown key and a
     file that is not TOML.
@@ -164,7 +162,7 @@ def test_read_velph_toml(
     with pytest.raises(click.ClickException, match="not found"):
         read_velph_toml(toml_path, "nac")
 
-    data = nacl_velph_toml_v014()
+    data = nacl_velph_toml()
     toml_path.write_text(tomli_w.dumps(data))
     config = read_velph_toml(toml_path, "nac")
     assert config.vasp is not None and config.vasp.input_sets is not None
@@ -190,16 +188,29 @@ def test_read_velph_toml(
     assert e.value.message.startswith(f'Error in reading "{toml_path}"')
 
 
-def test_get_kpoints(nacl_velph_toml_v014: Callable[[], dict]):
+def test_read_velph_toml_v014(
+    nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Path
+):
+    """velph.toml of velph 0.14 is read by the legacy reader."""
+    data = nacl_velph_toml_v014()
+    assert "version" in data["phelel"]
+    toml_path = tmp_path / "velph.toml"
+    toml_path.write_text(tomli_w.dumps(data))
+    config = read_velph_toml(toml_path, "el_dos")
+    assert config.vasp is not None and config.vasp.input_sets is not None
+    assert "el_dos" in config.vasp.input_sets
+
+
+def test_get_kpoints(nacl_velph_toml: Callable[[], dict]):
     """The meshes of all k-point files of an input set are returned.
 
     KPOINTS is given by the block kpoints and KPOINTS_ELPH by kpoints_dense.
 
     """
-    data = nacl_velph_toml_v014()
+    data = nacl_velph_toml()
     selfenergy = data["vasp"]["selfenergy"]
     assert selfenergy["kpoints"]["mesh"] != selfenergy["kpoints_dense"]["mesh"]
-    config = parse_legacy_velph_toml(data)
+    config = parse_velph_toml(data)
     assert get_kpoints(config, "selfenergy") == {
         "KPOINTS": KpointsMesh(mesh=tuple(selfenergy["kpoints"]["mesh"])),
         "KPOINTS_ELPH": KpointsMesh(mesh=tuple(selfenergy["kpoints_dense"]["mesh"])),

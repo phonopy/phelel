@@ -12,19 +12,18 @@ from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS, plan_elph
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import write_velph_toml
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import KpointsMesh
 
 
 def test_plan_elph(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """The job of transport is made from [vasp.transport] on the primitive cell."""
-    data = nacl_velph_toml_v014()
-    config = parse_legacy_velph_toml(data)
+    data = nacl_velph_toml()
+    config = parse_velph_toml(data)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "POTCAR").write_text("potcar\n")
     PHELEL_PARAMS.parent.mkdir()
@@ -49,7 +48,7 @@ def test_plan_elph(
 
 
 def test_plan_elph_without_phelel_params(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -59,8 +58,8 @@ def test_plan_elph_without_phelel_params(
     phelel_params.hdf5.
 
     """
-    data = nacl_velph_toml_v014()
-    config = parse_legacy_velph_toml(data)
+    data = nacl_velph_toml()
+    config = parse_velph_toml(data)
     monkeypatch.chdir(tmp_path)
     with pytest.raises(click.ClickException) as e:
         plan_elph(config, "selfenergy")
@@ -79,7 +78,7 @@ def test_plan_elph_without_phelel_params(
 
 
 def test_elph_generate_new_format(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -88,9 +87,7 @@ def test_elph_generate_new_format(
     Without phelel_params.hdf5, the command stops without making a directory.
 
     """
-    write_velph_toml(
-        parse_legacy_velph_toml(nacl_velph_toml_v014()), tmp_path / "velph.toml"
-    )
+    write_velph_toml(parse_velph_toml(nacl_velph_toml()), tmp_path / "velph.toml")
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     result = runner.invoke(cmd_root, ["ph_selfenergy", "generate"])

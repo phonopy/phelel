@@ -12,19 +12,18 @@ from click.testing import CliRunner
 from phelel.velph.cli.ph_bands.generate import plan_ph_bands
 from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import write_velph_toml
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import LinePath
 
 
 def test_plan_ph_bands(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """phelel_params.hdf5 is required, and QPOINTS is a band path."""
     pytest.importorskip("seekpath")
-    config = parse_legacy_velph_toml(nacl_velph_toml_v014())
+    config = parse_velph_toml(nacl_velph_toml())
     monkeypatch.chdir(tmp_path)
     with pytest.raises(click.ClickException) as e:
         plan_ph_bands(config)
@@ -42,15 +41,13 @@ def test_plan_ph_bands(
 
 
 def test_ph_bands_generate_new_format(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """ph_bands is written in "ph_bands", and not without phelel_params.hdf5."""
     pytest.importorskip("seekpath")
-    write_velph_toml(
-        parse_legacy_velph_toml(nacl_velph_toml_v014()), tmp_path / "velph.toml"
-    )
+    write_velph_toml(parse_velph_toml(nacl_velph_toml()), tmp_path / "velph.toml")
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     result = runner.invoke(cmd_root, ["ph_bands", "generate"])

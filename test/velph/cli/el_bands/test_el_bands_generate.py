@@ -14,8 +14,7 @@ from click.testing import CliRunner
 from phelel.velph.cli.el_bands.generate import plan_el_bands
 from phelel.velph.cli.el_dos.generate import plan_el_dos
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import write_velph_toml
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import KpointsMesh, LinePath, VaspSection, VelphConfig
 
 
@@ -32,12 +31,12 @@ def _with_el_bands_path(config: VelphConfig) -> VelphConfig:
     return dataclasses.replace(config, vasp=VaspSection(input_sets=input_sets))
 
 
-def test_plan_el_bands(nacl_velph_toml_v014: Callable[[], dict]):
+def test_plan_el_bands(nacl_velph_toml: Callable[[], dict]):
     """KPOINTS_OPT is the band path that seekpath gives, without "path"."""
     pytest.importorskip("seekpath")
-    data = nacl_velph_toml_v014()
-    assert "path" not in data["vasp"]["el_bands"]["bands"]["kpoints_opt"]
-    job = plan_el_bands(parse_legacy_velph_toml(data))
+    data = nacl_velph_toml()
+    assert "path" not in data["vasp"]["el_bands"]["kpoints_opt"]
+    job = plan_el_bands(parse_velph_toml(data))
     assert job.directory == pathlib.Path("el_bands")
     kpoints_opt = job.kpoints["KPOINTS_OPT"]
     assert isinstance(kpoints_opt, LinePath)
@@ -48,11 +47,11 @@ def test_plan_el_bands(nacl_velph_toml_v014: Callable[[], dict]):
 
 
 def test_plan_el_bands_without_seekpath(
-    nacl_velph_toml_v014: Callable[[], dict], monkeypatch: pytest.MonkeyPatch
+    nacl_velph_toml: Callable[[], dict], monkeypatch: pytest.MonkeyPatch
 ):
     """Without seekpath, a line block has to give "path"."""
     monkeypatch.setitem(sys.modules, "seekpath", None)
-    config = parse_legacy_velph_toml(nacl_velph_toml_v014())
+    config = parse_velph_toml(nacl_velph_toml())
     with pytest.raises(click.ClickException) as e:
         plan_el_bands(config)
     assert e.value.message == (
@@ -67,11 +66,11 @@ def test_plan_el_bands_without_seekpath(
     )
 
 
-def test_plan_el_dos(nacl_velph_toml_v014: Callable[[], dict]):
+def test_plan_el_dos(nacl_velph_toml: Callable[[], dict]):
     """KPOINTS_OPT of el_dos is the mesh of [vasp.el_dos.kpoints_dense]."""
-    data = nacl_velph_toml_v014()
-    job = plan_el_dos(parse_legacy_velph_toml(data))
-    dos = data["vasp"]["el_bands"]["dos"]
+    data = nacl_velph_toml()
+    job = plan_el_dos(parse_velph_toml(data))
+    dos = data["vasp"]["el_dos"]
     assert job.directory == pathlib.Path("el_dos")
     assert job.kpoints == {
         "KPOINTS": KpointsMesh(mesh=tuple(dos["kpoints"]["mesh"])),
@@ -81,12 +80,12 @@ def test_plan_el_dos(nacl_velph_toml_v014: Callable[[], dict]):
 
 
 def test_el_bands_el_dos_generate_new_format(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """el_bands and el_dos are written in the directories of their names."""
-    config = _with_el_bands_path(parse_legacy_velph_toml(nacl_velph_toml_v014()))
+    config = _with_el_bands_path(parse_velph_toml(nacl_velph_toml()))
     write_velph_toml(config, tmp_path / "velph.toml")
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
