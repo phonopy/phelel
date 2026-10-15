@@ -311,12 +311,9 @@ def code_init_config() -> Callable[[dict], VelphConfig]:
     """
 
     def _get_config(data: dict) -> VelphConfig:
-        data = {
-            "velph": {"version": __version__},
-            "primitive_cell": data["unitcell"],
-            **data,
-        }
-        return parse_velph_toml(data)
+        full = {"velph": {"version": __version__}, "primitive_cell": data["unitcell"]}
+        full.update(data)
+        return parse_velph_toml(full)
 
     return _get_config
 
