@@ -18,12 +18,9 @@ def test_phonopy_init_random_displacements(
     distance: float, code_init_config: Callable[[dict], VelphConfig]
 ):
     """Test of plusminus and diagonal with Ti."""
-    phelel_str = f"""title = "VASP el-ph settings"
-
-[phelel]
+    phelel_str = f"""[phelel]
 supercell_dimension = [4, 4, 2]
 amplitude = {distance}
-fft_mesh = [18, 18, 28]
 """
 
     phonopy_str = f"""[phonopy]

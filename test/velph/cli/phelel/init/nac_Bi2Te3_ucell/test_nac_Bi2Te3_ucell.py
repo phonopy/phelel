@@ -14,28 +14,10 @@ cwd = Path(__file__).parent
 
 def test_nac_Bi2Te3_ucell(request, code_init_config: Callable[[dict], VelphConfig]):
     """Test of different NAC cell."""
-    toml_str = """title = "VASP el-ph settings"
-
-[phelel]
+    toml_str = """[phelel]
 supercell_dimension = [2, 2, 1]
 amplitude = 0.03
 plusminus = true
-fft_mesh = [80, 80, 80]
-
-[vasp.supercell.incar]
-system = "default"
-ismear = 0
-sigma = 0.01
-prec = "accurate"
-ediff = 1e-06
-encut = 500
-elph_prepare = true
-lreal = false
-lwave = false
-lcharg = false
-isym = 0
-[vasp.supercell.kpoints]
-mesh = [1, 1, 1]
 
 [vasp.nac]
 cell = "unitcell"

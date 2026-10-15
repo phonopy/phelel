@@ -10,17 +10,12 @@ import tomli
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 
+from phelel import __version__
 from phelel.velph.cli.init.build import build_velph_config
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
 from phelel.velph.cli.supercells import PHONOPY_DISP_YAML
-from phelel.velph.config.io import dumps_config, parse_init, parse_template
-from phelel.velph.config.legacy import parse_legacy_velph_toml
-from phelel.velph.config.schema import (
-    CODES,
-    InputSetSection,
-    VaspSection,
-    VelphConfig,
-)
+from phelel.velph.config.io import dumps_config, parse_init, parse_velph_toml
+from phelel.velph.config.schema import VelphConfig
 
 cwd = pathlib.Path(__file__).parent
 VELPH_TOML_V014_DIR = cwd / "data" / "velph_toml_v014"
@@ -305,35 +300,23 @@ def _load_velph_toml_v014(filename: str) -> dict:
 
 @pytest.fixture(scope="session")
 def code_init_config() -> Callable[[dict], VelphConfig]:
-    """Return a function giving VelphConfig that the init of a code reads.
+    """Return a function giving VelphConfig of a part of velph.toml.
 
-    The argument is a dict of velph.toml that gives [phelel], [phonopy] or
-    [phono3py], [unitcell], and optionally [primitive_cell] and "cell" of
-    [vasp.nac].  Without [primitive_cell], the unit cell is used.  Other keys,
-    such as fft_mesh and [vasp.supercell] of velph 0.14, are ignored.  A dict
-    with [phelel] version, which velph init of velph 0.14 writes, is read by
-    the legacy loader.
+    The argument is a dict of the sections of velph.toml that the init of a
+    code reads, such as [phelel], [phonopy], [phono3py], [vasp.nac] and
+    [unitcell].  [velph] version is added, and [primitive_cell] is the unit
+    cell when it is not given.  The dict is read by parse_velph_toml, so a key
+    that velph.toml does not have is an error.
 
     """
 
     def _get_config(data: dict) -> VelphConfig:
-        if "version" in data.get("phelel", {}):
-            return parse_legacy_velph_toml(data)
-        sections: dict[str, Any] = {
-            code: {key: value for key, value in data[code].items() if key != "fft_mesh"}
-            for code in CODES
-            if code in data
+        data = {
+            "velph": {"version": __version__},
+            "primitive_cell": data["unitcell"],
+            **data,
         }
-        template = parse_template(sections)
-        cell = data.get("vasp", {}).get("nac", {}).get("cell")
-        return VelphConfig(
-            phelel=template.phelel,
-            phonopy=template.phonopy,
-            phono3py=template.phono3py,
-            vasp=VaspSection(input_sets={"nac": InputSetSection(cell=cell)}),
-            unitcell=data["unitcell"],
-            primitive_cell=data.get("primitive_cell", data["unitcell"]),
-        )
+        return parse_velph_toml(data)
 
     return _get_config
 

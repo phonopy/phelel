@@ -36,31 +36,11 @@ def test_supercell_init_plusminus_diagonal(
         dg_str = "true"
     else:
         dg_str = "false"
-    toml_str = f"""title = "VASP el-ph settings"
-
-[phelel]
+    toml_str = f"""[phelel]
 supercell_dimension = [4, 4, 2]
 amplitude = 0.03
 diagonal = {dg_str}
 plusminus = {pm_str}
-fft_mesh = [18, 18, 28]
-[vasp.supercell.incar]
-elph_prepare = true
-isym = 0
-kpar = 2
-ncore = 24
-ismear = 0
-sigma = 0.2
-ediff = 1e-08
-encut = 329.532
-prec = "accurate"
-lreal = false
-lwave = false
-lcharg = false
-addgrid = true
-lsorbit = true
-[vasp.supercell.kpoints]
-mesh = [6, 6, 7]
 
 [unitcell]
 lattice = [
