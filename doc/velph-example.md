@@ -2,7 +2,8 @@
 
 ## PbTe
 
-`POSCAR-unitcell`, `POTCAR`, and `velph-tmpl.toml` are located in the current directory.
+`POSCAR-unitcell`, `POTCAR`, and `velph-tmpl.toml` are located in the current
+directory.
 
 Initial `POSCAR-unitcell`,
 ```
@@ -26,10 +27,11 @@ Direct
 
 `velph-tmpl.toml`,
 ```toml
-[init.options]
+[init]
 kspacing = 0.2
 kspacing_dense = 0.1
 max_num_atoms = 100
+symmetrize_cell = true
 
 [vasp.incar]
 encut = 400
@@ -55,6 +57,12 @@ source /opt/intel/oneapi/setvars.sh
 append_text = ""
 ```
 
+`[init]` gives the defaults of the command-line options of `velph init` (see
+{ref}`velph_init_template_init_options`). `max_num_atoms` needs
+`symmetrize_cell = true`. `[vasp.incar]` gives the INCAR tags shared by the
+input sets, and `velph init` writes them in the INCAR tags of each input set (see
+{ref}`velph_init_template_incar`).
+
 `POTCAR` choice,
 ```
   PAW_PBE Pb 08Apr2002
@@ -64,22 +72,19 @@ append_text = ""
 ```
 % velph init POSCAR-unitcell relax --template-toml velph-tmpl.toml
 Read crystal structure file "POSCAR-unitcell".
-Read velph template file "velph-tmpl.toml".
-Following options were found in "velph-tmpl.toml":
-  kspacing = "0.2"
-  kspacing_dense = "0.1"
-  max_num_atoms = "100"
-The command options were prefered to [init.options] in "velph-tmpl.toml".
-Found a primitive cell whose transformation matrix is
+Read velph init template "velph-tmpl.toml".
+Space-group: Fm-3m
+Crystal structure was standardized based on space-group-type Fm-3m.
+Transformation matrix from conventional unit cell to primitive cell is
   [ 0.000  0.500  0.500]
   [ 0.500  0.000  0.500]
   [ 0.500  0.500  0.000]
 Supercell is generated with respect to the cell below.
 --------------------------------------------------------------------------------
 lattice:
-- [     6.400000000000000,     0.000000000000000,     0.000000000000000 ] # a
-- [     0.000000000000000,     6.400000000000000,     0.000000000000000 ] # b
-- [     0.000000000000000,     0.000000000000000,     6.400000000000000 ] # c
+- [     6.400000000000001,     0.000000000000000,     0.000000000000000 ] # a
+- [     0.000000000000000,     6.400000000000001,     0.000000000000000 ] # b
+- [     0.000000000000000,     0.000000000000000,     6.400000000000001 ] # c
 points:
 - symbol: Pb # 1
   coordinates: [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
@@ -94,43 +99,18 @@ points:
   coordinates: [  0.500000000000000,  0.500000000000000,  0.000000000000000 ]
   mass: 207.200000
 - symbol: Te # 5
-  coordinates: [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
-  mass: 127.600000
-- symbol: Te # 6
   coordinates: [  0.500000000000000,  0.000000000000000,  0.000000000000000 ]
   mass: 127.600000
-- symbol: Te # 7
-  coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
+- symbol: Te # 6
+  coordinates: [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
   mass: 127.600000
-- symbol: Te # 8
+- symbol: Te # 7
   coordinates: [  0.000000000000000,  0.000000000000000,  0.500000000000000 ]
   mass: 127.600000
+- symbol: Te # 8
+  coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
+  mass: 127.600000
 --------------------------------------------------------------------------------
-[vasp.incar] (basic INCAR settings)
-  ismear = 0
-  sigma = 0.01
-  ediff = 1e-08
-  encut = 400
-  prec = accurate
-  lreal = False
-  lwave = False
-  lcharg = False
-  ncore = 4
-[phelel]
-  supercell_dimension: [2 2 2]
-[vasp.*.kpoints.mesh] (*kspacing=0.2)
-  selfenergy: [9 9 9]*
-  transport: [9 9 9]*
-  el_bands: [9 9 9]*
-  phonopy: [2 2 2]*
-  phono3py: [2 2 2]*
-  phelel: [2 2 2]*
-  relax: [5 5 5]*
-  nac: [9 9 9]*
-[vasp.*.kpoints_dense.mesh] (*kspacing_dense=0.1)
-  selfenergy: [17 17 17]*
-  transport: [17 17 17]*
-  el_bands: [17 17 17]*
 Created new folder "relax".
 Initial settings were written to "relax/velph.toml".
 Found "POTCAR".
@@ -144,23 +124,22 @@ A directory `relax` is created and `velph.toml` is stored in it.
 
 `relax/velph.toml`,
 ```toml
+[velph]
+version = "0.15.0"
+
 [phelel]
-version = "0.8.2"
 supercell_dimension = [2, 2, 2]
 amplitude = 0.03
 diagonal = false
 plusminus = true
-fft_mesh = [30, 30, 30]
+nosym = false
 
 # ...
 
 [vasp.relax]
 cell = "unitcell"
+
 [vasp.relax.incar]
-ediffg = -1e-06
-ibrion = 2
-isif = 3
-nsw = 10
 ismear = 0
 sigma = 0.01
 ediff = 1e-08
@@ -170,72 +149,55 @@ lreal = false
 lwave = false
 lcharg = false
 ncore = 4
+ediffg = -1e-06
+ibrion = 2
+isif = 3
+nsw = 10
+
 [vasp.relax.kpoints]
 mesh = [5, 5, 5]
 
 # ...
 
 [scheduler]
-scheduler_name = "sge"
 job_name = "PbTe"
 mpirun_command = "mpirun"
 vasp_binary = "/usr/local/vasp/bin/vasp_std"
-pe = "vienna 32"
-prepend_text = "source /opt/intel/oneapi/setvars.sh\n"
+prepend_text = """
+source /opt/intel/oneapi/setvars.sh
+"""
 append_text = ""
+nodes = 1
+walltime = "96:00:00"
+scheduler_template = """
+#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --nodes={nodes}
+#SBATCH --time={walltime}
+#SBATCH --output=ci_%j.log
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+"""
+scheduler_name = "sge"
+pe = "vienna 32"
 
 [symmetry]
-spacegroup_type = "Fm-3m"
 tolerance = 1e-05
+spacegroup_type = "Fm-3m"
 primitive_matrix = [
-  [  0.000000000000000,  0.500000000000000,  0.500000000000000 ],
-  [  0.500000000000000,  0.000000000000000,  0.500000000000000 ],
-  [  0.500000000000000,  0.500000000000000,  0.000000000000000 ],
+  [0.0, 0.5, 0.5],
+  [0.5, 0.0, 0.5],
+  [0.5, 0.5, 0.0],
 ]
 
-[unitcell]
-lattice = [
-  [     6.400000000000000,     0.000000000000000,     0.000000000000000 ], # a
-  [     0.000000000000000,     6.400000000000000,     0.000000000000000 ], # b
-  [     0.000000000000000,     0.000000000000000,     6.400000000000000 ], # c
-]
-[[unitcell.points]]  # 1
-symbol = "Pb"
-coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
-[[unitcell.points]]  # 2
-symbol = "Pb"
-coordinates = [  0.000000000000000,  0.500000000000000,  0.500000000000000 ]
-[[unitcell.points]]  # 3
-symbol = "Pb"
-coordinates = [  0.500000000000000,  0.000000000000000,  0.500000000000000 ]
-[[unitcell.points]]  # 4
-symbol = "Pb"
-coordinates = [  0.500000000000000,  0.500000000000000,  0.000000000000000 ]
-[[unitcell.points]]  # 5
-symbol = "Te"
-coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
-[[unitcell.points]]  # 6
-symbol = "Te"
-coordinates = [  0.500000000000000,  0.000000000000000,  0.000000000000000 ]
-[[unitcell.points]]  # 7
-symbol = "Te"
-coordinates = [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
-[[unitcell.points]]  # 8
-symbol = "Te"
-coordinates = [  0.000000000000000,  0.000000000000000,  0.500000000000000 ]
-[primitive_cell]
-lattice = [
-  [     0.000000000000000,     3.200000000000000,     3.200000000000000 ], # a
-  [     3.200000000000000,     0.000000000000000,     3.200000000000000 ], # b
-  [     3.200000000000000,     3.200000000000000,     0.000000000000000 ], # c
-]
-[[primitive_cell.points]]  # 1
-symbol = "Pb"
-coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
-[[primitive_cell.points]]  # 2
-symbol = "Te"
-coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
+# ...
 ```
+
+`scheduler_template` in `[scheduler]` is that of the default settings of
+`velph init`. With `scheduler_name = "sge"`, the job script of SGE is written,
+and `scheduler_template` is not used (see {ref}`velph_toml_scheduler`).
 
 Change directory to `relax`.
 ```
@@ -254,13 +216,10 @@ directory and start supercell calculation.
 ```
 % velph init --template-toml velph-tmpl.toml `ls relax/relax/iter*/CONTCAR|tail -n 1` calc
 Read crystal structure file "relax/relax/iter2/CONTCAR".
-Read velph template file "velph-tmpl.toml".
-Following options were found in "velph-tmpl.toml":
-  kspacing = "0.2"
-  kspacing_dense = "0.1"
-  max_num_atoms = "100"
-The command options were prefered to [init.options] in "velph-tmpl.toml".
-Found a primitive cell whose transformation matrix is
+Read velph init template "velph-tmpl.toml".
+Space-group: Fm-3m
+Crystal structure was standardized based on space-group-type Fm-3m.
+Transformation matrix from conventional unit cell to primitive cell is
   [ 0.000  0.500  0.500]
   [ 0.500  0.000  0.500]
   [ 0.500  0.500  0.000]
@@ -268,8 +227,8 @@ Supercell is generated with respect to the cell below.
 --------------------------------------------------------------------------------
 lattice:
 - [     6.440595899259139,     0.000000000000000,     0.000000000000000 ] # a
-- [    -0.000000000000000,     6.440595899259139,     0.000000000000000 ] # b
-- [    -0.000000000000000,    -0.000000000000000,     6.440595899259139 ] # c
+- [     0.000000000000000,     6.440595899259139,     0.000000000000000 ] # b
+- [     0.000000000000000,     0.000000000000000,     6.440595899259139 ] # c
 points:
 - symbol: Pb # 1
   coordinates: [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
@@ -284,43 +243,18 @@ points:
   coordinates: [  0.500000000000000,  0.500000000000000,  0.000000000000000 ]
   mass: 207.200000
 - symbol: Te # 5
-  coordinates: [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
-  mass: 127.600000
-- symbol: Te # 6
   coordinates: [  0.500000000000000,  0.000000000000000,  0.000000000000000 ]
   mass: 127.600000
-- symbol: Te # 7
-  coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
+- symbol: Te # 6
+  coordinates: [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
   mass: 127.600000
-- symbol: Te # 8
+- symbol: Te # 7
   coordinates: [  0.000000000000000,  0.000000000000000,  0.500000000000000 ]
   mass: 127.600000
+- symbol: Te # 8
+  coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
+  mass: 127.600000
 --------------------------------------------------------------------------------
-[vasp.incar] (basic INCAR settings)
-  ismear = 0
-  sigma = 0.01
-  ediff = 1e-08
-  encut = 400
-  prec = accurate
-  lreal = False
-  lwave = False
-  lcharg = False
-  ncore = 4
-[phelel]
-  supercell_dimension: [2 2 2]
-[vasp.*.kpoints.mesh] (*kspacing=0.2)
-  selfenergy: [8 8 8]*
-  transport: [8 8 8]*
-  el_bands: [8 8 8]*
-  phonopy: [2 2 2]*
-  phono3py: [2 2 2]*
-  phelel: [2 2 2]*
-  relax: [5 5 5]*
-  nac: [8 8 8]*
-[vasp.*.kpoints_dense.mesh] (*kspacing_dense=0.1)
-  selfenergy: [17 17 17]*
-  transport: [17 17 17]*
-  el_bands: [17 17 17]*
 Created new folder "calc".
 Initial settings were written to "calc/velph.toml".
 Found "POTCAR".
@@ -336,19 +270,25 @@ Change directory to `calc`.
 ```
 
 `velph.toml`,
-```
-[phelel]
-version = "0.8.2"
-supercell_dimension = [2, 2, 2]
-amplitude = 0.03
-diagonal = false
-plusminus = true
-fft_mesh = [30, 30, 30]
+```toml
+[vasp.nac]
+cell = "primitive"
+
+[vasp.nac.incar]
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 400
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+lepsilon = true
+
+[vasp.nac.kpoints]
+mesh = [9, 9, 9]
 
 [vasp.phelel.incar]
-elph_prepare = true
-isym = 0
-kpar = 2
 ismear = 0
 sigma = 0.01
 ediff = 1e-08
@@ -358,27 +298,15 @@ lreal = false
 lwave = false
 lcharg = false
 ncore = 4
+elph_prepare = true
+isym = 0
+kpar = 2
+
 [vasp.phelel.kpoints]
-mesh = [2, 2, 2]
+mesh = [3, 3, 3]
+
 [vasp.phelel.scheduler]
 pe = "mpi* 48"
-
-# ...
-
-[vasp.nac]
-cell = "primitive"
-[vasp.nac.incar]
-lepsilon = true
-ismear = 0
-sigma = 0.01
-ediff = 1e-08
-encut = 400
-prec = "accurate"
-lreal = false
-lwave = false
-lcharg = false
-[vasp.nac.kpoints]
-mesh = [8, 8, 8]
 
 # ...
 ```
@@ -412,6 +340,14 @@ Running finufft (eps=1.000e-06)...
 Running finufft (eps=1.000e-06)...
 "phelel/phelel_params.hdf5" has been made.
 ```
+
+The FFT mesh is the FFT grid of VASP on the primitive cell for `encut` and
+`prec` in the INCAR tags of the electron-phonon input sets (`selfenergy` and
+`transport`), here `encut = 400` and `prec = "accurate"`. VASP stops when its FFT
+grid differs from the mesh in `phelel/phelel_params.hdf5`, so these input sets
+have to give the same mesh. When they give different meshes, or when one of them
+does not give `encut`, `velph phelel differentiate` stops with an error.
+`--encut` gives ENCUT in place of `encut` of these input sets.
 
 NAC parameters in `phelel/phelel_params.hdf5` comes from
 `phelel/phelel_disp.yaml`, i.e.,
