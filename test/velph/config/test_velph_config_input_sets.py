@@ -9,7 +9,7 @@ import pytest
 
 from phelel.velph.config import input_sets
 from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import CODE_KEYS
 
 
@@ -37,11 +37,11 @@ def test_docstring_examples():
     assert result.failed == 0
 
 
-def test_parse_legacy_velph_toml_meets_input_sets(
-    nacl_velph_toml_v014: Callable[[], dict],
+def test_velph_init_meets_input_sets(
+    nacl_velph_toml: Callable[[], dict],
 ):
-    """Velph init of velph 0.14 writes the k-point blocks of INPUT_SETS."""
-    config = parse_legacy_velph_toml(nacl_velph_toml_v014())
+    """velph.toml written by velph init has the k-point blocks of INPUT_SETS."""
+    config = parse_velph_toml(nacl_velph_toml())
     assert config.vasp is not None and config.vasp.input_sets is not None
     assert set(config.vasp.input_sets) == set(INPUT_SETS)
     for set_name, entry in INPUT_SETS.items():

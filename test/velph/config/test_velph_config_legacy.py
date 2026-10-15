@@ -256,7 +256,7 @@ def test_kspacing_mesh_equals_generate(
 
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_kspacing_mesh_equals_generate_site_mixture(
-    site_mixture_velph_toml: Callable[[bool], dict],
+    velph_toml_v014: Callable[[str], dict],
     split_site_mixture: bool,
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -279,7 +279,8 @@ def test_kspacing_mesh_equals_generate_site_mixture(
         for set_name in _GENERATE_COMMANDS
         if set_name not in ("phono3py", "el_bands", "el_dos")
     )
-    data = _velph_toml_with_kspacing(site_mixture_velph_toml(split_site_mixture))
+    scheme = "split" if split_site_mixture else "merge"
+    data = _velph_toml_with_kspacing(velph_toml_v014(f"gesnte_{scheme}_222.toml"))
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     _run_generate_commands(set_names)

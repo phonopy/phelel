@@ -17,7 +17,7 @@ from phelel import Phelel
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.utils import get_num_digits
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.config.io import parse_velph_toml
 
 
 def _write_phelel_disp_yaml(path: pathlib.Path, with_phonon: bool = True) -> Phelel:
@@ -73,7 +73,7 @@ def _write_force_files(
 @pytest.mark.parametrize("with_vasp_phonopy", [True, False])
 def test_create_phonopy_yaml_with_phonon_supercell(
     with_vasp_phonopy: bool,
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -103,7 +103,7 @@ def test_create_phonopy_yaml_with_phonon_supercell(
 
     monkeypatch.setattr(phelel_phonopy, "read_vasp_forces", _read_forces)
     monkeypatch.chdir(tmp_path)
-    toml_dict = nacl_velph_toml_v014()
+    toml_dict = nacl_velph_toml()
     if not with_vasp_phonopy:
         del toml_dict["vasp"]["phonopy"]
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(toml_dict))
@@ -128,7 +128,7 @@ def test_create_phonopy_yaml_with_phonon_supercell(
 
 
 def test_create_phonopy_yaml_without_force_files(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -139,7 +139,7 @@ def test_create_phonopy_yaml_without_force_files(
     nd = get_num_digits(phe.supercells_with_displacements)
     (tmp_path / "phelel" / f"disp-{1:0{nd}d}" / "vasprun.xml").unlink()
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml_v014()))
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
     with pytest.raises(click.ClickException, match=f"disp-{1:0{nd}d}"):
         create_phonopy_yaml(
             pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
@@ -147,7 +147,7 @@ def test_create_phonopy_yaml_without_force_files(
 
 
 def test_create_phonopy_yaml_reads_phelel_supercells(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -170,7 +170,7 @@ def test_create_phonopy_yaml_reads_phelel_supercells(
 
     monkeypatch.setattr(phelel_phonopy, "read_vasp_forces", _read_forces)
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml_v014()))
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
     create_phonopy_yaml(
         pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
     )
@@ -184,13 +184,12 @@ def test_create_phonopy_yaml_reads_phelel_supercells(
 
 def test_create_phonopy_yaml_site_mixture_merge(
     site_mixture_velph_toml: Callable[[bool], dict],
-    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """With the merge scheme, forces are on the atoms of the unmerged supercell."""
     phe = run_init(
-        code_init_config(site_mixture_velph_toml(False)), current_directory=tmp_path
+        parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
     )
     assert phe.unmerged_supercell is not None
     assert phe.supercells_with_displacements is not None

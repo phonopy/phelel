@@ -10,9 +10,10 @@ import tomli
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 
+from phelel.velph.cli.init.build import build_velph_config
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
 from phelel.velph.cli.supercells import PHONOPY_DISP_YAML
-from phelel.velph.config.io import parse_template
+from phelel.velph.config.io import dumps_config, parse_init, parse_template
 from phelel.velph.config.legacy import parse_legacy_velph_toml
 from phelel.velph.config.schema import (
     CODES,
@@ -213,21 +214,59 @@ def helper_methods() -> Callable:
     return HelperMethods
 
 
+def _velph_init_toml(cell: PhonopyAtoms, options: dict[str, Any]) -> str:
+    """Return velph.toml text that velph init writes for cell and [init] options.
+
+    options are keys of [init], such as {"supercell_dimension": [2, 2, 2]} for
+    "velph init --dim 2 2 2".
+
+    """
+    config = build_velph_config(cell, options=parse_init(options))
+    return dumps_config(config)
+
+
+@pytest.fixture(scope="session")
+def nacl_velph_toml(nacl_cell: PhonopyAtoms) -> Callable[[], dict]:
+    """Return a function giving velph.toml dict that velph init writes for NaCl.
+
+    The cell is the conventional unit cell of NaCl, and the supercell is 2x2x2
+    of it, as "velph init --dim 2 2 2" gives.  [scheduler] is written.  Each
+    call returns a new dict, so a test can modify it.
+
+    """
+    text = _velph_init_toml(nacl_cell, {"supercell_dimension": [2, 2, 2]})
+
+    def _get_velph_toml() -> dict:
+        return tomli.loads(text)
+
+    return _get_velph_toml
+
+
 @pytest.fixture(scope="session")
 def site_mixture_velph_toml() -> Callable[[bool], dict]:
     """Return a function giving velph.toml dict of a site-mixture cell.
 
-    The dict is that of a velph.toml written by velph init of velph 0.14 for a
-    CsCl-like cell with co-located Ge and Sn (weights 0.5) and Te, with the
-    2x2x2 supercell. The cells in velph.toml keep Ge and Sn with weights. The
-    argument is split_site_mixture: False gives the merge scheme, with which
-    phonopy merges Ge and Sn into a GeSn site, and True gives the split scheme.
+    The dict is that of a velph.toml written by velph init for a CsCl-like cell
+    (a = 4 Angstrom) with co-located Ge and Sn (weights 0.5) at (0, 0, 0) and
+    Te at (1/2, 1/2, 1/2), with the 2x2x2 supercell.  The cells in velph.toml
+    keep Ge and Sn with weights.  The argument is split_site_mixture: False
+    gives the merge scheme, with which phonopy merges Ge and Sn into a GeSn
+    site, and True gives the split scheme.  Each call returns a new dict.
 
     """
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Ge", "Sn", "Te"],
+        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    options = {"supercell_dimension": [2, 2, 2], "site_mixture": "0.5 0.5 1.0"}
+    texts = {
+        split: _velph_init_toml(cell, {**options, "split_site_mixture": split})
+        for split in (False, True)
+    }
 
     def _get_velph_toml(split_site_mixture: bool) -> dict:
-        scheme = "split" if split_site_mixture else "merge"
-        return _load_velph_toml_v014(f"gesnte_{scheme}_222.toml")
+        return tomli.loads(texts[split_site_mixture])
 
     return _get_velph_toml
 

@@ -12,19 +12,19 @@ from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.nac.generate import plan_nac
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml
 
 
-def test_plan_nac(nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Path):
+def test_plan_nac(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
     """The job of nac is on the cell of [vasp.nac], here the primitive cell.
 
     job_name is that of [scheduler], and POTCAR is not copied when the current
     directory does not have it.
 
     """
-    data = nacl_velph_toml_v014()
+    data = nacl_velph_toml()
     assert data["vasp"]["nac"]["cell"] == "primitive"
-    config = parse_legacy_velph_toml(data)
+    config = parse_velph_toml(data)
     with pytest.MonkeyPatch.context() as m:
         m.chdir(tmp_path)
         job = plan_nac(config)
@@ -38,12 +38,12 @@ def test_plan_nac(nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Pa
 
 
 def test_nac_generate_unit_cell(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """With cell = "unitcell", POSCAR of nac is the unit cell."""
-    data = nacl_velph_toml_v014()
+    data = nacl_velph_toml()
     data["vasp"]["nac"]["cell"] = "unitcell"
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     monkeypatch.chdir(tmp_path)

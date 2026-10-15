@@ -14,12 +14,12 @@ from click.testing import CliRunner
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.supercells import get_code_section, plan_supercells
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.legacy import parse_legacy_velph_toml
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import CodeSection
 
 
 def test_plan_supercells(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -28,8 +28,8 @@ def test_plan_supercells(
     The directory name is appended to job_name of the scheduler settings.
 
     """
-    data = nacl_velph_toml_v014()
-    config = parse_legacy_velph_toml(data)
+    data = nacl_velph_toml()
+    config = parse_velph_toml(data)
     monkeypatch.chdir(tmp_path)
     phe = run_init(config, current_directory=tmp_path)
     assert phe.supercells_with_displacements is not None
@@ -74,13 +74,13 @@ def test_supercells_site_mixture_merge(
     assert result.output.count("VASP VCA hint:") == 1
 
 
-def test_get_code_section(nacl_velph_toml_v014: Callable[[], dict]):
+def test_get_code_section(nacl_velph_toml: Callable[[], dict]):
     """Fields not given take the defaults of velph init, and errors name the file.
 
     The supercell has to be given.
 
     """
-    config = parse_legacy_velph_toml(nacl_velph_toml_v014())
+    config = parse_velph_toml(nacl_velph_toml())
     assert config.phelel is not None
     config = dataclasses.replace(
         config,
@@ -109,12 +109,12 @@ def test_get_code_section(nacl_velph_toml_v014: Callable[[], dict]):
 
 
 def test_generate_without_yaml(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Without the yaml file of init, generate stops before writing files."""
-    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml_v014()))
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(cmd_root, ["phonopy", "generate"])
     assert result.exit_code == 1

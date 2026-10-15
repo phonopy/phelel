@@ -14,12 +14,12 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 def test_generate(
-    nacl_velph_toml_v014: Callable[[], dict],
+    nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """POSCAR-unitcell and POSCAR-primitive are written, and not overwritten."""
-    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml_v014()))
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     result = runner.invoke(cmd_root, ["generate"])

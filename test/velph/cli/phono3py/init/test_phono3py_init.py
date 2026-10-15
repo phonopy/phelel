@@ -11,6 +11,7 @@ import tomli
 from phonopy import Phonopy
 
 from phelel.velph.cli.phono3py.init import run_init
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import VelphConfig
 
 
@@ -121,7 +122,6 @@ def test_phono3py_init_default_displacement_settings(
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_phono3py_init_site_mixture_is_error(
     site_mixture_velph_toml: Callable[[bool], dict],
-    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     split_site_mixture: bool,
 ):
@@ -132,7 +132,7 @@ def test_phono3py_init_site_mixture_is_error(
     """
     with pytest.raises(click.ClickException, match="site-mixture"):
         run_init(
-            code_init_config(site_mixture_velph_toml(split_site_mixture)),
+            parse_velph_toml(site_mixture_velph_toml(split_site_mixture)),
             current_directory=tmp_path,
         )
 

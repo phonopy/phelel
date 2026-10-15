@@ -9,6 +9,7 @@ import pytest
 import tomli
 
 from phelel.velph.cli.phonopy.init import run_init
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import VelphConfig
 
 
@@ -121,13 +122,12 @@ def test_phonopy_init_default_displacement_settings(
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_phonopy_init_site_mixture(
     site_mixture_velph_toml: Callable[[bool], dict],
-    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     split_site_mixture: bool,
 ):
     """Test that phonopy_disp.yaml of a site-mixture cell is read back."""
     ph = run_init(
-        code_init_config(site_mixture_velph_toml(split_site_mixture)),
+        parse_velph_toml(site_mixture_velph_toml(split_site_mixture)),
         current_directory=tmp_path,
     )
     filename = tmp_path / "phonopy_disp.yaml"
@@ -150,7 +150,6 @@ def test_phonopy_init_site_mixture(
 
 def test_phonopy_init_site_mixture_merge_without_nac(
     site_mixture_velph_toml: Callable[[bool], dict],
-    code_init_config: Callable[[dict], VelphConfig],
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
 ):
@@ -158,7 +157,7 @@ def test_phonopy_init_site_mixture_merge_without_nac(
     (tmp_path / "nac").mkdir()
     (tmp_path / "nac" / "vasprun.xml").write_text("")
     ph = run_init(
-        code_init_config(site_mixture_velph_toml(False)), current_directory=tmp_path
+        parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
     )
     assert ph.nac_params is None
     assert "NAC is not supported with the merge scheme" in capsys.readouterr().out
