@@ -38,6 +38,39 @@ fft_mesh of [phelel] was removed.
 The other subcommands also read a `velph.toml` of velph 0.14 as it is. See
 {ref}`velph_changes_0_15_project_folder`.
 
+(velph_subcommands_scheduler)=
+## `velph scheduler`
+
+This subcommand shows the job script `_job.sh` of each input set of
+`velph.toml`, as the generate commands write it, and it writes no file. It is
+used to check `[scheduler]` and `[vasp.<input set>.scheduler]` (see
+{ref}`velph_toml_scheduler`). The input sets given as arguments are shown in
+the order given. Without arguments, all the input sets in `[vasp]` are shown.
+`job_name` is shown without the name of the calculation that the generate
+commands append to it, such as `-iter1` of `velph relax generate`. When
+`velph.toml` has no `[scheduler]`, the subcommand prints that no `_job.sh` is
+written.
+
+When `_job.sh` of an input set cannot be made, the error is shown in place of
+`_job.sh`, the remaining input sets are shown, and the exit code is 1. In the
+following example, `scheduler_template` of `[vasp.nac.scheduler]` has
+`{qos}`, which is not given.
+
+```bash
+% velph scheduler relax nac
+[vasp.relax]
+#!/bin/bash
+#SBATCH --job-name=NaCl
+#SBATCH --partition=short
+#SBATCH --ntasks=48
+#SBATCH --time=12:00:00
+
+srun vasp_std
+
+[vasp.nac]
+Error: "qos" used in the job script template is not given in [scheduler] or [vasp.<input set>.scheduler].  To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.
+```
+
 ## `velph relax`
 
 It is recommended to create a project directory specific for relaxation

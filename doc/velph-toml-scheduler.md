@@ -56,6 +56,9 @@ writes the following `relax/iter1/_job.sh`:
 sleep 10
 ```
 
+`velph scheduler` shows `_job.sh` of each input set without writing any
+file (see {ref}`velph_subcommands_scheduler`).
+
 ## Keys
 
 - `scheduler_template` : the template of `_job.sh`, a string. It is required.
@@ -95,7 +98,7 @@ Job scripts often have braces, for example:
 ## Errors
 
 A generate command stops with one of the following errors before it writes any
-file.
+file. `velph scheduler` shows these errors for each input set.
 
 - `"<key>" used in the job script template is not given in [scheduler] or
   [vasp.<input set>.scheduler].` : `scheduler_template` has `{<key>}`, but the
@@ -142,8 +145,8 @@ template as a multi-line literal string of TOML.
 (the job script)
 ```
 
-Read the `scheduler_template` that the LLM writes, and check the `_job.sh` that
-a generate command writes, for example `velph nac generate`.
+Read the `scheduler_template` that the LLM writes, and check `_job.sh` with
+`velph scheduler` (see {ref}`velph_subcommands_scheduler`).
 
 ## Examples
 

@@ -24,6 +24,9 @@ from phelel.velph.cli.phelel.cmd_phelel import cmd_phelel  # noqa: E402, F401
 from phelel.velph.cli.phono3py.cmd_phono3py import cmd_phono3py  # noqa: E402, F401
 from phelel.velph.cli.phonopy.cmd_phonopy import cmd_phonopy  # noqa: E402, F401
 from phelel.velph.cli.relax.cmd_relax import cmd_relax  # noqa: E402, F401
+from phelel.velph.cli.scheduler.cmd_scheduler import (  # noqa: E402, F401
+    cmd_scheduler,
+)
 from phelel.velph.cli.selfenergy.cmd_selfenergy import (  # noqa: E402, F401
     cmd_selfenergy,
 )
