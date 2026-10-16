@@ -202,12 +202,12 @@ and `scheduler_template` is not used (see {ref}`velph_toml_scheduler`).
 Change directory to `relax`.
 ```
 % velph relax generate
-VASP input files were made in "relax/iter1".
+VASP input files were generated in "relax/iter1".
 % cd relax/iter1 && qsub _job.sh && cd ../..
 % velph relax generate
 "relax/iter1" exists.
 "relax/iter1/CONTCAR" will be as new "POSCAR".
-VASP input files were made in "relax/iter2".
+VASP input files were generated in "relax/iter2".
 ```
 Structure optimizations (iter1, iter2, ...) may be repeated until stress becomes
 less than a target value, e.g., 0.1kB (0.01GPa). Then, go back to the top
@@ -314,7 +314,7 @@ pe = "mpi* 48"
 NAC and phelel calculations,
 ```
 % velph nac generate
-VASP input files were made in "nac".
+VASP input files were generated in "nac".
 % cd nac && qsub _job.sh && cd ..
 % velph phelel init
 Found "nac" directory. Read NAC params.

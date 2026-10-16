@@ -161,7 +161,8 @@ def resolve_supercell(
     if isinstance(supercell, MaxNumAtoms):
         if not symmetrize_cell:
             raise click.ClickException(
-                f'"max_num_atoms" of [{code}] needs "symmetrize_cell = true" '
+                f'The supercell of [{code}] is given by "max_num_atoms" '
+                '(--max-num-atoms), which needs "symmetrize_cell = true" '
                 "(--symmetrize-cell)."
             )
         smat = np.diag(

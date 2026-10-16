@@ -89,7 +89,7 @@ POSCAR-unitcell  POTCAR  relax/  velph-tmpl.toml
 % ls
 POTCAR  velph.toml
 % velph nac generate
-VASP input files were made in "nac".
+VASP input files were generated in "nac".
 % ls
 POTCAR  nac/  velph.toml
 ...

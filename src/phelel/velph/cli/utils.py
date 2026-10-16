@@ -95,7 +95,7 @@ def write_launch_script(
             if "scheduler_template" not in toml_scheduler_dict:
                 raise click.ClickException(
                     '"scheduler_template" has to be given in [scheduler] or '
-                    '[vasp.CALC_TYPE.scheduler], unless "scheduler_name" is '
+                    '[vasp.<input set>.scheduler], unless "scheduler_name" is '
                     '"sge" or "slurm".'
                 )
 
@@ -107,7 +107,7 @@ def write_launch_script(
     except KeyError as e:
         raise click.ClickException(
             f'"{e.args[0]}" used in the job script template is not given in '
-            "[scheduler] or [vasp.CALC_TYPE.scheduler]."
+            "[scheduler] or [vasp.<input set>.scheduler]."
         ) from e
 
     if sched_string:

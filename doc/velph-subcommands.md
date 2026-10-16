@@ -67,7 +67,7 @@ is generated in directories named `iter2`, `iter3`, and so on.
 % ls
 POTCAR  velph.toml
 % velph relax generate
-VASP input files were made in "relax/iter1".
+VASP input files were generated in "relax/iter1".
 ...
 # Run VASP calculation in relax/iter1
 ...
@@ -76,7 +76,7 @@ POTCAR  relax/  velph.toml
 % velph relax generate
 "relax/iter1" exists.
 "relax/iter1/CONTCAR" will be as new "POSCAR".
-VASP input files were made in "relax/iter2".
+VASP input files were generated in "relax/iter2".
 ...
 ```
 
@@ -100,7 +100,7 @@ or `phonopy_disp.yaml`, respectively.
 
 ```bash
 % velph nac generate
-VASP input files were made in "nac".
+VASP input files were generated in "nac".
 ```
 
 ## `velph el_bands`
@@ -118,7 +118,7 @@ path that seekpath gives is written (see {ref}`velph_toml_vasp_bands`).
 
 ```bash
 % velph el_bands generate
-VASP input files were made in "el_bands".
+VASP input files were generated in "el_bands".
 ```
 
 ### `velph el_bands plot`
@@ -150,7 +150,7 @@ and the Fermi level.
 
 ```bash
 % velph el_dos generate
-VASP input files were made in "el_dos".
+VASP input files were generated in "el_dos".
 ```
 
 ### `velph el_dos plot_eigenvalues`
@@ -369,7 +369,7 @@ is written (see {ref}`velph_toml_vasp_bands`).
 
 ```bash
 % velph ph_bands generate
-VASP input files were made in "ph_bands".
+VASP input files were generated in "ph_bands".
 ```
 
 ### `velph ph_bands plot`

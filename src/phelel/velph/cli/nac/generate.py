@@ -46,6 +46,6 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
     config = read_velph_toml(toml_filename, "nac")
     job = plan_nac(config)
     write_vasp_job(job)
-    click.echo(f'VASP input files were made in "{job.directory}".')
+    click.echo(f'VASP input files were generated in "{job.directory}".')
     assert isinstance(job.poscar, PhonopyAtoms)
     echo_vasp_vca_hint(job.poscar)
