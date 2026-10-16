@@ -66,8 +66,8 @@ _BRACES_HINT = (
 )
 
 
-def write_launch_script(scheduler: Mapping[str, Any], directory: os.PathLike) -> None:
-    """Write the job script _job.sh from the scheduler settings of a job.
+def make_job_script(scheduler: Mapping[str, Any]) -> str:
+    """Return the job script _job.sh made from the scheduler settings of a job.
 
     The keys in braces in scheduler_template, such as {job_name}, are replaced
     by the values of the settings, as str.format does.  click.ClickException is
@@ -81,7 +81,7 @@ def write_launch_script(scheduler: Mapping[str, Any], directory: os.PathLike) ->
             "[vasp.<input set>.scheduler]."
         )
     try:
-        script = scheduler["scheduler_template"].format(**scheduler)
+        return scheduler["scheduler_template"].format(**scheduler)
     except KeyError as e:
         raise click.ClickException(
             f'"{e.args[0]}" used in the job script template is not given in '
@@ -91,8 +91,6 @@ def write_launch_script(scheduler: Mapping[str, Any], directory: os.PathLike) ->
         raise click.ClickException(
             f"The job script template cannot be read: {e}." + _BRACES_HINT
         ) from e
-    with open(pathlib.Path(directory) / "_job.sh", "w") as w:
-        w.write(script)
 
 
 def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:

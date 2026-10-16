@@ -3,7 +3,8 @@
 A job is one VASP calculation in one directory, such as "relax/iter1" or
 "phelel/disp-001".  The generate commands first make a VaspJob for each
 directory from velph.toml, without writing anything.  write_vasp_job then
-writes the files of a VaspJob.
+writes the files of a VaspJob.  An error found in making the jobs, such as in
+the job script template, stops a command before anything is written.
 
 """
 
@@ -20,7 +21,7 @@ import click
 from phonopy.interface.vasp import get_vasp_vca_weights
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 
-from phelel.velph.cli.utils import write_launch_script, write_poscar
+from phelel.velph.cli.utils import make_job_script, write_poscar
 from phelel.velph.config.input_sets import INPUT_SETS, InputSetName, KpointsFileName
 from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.legacy import load_velph_toml_any_version
@@ -43,8 +44,8 @@ class VaspJob:
     POSCAR, such as CONTCAR of the previous relax.  incar is the INCAR as it is
     written.  kpoints maps the name of each k-point file to its mesh, or to
     its band path, which has to give "path".
-    scheduler is the scheduler settings of _job.sh, in which job_name is the
-    one written.  _job.sh is not written when scheduler is None.
+    job_script is _job.sh as it is written, and _job.sh is not written when
+    job_script is None.
     copied_files maps a file name in the directory to the file copied there,
     such as POTCAR.
 
@@ -54,7 +55,7 @@ class VaspJob:
     poscar: PhonopyAtoms | pathlib.Path
     incar: Mapping[str, Any]
     kpoints: Mapping[KpointsFileName, KpointsMesh | LinePath]
-    scheduler: Mapping[str, Any] | None = None
+    job_script: str | None = None
     copied_files: Mapping[str, pathlib.Path] = dataclasses.field(default_factory=dict)
 
 
@@ -81,8 +82,8 @@ def write_vasp_job(job: VaspJob) -> None:
             VaspKpoints.write_mesh_mode(job.directory / filename, kpoints)
     for name, source in job.copied_files.items():
         shutil.copy2(source, job.directory / name)
-    if job.scheduler is not None:
-        write_launch_script(job.scheduler, job.directory)
+    if job.job_script is not None:
+        (job.directory / "_job.sh").write_text(job.job_script)
 
 
 def read_velph_toml(
@@ -144,6 +145,22 @@ def effective_scheduler(
     if job_id is not None and "job_name" in scheduler:
         scheduler["job_name"] = f"{scheduler['job_name']}-{job_id}"
     return scheduler
+
+
+def job_script(
+    config: VelphConfig, set_name: InputSetName, job_id: str | None = None
+) -> str | None:
+    """Return _job.sh of a job of an input set.
+
+    The scheduler settings are those of effective_scheduler.  None is returned
+    when velph.toml has no [scheduler].  click.ClickException is raised by
+    make_job_script when the job script template cannot be filled.
+
+    """
+    scheduler = effective_scheduler(config, set_name, job_id=job_id)
+    if scheduler is None:
+        return None
+    return make_job_script(scheduler)
 
 
 def add_cell_tags(incar: Mapping[str, Any], cell: PhonopyAtoms) -> dict[str, Any]:

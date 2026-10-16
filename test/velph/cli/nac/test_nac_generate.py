@@ -32,8 +32,8 @@ def test_plan_nac(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
     assert isinstance(job.poscar, PhonopyAtoms)
     assert len(job.poscar) == 2
     assert job.incar == data["vasp"]["nac"]["incar"]
-    assert job.scheduler is not None
-    assert job.scheduler["job_name"] == "vasp-elph"
+    assert job.job_script is not None
+    assert "#SBATCH --job-name=vasp-elph\n" in job.job_script
     assert job.copied_files == {}
 
 
@@ -51,3 +51,19 @@ def test_nac_generate_unit_cell(
     assert result.exit_code == 0, result.output
     poscar_lines = (tmp_path / "nac" / "POSCAR").read_text().split("\n")
     assert poscar_lines[6].split() == ["4", "4"]
+
+
+def test_nac_generate_unreadable_job_script(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A job script template that cannot be filled stops before "nac" is made."""
+    data = nacl_velph_toml()
+    data["scheduler"]["scheduler_template"] = "#!/bin/bash\necho }\n"
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cmd_root, ["nac", "generate"])
+    assert result.exit_code == 1
+    assert "The job script template cannot be read" in result.stderr
+    assert not (tmp_path / "nac").exists()

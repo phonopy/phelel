@@ -94,8 +94,8 @@ Job scripts often have braces, for example:
 
 ## Errors
 
-A generate command stops with one of the following errors when it writes
-`_job.sh`.
+A generate command stops with one of the following errors before it writes any
+file.
 
 - `"<key>" used in the job script template is not given in [scheduler] or
   [vasp.<input set>.scheduler].` : `scheduler_template` has `{<key>}`, but the
