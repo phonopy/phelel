@@ -76,6 +76,7 @@ phelel         -- Choose supercell options.
 phono3py       -- Choose phono3py options.
 phonopy        -- Choose phonopy options.
 relax          -- Choose relax options.
+scheduler      -- Show the job script _job.sh of each input...
 selfenergy     -- Choose selfenergy options.
 transport      -- Choose transport options.
 ```

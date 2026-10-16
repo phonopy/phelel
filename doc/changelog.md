@@ -19,6 +19,8 @@
   Without it, no job script `_job.sh` is written.
 - When `scheduler_template` cannot be filled, the generate commands stop before
   they write any file. Before, the directory was left without `_job.sh`.
+- `velph scheduler` shows the job script `_job.sh` of each input set without
+  writing any file.
 - Fix the force constants of the derivatives with a phonon supercell. They were
   computed from the displacements of the phelel supercells and the forces of
   the phonon supercells, and they are now computed from the displacements of
