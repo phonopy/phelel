@@ -555,12 +555,60 @@ def test_invalid_cell(nacl_cell: PhonopyAtoms):
     assert "[unitcell] Invalid crystal structure" in str(e.value)
 
 
+@pytest.mark.parametrize(
+    "path,key,value,message",
+    [
+        (
+            ("scheduler",),
+            "scheduler_name",
+            "sge",
+            '[scheduler] "scheduler_name" is removed.',
+        ),
+        (
+            ("vasp", "nac", "scheduler"),
+            "scheduler_name",
+            "sge",
+            '[vasp.nac.scheduler] "scheduler_name" is removed.',
+        ),
+        (
+            ("scheduler",),
+            "custom_template",
+            "#!/bin/bash",
+            '[scheduler] "custom_template" is removed.',
+        ),
+        (
+            ("scheduler",),
+            "scheduler_template",
+            1,
+            '[scheduler] "scheduler_template" has to be a string',
+        ),
+    ],
+)
+def test_scheduler_errors(
+    nacl_cell: PhonopyAtoms, path: tuple[str, ...], key: str, value: Any, message: str
+):
+    """scheduler_name and custom_template are an error in the scheduler settings.
+
+    scheduler_template has to be a string.
+
+    """
+    document = tomli.loads(_velph_toml_text(nacl_cell))
+    table = document
+    for name in path:
+        table = table.setdefault(name, {})
+    table[key] = value
+    with pytest.raises(VelphConfigError) as e:
+        parse_velph_toml(document)
+    assert message in str(e.value)
+
+
 def test_old_velph_toml_digest():
     """An old velph.toml gives a digest of only the changes that concern it."""
     text = (
         "[phelel]\nfft_mesh = [18, 18, 18]\n"
         "[vasp.relax.kpoints]\nkspacing = 0.2\n"
         "[vasp.el_bands.dos.incar]\nnedos = 5001\n"
+        '[vasp.relax.scheduler]\nscheduler_name = "sge"\n'
     )
     with pytest.raises(VelphConfigError) as e:
         parse_velph_toml(tomli.loads(text), name="old/velph.toml")
@@ -575,6 +623,7 @@ def test_old_velph_toml_digest():
     assert "[vasp.el_bands.bands] and [vasp.el_bands.dos] are now" in flat
     assert "[phelel] fft_mesh is removed." in flat
     assert "converts kspacing in a k-point block to mesh" in flat
+    assert '"scheduler_name" is removed.' in flat
     assert "incar_unset" not in flat
     assert message.endswith(
         'See "Changes in velph 0.15" in the documentation for all changes.'
@@ -602,6 +651,7 @@ def test_old_template_digest():
         "[init.options]\nkspacing = 0.2\n"
         "[vasp.nac.incar]\nncore = {}\n"
         "[vasp.relax.kpoints]\nkspacing = 0.2\n"
+        '[scheduler]\nscheduler_name = "sge"\n'
     )
     with pytest.raises(VelphConfigError) as e:
         parse_template(tomli.loads(text), name="tmpl.toml")
@@ -615,6 +665,7 @@ def test_old_template_digest():
     assert (
         'does not inherit the tags of [vasp.incar] listed in its "incar_unset"' in flat
     )
+    assert '"scheduler_name" is removed.' in flat
     assert "converts kspacing" not in flat
 
 

@@ -9,6 +9,10 @@
   0.14.
 - `velph convert` writes a `velph.toml` of velph 0.14 in the format of velph
   0.15.
+- `scheduler_name` of the scheduler settings is removed, and the job script is
+  written from `scheduler_template` only. See
+  {ref}`velph_changes_0_15_scheduler` for the `scheduler_template` that gives
+  the job script of velph 0.14.
 - Fix the force constants of the derivatives with a phonon supercell. They were
   computed from the displacements of the phelel supercells and the forces of
   the phonon supercells, and they are now computed from the displacements of

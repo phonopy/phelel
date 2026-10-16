@@ -46,7 +46,6 @@ pe = "mpi* 48"
 pe = "mpi* 144"
 
 [scheduler]
-scheduler_name = "sge"
 job_name = "PbTe"
 mpirun_command = "mpirun"
 vasp_binary = "/usr/local/vasp/bin/vasp_std"
@@ -55,6 +54,20 @@ prepend_text = '''
 source /opt/intel/oneapi/setvars.sh
 '''
 append_text = ""
+scheduler_template = '''#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -m n
+#$ -N {job_name}
+#$ -V
+#$ -o _scheduler-stdout.txt
+#$ -e _scheduler-stderr.txt
+#$ -pe {pe}
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+'''
 ```
 
 `[init]` gives the defaults of the command-line options of `velph init` (see
@@ -171,16 +184,19 @@ nodes = 1
 walltime = "96:00:00"
 scheduler_template = """
 #!/bin/bash
-#SBATCH --job-name={job_name}
-#SBATCH --nodes={nodes}
-#SBATCH --time={walltime}
-#SBATCH --output=ci_%j.log
+#$ -cwd
+#$ -S /bin/bash
+#$ -m n
+#$ -N {job_name}
+#$ -V
+#$ -o _scheduler-stdout.txt
+#$ -e _scheduler-stderr.txt
+#$ -pe {pe}
 
 {prepend_text}
 {mpirun_command} {vasp_binary}
 {append_text}
 """
-scheduler_name = "sge"
 pe = "vienna 32"
 
 [symmetry]
@@ -195,9 +211,10 @@ primitive_matrix = [
 # ...
 ```
 
-`scheduler_template` in `[scheduler]` is that of the default settings of
-`velph init`. With `scheduler_name = "sge"`, the job script of SGE is written,
-and `scheduler_template` is not used (see {ref}`velph_toml_scheduler`).
+`[scheduler]` has the keys of the template and those of the default settings of
+`velph init` that the template does not give, such as `nodes` and `walltime`.
+The job script `_job.sh` is written from `scheduler_template`, which does not
+use `nodes` and `walltime` (see {ref}`velph_toml_scheduler`).
 
 Change directory to `relax`.
 ```

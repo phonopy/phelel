@@ -76,11 +76,25 @@ points:
         raise AssertionError(msg)
 
 
+def test_write_launch_script(tmp_path: pathlib.Path):
+    """The keys in braces in scheduler_template are replaced by the values."""
+    scheduler = {
+        "scheduler_template": "#!/bin/bash\n#$ -N {job_name}\n#$ -pe {pe} {cores}\n",
+        "job_name": "PbTe-001",
+        "pe": "mpi*",
+        "cores": 48,
+        "walltime": "12:00:00",
+    }
+    write_launch_script(scheduler, tmp_path)
+    assert (tmp_path / "_job.sh").read_text() == (
+        "#!/bin/bash\n#$ -N PbTe-001\n#$ -pe mpi* 48\n"
+    )
+
+
 @pytest.mark.parametrize(
     "scheduler_dict,missing",
     [
         ({"job_name": "x"}, "scheduler_template"),
-        ({"scheduler_name": "slurm", "job_name": "x"}, "partition"),
         ({"scheduler_template": "#!/bin/bash\n# {pe}\n", "job_name": "x"}, "pe"),
     ],
 )
@@ -89,7 +103,7 @@ def test_write_launch_script_missing_keys(
 ):
     """Test that a missing scheduler setting is an error naming the key."""
     with pytest.raises(click.ClickException, match=missing):
-        write_launch_script(scheduler_dict, tmp_path, job_id="relax")
+        write_launch_script(scheduler_dict, tmp_path)
     assert not (tmp_path / "_job.sh").exists()
 
 

@@ -82,7 +82,7 @@ def write_vasp_job(job: VaspJob) -> None:
     for name, source in job.copied_files.items():
         shutil.copy2(source, job.directory / name)
     if job.scheduler is not None:
-        write_launch_script(dict(job.scheduler), job.directory)
+        write_launch_script(job.scheduler, job.directory)
 
 
 def read_velph_toml(
