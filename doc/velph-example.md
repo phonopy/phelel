@@ -40,33 +40,25 @@ ncore = 4
 [vasp.phelel.incar]
 kpar = 2
 [vasp.phelel.scheduler]
-pe = "mpi* 48"
+ntasks = 48
 
 [vasp.transport.scheduler]
-pe = "mpi* 144"
+ntasks = 144
 
 [scheduler]
 job_name = "PbTe"
-mpirun_command = "mpirun"
-vasp_binary = "/usr/local/vasp/bin/vasp_std"
-pe = "vienna 32"
-prepend_text = '''
-source /opt/intel/oneapi/setvars.sh
-'''
-append_text = ""
+partition = "short"
+ntasks = 32
+walltime = "12:00:00"
 scheduler_template = '''#!/bin/bash
-#$ -cwd
-#$ -S /bin/bash
-#$ -m n
-#$ -N {job_name}
-#$ -V
-#$ -o _scheduler-stdout.txt
-#$ -e _scheduler-stderr.txt
-#$ -pe {pe}
+#SBATCH --job-name={job_name}
+#SBATCH --partition={partition}
+#SBATCH --ntasks={ntasks}
+#SBATCH --time={walltime}
+#SBATCH --output=%x-%j.out
 
-{prepend_text}
-{mpirun_command} {vasp_binary}
-{append_text}
+source /opt/intel/oneapi/setvars.sh
+mpirun -np ${{SLURM_NTASKS}} /usr/local/vasp/bin/vasp_std
 '''
 ```
 
@@ -175,29 +167,24 @@ mesh = [5, 5, 5]
 [scheduler]
 job_name = "PbTe"
 mpirun_command = "mpirun"
-vasp_binary = "/usr/local/vasp/bin/vasp_std"
-prepend_text = """
-source /opt/intel/oneapi/setvars.sh
-"""
+vasp_binary = "vasp_std"
+prepend_text = ""
 append_text = ""
 nodes = 1
-walltime = "96:00:00"
+walltime = "12:00:00"
 scheduler_template = """
 #!/bin/bash
-#$ -cwd
-#$ -S /bin/bash
-#$ -m n
-#$ -N {job_name}
-#$ -V
-#$ -o _scheduler-stdout.txt
-#$ -e _scheduler-stderr.txt
-#$ -pe {pe}
+#SBATCH --job-name={job_name}
+#SBATCH --partition={partition}
+#SBATCH --ntasks={ntasks}
+#SBATCH --time={walltime}
+#SBATCH --output=%x-%j.out
 
-{prepend_text}
-{mpirun_command} {vasp_binary}
-{append_text}
+source /opt/intel/oneapi/setvars.sh
+mpirun -np ${{SLURM_NTASKS}} /usr/local/vasp/bin/vasp_std
 """
-pe = "vienna 32"
+partition = "short"
+ntasks = 32
 
 [symmetry]
 tolerance = 1e-05
@@ -212,15 +199,15 @@ primitive_matrix = [
 ```
 
 `[scheduler]` has the keys of the template and those of the default settings of
-`velph init` that the template does not give, such as `nodes` and `walltime`.
-The job script `_job.sh` is written from `scheduler_template`, which does not
-use `nodes` and `walltime` (see {ref}`velph_toml_scheduler`).
+`velph init` that the template does not give, such as `mpirun_command` and
+`nodes`. The job script `_job.sh` is written from `scheduler_template`, which
+does not use these keys (see {ref}`velph_toml_scheduler`).
 
 Change directory to `relax`.
 ```
 % velph relax generate
 VASP input files were generated in "relax/iter1".
-% cd relax/iter1 && qsub _job.sh && cd ../..
+% cd relax/iter1 && sbatch _job.sh && cd ../..
 % velph relax generate
 "relax/iter1" exists.
 "relax/iter1/CONTCAR" will be as new "POSCAR".
@@ -323,7 +310,7 @@ kpar = 2
 mesh = [3, 3, 3]
 
 [vasp.phelel.scheduler]
-pe = "mpi* 48"
+ntasks = 48
 
 # ...
 ```
@@ -332,7 +319,7 @@ NAC and phelel calculations,
 ```
 % velph nac generate
 VASP input files were generated in "nac".
-% cd nac && qsub _job.sh && cd ..
+% cd nac && sbatch _job.sh && cd ..
 % velph phelel init
 Found "nac" directory. Read NAC params.
 "phelel/phelel_disp.yaml" was generated.
@@ -343,7 +330,7 @@ VASP input files were generated in "phelel/disp-001".
 VASP input files were generated in "phelel/disp-002".
 VASP input files were generated in "phelel/disp-003".
 VASP input files were generated in "phelel/disp-004".
-% for i in {000..004};do cd phelel/disp-$i; qsub _job.sh; cd ../..;done
+% for i in {000..004};do cd phelel/disp-$i; sbatch _job.sh; cd ../..;done
 ```
 
 Using the VASP results of the phelel calculations, derivatives of properties
