@@ -1,11 +1,10 @@
 """Reader of velph.toml written by velph earlier than 0.15.
 
-The generate commands read velph.toml through VelphConfig after they are
-rewritten.  Until "velph init" writes the new format, the velph.toml files that
-users have are in the format of velph 0.14.  load_velph_toml_any_version reads
-a velph.toml of either format.  A file of velph 0.14 is converted to the new
-format and read into VelphConfig, so that the generate commands write the same
-VASP input files as before.
+load_velph_toml_any_version reads a velph.toml of the new format or of velph
+0.14.  The velph commands read velph.toml through it, so that they also read
+the velph.toml files written by velph 0.14.  A file of velph 0.14 is converted
+to the new format and read into VelphConfig, so that the generate commands
+write the same VASP input files as those of velph 0.14.
 
 The conversion is as follows.
 
@@ -24,26 +23,19 @@ The conversion is as follows.
   do, that is, with use_grg=True, so the mesh is a generalized regular grid
   when the cell has a single lattice point.
 
-This module is kept after "velph init" writes the new format, so that the
-generate commands read the velph.toml files written by velph 0.14.
-
-A velph.toml of velph 0.14 is converted to a file of the new format by
-
-    python -m phelel.velph.config.legacy OLD NEW
-
-which does not overwrite an existing file, and prints what was removed and
-which kspacing was replaced by mesh.
+convert_legacy_velph_toml writes the converted velph.toml in a new file.  The
+command "velph convert OLD NEW" runs it.  [velph] version of the new file is the
+version of velph that writes it, as in the velph.toml written by "velph init".
 
 """
 
 from __future__ import annotations
 
-import argparse
 import copy
+import dataclasses
 import os
 import pathlib
-import sys
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
@@ -53,6 +45,7 @@ from phonopy.structure.cells import (
     shape_supercell_matrix,
 )
 
+from phelel import __version__
 from phelel.velph.config.io import (
     VelphConfigError,
     load_toml,
@@ -128,10 +121,11 @@ def convert_legacy_velph_toml(
 ) -> list[str]:
     """Write the velph.toml of velph 0.14 old_filename in the new format.
 
-    The messages on what was removed and on which kspacing was replaced by mesh
-    are returned.  FileExistsError is raised when new_filename exists, and
-    VelphConfigError when old_filename is in the new format or cannot be
-    converted.  Nothing is written then.
+    [velph] version of new_filename is the version of this velph, not the
+    version in old_filename.  The messages on what was removed and on which
+    kspacing was replaced by mesh are returned.  FileExistsError is raised when
+    new_filename exists, and VelphConfigError when old_filename is in the new
+    format or cannot be converted.  Nothing is written then.
 
     """
     if pathlib.Path(new_filename).exists():
@@ -145,28 +139,8 @@ def convert_legacy_velph_toml(
             f'"{old_filename}" has [velph] version, so it is in the new format.'
         )
     config = parse_legacy_velph_toml(data, name=str(old_filename))
-    write_velph_toml(config, new_filename)
+    write_velph_toml(dataclasses.replace(config, version=__version__), new_filename)
     return _conversion_messages(data)
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    """Run "python -m phelel.velph.config.legacy OLD NEW"."""
-    parser = argparse.ArgumentParser(
-        prog="python -m phelel.velph.config.legacy",
-        description="Convert a velph.toml written by velph 0.14 to the new format.",
-    )
-    parser.add_argument("old", help="velph.toml written by velph 0.14")
-    parser.add_argument("new", help="velph.toml to be written, which must not exist")
-    args = parser.parse_args(argv)
-    try:
-        messages = convert_legacy_velph_toml(args.old, args.new)
-    except (OSError, VelphConfigError) as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-    for message in messages:
-        print(message)
-    print(f'"{args.new}" has been written from "{args.old}".')
-    return 0
 
 
 def _conversion_messages(data: Mapping[str, Any]) -> list[str]:
@@ -336,7 +310,3 @@ def _supercell(data: Mapping[str, Any], code: str) -> PhonopyAtoms | None:
         shape_supercell_matrix(supercell_matrix),
         symprec=_SUPERCELL_SYMPREC,
     )
-
-
-if __name__ == "__main__":
-    sys.exit(main())

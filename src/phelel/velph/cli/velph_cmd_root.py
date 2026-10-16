@@ -10,6 +10,7 @@ def cmd_root():
     pass
 
 
+from phelel.velph.cli.convert.cmd_convert import cmd_convert  # noqa: E402, F401
 from phelel.velph.cli.el_bands.cmd_el_bands import cmd_el_bands  # noqa: E402, F401
 from phelel.velph.cli.el_dos.cmd_el_dos import cmd_el_dos  # noqa: E402, F401
 from phelel.velph.cli.generate.cmd_generate import cmd_generate  # noqa: E402, F401
