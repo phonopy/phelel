@@ -180,8 +180,9 @@ page: {ref}`velph_toml_vasp`.
 
 ## `[scheduler]`
 
-Job scripts `_job.sh` for the calculations are generated from this section. See
-{ref}`velph_toml_scheduler`.
+Job scripts `_job.sh` for the calculations are generated from this section.
+`velph init` writes it only when its template has `[scheduler]`. Without
+`[scheduler]`, no `_job.sh` is written. See {ref}`velph_toml_scheduler`.
 
 ## `[symmetry]`, `[unitcell]`, `[primitive_cell]`
 

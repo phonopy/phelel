@@ -119,10 +119,12 @@ The following errors are given when `velph.toml` is read:
 
 ## `[scheduler]` in a template of `velph init`
 
-In a template of `velph init`, `[scheduler]` updates the default `[scheduler]`
-key by key. For example, a template with only `job_name = "PbTe"` in
-`[scheduler]` gives a `velph.toml` whose `[scheduler]` has `job_name = "PbTe"`
-and the default values of the other keys, including `scheduler_template`.
+`velph init` writes `[scheduler]` in `velph.toml` only when its template has
+`[scheduler]`, and it writes the `[scheduler]` of the template as it is.
+`velph init` has no default `[scheduler]`. Without `[scheduler]` in the
+template, `velph.toml` has no `[scheduler]`, and the generate commands write no
+`_job.sh`. To write job scripts, give `[scheduler]` with `scheduler_template` in
+the template, or add it to `velph.toml`.
 
 (velph_toml_scheduler_llm)=
 ## Writing `scheduler_template` with an LLM

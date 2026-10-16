@@ -17,7 +17,7 @@ import tomli
 from phelel.velph.config.io import parse_template
 from phelel.velph.config.schema import VelphConfig
 
-DEFAULT_TEMPLATE_TOML = r'''
+DEFAULT_TEMPLATE_TOML = r"""
 [init]
 codes = ["phelel", "phonopy", "phono3py"]
 tolerance = 1e-05
@@ -137,26 +137,7 @@ elph_run = true
 mesh = [1, 1, 1]
 [vasp.ph_bands.qpoints]
 line = 51
-
-[scheduler]
-job_name = "vasp-elph"
-mpirun_command = "mpirun"
-vasp_binary = "vasp_std"
-prepend_text = ""
-append_text = ""
-nodes = 1
-walltime = "96:00:00"
-scheduler_template = """#!/bin/bash
-#SBATCH --job-name={job_name}
-#SBATCH --nodes={nodes}
-#SBATCH --time={walltime}
-#SBATCH --output=ci_%j.log
-
-{prepend_text}
-{mpirun_command} {vasp_binary}
-{append_text}
 """
-'''
 
 
 def get_default_config() -> VelphConfig:

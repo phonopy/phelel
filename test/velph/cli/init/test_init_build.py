@@ -421,13 +421,19 @@ def test_build_symmetrize_cell_mesh_of_unit_cell(bi2te3_prim_cell: PhonopyAtoms)
     assert _kpoints(config, "relax") == KpointsMesh(mesh=(17, 17, 2))
 
 
-def test_build_partial_scheduler(nacl_cell: PhonopyAtoms):
-    """[scheduler] of the template updates that of the defaults key by key."""
+def test_build_scheduler(nacl_cell: PhonopyAtoms, capsys: pytest.CaptureFixture[str]):
+    """[scheduler] is written only when the template has it, as it is.
+
+    Without it, a message says that no job script is written.
+
+    """
+    message = "[scheduler] is not written: the template has no [scheduler]"
+    for template_lines in (None, ["[vasp.incar]", "encut = 400"]):
+        assert _build(nacl_cell, template_lines).scheduler is None
+        assert message in capsys.readouterr().out
     config = _build(nacl_cell, ["[scheduler]", 'job_name = "x"'])
-    assert config.scheduler is not None
-    assert config.scheduler["job_name"] == "x"
-    assert config.scheduler["vasp_binary"] == "vasp_std"
-    assert "scheduler_template" in config.scheduler
+    assert config.scheduler == {"job_name": "x"}
+    assert message not in capsys.readouterr().out
 
 
 def test_build_incar(nacl_cell: PhonopyAtoms):

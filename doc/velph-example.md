@@ -166,11 +166,8 @@ mesh = [5, 5, 5]
 
 [scheduler]
 job_name = "PbTe"
-mpirun_command = "mpirun"
-vasp_binary = "vasp_std"
-prepend_text = ""
-append_text = ""
-nodes = 1
+partition = "short"
+ntasks = 32
 walltime = "12:00:00"
 scheduler_template = """
 #!/bin/bash
@@ -183,8 +180,6 @@ scheduler_template = """
 source /opt/intel/oneapi/setvars.sh
 mpirun -np ${{SLURM_NTASKS}} /usr/local/vasp/bin/vasp_std
 """
-partition = "short"
-ntasks = 32
 
 [symmetry]
 tolerance = 1e-05
@@ -198,10 +193,8 @@ primitive_matrix = [
 # ...
 ```
 
-`[scheduler]` has the keys of the template and those of the default settings of
-`velph init` that the template does not give, such as `mpirun_command` and
-`nodes`. The job script `_job.sh` is written from `scheduler_template`, which
-does not use these keys (see {ref}`velph_toml_scheduler`).
+`[scheduler]` is that of the template, written as it is (see
+{ref}`velph_toml_scheduler`).
 
 Change directory to `relax`.
 ```

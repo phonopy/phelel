@@ -200,6 +200,10 @@ in the format of velph 0.15 (see {ref}`velph_changes_0_15_convert`).
   give a larger supercell.
 - When a supercell has fewer rotations than the unit cell, `velph init` prints
   a warning.
+- `velph init` writes `[scheduler]` only when its template has `[scheduler]`,
+  and it writes the `[scheduler]` of the template as it is. velph 0.14 wrote a
+  default `[scheduler]` with a job script of Slurm, which `[scheduler]` of a
+  template updated key by key. See {ref}`velph_toml_scheduler`.
 
 ### `velph el_bands`, `velph el_dos` and `velph ph_bands`
 

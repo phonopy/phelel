@@ -14,7 +14,12 @@ from phelel import __version__
 from phelel.velph.cli.init.build import build_velph_config
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
 from phelel.velph.cli.supercells import PHONOPY_DISP_YAML
-from phelel.velph.config.io import dumps_config, parse_init, parse_velph_toml
+from phelel.velph.config.io import (
+    dumps_config,
+    parse_init,
+    parse_template,
+    parse_velph_toml,
+)
 from phelel.velph.config.schema import VelphConfig
 
 cwd = pathlib.Path(__file__).parent
@@ -209,14 +214,39 @@ def helper_methods() -> Callable:
     return HelperMethods
 
 
+# [scheduler] that velph init of velph 0.14 wrote by default.
+SCHEDULER_TEMPLATE_TOML = '''
+[scheduler]
+job_name = "vasp-elph"
+mpirun_command = "mpirun"
+vasp_binary = "vasp_std"
+prepend_text = ""
+append_text = ""
+nodes = 1
+walltime = "96:00:00"
+scheduler_template = """#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --nodes={nodes}
+#SBATCH --time={walltime}
+#SBATCH --output=ci_%j.log
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+"""
+'''
+
+
 def _velph_init_toml(cell: PhonopyAtoms, options: dict[str, Any]) -> str:
     """Return velph.toml text that velph init writes for cell and [init] options.
 
     options are keys of [init], such as {"supercell_dimension": [2, 2, 2]} for
-    "velph init --dim 2 2 2".
+    "velph init --dim 2 2 2".  The template has SCHEDULER_TEMPLATE_TOML, so
+    velph.toml has [scheduler].
 
     """
-    config = build_velph_config(cell, options=parse_init(options))
+    template = parse_template(tomli.loads(SCHEDULER_TEMPLATE_TOML))
+    config = build_velph_config(cell, template=template, options=parse_init(options))
     return dumps_config(config)
 
 
@@ -225,8 +255,9 @@ def nacl_velph_toml(nacl_cell: PhonopyAtoms) -> Callable[[], dict]:
     """Return a function giving velph.toml dict that velph init writes for NaCl.
 
     The cell is the conventional unit cell of NaCl, and the supercell is 2x2x2
-    of it, as "velph init --dim 2 2 2" gives.  [scheduler] is written.  Each
-    call returns a new dict, so a test can modify it.
+    of it, as "velph init --dim 2 2 2" gives.  [scheduler] is that of
+    SCHEDULER_TEMPLATE_TOML given as the template.  Each call returns a new
+    dict, so a test can modify it.
 
     """
     text = _velph_init_toml(nacl_cell, {"supercell_dimension": [2, 2, 2]})
