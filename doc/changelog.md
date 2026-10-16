@@ -17,6 +17,8 @@
   with an error on braces, in place of a traceback.
 - `velph init` writes `[scheduler]` only when its template has `[scheduler]`.
   Without it, no job script `_job.sh` is written.
+- When `scheduler_template` cannot be filled, the generate commands stop before
+  they write any file. Before, the directory was left without `_job.sh`.
 - Fix the force constants of the derivatives with a phonon supercell. They were
   computed from the displacements of the phelel supercells and the forces of
   the phonon supercells, and they are now computed from the displacements of

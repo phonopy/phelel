@@ -11,11 +11,11 @@ from phelel.velph.config.schema import VelphConfig
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
-    effective_scheduler,
     find_potcar,
     get_cell,
     get_input_set,
     get_kpoints,
+    job_script,
     read_velph_toml,
     write_vasp_job,
 )
@@ -35,7 +35,7 @@ def plan_el_dos(config: VelphConfig) -> VaspJob:
         poscar=cell,
         incar=add_cell_tags(get_input_set(config, "el_dos").incar or {}, cell),
         kpoints=get_kpoints(config, "el_dos"),
-        scheduler=effective_scheduler(config, "el_dos"),
+        job_script=job_script(config, "el_dos"),
         copied_files=find_potcar(),
     )
 

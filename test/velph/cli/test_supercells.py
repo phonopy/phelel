@@ -39,8 +39,8 @@ def test_plan_supercells(
         for i in range(len(phe.supercells_with_displacements) + 1)
     ]
     assert jobs[0].poscar is phe.supercell
-    assert jobs[1].scheduler is not None
-    assert jobs[1].scheduler["job_name"] == "vasp-elph-001"
+    assert jobs[1].job_script is not None
+    assert "#SBATCH --job-name=vasp-elph-001\n" in jobs[1].job_script
     assert jobs[1].incar == data["vasp"]["phelel"]["incar"]
     assert not (tmp_path / "phelel").exists()
 
@@ -123,3 +123,22 @@ def test_generate_without_yaml(
         'Run "velph phonopy init" to make it.'
     ) in result.output
     assert not (tmp_path / "phonopy").exists()
+
+
+def test_generate_missing_key_of_job_script(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A key missing for the job script stops before any supercell is written."""
+    data = nacl_velph_toml()
+    data["vasp"]["phelel"]["scheduler"] = {"scheduler_template": "#!/bin/bash\n{pe}\n"}
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cmd_root, ["phelel", "init"])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cmd_root, ["phelel", "generate"])
+    assert result.exit_code == 1
+    assert '"pe" used in the job script template is not given' in result.stderr
+    assert list(tmp_path.glob("phelel/disp-*")) == []

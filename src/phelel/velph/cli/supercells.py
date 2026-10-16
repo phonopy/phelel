@@ -36,11 +36,11 @@ from phelel.velph.config.schema import (
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
-    effective_scheduler,
     find_potcar,
     get_cell,
     get_input_set,
     get_kpoints,
+    job_script,
 )
 
 PHONOPY_DISP_YAML = pathlib.Path("phonopy") / "phonopy_disp.yaml"
@@ -219,7 +219,7 @@ def plan_supercells(
                 poscar=cell,
                 incar=add_cell_tags(incar, cell),
                 kpoints=kpoints,
-                scheduler=effective_scheduler(config, code, job_id=id_number),
+                job_script=job_script(config, code, job_id=id_number),
                 copied_files=copied_files,
             )
         )

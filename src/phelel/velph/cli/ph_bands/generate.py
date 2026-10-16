@@ -12,11 +12,11 @@ from phelel.velph.config.schema import VelphConfig
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
-    effective_scheduler,
     find_potcar,
     get_cell,
     get_input_set,
     get_kpoints,
+    job_script,
     read_velph_toml,
     write_vasp_job,
 )
@@ -42,7 +42,7 @@ def plan_ph_bands(config: VelphConfig) -> VaspJob:
         poscar=cell,
         incar=add_cell_tags(get_input_set(config, "ph_bands").incar or {}, cell),
         kpoints=get_kpoints(config, "ph_bands", cell=cell),
-        scheduler=effective_scheduler(config, "ph_bands"),
+        job_script=job_script(config, "ph_bands"),
         copied_files={**find_potcar(), PHELEL_PARAMS.name: PHELEL_PARAMS},
     )
 

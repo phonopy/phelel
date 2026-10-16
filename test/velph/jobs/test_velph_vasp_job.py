@@ -102,10 +102,7 @@ def test_write_vasp_job(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
                 mesh=((-8, 8, 8), (8, -8, 8), (8, 8, -8)), shift=(0.5, 0.5, 0.5)
             ),
         },
-        scheduler={
-            "job_name": "vasp-nac",
-            "scheduler_template": "#!/bin/bash\n#name={job_name}\n",
-        },
+        job_script="#!/bin/bash\n#name=vasp-nac\n",
         copied_files={"POTCAR": potcar},
     )
     write_vasp_job(job)
@@ -132,11 +129,11 @@ def test_write_vasp_job(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
     assert [float(x) for x in elph_lines[6].split()] == [0.5, 0.5, 0.5]
     assert (directory / "POSCAR").read_text().split("\n")[5].split() == ["Na", "Cl"]
     assert (directory / "POTCAR").read_text() == "potcar\n"
-    assert "#name=vasp-nac" in (directory / "_job.sh").read_text()
+    assert (directory / "_job.sh").read_text() == "#!/bin/bash\n#name=vasp-nac\n"
 
 
 def test_write_vasp_job_copied_poscar(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
-    """A path as poscar is copied as POSCAR, and _job.sh needs scheduler."""
+    """A path as poscar is copied as POSCAR, and _job.sh needs job_script."""
     contcar = tmp_path / "CONTCAR"
     contcar.write_text("contcar\n")
     job = VaspJob(

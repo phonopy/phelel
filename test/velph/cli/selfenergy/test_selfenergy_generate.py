@@ -38,8 +38,8 @@ def test_plan_elph(
         "KPOINTS": KpointsMesh(mesh=tuple(transport["kpoints"]["mesh"])),
         "KPOINTS_ELPH": KpointsMesh(mesh=tuple(transport["kpoints_dense"]["mesh"])),
     }
-    assert job.scheduler is not None
-    assert job.scheduler["job_name"] == "vasp-elph"
+    assert job.job_script is not None
+    assert "#SBATCH --job-name=vasp-elph\n" in job.job_script
     assert job.copied_files == {
         "POTCAR": pathlib.Path("POTCAR"),
         "phelel_params.hdf5": PHELEL_PARAMS,

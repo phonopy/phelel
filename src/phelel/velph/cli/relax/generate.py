@@ -12,11 +12,11 @@ from phelel.velph.config.schema import VelphConfig
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
-    effective_scheduler,
     find_potcar,
     get_cell,
     get_input_set,
     get_kpoints,
+    job_script,
     read_velph_toml,
     write_vasp_job,
 )
@@ -47,7 +47,7 @@ def plan_relax(
         poscar=poscar,
         incar=add_cell_tags(get_input_set(config, "relax").incar or {}, cell),
         kpoints=get_kpoints(config, "relax"),
-        scheduler=effective_scheduler(config, "relax", job_id=directory.name),
+        job_script=job_script(config, "relax", job_id=directory.name),
         copied_files=find_potcar(),
     )
 

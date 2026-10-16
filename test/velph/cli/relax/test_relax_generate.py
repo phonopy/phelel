@@ -33,8 +33,8 @@ def test_plan_relax(
     assert len(job.poscar) == 8
     assert job.incar == data["vasp"]["relax"]["incar"]
     assert job.kpoints == {"KPOINTS": KpointsMesh(mesh=(12, 12, 12))}
-    assert job.scheduler is not None
-    assert job.scheduler["job_name"] == "vasp-elph-iter1"
+    assert job.job_script is not None
+    assert "#SBATCH --job-name=vasp-elph-iter1\n" in job.job_script
     assert job.copied_files == {"POTCAR": pathlib.Path("POTCAR")}
     assert not (tmp_path / "relax").exists()
 
@@ -56,8 +56,8 @@ def test_plan_relax_contcar(
     (prev_directory / "CONTCAR").write_text("contcar\n")
     job = plan_relax(config, directory, prev_directory=prev_directory)
     assert job.poscar == prev_directory / "CONTCAR"
-    assert job.scheduler is not None
-    assert job.scheduler["job_name"] == "vasp-elph-iter2"
+    assert job.job_script is not None
+    assert "#SBATCH --job-name=vasp-elph-iter2\n" in job.job_script
 
 
 def test_relax_generate_new_format(

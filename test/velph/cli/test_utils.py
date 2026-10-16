@@ -14,7 +14,7 @@ from phonopy.structure.cells import apply_site_mixture
 
 from phelel.velph.cli.utils import (
     echo_vasp_vca_hint,
-    write_launch_script,
+    make_job_script,
     write_poscar,
 )
 from phelel.velph.utils.structure import get_reduced_cell
@@ -76,7 +76,7 @@ points:
         raise AssertionError(msg)
 
 
-def test_write_launch_script(tmp_path: pathlib.Path):
+def test_make_job_script():
     """The keys in braces in scheduler_template are replaced by the values."""
     scheduler = {
         "scheduler_template": "#!/bin/bash\n#$ -N {job_name}\n#$ -pe {pe} {cores}\n",
@@ -85,10 +85,7 @@ def test_write_launch_script(tmp_path: pathlib.Path):
         "cores": 48,
         "walltime": "12:00:00",
     }
-    write_launch_script(scheduler, tmp_path)
-    assert (tmp_path / "_job.sh").read_text() == (
-        "#!/bin/bash\n#$ -N PbTe-001\n#$ -pe mpi* 48\n"
-    )
+    assert make_job_script(scheduler) == "#!/bin/bash\n#$ -N PbTe-001\n#$ -pe mpi* 48\n"
 
 
 @pytest.mark.parametrize(
@@ -98,25 +95,21 @@ def test_write_launch_script(tmp_path: pathlib.Path):
         ({"scheduler_template": "#!/bin/bash\n# {pe}\n", "job_name": "x"}, "pe"),
     ],
 )
-def test_write_launch_script_missing_keys(
-    tmp_path: pathlib.Path, scheduler_dict: dict, missing: str
-):
+def test_make_job_script_missing_keys(scheduler_dict: dict, missing: str):
     """Test that a missing scheduler setting is an error naming the key."""
     with pytest.raises(click.ClickException, match=missing):
-        write_launch_script(scheduler_dict, tmp_path)
-    assert not (tmp_path / "_job.sh").exists()
+        make_job_script(scheduler_dict)
 
 
 @pytest.mark.parametrize("template", ["echo }\n", "echo {\n", "echo {0}\n"])
-def test_write_launch_script_unreadable_template(tmp_path: pathlib.Path, template: str):
+def test_make_job_script_unreadable_template(template: str):
     """A template that str.format cannot read is an error on braces."""
     with pytest.raises(click.ClickException) as e:
-        write_launch_script({"scheduler_template": template}, tmp_path)
+        make_job_script({"scheduler_template": template})
     assert e.value.message.startswith("The job script template cannot be read:")
     assert e.value.message.endswith(
         'To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
     )
-    assert not (tmp_path / "_job.sh").exists()
 
 
 def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
