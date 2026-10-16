@@ -92,7 +92,7 @@ def test_el_bands_el_dos_generate_new_format(
     for set_name in ("el_bands", "el_dos"):
         result = runner.invoke(cmd_root, [set_name, "generate"])
         assert result.exit_code == 0, result.output
-        assert f'VASP input files were made in "{set_name}".' in result.output
+        assert f'VASP input files were generated in "{set_name}".' in result.output
     assert (tmp_path / "el_bands" / "KPOINTS_OPT").read_text().split("\n")[:6] == [
         "k points along high symmetry lines by velph",
         "21",
