@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import pathlib
 import xml.parsers.expat
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import click
 from phono3py.interface.calculator import (
@@ -24,11 +25,6 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
 from phelel.velph.config.schema import CodeName
-from phelel.velph.utils.scheduler import (
-    get_custom_schedular_script,
-    get_sge_scheduler_script,
-    get_slurm_scheduler_script,
-)
 
 
 def get_default_amplitude(calc_type: CodeName) -> float:
@@ -65,54 +61,29 @@ def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
             click.echo(line)
 
 
-def write_launch_script(
-    toml_scheduler_dict: dict, directory: os.PathLike, job_id: str | None = None
-) -> None:
-    """Write scheduler launch script.
+def write_launch_script(scheduler: Mapping[str, Any], directory: os.PathLike) -> None:
+    """Write the job script _job.sh from the scheduler settings of a job.
 
-    click.ClickException is raised when a setting that the job script template
-    needs is missing.
+    The keys in braces in scheduler_template, such as {job_name}, are replaced
+    by the values of the settings, as str.format does.  click.ClickException is
+    raised when scheduler_template is not given, or when a key that it uses is
+    not given.
 
     """
-    sched_string = None
+    if "scheduler_template" not in scheduler:
+        raise click.ClickException(
+            '"scheduler_template" has to be given in [scheduler] or '
+            "[vasp.<input set>.scheduler]."
+        )
     try:
-        if "scheduler_name" in toml_scheduler_dict:
-            if toml_scheduler_dict["scheduler_name"] == "sge":
-                sched_string = get_sge_scheduler_script(
-                    toml_scheduler_dict, job_id=job_id
-                )
-            elif toml_scheduler_dict["scheduler_name"] == "slurm":
-                sched_string = get_slurm_scheduler_script(
-                    toml_scheduler_dict, job_id=job_id
-                )
-
-        if sched_string is None:
-            if "custom_template" in toml_scheduler_dict:
-                raise RuntimeError(
-                    'Key "custom_template" is obsoleted. Use "scheduler_template".'
-                )
-
-            if "scheduler_template" not in toml_scheduler_dict:
-                raise click.ClickException(
-                    '"scheduler_template" has to be given in [scheduler] or '
-                    '[vasp.<input set>.scheduler], unless "scheduler_name" is '
-                    '"sge" or "slurm".'
-                )
-
-            sched_string = get_custom_schedular_script(
-                toml_scheduler_dict["scheduler_template"],
-                toml_scheduler_dict,
-                job_id=job_id,
-            )
+        script = scheduler["scheduler_template"].format(**scheduler)
     except KeyError as e:
         raise click.ClickException(
             f'"{e.args[0]}" used in the job script template is not given in '
             "[scheduler] or [vasp.<input set>.scheduler]."
         ) from e
-
-    if sched_string:
-        with open(pathlib.Path(directory) / "_job.sh", "w") as w:
-            w.write(sched_string)
+    with open(pathlib.Path(directory) / "_job.sh", "w") as w:
+        w.write(script)
 
 
 def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:

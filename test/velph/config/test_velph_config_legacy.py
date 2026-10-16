@@ -392,7 +392,9 @@ def test_convert_legacy_velph_toml_kspacing_and_removed_keys(
     ]
 
 
-@pytest.mark.parametrize("case", ["new_exists", "new_format", "invalid"])
+@pytest.mark.parametrize(
+    "case", ["new_exists", "new_format", "invalid", "scheduler_name"]
+)
 def test_convert_legacy_velph_toml_error(
     nacl_velph_toml_v014: Callable[[], dict],
     case: str,
@@ -407,9 +409,12 @@ def test_convert_legacy_velph_toml_error(
     elif case == "new_format":
         data["velph"] = {"version": data["phelel"].pop("version")}
         expected = "it is in the new format"
-    else:
+    elif case == "invalid":
         data["phelel"]["supercell_dimension"] = [2, 2]
         expected = "[phelel]"
+    else:
+        data["scheduler"]["scheduler_name"] = "sge"
+        expected = '[scheduler] "scheduler_name" is removed.'
     old_filename = tmp_path / "velph_v014.toml"
     old_filename.write_text(tomli_w.dumps(data))
 

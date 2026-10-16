@@ -187,7 +187,7 @@ def _parse_sections(data: Mapping[str, Any], file_kind: VelphFileKind) -> VelphC
         phonopy=_parse_code(data, "phonopy", file_kind),
         phono3py=_parse_code(data, "phono3py", file_kind),
         vasp=_parse_vasp(data["vasp"], file_kind) if "vasp" in data else None,
-        scheduler=_free_table(data["scheduler"], "scheduler")
+        scheduler=_parse_scheduler(data["scheduler"], "scheduler")
         if "scheduler" in data
         else None,
         symmetry=_parse_symmetry(data["symmetry"]) if "symmetry" in data else None,
@@ -378,7 +378,7 @@ def _parse_input_set(
         qpoints=_line_path(table["qpoints"], f"{where}.qpoints")
         if "qpoints" in table
         else None,
-        scheduler=_free_table(table["scheduler"], f"{where}.scheduler")
+        scheduler=_parse_scheduler(table["scheduler"], f"{where}.scheduler")
         if "scheduler" in table
         else None,
     )
@@ -502,6 +502,23 @@ def _free_table(value: Any, where: str) -> dict[str, Any]:
     return dict(table)
 
 
+def _parse_scheduler(value: Any, where: str) -> dict[str, Any]:
+    """Return the scheduler settings of [scheduler] or [vasp.<input set>.scheduler].
+
+    The keys are free, except that scheduler_template has to be a string and
+    that scheduler_name and custom_template, which are removed, are an error.
+
+    """
+    table = _free_table(value, where)
+    if "scheduler_name" in table:
+        _fail(where, _SCHEDULER_NAME_REMOVED + "  " + _DIGEST_TAIL)
+    if "custom_template" in table:
+        _fail(where, '"custom_template" is removed.  Use "scheduler_template".')
+    if "scheduler_template" in table:
+        _str(table["scheduler_template"], where, "scheduler_template")
+    return table
+
+
 #
 # Old forms
 #
@@ -526,6 +543,9 @@ _DIGEST_INIT_OPTIONS = (
     "[init.options] is now [init].  Its keys are those of the velph init "
     "command line.  supercell_dimension, amplitude and the other supercell and "
     "displacement keys in [init] apply to every code in codes."
+)
+_SCHEDULER_NAME_REMOVED = (
+    '"scheduler_name" is removed.  Write the job script in "scheduler_template".'
 )
 _DIGEST_TAIL = 'See "Changes in velph 0.15" in the documentation for all changes.'
 
@@ -568,6 +588,14 @@ def _old_form_lines(data: Mapping[str, Any], file_kind: VelphFileKind) -> Iterat
     if isinstance(phelel, Mapping) and "fft_mesh" in phelel:
         yield _DIGEST_FFT_MESH
     input_set_tables = list(_old_input_set_tables(vasp))
+    scheduler_tables = [data.get("scheduler")] + [
+        input_set_table.get("scheduler") for input_set_table in input_set_tables
+    ]
+    if any(
+        isinstance(scheduler, Mapping) and "scheduler_name" in scheduler
+        for scheduler in scheduler_tables
+    ):
+        yield _SCHEDULER_NAME_REMOVED
     if file_kind == "velph_toml":
         if any(
             isinstance(input_set_table.get(block), Mapping)

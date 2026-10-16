@@ -44,9 +44,16 @@ key by key. For example, a template with only `job_name = "PbTe"` in
 `[scheduler]` gives a `velph.toml` whose `[scheduler]` has `job_name = "PbTe"`
 and the default values of the other keys, including `scheduler_template`.
 
-When a key used in the job script template is not given, for example
-`partition` of the template of `scheduler_name = "slurm"`, the generate commands
-stop with an error that names the key.
+When a key used in the job script template is not given, for example `pe` of
+the template in the example below, the generate commands stop with an error
+that names the key.
+
+```{note}
+`scheduler_name` of velph 0.14, which chose a job script of SGE or Slurm written
+in velph, is removed. A `velph.toml` or a template with `scheduler_name` is an
+error. See {ref}`velph_changes_0_15_scheduler` for the `scheduler_template` that
+gives the same job script.
+```
 
 An example is shown below.
 

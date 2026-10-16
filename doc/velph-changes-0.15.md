@@ -54,6 +54,11 @@ The following settings of velph 0.14 have no place in velph 0.15.
 A key that velph 0.15 does not know is an error, also in a `velph.toml` of
 velph 0.14. velph 0.14 did not use such a key and printed no message.
 
+`scheduler_name` in `[scheduler]` or in `[vasp.<input set>.scheduler]` is an
+error, also in a `velph.toml` of velph 0.14, and `velph convert` writes no file
+then. Replace it with `scheduler_template` (see
+{ref}`velph_changes_0_15_scheduler`).
+
 ### Directories with new names
 
 The results of velph 0.14 in the following directories are not read by velph
@@ -86,6 +91,9 @@ See {ref}`velph_toml` for the format of velph 0.15.
 - `velph init` writes `nosym` in `[phelel]`, `[phonopy]` and `[phono3py]`.
 - `velph phono3py init` uses `number_of_snapshots` of `[phono3py]` when `--rd`
   is not given.
+- `scheduler_name` of `[scheduler]` and `[vasp.<input set>.scheduler]` is
+  removed. The job script is written from `scheduler_template` only (see
+  {ref}`velph_changes_0_15_scheduler`).
 - A key that velph does not know is an error.
 
 ## `velph init` template
@@ -105,6 +113,66 @@ changes that concern the file.
   (see {ref}`velph_init_template_incar`).
 - `kspacing` can be given in every `kpoints` and `kpoints_dense` block,
   including `[vasp.ph_bands.kpoints]`.
+- `scheduler_name` is removed, as in `velph.toml`.
+
+(velph_changes_0_15_scheduler)=
+## Job scripts of `scheduler_name`
+
+With `scheduler_name = "sge"` or `"slurm"`, velph 0.14 wrote a job script of SGE
+or Slurm that was written in velph, and it did not use `scheduler_template`.
+velph 0.15 writes the job script from `scheduler_template` only. To write the
+job script that velph 0.14 wrote, remove `scheduler_name` and give the
+following `scheduler_template`.
+
+For `scheduler_name = "sge"`,
+
+```toml
+scheduler_template = '''#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -m n
+#$ -N {job_name}
+#$ -V
+#$ -o _scheduler-stdout.txt
+#$ -e _scheduler-stderr.txt
+#$ -pe {pe}
+#$ -l h_rt={walltime}
+
+{prepend_text}
+
+{mpirun_command} {vasp_binary}
+
+{append_text}
+'''
+```
+
+velph 0.14 wrote the line of `-pe` only when `pe` was given, and the line of
+`-l h_rt` only when `walltime` was given. Remove the line of a key that is not
+given. `velph init` of velph 0.14 wrote `walltime = "96:00:00"` by default.
+When `pe` is given only in some `[vasp.<input set>.scheduler]`, give
+`scheduler_template` with the line of `-pe` in those sections.
+
+For `scheduler_name = "slurm"`,
+
+```toml
+scheduler_template = '''#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --partition={partition}
+#SBATCH --nodes={nodes}
+#SBATCH --ntasks={ntasks}
+#SBATCH --time=96:00:00      # Time limit hrs:min:sec
+#SBATCH --output=ci_%j.log   # Standard output and error log
+
+{prepend_text}
+
+{mpirun_command} {vasp_binary}
+
+{append_text}
+'''
+```
+
+velph 0.14 wrote `--time=96:00:00` and did not use `walltime`. To use
+`walltime`, write `--time={walltime}`.
 
 (velph_changes_0_15_subcommands)=
 ## Subcommands
