@@ -2,6 +2,23 @@
 
 # Change Log
 
+## Unreleased
+
+- velph is redesigned, and the format of `velph.toml` and of the `velph init`
+  template changes. See {ref}`velph_changes_0_15` for the changes from velph
+  0.14.
+- `velph convert` writes a `velph.toml` of velph 0.14 in the format of velph
+  0.15.
+- Fix the force constants of the derivatives with a phonon supercell. They were
+  computed from the displacements of the phelel supercells and the forces of
+  the phonon supercells, and they are now computed from the displacements of
+  the phonon supercells.
+- A phonon supercell with random displacements of all atoms can be used for the
+  derivatives. Its force constants are computed by symfc.
+- The forces in `vaspout.h5` are read by phonopy, which takes those of the last
+  ionic step. Before, those of the first ionic step were read.
+- `velph phelel phonopy` reads `vaspout.h5` as well as `vasprun.xml`.
+
 ## Oct-9-2026: Version 0.14.0
 
 - Python 3.10 is no longer supported. Python 3.11 or later is required.

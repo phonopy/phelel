@@ -103,7 +103,8 @@ version = "0.15.0"
 ```
 
 `version` is the version of phelel that wrote the file. A `velph.toml` without
-it is read as a file written by velph 0.14.
+it is read as a file written by velph 0.14 (see
+{ref}`velph_changes_0_15_project_folder`).
 
 ## `[phelel]`
 

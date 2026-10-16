@@ -218,3 +218,5 @@ error lists the changes that concern the file. To use the template:
   `[init]` are used for all the codes in `codes`.
 - Remove the tags set to `{}`, and list them in `incar_unset` of the input set
   instead.
+
+See {ref}`velph_changes_0_15` for all the changes from velph 0.14.

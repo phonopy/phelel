@@ -21,6 +21,23 @@ The prefix `POSCAR` can be changed with `--prefix`.
 "POSCAR-primitive" was generated.
 ```
 
+## `velph convert`
+
+This subcommand writes a `velph.toml` of velph 0.14 in the format of velph 0.15.
+The first argument is the `velph.toml` of velph 0.14, which is not changed. The
+second argument is the file to be written, which must not exist. The subcommand
+prints the settings that were removed and the k-point blocks whose `kspacing`
+was replaced by `mesh`.
+
+```bash
+% velph convert velph.toml velph-new.toml
+fft_mesh of [phelel] was removed.
+"velph-new.toml" has been written from "velph.toml".
+```
+
+The other subcommands also read a `velph.toml` of velph 0.14 as it is. See
+{ref}`velph_changes_0_15_project_folder`.
+
 ## `velph relax`
 
 It is recommended to create a project directory specific for relaxation
