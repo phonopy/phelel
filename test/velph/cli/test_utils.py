@@ -107,6 +107,18 @@ def test_write_launch_script_missing_keys(
     assert not (tmp_path / "_job.sh").exists()
 
 
+@pytest.mark.parametrize("template", ["echo }\n", "echo {\n", "echo {0}\n"])
+def test_write_launch_script_unreadable_template(tmp_path: pathlib.Path, template: str):
+    """A template that str.format cannot read is an error on braces."""
+    with pytest.raises(click.ClickException) as e:
+        write_launch_script({"scheduler_template": template}, tmp_path)
+    assert e.value.message.startswith("The job script template cannot be read:")
+    assert e.value.message.endswith(
+        'To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
+    )
+    assert not (tmp_path / "_job.sh").exists()
+
+
 def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
     """Return CsCl-like cell with Ge and Sn (0.5 each) co-located and Te."""
     cell = PhonopyAtoms(

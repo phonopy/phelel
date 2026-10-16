@@ -61,13 +61,18 @@ def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
             click.echo(line)
 
 
+_BRACES_HINT = (
+    '  To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
+)
+
+
 def write_launch_script(scheduler: Mapping[str, Any], directory: os.PathLike) -> None:
     """Write the job script _job.sh from the scheduler settings of a job.
 
     The keys in braces in scheduler_template, such as {job_name}, are replaced
     by the values of the settings, as str.format does.  click.ClickException is
-    raised when scheduler_template is not given, or when a key that it uses is
-    not given.
+    raised when scheduler_template is not given, when a key that it uses is not
+    given, and when str.format cannot read it, for example for a single "}".
 
     """
     if "scheduler_template" not in scheduler:
@@ -80,7 +85,11 @@ def write_launch_script(scheduler: Mapping[str, Any], directory: os.PathLike) ->
     except KeyError as e:
         raise click.ClickException(
             f'"{e.args[0]}" used in the job script template is not given in '
-            "[scheduler] or [vasp.<input set>.scheduler]."
+            "[scheduler] or [vasp.<input set>.scheduler]." + _BRACES_HINT
+        ) from e
+    except (IndexError, ValueError) as e:
+        raise click.ClickException(
+            f"The job script template cannot be read: {e}." + _BRACES_HINT
         ) from e
     with open(pathlib.Path(directory) / "_job.sh", "w") as w:
         w.write(script)
