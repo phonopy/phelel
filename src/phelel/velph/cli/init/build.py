@@ -7,7 +7,7 @@ build_velph_config makes them as follows.
    | [phelel],    | [init] |      | [phelel],    | [init] |      | InitSection |
    | ...,         |        |      | ...,         |        |      |             |
    | [vasp.*],    |        |      | [vasp.*],    |        |      |             |
-   | [scheduler]  |        |      | [scheduler]  |        |      |             |
+   |              |        |      | [scheduler]  |        |      |             |
    +------+-------+---+----+      +------+-------+---+----+      +------+------+
           |           |                  |           |                  |
           |      _init_layer             |      _init_layer        _init_layer
@@ -90,9 +90,10 @@ def build_velph_config(
     command-line options.  The returned VelphConfig has no [init] and is
     written by write_velph_toml.
 
-    click.ClickException is raised when a code given explicitly in codes, by
-    the template or the command line, has no supercell, and by make_cells,
-    resolve_supercell and the k-point meshes.
+    [scheduler] is that of the template, and a message is shown when the
+    template has none.  click.ClickException is raised when a code given
+    explicitly in codes, by the template or the command line, has no
+    supercell, and by make_cells, resolve_supercell and the k-point meshes.
 
     """
     defaults = get_default_config()
@@ -142,6 +143,12 @@ def build_velph_config(
         for code in CODES
     }
     config = dataclasses.replace(config, **code_sections)  # type: ignore[arg-type]
+    if config.scheduler is None:
+        click.echo(
+            "[scheduler] is not written: the template has no [scheduler], so no job "
+            'script "_job.sh" is written.  See "velph.toml-[scheduler] section" in '
+            "the documentation to write job scripts."
+        )
     config = dataclasses.replace(
         config,
         version=__version__,

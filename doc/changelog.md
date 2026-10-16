@@ -15,6 +15,8 @@
   the job script of velph 0.14.
 - A `scheduler_template` with a single `{` or `}` stops the generate commands
   with an error on braces, in place of a traceback.
+- `velph init` writes `[scheduler]` only when its template has `[scheduler]`.
+  Without it, no job script `_job.sh` is written.
 - Fix the force constants of the derivatives with a phonon supercell. They were
   computed from the displacements of the phelel supercells and the forces of
   the phonon supercells, and they are now computed from the displacements of

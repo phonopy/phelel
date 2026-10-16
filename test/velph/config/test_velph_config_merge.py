@@ -124,12 +124,8 @@ def test_merge_template_over_defaults():
     assert (
         merged.vasp.input_sets["relax"].incar == defaults.vasp.input_sets["relax"].incar
     )
-    assert merged.scheduler is not None and defaults.scheduler is not None
-    assert merged.scheduler["job_name"] == "PbTe"
-    assert (
-        merged.scheduler["scheduler_template"]
-        == (defaults.scheduler["scheduler_template"])
-    )
+    assert defaults.scheduler is None
+    assert merged.scheduler == {"job_name": "PbTe"}
     assert merged.phelel == defaults.phelel
 
 

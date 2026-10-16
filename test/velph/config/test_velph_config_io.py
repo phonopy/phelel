@@ -46,8 +46,9 @@ from phelel.velph.config.schema import (
 def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
     """Return a complete velph.toml config.
 
-    It is made of the defaults and of values that velph init would compute,
-    with the INCAR tags of each input set resolved.
+    It is made of the defaults, of [scheduler] that a template would give, and
+    of values that velph init would compute, with the INCAR tags of each input
+    set resolved.
 
     """
     path = (((0.0, 0.0, 0.0), (0.5, 0.0, 0.5)), ((0.5, 0.0, 0.5), (0.5, 0.25, 0.75)))
@@ -82,6 +83,10 @@ def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:
             supercell=SupercellDimension(supercell_dimension=(1, 1, 1))
         ),
         vasp=VaspSection(input_sets=input_sets),
+        scheduler={
+            "job_name": "vasp-elph",
+            "scheduler_template": "#!/bin/bash\n#SBATCH --job-name={job_name}\n",
+        },
         symmetry=SymmetrySection(
             tolerance=1e-5,
             spacegroup_type="Fm-3m",
