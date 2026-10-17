@@ -39,7 +39,7 @@ def test_el_dos_plot_TiNiSn(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPa
         cmd_root, ["el_dos", "plot", "--window", "-5", "9", "--save"]
     )
     assert result.exit_code == 0, result.output
-    assert result.stdout == 'Electronic DOS plot was saved in "el_dos/el_dos.pdf".\n'
+    assert result.stdout == 'Electronic DOS plot was written to "el_dos/el_dos.pdf".\n'
     assert (tmp_path / "el_dos" / "el_dos.pdf").read_bytes()[:4] == b"%PDF"
 
     efermi = 8.575980267703933

@@ -39,22 +39,21 @@ def plot_el_bandstructures(
 
     electron_dos = read_electron_dos(vaspout_filename_dos)
     efermi = electron_dos.efermi
-    f_h5py_bands = h5py.File(vaspout_filename_bands)
-    if "results" not in f_h5py_bands:
-        raise click.ClickException(
-            f'No electronic band structure is found in "{vaspout_filename_bands}".'
+    with h5py.File(vaspout_filename_bands) as f_h5py_bands:
+        if "results" not in f_h5py_bands:
+            raise click.ClickException(
+                f'No electronic band structure is found in "{vaspout_filename_bands}".'
+            )
+        reclat = get_reclat_from_vaspout(f_h5py_bands)
+        distances, eigvals, points, labels_at_points = _get_bands_data(
+            reclat,
+            f_h5py_bands["results/electron_eigenvalues_kpoints_opt"],  # type: ignore
+            f_h5py_bands["input/kpoints_opt"],  # type: ignore
         )
     emin = window[0]
     emax = window[1]
     _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
     ax0, ax1 = axs
-
-    reclat = get_reclat_from_vaspout(f_h5py_bands)
-    distances, eigvals, points, labels_at_points = _get_bands_data(
-        reclat,
-        f_h5py_bands["results/electron_eigenvalues_kpoints_opt"],  # type: ignore
-        f_h5py_bands["input/kpoints_opt"],  # type: ignore
-    )
 
     lines = ["-k", "--k"]
     for i, eigvals_spin in enumerate(eigvals):
@@ -79,7 +78,7 @@ def plot_el_bandstructures(
     if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
-        click.echo(f'Electronic band structure plot was saved in "{plot_filename}".')
+        click.echo(f'Electronic band structure plot was written to "{plot_filename}".')
     else:
         plt.show()
     plt.close()

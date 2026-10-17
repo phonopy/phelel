@@ -115,15 +115,18 @@ def set_nac_params(
         return
     if getattr(ph, "unmerged_unitcell", None) is not None:
         click.echo(
-            'Found "nac" directory, but NAC is not supported with the merge scheme '
-            "of site mixture. NAC params were not included."
+            f'NAC parameters are not read from "{nac_directory}", because NAC is '
+            "not supported with the merge scheme of site mixture."
         )
         return
-    click.echo('Found "nac" directory. Read NAC params.')
     vasprun_path = nac_directory / "vasprun.xml"
     if not vasprun_path.exists():
-        click.echo('Not found "nac/vasprun.xml". NAC params were not included.')
+        click.echo(
+            f'"{vasprun_path}" is not found, so NAC parameters are not set.\n'
+            f'Run VASP in "{nac_directory}" and run this command again to set them.'
+        )
         return
+    click.echo(f'NAC parameters are read from "{vasprun_path}".')
     unitcell, primitive, _ = get_cells(config)
     cell_choice = get_input_set(config, "nac").cell
     nac_cell = primitive if cell_choice == "primitive" else unitcell

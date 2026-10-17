@@ -398,3 +398,25 @@ def test_differentiate_without_supercell_directory(
     assert result.exit_code == 1, result.output
     assert 'Error: "phelel/disp-000" does not exist.' in result.stderr
     assert not (tmp_path / "phelel" / "phelel_params.hdf5").exists()
+
+
+def test_run_derivatives_missing_files(tmp_path: pathlib.Path):
+    """Without vaspout.h5, a directory needs vasprun.xml and four other files.
+
+    A file is found also with a suffix of compression.  The message names the
+    directory and the files that are not found.
+
+    """
+    phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
+    disp_000 = tmp_path / "phelel" / "disp-000"
+    disp_000.mkdir(parents=True)
+    for filename in ("vasprun.xml", "inwap.yaml.xz", "LOCAL-POTENTIAL.bin"):
+        (disp_000 / filename).touch()
+    with pytest.raises(click.ClickException) as e:
+        run_derivatives(phe, dir_name=tmp_path / "phelel")
+    assert e.value.message == (
+        f'"{disp_000}" does not have the files for the derivatives.\n'
+        "It needs vaspout.h5, or vasprun.xml, inwap.yaml, LOCAL-POTENTIAL.bin,\n"
+        "PAW-STRENGTH.bin and PAW-OVERLAP.bin.\n"
+        "Not found: vaspout.h5, PAW-STRENGTH.bin, PAW-OVERLAP.bin."
+    )

@@ -43,7 +43,7 @@ def dump_phono3py(vaspout_filename: str, output_filename: str):
                 f_out.create_dataset(f"temperature_{i}", data=temps)
                 click.echo(f"calc-{i} temperatures: {temps}")
 
-            click.echo(f'Dumped ph_selfenergy data to "{_output_filename}".')
+            click.echo(f'Phonon self-energy data was written to "{_output_filename}".')
 
 
 def _collect_data_from_vaspout(

@@ -12,6 +12,7 @@ import tomli_w
 from click.testing import CliRunner
 
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
 from phelel.velph.cli.supercells import get_code_section, plan_supercells
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
@@ -176,3 +177,21 @@ def test_generate_ignores_files_in_current_directory(
     result = runner.invoke(cmd_root, [code, "generate"])
     assert result.exit_code == 0, result.output
     assert (tmp_path / code / "disp-001" / "POSCAR").exists()
+
+
+def test_set_nac_params_without_vasprun(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Without nac/vasprun.xml, the message says how to set the NAC parameters."""
+    (tmp_path / "nac").mkdir()
+    ph = run_phonopy_init(
+        parse_velph_toml(nacl_velph_toml()), current_directory=tmp_path
+    )
+    assert ph.nac_params is None
+    assert (
+        f'"{tmp_path / "nac" / "vasprun.xml"}" is not found, so NAC parameters are '
+        "not set.\n"
+        f'Run VASP in "{tmp_path / "nac"}" and run this command again to set them.\n'
+    ) in capsys.readouterr().out

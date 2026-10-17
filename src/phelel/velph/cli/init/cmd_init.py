@@ -126,7 +126,7 @@ def _cell_default(set_name: str) -> str:
     default=None,
     help=(
         "Specify supercell dimensions by three integers like 2 2 2. "
-        "For specifiying nine integers, use --supercell-matrix. "
+        "To give nine integers, use --supercell-matrix. "
         "This option is a shortcut for diagonal supercell matrix, where "
         "three integers correspond to the diagonal elements. "
         "(supercell_dimension: tuple[int, int, int], default=None)"
@@ -145,7 +145,9 @@ def _cell_default(set_name: str) -> str:
     type=float,
     default=None,
     help=(
-        "Define k-point grid by KSPACING. "
+        "Spacing of k-points in 1/Angstrom. velph init computes the mesh of "
+        "[vasp.<input set>.kpoints] from it when the block does not give mesh "
+        "or kspacing, by the formula of the VASP INCAR tag KSPACING. "
         f"(kspacing: float, default={_init_default('kspacing')})"
     ),
 )
@@ -155,7 +157,8 @@ def _cell_default(set_name: str) -> str:
     type=float,
     default=None,
     help=(
-        "Define dense k-point grid by KSPACING_DENSE. "
+        "Spacing of k-points in 1/Angstrom for [vasp.<input set>.kpoints_dense], "
+        "used in the same way as --kspacing. "
         f"(kspacing_dense: float, default={_init_default('kspacing_dense')})"
     ),
 )
@@ -175,8 +178,8 @@ def _cell_default(set_name: str) -> str:
     default=None,
     type=int,
     help=(
-        "Determine supercell dimension so that number of atoms in supercell "
-        "is less than this number. This must be used with --symmetrize-cell. "
+        "Determine supercell dimension so that the supercell has at most this "
+        "number of atoms. This must be used with --symmetrize-cell. "
         "(max_num_atoms: int, default=None)"
     ),
 )

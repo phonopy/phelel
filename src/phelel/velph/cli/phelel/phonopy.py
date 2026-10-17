@@ -61,7 +61,10 @@ def create_phonopy_yaml(
 
     phonopy_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
     ph.save(filename=phonopy_yaml_filename)
-    click.echo(f'"{phonopy_yaml_filename}" has been made from the phelel supercells.')
+    click.echo(
+        f'"{phonopy_yaml_filename}" was written with the forces of the phelel '
+        "supercells."
+    )
     input_sets = (config.vasp.input_sets or {}) if config.vasp is not None else {}
     if "phonopy" in input_sets:
         click.echo(

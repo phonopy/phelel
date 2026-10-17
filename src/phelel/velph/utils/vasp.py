@@ -262,8 +262,6 @@ class VaspIncar:
 
     """
 
-    specific_tags = []
-
     @classmethod
     def write(cls, fp: str | os.PathLike | io.IOBase, toml_dict: dict):
         """Write INCAR."""
@@ -472,18 +470,6 @@ class CutoffToFFTMesh:
             return True
         else:
             return False
-
-
-def read_magmom(magmom: str) -> list[float] | None:
-    """Read text file to obtain MAGMOM information.
-
-    Parameters
-    ----------
-    magmom : str
-        String corresponding to INCAR MAGMOM tag value, e.g., "24*1" or "0 0 1".
-
-    """
-    return VaspIncar().expand(magmom.strip())
 
 
 def read_crystal_structure_from_vaspout_h5(

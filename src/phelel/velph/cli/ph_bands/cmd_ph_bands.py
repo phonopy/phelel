@@ -16,7 +16,11 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("ph_bands")
 @click.help_option("-h", "--help")
 def cmd_ph_bands():
-    """Choose phonon band structure options."""
+    """Phonon band structure.
+
+    Write VASP input files of the phonon band structure and plot it.
+
+    """
     pass
 
 
@@ -53,7 +57,7 @@ def cmd_generate(toml_filename: str):
 @click.option(
     "--save",
     "save_plot",
-    is_flag=bool,
+    is_flag=True,
     default=False,
     help=("Save plot to file."),
 )

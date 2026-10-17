@@ -388,7 +388,7 @@ def test_convert_legacy_velph_toml_kspacing_and_removed_keys(
         "[vasp.phelel.phonon] was removed.",
         "[vasp.phono3py.phonon] was removed.",
         *replaced,
-        f'"{new_filename}" has been written from "{old_filename}".',
+        f'"{new_filename}" was written from "{old_filename}".',
     ]
 
 

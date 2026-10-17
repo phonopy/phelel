@@ -52,5 +52,5 @@ def write_input_files(toml_filename: pathlib.Path) -> None:
     config = read_velph_toml(toml_filename, "ph_bands")
     job = plan_ph_bands(config)
     write_vasp_job(job)
-    click.echo(f'VASP input files were generated in "{job.directory}".')
+    click.echo(f'VASP input files were written in "{job.directory}".')
     echo_vasp_vca_hint(get_cell(config, "primitive"))

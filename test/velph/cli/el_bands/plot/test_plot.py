@@ -86,7 +86,7 @@ def test_velph_el_bands_plot_cli(
     )
     assert result.exit_code == 0, result.output
     assert result.stdout == (
-        'Electronic band structure plot was saved in "el_bands/el_bands.pdf".\n'
+        'Electronic band structure plot was written to "el_bands/el_bands.pdf".\n'
     )
     assert (tmp_path / "el_bands" / "el_bands.pdf").read_bytes()[:4] == b"%PDF"
 

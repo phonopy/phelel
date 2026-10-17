@@ -121,7 +121,7 @@ def test_create_phonopy_yaml_with_phonon_supercell(
     assert ph.nac_params is not None
     np.testing.assert_allclose(ph.nac_params["born"], phe.nac_params["born"])
     out = capsys.readouterr().out
-    assert "made from the phelel supercells" in out
+    assert "was written with the forces of the phelel supercells" in out
     assert ('calculation with the [phonopy] supercell is in "phonopy"' in out) is (
         with_vasp_phonopy
     )

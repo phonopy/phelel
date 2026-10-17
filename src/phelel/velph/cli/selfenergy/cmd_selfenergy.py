@@ -11,7 +11,11 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("selfenergy")
 @click.help_option("-h", "--help")
 def cmd_selfenergy():
-    """Choose selfenergy options."""
+    """Electron self-energy.
+
+    Write VASP input files of the electron self-energy calculation.
+
+    """
     pass
 
 

@@ -14,7 +14,11 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("el_bands")
 @click.help_option("-h", "--help")
 def cmd_el_bands():
-    """Choose electronic band structure options."""
+    """Electronic band structure.
+
+    Write VASP input files of the electronic band structure and plot it.
+
+    """
     pass
 
 
@@ -50,7 +54,7 @@ def cmd_generate(toml_filename: str):
 @click.option(
     "--save",
     "save_plot",
-    is_flag=bool,
+    is_flag=True,
     default=False,
     help=("Save plot to file."),
 )

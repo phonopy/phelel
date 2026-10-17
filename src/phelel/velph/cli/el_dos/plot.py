@@ -161,7 +161,7 @@ def plot_el_dos(
         plot_filename = vaspout_filename.parent / "el_dos.pdf"
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
-        click.echo(f'Electronic DOS plot was saved in "{plot_filename}".')
+        click.echo(f'Electronic DOS plot was written to "{plot_filename}".')
     else:
         plt.show()
     plt.close()
