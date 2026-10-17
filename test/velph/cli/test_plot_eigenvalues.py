@@ -1,4 +1,4 @@
-"""Tests of phelel.velph.utils.plot_eigenvalues."""
+"""Tests of phelel.velph.cli.plot_eigenvalues."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 import pytest
 
-from phelel.velph.utils import plot_eigenvalues
+from phelel.velph.cli import plot_eigenvalues
 
 
 def test_bz_dat_in_directory_of_vaspout(

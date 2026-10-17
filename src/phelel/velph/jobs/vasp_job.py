@@ -17,11 +17,9 @@ import shutil
 from collections.abc import Mapping
 from typing import Any
 
-import click
-from phonopy.interface.vasp import get_vasp_vca_weights
+from phonopy.interface.vasp import get_vasp_vca_weights, write_vasp
 from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 
-from phelel.velph.cli.utils import make_job_script, write_poscar
 from phelel.velph.config.input_sets import INPUT_SETS, InputSetName, KpointsFileName
 from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.legacy import load_velph_toml_any_version
@@ -32,6 +30,7 @@ from phelel.velph.config.schema import (
     LinePath,
     VelphConfig,
 )
+from phelel.velph.errors import VelphError
 from phelel.velph.utils.kpath import get_seekpath_line_path
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
@@ -91,17 +90,14 @@ def read_velph_toml(
 ) -> VelphConfig:
     """Read velph.toml for a velph command.
 
-    A velph.toml of the new format or of velph 0.14 is read.
-    click.ClickException is raised when the file does not exist, when it has an
-    error, or, with set_name, when it does not have [vasp.<set_name>].
+    A velph.toml of the new format or of velph 0.14 is read.  VelphError is
+    raised when the file does not exist.  VelphConfigError is raised when it
+    has an error, or, with set_name, when it does not have [vasp.<set_name>].
 
     """
     if not pathlib.Path(toml_filename).exists():
-        raise click.ClickException(f'"{toml_filename}" not found.')
-    try:
-        config = load_velph_toml_any_version(toml_filename)
-    except VelphConfigError as e:
-        raise click.ClickException(str(e)) from e
+        raise VelphError(f'"{toml_filename}" not found.')
+    config = load_velph_toml_any_version(toml_filename)
     if set_name is None:
         return config
     if (
@@ -109,7 +105,7 @@ def read_velph_toml(
         or config.vasp.input_sets is None
         or set_name not in config.vasp.input_sets
     ):
-        raise click.ClickException(
+        raise VelphConfigError(
             f'[vasp.{set_name}] is not found in "{toml_filename}".\n'
             f'Add [vasp.{set_name}] to "{toml_filename}", or run "velph init" again.'
         )
@@ -153,7 +149,7 @@ def job_script(
     """Return _job.sh of a job of an input set.
 
     The scheduler settings are those of effective_scheduler.  None is returned
-    when velph.toml has no [scheduler].  click.ClickException is raised by
+    when velph.toml has no [scheduler].  VelphConfigError is raised by
     make_job_script when the job script template cannot be filled.
 
     """
@@ -196,7 +192,7 @@ def get_kpoints(
     INPUT_SETS.  The loader of velph.toml checks that the blocks exist and that
     a block other than a line block gives a mesh.  A line block without "path"
     gets the band path that seekpath gives for cell, which is then required.
-    click.ClickException is raised when seekpath is not installed.
+    VelphError is raised when seekpath is not installed.
 
     """
     input_set = get_input_set(config, set_name)
@@ -221,10 +217,57 @@ def _seekpath_line_path(cell: PhonopyAtoms, line: int, where: str) -> LinePath:
     except ModuleNotFoundError as e:
         if e.name != "seekpath":
             raise
-        raise click.ClickException(
+        raise VelphError(
             f'[{where}] does not give "path", and seekpath, which makes the band '
             "path, is not installed.\n"
             f'Install seekpath, or give "path" and "label" in [{where}].'
+        ) from e
+
+
+def write_poscar(
+    directory: os.PathLike, cell: PhonopyAtoms, filename: str = "POSCAR"
+) -> None:
+    """Write POSCAR.
+
+    A cell with weighted species of site mixture is written for VASP VCA. Atoms
+    of one symbol and weight that are next to each other in the cell are written
+    in one species row. The INCAR tag VCA is added by add_cell_tags.
+
+    """
+    write_vasp(
+        pathlib.Path(directory) / filename, cell, for_vca=cell.has_weighted_species
+    )
+
+
+_BRACES_HINT = (
+    '  To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
+)
+
+
+def make_job_script(scheduler: Mapping[str, Any]) -> str:
+    """Return the job script _job.sh made from the scheduler settings of a job.
+
+    The keys in braces in scheduler_template, such as {job_name}, are replaced
+    by the values of the settings, as str.format does.  VelphConfigError is
+    raised when scheduler_template is not given, when a key that it uses is not
+    given, and when str.format cannot read it, for example for a single "}".
+
+    """
+    if "scheduler_template" not in scheduler:
+        raise VelphConfigError(
+            '"scheduler_template" has to be given in [scheduler] or '
+            "[vasp.<input set>.scheduler]."
+        )
+    try:
+        return scheduler["scheduler_template"].format(**scheduler)
+    except KeyError as e:
+        raise VelphConfigError(
+            f'"{e.args[0]}" used in the job script template is not given in '
+            "[scheduler] or [vasp.<input set>.scheduler]." + _BRACES_HINT
+        ) from e
+    except (IndexError, ValueError) as e:
+        raise VelphConfigError(
+            f"The job script template cannot be read: {e}." + _BRACES_HINT
         ) from e
 
 

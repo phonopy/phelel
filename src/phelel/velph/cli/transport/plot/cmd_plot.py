@@ -8,13 +8,13 @@ import pathlib
 import click
 import h5py
 
-from phelel.velph.cli.transport.cmd_transport import cmd_transport
-from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
-from phelel.velph.cli.transport.plot.plot_transport import plot_transport
-from phelel.velph.utils.plot_eigenvalues import (
+from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
+from phelel.velph.cli.transport.cmd_transport import cmd_transport
+from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
+from phelel.velph.cli.transport.plot.plot_transport import plot_transport
 
 
 @cmd_transport.group("plot")

@@ -61,6 +61,7 @@ from phelel.velph.config.io import (
     write_velph_toml,
 )
 from phelel.velph.config.schema import CODES, VelphConfig
+from phelel.velph.errors import VelphError
 from phelel.velph.utils.mesh import kspacing_to_mesh
 
 # Tolerance with which Phelel, Phonopy and Phono3py make the supercell.
@@ -145,13 +146,13 @@ def convert_legacy_velph_toml(
 
     [velph] version of new_filename is the version of this velph, not the
     version in old_filename.  The messages on what was removed and on which
-    kspacing was replaced by mesh are returned.  FileExistsError is raised when
+    kspacing was replaced by mesh are returned.  VelphError is raised when
     new_filename exists, and VelphConfigError when old_filename is in the new
     format or cannot be converted.  Nothing is written then.
 
     """
     if pathlib.Path(new_filename).exists():
-        raise FileExistsError(
+        raise VelphError(
             f'"{new_filename}" exists.  Give the name of a file that does not exist.'
         )
     data = load_toml(old_filename)

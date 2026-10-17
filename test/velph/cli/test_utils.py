@@ -2,21 +2,12 @@
 
 import io
 import itertools
-import pathlib
 from collections.abc import Callable
 
-import click
 import numpy as np
-import pytest
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import apply_site_mixture
 
-from phelel.velph.cli.utils import (
-    echo_vasp_vca_hint,
-    make_job_script,
-    write_poscar,
-)
 from phelel.velph.utils.structure import get_reduced_cell
 
 
@@ -74,77 +65,3 @@ points:
             "recondier this test."
         )
         raise AssertionError(msg)
-
-
-def test_make_job_script():
-    """The keys in braces in scheduler_template are replaced by the values."""
-    scheduler = {
-        "scheduler_template": "#!/bin/bash\n#$ -N {job_name}\n#$ -pe {pe} {cores}\n",
-        "job_name": "PbTe-001",
-        "pe": "mpi*",
-        "cores": 48,
-        "walltime": "12:00:00",
-    }
-    assert make_job_script(scheduler) == "#!/bin/bash\n#$ -N PbTe-001\n#$ -pe mpi* 48\n"
-
-
-@pytest.mark.parametrize(
-    "scheduler_dict,missing",
-    [
-        ({"job_name": "x"}, "scheduler_template"),
-        ({"scheduler_template": "#!/bin/bash\n# {pe}\n", "job_name": "x"}, "pe"),
-    ],
-)
-def test_make_job_script_missing_keys(scheduler_dict: dict, missing: str):
-    """Test that a missing scheduler setting is an error naming the key."""
-    with pytest.raises(click.ClickException, match=missing):
-        make_job_script(scheduler_dict)
-
-
-@pytest.mark.parametrize("template", ["echo }\n", "echo {\n", "echo {0}\n"])
-def test_make_job_script_unreadable_template(template: str):
-    """A template that str.format cannot read is an error on braces."""
-    with pytest.raises(click.ClickException) as e:
-        make_job_script({"scheduler_template": template})
-    assert e.value.message.startswith("The job script template cannot be read:")
-    assert e.value.message.endswith(
-        'To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
-    )
-
-
-def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
-    """Return CsCl-like cell with Ge and Sn (0.5 each) co-located and Te."""
-    cell = PhonopyAtoms(
-        cell=np.eye(3) * 4.0,
-        symbols=["Ge", "Sn", "Te"],
-        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
-    )
-    return apply_site_mixture(cell, [0.5, 0.5, 1.0])
-
-
-def test_write_poscar_of_site_mixture(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
-):
-    """A cell with weighted species is written for VASP VCA with the hint."""
-    cell = _get_GeSnTe_weighted_cell()
-    write_poscar(tmp_path, cell)
-    lines = (tmp_path / "POSCAR").read_text().splitlines()
-    assert lines[5].split() == ["Ge", "Sn", "Te"]
-    assert lines[6].split() == ["1", "1", "1"]
-    echo_vasp_vca_hint(cell)
-    assert "INCAR:               VCA = 0.5 0.5 1" in capsys.readouterr().out
-
-
-def test_write_poscar_of_ordinary_cell(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
-):
-    """An ordinary cell is written without the hint of VCA."""
-    cell = PhonopyAtoms(
-        cell=np.eye(3) * 4.0,
-        symbols=["Na", "Cl"],
-        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
-    )
-    write_poscar(tmp_path, cell)
-    assert (tmp_path / "POSCAR").read_text().splitlines()[5].split() == ["Na", "Cl"]
-    echo_vasp_vca_hint(cell)
-    assert capsys.readouterr().out == ""

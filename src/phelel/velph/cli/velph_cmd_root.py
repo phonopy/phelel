@@ -2,8 +2,30 @@
 
 import click
 
+from phelel.velph.errors import VelphError
 
-@click.group()
+
+class _VelphGroup(click.Group):
+    """Group that shows VelphError as click.ClickException.
+
+    Group.invoke of click parses the arguments of the subcommand and runs it
+    inside itself, and a subgroup does the same for its subcommands.  So all
+    the commands of velph run inside invoke of the root group, and VelphError
+    raised in any of them is converted here.  This relies on the code of click
+    rather than on its documentation; test_velph_cmd_root.py fails when click
+    runs the subcommands outside invoke of the root group.
+
+    """
+
+    def invoke(self, ctx: click.Context):
+        """Invoke the command, with VelphError converted to ClickException."""
+        try:
+            return super().invoke(ctx)
+        except VelphError as e:
+            raise click.ClickException(str(e)) from e
+
+
+@click.group(cls=_VelphGroup)
 @click.help_option("-h", "--help")
 def cmd_root():
     """Command-line utility to help VASP el-ph calculation."""

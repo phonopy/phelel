@@ -195,3 +195,24 @@ def test_set_nac_params_without_vasprun(
         "not set.\n"
         f'Run VASP in "{tmp_path / "nac"}" and run this command again to set them.\n'
     ) in capsys.readouterr().out
+
+
+def test_init_with_unparsable_nac_vasprun(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """nac/vasprun.xml that cannot be parsed stops the init command.
+
+    Such a file is written, for example, while VASP is running in "nac".
+
+    """
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
+    (tmp_path / "nac").mkdir()
+    (tmp_path / "nac" / "vasprun.xml").write_text("<modeling>\n")
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cmd_root, ["phonopy", "init"])
+    assert result.exit_code == 1, result.output
+    assert result.stderr.startswith('Error: "nac/vasprun.xml" cannot be parsed: ')
+    assert result.stderr.endswith('Check that VASP in "nac" has finished.\n')
+    assert not (tmp_path / "phonopy" / "phonopy_disp.yaml").exists()

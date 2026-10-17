@@ -7,7 +7,6 @@ import pathlib
 import sys
 from collections.abc import Callable
 
-import click
 import pytest
 from click.testing import CliRunner
 
@@ -16,6 +15,7 @@ from phelel.velph.cli.el_dos.generate import plan_el_dos
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import KpointsMesh, LinePath, VaspSection, VelphConfig
+from phelel.velph.errors import VelphError
 
 
 def _with_el_bands_path(config: VelphConfig) -> VelphConfig:
@@ -52,9 +52,9 @@ def test_plan_el_bands_without_seekpath(
     """Without seekpath, a line block has to give "path"."""
     monkeypatch.setitem(sys.modules, "seekpath", None)
     config = parse_velph_toml(nacl_velph_toml())
-    with pytest.raises(click.ClickException) as e:
+    with pytest.raises(VelphError) as e:
         plan_el_bands(config)
-    assert e.value.message == (
+    assert str(e.value) == (
         '[vasp.el_bands.kpoints_opt] does not give "path", and seekpath, which '
         "makes the band path, is not installed.\n"
         'Install seekpath, or give "path" and "label" in '

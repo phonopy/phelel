@@ -8,11 +8,11 @@ import click
 
 from phelel.velph.cli.el_dos.generate import write_input_files
 from phelel.velph.cli.el_dos.plot import plot_el_dos
-from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.utils.plot_eigenvalues import (
+from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
+from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 @cmd_root.group("el_dos")

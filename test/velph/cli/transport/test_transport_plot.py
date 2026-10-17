@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 from click.testing import CliRunner
 
+from phelel.velph.cli import plot_eigenvalues
 from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.utils import plot_eigenvalues
 
 
 @pytest.mark.parametrize("group", ["transport", "ph_selfenergy"])
