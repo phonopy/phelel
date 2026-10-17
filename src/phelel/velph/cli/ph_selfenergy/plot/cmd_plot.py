@@ -87,8 +87,8 @@ def cmd_plot_ph_selfenergy_eigenvalues(
         temperature,
         cutoff_occupancy,
         mu,
-        tid,
-        calcid,
+        tid=tid,
+        calcid=calcid,
         calc_type="ph_selfenergy",
     )
 

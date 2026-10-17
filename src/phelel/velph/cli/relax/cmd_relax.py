@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import pathlib
 
 import click
@@ -31,12 +32,11 @@ def cmd_generate(toml_filename: str):
         click.echo('"POTCAR" not found in current directory.')
 
     prev_directory = None
-    for i in range(1, 101):
+    for i in itertools.count(1):
         directory = pathlib.Path(f"relax/iter{i}")
-        if directory.exists():
-            click.echo(f'"{directory}" exists.')
-        else:
+        if not directory.exists():
             break
+        click.echo(f'"{directory}" exists.')
         prev_directory = directory
 
     write_input_files(

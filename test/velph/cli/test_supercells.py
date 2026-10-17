@@ -142,3 +142,37 @@ def test_generate_missing_key_of_job_script(
     assert result.exit_code == 1
     assert '"pe" used in the job script template is not given' in result.stderr
     assert list(tmp_path.glob("phelel/disp-*")) == []
+
+
+@pytest.mark.parametrize(
+    "code,filenames",
+    [
+        ("phelel", ("BORN", "phelel_params.hdf5")),
+        ("phonopy", ("BORN", "FORCE_SETS", "FORCE_CONSTANTS", "force_constants.hdf5")),
+        ("phono3py", ("BORN", "FORCES_FC3", "FORCES_FC2", "fc3.hdf5", "fc2.hdf5")),
+    ],
+)
+def test_generate_ignores_files_in_current_directory(
+    code: str,
+    filenames: tuple[str, ...],
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The generate commands of the codes read only <code>/<code>_disp.yaml.
+
+    Files that phelel.load, phonopy.load and phono3py.load look for in the
+    current directory, such as FORCE_SETS, are not read, also when they are
+    broken.
+
+    """
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cmd_root, [code, "init"])
+    assert result.exit_code == 0, result.output
+    for filename in filenames:
+        (tmp_path / filename).write_text("broken\n")
+    result = runner.invoke(cmd_root, [code, "generate"])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / code / "disp-001" / "POSCAR").exists()

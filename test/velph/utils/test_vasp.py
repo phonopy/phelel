@@ -6,6 +6,7 @@ import tempfile
 import tomllib
 
 import numpy as np
+import pytest
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 
 from phelel.velph.utils.vasp import (
@@ -408,3 +409,23 @@ def test_convert_ir_kpoints_from_VASP_to_phono3py():
     #     np.zeros(1),  # ir_kpoints
     #     np.zeros(1),  # ir_weights
     # )
+
+
+@pytest.mark.parametrize(
+    "prec,factor",
+    [
+        (None, 3),
+        ("normal", 3),
+        ("Normal", 3),
+        ("singlen", 3),
+        ("SingleN", 3),
+        ("single", 4),
+        ("Single", 4),
+        ("accurate", 4),
+        ("Accurate", 4),
+        ("high", 4),
+    ],
+)
+def test_cutoff_factor_of_prec(prec: str | None, factor: int):
+    """The factor of PREC does not depend on the case of the value."""
+    assert CutoffToFFTMesh._get_cutoff_factor(prec) == factor

@@ -5,9 +5,8 @@ from __future__ import annotations
 import pathlib
 
 import click
-import phonopy
 
-from phelel.velph.cli.supercells import plan_supercells
+from phelel.velph.cli.supercells import load_phonopy_yaml, plan_supercells
 from phelel.velph.cli.utils import echo_vasp_vca_hint
 from phelel.velph.jobs.vasp_job import read_velph_toml, write_vasp_job
 
@@ -21,7 +20,7 @@ def write_supercell_input_files(
             f'"{yaml_filename}" not found.\nRun "velph phonopy init" to make it.'
         )
     config = read_velph_toml(toml_filename, "phonopy")
-    ph = phonopy.load(yaml_filename)
+    ph = load_phonopy_yaml(yaml_filename)
     jobs = plan_supercells(config, "phonopy", ph)
     for job in jobs:
         write_vasp_job(job)

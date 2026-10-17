@@ -147,10 +147,10 @@ def cmd_differentiate(
     else:
         click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
 
-    if run_derivatives(phe, dir_name=dir_name, verbose=verbose):
-        pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)
-        phe.save_hdf5(filename=hdf5_filename)
-        click.echo(f'"{hdf5_filename}" has been made.')
+    run_derivatives(phe, dir_name=dir_name, verbose=verbose)
+    pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)
+    phe.save_hdf5(filename=hdf5_filename)
+    click.echo(f'"{hdf5_filename}" has been made.')
 
 
 #

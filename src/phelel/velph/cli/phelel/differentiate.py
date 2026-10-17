@@ -23,22 +23,20 @@ def run_derivatives(
     dir_name: str | os.PathLike = "phelel",
     phonon_dir_name: str | os.PathLike = "phonopy",
     verbose: bool = False,
-) -> bool:
+) -> None:
     """Calculate derivatives and write phelel_params.hdf5.
 
     With the phonon supercell, the forces of the phonon supercells are read from
     <phonon_dir_name>/disp-*, whose supercells have to be those of
-    <phonon_dir_name>/phonopy_disp.yaml.  False is returned when a directory or
-    a file is missing, or when the supercells differ.  click.ClickException is
-    raised when neither vaspout.h5 nor vasprun.xml is found in a directory.
+    <phonon_dir_name>/phonopy_disp.yaml.  click.ClickException is raised when a
+    directory or a file is missing, when the supercells differ, and with the
+    merge scheme of site mixture.
 
     """
     if phe.unmerged_unitcell is not None:
-        click.echo(
-            "Derivatives are not supported with the merge scheme of site mixture.",
-            err=True,
+        raise click.ClickException(
+            "Derivatives are not supported with the merge scheme of site mixture."
         )
-        return False
     dir_names = []
     if phe.supercells_with_displacements is None:
         raise RuntimeError("supercells_with_displacements is None.")
@@ -51,21 +49,14 @@ def run_derivatives(
     ):
         id_number = f"{i:0{nd}d}"
         filepath = pathlib.Path(f"{dir_name}/disp-{id_number}")
-        if filepath.exists():
-            if _check_files_exist(filepath):
-                dir_names.append(filepath)
-            else:
-                click.echo(f'Necessary file not found in "{filepath}".', err=True)
-                return False
-        else:
-            click.echo(f'"{filepath}" does not exist.', err=True)
-            return False
+        if not filepath.exists():
+            raise click.ClickException(f'"{filepath}" does not exist.')
+        if not _check_files_exist(filepath):
+            raise click.ClickException(f'Necessary file not found in "{filepath}".')
+        dir_names.append(filepath)
 
     if phe.phonon_supercell_matrix is not None:
-        phonon_dir_names = _get_phonon_dir_names(phe, pathlib.Path(phonon_dir_name))
-        if phonon_dir_names is None:
-            return False
-        dir_names += phonon_dir_names
+        dir_names += _get_phonon_dir_names(phe, pathlib.Path(phonon_dir_name))
 
     try:
         create_derivatives(
@@ -77,25 +68,22 @@ def run_derivatives(
     except FileNotFoundError as e:
         raise click.ClickException(str(e)) from e
 
-    return True
-
 
 def _get_phonon_dir_names(
     phe: Phelel, phonon_dir_name: pathlib.Path
-) -> list[pathlib.Path] | None:
+) -> list[pathlib.Path]:
     """Return the directories of the phonon supercells made by velph phonopy.
 
-    None is returned when phonopy_disp.yaml or a directory is not found, or when
-    the phonon supercells of phe differ from the supercells of phonopy_disp.yaml,
-    for example after velph phonopy init was run again.
+    click.ClickException is raised when phonopy_disp.yaml or a directory is not
+    found, or when the phonon supercells of phe differ from the supercells of
+    phonopy_disp.yaml, for example after velph phonopy init was run again.
 
     """
     cells = phe.phonon_supercells_with_displacements
     assert cells is not None
     yaml_filename = phonon_dir_name / "phonopy_disp.yaml"
     if not yaml_filename.exists():
-        click.echo(f'"{yaml_filename}" does not exist.', err=True)
-        return None
+        raise click.ClickException(f'"{yaml_filename}" does not exist.')
     phonopy_cells = load_phonopy_yaml(yaml_filename).supercells_with_displacements
     assert phonopy_cells is not None
     if len(cells) != len(phonopy_cells) or not all(
@@ -103,19 +91,16 @@ def _get_phonon_dir_names(
         and np.allclose(cell.positions, phonopy_cell.positions)
         for cell, phonopy_cell in zip(cells, phonopy_cells, strict=True)
     ):
-        click.echo(
+        raise click.ClickException(
             "The phonon supercells with displacements differ from those of "
             f'"{yaml_filename}".\nRun "velph phelel init --phonon-from-phonopy" '
-            "again.",
-            err=True,
+            "again."
         )
-        return None
     nd = get_num_digits(cells)
     dir_names = [phonon_dir_name / f"disp-{i:0{nd}d}" for i in range(len(cells) + 1)]
     for filepath in dir_names:
         if not filepath.exists():
-            click.echo(f'"{filepath}" does not exist.', err=True)
-            return None
+            raise click.ClickException(f'"{filepath}" does not exist.')
     return dir_names
 
 

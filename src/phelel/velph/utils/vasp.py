@@ -450,7 +450,7 @@ class CutoffToFFTMesh:
         Note this is the VASP6 convention.
 
         """
-        if prec == "singlen" or prec is None:
+        if prec is None or prec.lower() == "singlen":
             return 3
         if prec[0].lower() in ("h", "a", "s"):
             return 4
