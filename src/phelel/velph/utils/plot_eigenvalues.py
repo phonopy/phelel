@@ -80,16 +80,16 @@ def cmd_plot_eigenvalues(
     When tid is specified, temperature and mu are set according to the tid-th
     temperature and chemical potential in self-energy calculation. In this case,
     these are consistently determined values. Otherwise, temperature and mu are
-    set independently.
+    set independently.  click.ClickException is raised when vaspout_filename
+    does not exist.
 
     """
     _vaspout_filename = pathlib.Path(vaspout_filename)
     if not _vaspout_filename.exists():
-        click.echo(
-            f'"{_vaspout_filename}" not found. Please specify vaspout.h5 file path.',
-            err=True,
+        raise click.ClickException(
+            f'"{_vaspout_filename}" not found.  Give the path of vaspout.h5 with '
+            "--vaspout-filename."
         )
-        return None
 
     with h5py.File(_vaspout_filename) as f_h5py:
         if calc_type in ("transport", "ph_selfenergy"):

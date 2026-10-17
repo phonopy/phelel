@@ -23,6 +23,9 @@
   writing any file.
 - `velph relax generate` without `velph.toml` stops with an error. Before, the
   exit code was 0.
+- The plot commands without `vaspout.h5` stop with an error. Before, the exit
+  code was 0, or `velph ph_bands plot` and `velph ph_selfenergy plot
+  selfenergy` stopped with a traceback.
 - Fix the force constants of the derivatives with a phonon supercell. They were
   computed from the displacements of the phelel supercells and the forces of
   the phonon supercells, and they are now computed from the displacements of

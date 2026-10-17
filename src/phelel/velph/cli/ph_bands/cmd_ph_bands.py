@@ -62,7 +62,7 @@ def cmd_plot(use_ordinary_frequency: bool, save_plot: bool):
     """Plot phonon band structure."""
     vaspout_filename = pathlib.Path("ph_bands/vaspout.h5")
     if not vaspout_filename.exists():
-        click.echo(f'"{vaspout_filename}" not found.')
+        raise click.ClickException(f'"{vaspout_filename}" not found.')
     plot_ph_bandstructures(
         vaspout_filename, use_ordinary_frequency, save_plot=save_plot
     )

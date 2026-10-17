@@ -59,15 +59,16 @@ def cmd_plot(window: tuple[float, float], save_plot: bool):
     """Plot electronic band structure."""
     vaspout_filename_bands = pathlib.Path("el_bands/vaspout.h5")
     vaspout_filename_dos = pathlib.Path("el_dos/vaspout.h5")
+    messages = []
     if not vaspout_filename_bands.exists():
-        click.echo(f'"{vaspout_filename_bands}" not found.')
+        messages.append(f'"{vaspout_filename_bands}" not found.')
     if not vaspout_filename_dos.exists():
-        click.echo(
+        messages.append(
             f'"{vaspout_filename_dos}" not found.  The Fermi level is taken from the '
             'DOS calculation.\nRun "velph el_dos generate" and VASP in "el_dos".'
         )
-
-    if vaspout_filename_bands.exists() and vaspout_filename_dos.exists():
-        plot_el_bandstructures(
-            window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
-        )
+    if messages:
+        raise click.ClickException("\n".join(messages))
+    plot_el_bandstructures(
+        window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
+    )
