@@ -6,7 +6,8 @@ The generate command of an input set writes its VASP input files in the
 directory named after the input set, for example "relax/iter1" for relax and
 "phelel/disp-001" for phelel.
 
-INPUT_SETS is the table of the input sets.  input_set_fields gives the fields
+INPUT_SETS is the table of the input sets, and InputSetName of schema.py gives
+their names.  input_set_fields gives the fields
 allowed in each input set from it.  The table is read-only
 (MappingProxyType), and so is kpoints_files of each row.
 
@@ -17,23 +18,9 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Literal, cast
+from typing import Literal
 
-from phelel.velph.config.schema import CodeName
-
-InputSetName = Literal[
-    "relax",
-    "nac",
-    "phelel",
-    "phonopy",
-    "phono3py",
-    "selfenergy",
-    "transport",
-    "ph_selfenergy",
-    "el_bands",
-    "el_dos",
-    "ph_bands",
-]
+from phelel.velph.config.schema import CodeName, InputSetName
 
 # Cell on which the VASP calculations of an input set are run (see
 # InputSetEntry.cell).
@@ -119,7 +106,7 @@ INPUT_SETS: Mapping[InputSetName, InputSetEntry] = MappingProxyType(
 _INPUT_SET_COMMON = ("incar", "incar_unset", "kpoints", "scheduler")
 
 
-def input_set_fields(set_name: str) -> tuple[str, ...]:
+def input_set_fields(set_name: InputSetName) -> tuple[str, ...]:
     """Return the fields of InputSetSection allowed in an input set.
 
     These are the fields common to all input sets, the k-point blocks of its
@@ -138,7 +125,7 @@ def input_set_fields(set_name: str) -> tuple[str, ...]:
     ('incar', 'incar_unset', 'kpoints', 'scheduler', 'kpoints_dense')
 
     """
-    entry = INPUT_SETS[cast(InputSetName, set_name)]
+    entry = INPUT_SETS[set_name]
     # kpoints, the block of KPOINTS, is one of the common fields.
     blocks = tuple(
         block for block in entry.kpoints_files.values() if block != "kpoints"

@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping
 from typing import cast
 
 import click
 
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.input_sets import InputSetName
-from phelel.velph.config.schema import InputSetSection
+from phelel.velph.config.schema import InputSetName
 from phelel.velph.errors import VelphError
-from phelel.velph.jobs.vasp_job import job_script, read_velph_toml
+from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.vasp_job import job_script
 
 
 #
@@ -39,16 +38,16 @@ def cmd_scheduler(set_names: tuple[str, ...], toml_filename: str):
     _job.sh of an input set cannot be made.
 
     """
-    config = read_velph_toml(toml_filename)
-    input_sets: Mapping[str, InputSetSection] = {}
-    if config.vasp is not None and config.vasp.input_sets is not None:
-        input_sets = config.vasp.input_sets
+    project = read_velph_toml(toml_filename)
+    input_sets = project.input_sets
     for set_name in set_names:
         if set_name not in input_sets:
             raise click.ClickException(
                 f'[vasp.{set_name}] is not found in "{toml_filename}".'
             )
-    if config.scheduler is None:
+    # The names given are names of input sets, as checked above.
+    names = cast(tuple[InputSetName, ...], set_names) or tuple(input_sets)
+    if project.config.scheduler is None:
         click.echo(f'"{toml_filename}" has no [scheduler], so no _job.sh is written.')
         for set_name, input_set in input_sets.items():
             if input_set.scheduler is not None:
@@ -61,12 +60,12 @@ def cmd_scheduler(set_names: tuple[str, ...], toml_filename: str):
         return
 
     failed = False
-    for i, set_name in enumerate(set_names or input_sets):
+    for i, set_name in enumerate(names):
         if i > 0:
             click.echo("")
         click.echo(f"[vasp.{set_name}]")
         try:
-            text = job_script(config, cast(InputSetName, set_name))
+            text = job_script(project, set_name)
         except VelphError as e:
             click.echo(f"Error: {e}")
             failed = True

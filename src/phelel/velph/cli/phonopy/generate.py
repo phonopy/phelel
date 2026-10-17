@@ -8,7 +8,8 @@ import click
 
 from phelel.velph.cli.supercells import load_phonopy_yaml, plan_supercells
 from phelel.velph.cli.utils import echo_vasp_vca_hint
-from phelel.velph.jobs.vasp_job import read_velph_toml, write_vasp_job
+from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.vasp_job import write_vasp_job
 
 
 def write_supercell_input_files(
@@ -19,11 +20,10 @@ def write_supercell_input_files(
         raise click.ClickException(
             f'"{yaml_filename}" not found.\nRun "velph phonopy init" to make it.'
         )
-    config = read_velph_toml(toml_filename, "phonopy")
+    project = read_velph_toml(toml_filename, "phonopy")
     ph = load_phonopy_yaml(yaml_filename)
-    jobs = plan_supercells(config, "phonopy", ph)
+    jobs = plan_supercells(project, "phonopy", ph)
     for job in jobs:
         write_vasp_job(job)
         click.echo(f'VASP input files were written in "{job.directory}".')
-    assert not isinstance(jobs[0].poscar, pathlib.Path)
-    echo_vasp_vca_hint(jobs[0].poscar)
+    echo_vasp_vca_hint(jobs[0].cell)

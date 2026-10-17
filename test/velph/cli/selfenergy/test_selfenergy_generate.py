@@ -8,12 +8,12 @@ from collections.abc import Callable
 import click
 import pytest
 from click.testing import CliRunner
-from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS, plan_elph
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import KpointsMesh
+from phelel.velph.jobs.project import Project
 
 
 def test_plan_elph(
@@ -23,16 +23,15 @@ def test_plan_elph(
 ):
     """The job of transport is made from [vasp.transport] on the primitive cell."""
     data = nacl_velph_toml()
-    config = parse_velph_toml(data)
+    project = Project.from_config(parse_velph_toml(data))
     monkeypatch.chdir(tmp_path)
     (tmp_path / "POTCAR").write_text("potcar\n")
     PHELEL_PARAMS.parent.mkdir()
     PHELEL_PARAMS.write_text("hdf5\n")
-    job = plan_elph(config, "transport")
+    job = plan_elph(project, "transport")
     transport = data["vasp"]["transport"]
     assert job.directory == pathlib.Path("transport")
-    assert isinstance(job.poscar, PhonopyAtoms)
-    assert len(job.poscar) == 2
+    assert len(job.cell) == 2
     assert job.incar == transport["incar"]
     assert job.kpoints == {
         "KPOINTS": KpointsMesh(mesh=tuple(transport["kpoints"]["mesh"])),
@@ -59,16 +58,16 @@ def test_plan_elph_without_phelel_params(
 
     """
     data = nacl_velph_toml()
-    config = parse_velph_toml(data)
+    project = Project.from_config(parse_velph_toml(data))
     monkeypatch.chdir(tmp_path)
     with pytest.raises(click.ClickException) as e:
-        plan_elph(config, "selfenergy")
+        plan_elph(project, "selfenergy")
     assert e.value.message == (
         '"phelel/phelel_params.hdf5" not found.  It is copied to "selfenergy".\n'
         'Run "velph phelel differentiate" to make it, or run this command with '
         "--dry-run."
     )
-    job = plan_elph(config, "selfenergy", dry_run=True)
+    job = plan_elph(project, "selfenergy", dry_run=True)
     assert job.incar == {
         **data["vasp"]["selfenergy"]["incar"],
         "nelm": 0,

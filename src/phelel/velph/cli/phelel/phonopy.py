@@ -12,7 +12,7 @@ from phelel.interface.vasp.derivatives import (
 )
 from phelel.velph.cli.supercells import load_phelel_yaml_as_phonopy
 from phelel.velph.cli.utils import get_num_digits
-from phelel.velph.jobs.vasp_job import read_velph_toml
+from phelel.velph.jobs.project import read_velph_toml
 
 
 def create_phonopy_yaml(
@@ -32,13 +32,12 @@ def create_phonopy_yaml(
     """
     phonopy_yaml_filename = pathlib.Path(dir_name) / "phonopy_params.yaml"
 
-    config = read_velph_toml(toml_filename)
-    is_symmetry = True
-    if config.phelel is not None and config.phelel.nosym:
+    project = read_velph_toml(toml_filename)
+    is_symmetry = not project.code_section("phelel").nosym
+    if not is_symmetry:
         click.echo(
             'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
         )
-        is_symmetry = False
 
     # NAC params are those of phelel_disp.yaml.
     ph = load_phelel_yaml_as_phonopy(yaml_filename, is_symmetry=is_symmetry)
@@ -65,8 +64,7 @@ def create_phonopy_yaml(
         f'"{phonopy_yaml_filename}" was written with the forces of the phelel '
         "supercells."
     )
-    input_sets = (config.vasp.input_sets or {}) if config.vasp is not None else {}
-    if "phonopy" in input_sets:
+    if "phonopy" in project.input_sets:
         click.echo(
             'The phonopy calculation with the [phonopy] supercell is in "phonopy".'
         )

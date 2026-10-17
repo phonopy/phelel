@@ -4,13 +4,23 @@ from __future__ import annotations
 
 import doctest
 from collections.abc import Callable
+from typing import get_args
 
 import pytest
 
 from phelel.velph.config import input_sets
 from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
 from phelel.velph.config.io import parse_velph_toml
-from phelel.velph.config.schema import CODE_KEYS
+from phelel.velph.config.schema import CODE_KEYS, InputSetName
+
+
+def test_names_of_input_sets():
+    """INPUT_SETS has a row for each name of InputSetName, in the same order.
+
+    The order is that in which velph init writes the input sets.
+
+    """
+    assert tuple(INPUT_SETS) == get_args(InputSetName)
 
 
 def test_input_set_fields():

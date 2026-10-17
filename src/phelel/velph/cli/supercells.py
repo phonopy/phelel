@@ -15,92 +15,25 @@ import pathlib
 
 import click
 import numpy as np
-from numpy.typing import NDArray
 from phono3py import Phono3py
 from phono3py.interface.phono3py_yaml import Phono3pyYaml
 from phonopy import Phonopy
 from phonopy.interface.phonopy_yaml import PhonopyYaml
-from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import isclose
 
 from phelel import Phelel
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.velph.cli.utils import get_nac_params, get_num_digits
-from phelel.velph.config.defaults import get_default_config
-from phelel.velph.config.merge import merge
-from phelel.velph.config.schema import (
-    CodeName,
-    CodeSection,
-    SupercellDimension,
-    SupercellMatrix,
-    VelphConfig,
-)
-from phelel.velph.jobs.vasp_job import (
-    VaspJob,
-    add_cell_tags,
-    find_potcar,
-    get_cell,
-    get_input_set,
-    get_kpoints,
-    job_script,
-)
+from phelel.velph.config.schema import CodeName
+from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.vasp_job import VaspJob, add_cell_tags, find_potcar, job_script
 
 PHONOPY_DISP_YAML = pathlib.Path("phonopy") / "phonopy_disp.yaml"
 
 
-def get_code_section(
-    config: VelphConfig, code: CodeName, toml_filename: str | pathlib.Path
-) -> CodeSection:
-    """Return [<code>] of velph.toml, with the defaults of velph init.
-
-    A field that [<code>] does not give, such as amplitude, has the value that
-    velph init writes by default.  click.ClickException is raised when
-    velph.toml does not have [<code>] or when [<code>] does not give the
-    supercell.
-
-    """
-    section = getattr(config, code)
-    if section is None:
-        raise click.ClickException(
-            f'[{code}] is not found in "{toml_filename}".\n'
-            f'Add [{code}] to "{toml_filename}", or run "velph init" again.'
-        )
-    merged = merge(getattr(get_default_config(), code), section)
-    assert isinstance(merged, CodeSection)
-    if merged.supercell is None:
-        raise click.ClickException(
-            f'[{code}] of "{toml_filename}" does not give the supercell.\n'
-            f'Give "supercell_dimension" or "supercell_matrix" in [{code}].'
-        )
-    return merged
-
-
-def get_supercell_matrix(section: CodeSection) -> NDArray[np.int64]:
-    """Return the supercell matrix of a code section as a 3x3 matrix."""
-    if isinstance(section.supercell, SupercellDimension):
-        return np.diag(section.supercell.supercell_dimension)
-    assert isinstance(section.supercell, SupercellMatrix)
-    return np.array(section.supercell.supercell_matrix)
-
-
-def get_cells(
-    config: VelphConfig,
-) -> tuple[PhonopyAtoms, PhonopyAtoms, NDArray[np.double]]:
-    """Return the unit cell, the primitive cell and the primitive matrix.
-
-    The primitive matrix transforms the basis vectors of the unit cell into
-    those of the primitive cell.
-
-    """
-    unitcell = get_cell(config, "unitcell")
-    primitive = get_cell(config, "primitive")
-    primitive_matrix = np.dot(np.linalg.inv(unitcell.cell.T), primitive.cell.T)
-    return unitcell, primitive, primitive_matrix
-
-
 def set_nac_params(
     ph: Phelel | Phonopy | Phono3py,
-    config: VelphConfig,
+    project: Project,
     is_symmetry: bool,
     current_directory: pathlib.Path,
 ) -> None:
@@ -128,10 +61,9 @@ def set_nac_params(
         )
         return
     click.echo(f'NAC parameters are read from "{vasprun_path}".')
-    unitcell, primitive, _ = get_cells(config)
-    cell_choice = get_input_set(config, "nac").cell
-    nac_cell = primitive if cell_choice == "primitive" else unitcell
-    ph.nac_params = get_nac_params(nac_cell, vasprun_path, primitive, is_symmetry)
+    ph.nac_params = get_nac_params(
+        project.cell_of("nac"), vasprun_path, project.primitive, is_symmetry
+    )
 
 
 def load_phonopy_yaml(
@@ -201,11 +133,7 @@ def load_phono3py_yaml(filename: str | pathlib.Path) -> Phono3py:
     return ph3py
 
 
-def read_phonopy_phonon(
-    config: VelphConfig,
-    current_directory: pathlib.Path,
-    toml_filename: str | pathlib.Path,
-) -> Phonopy:
+def read_phonopy_phonon(project: Project, current_directory: pathlib.Path) -> Phonopy:
     """Return Phonopy of phonopy/phonopy_disp.yaml in current_directory.
 
     Its supercell matrix and dataset are the phonon supercell matrix and the
@@ -220,21 +148,20 @@ def read_phonopy_phonon(
             f'"{filename}" is not found.\nRun "velph phonopy init" first.'
         )
     ph = load_phonopy_yaml(filename)
-    unitcell, _, primitive_matrix = get_cells(config)
     ph_unitcell = ph.unitcell if ph.unmerged_unitcell is None else ph.unmerged_unitcell
     if not (
-        isclose(ph_unitcell, unitcell)
-        and np.allclose(ph.primitive_matrix, primitive_matrix)
+        isclose(ph_unitcell, project.unitcell)
+        and np.allclose(ph.primitive_matrix, project.primitive_matrix)
     ):
         raise click.ClickException(
             f'The unit cell or the primitive cell of "{filename}" differs from that '
-            f'of "{toml_filename}".\nRun "velph phonopy init" again.'
+            f'of "{project.toml_filename}".\nRun "velph phonopy init" again.'
         )
     return ph
 
 
 def plan_supercells(
-    config: VelphConfig, code: CodeName, ph: Phelel | Phonopy | Phono3py
+    project: Project, code: CodeName, ph: Phelel | Phonopy | Phono3py
 ) -> list[VaspJob]:
     """Return the VASP jobs of the supercells of a code.
 
@@ -250,8 +177,8 @@ def plan_supercells(
         supercell = ph.unmerged_supercell
     else:
         supercell = ph.supercell
-    incar = get_input_set(config, code).incar or {}
-    kpoints = get_kpoints(config, code)
+    incar = project.input_set(code).incar or {}
+    kpoints = project.kpoints(code)
     copied_files = find_potcar()
     nd = get_num_digits(ph.supercells_with_displacements)
     jobs = []
@@ -260,10 +187,10 @@ def plan_supercells(
         jobs.append(
             VaspJob(
                 directory=pathlib.Path(f"{code}/disp-{id_number}"),
-                poscar=cell,
+                cell=cell,
                 incar=add_cell_tags(incar, cell),
                 kpoints=kpoints,
-                job_script=job_script(config, code, job_id=id_number),
+                job_script=job_script(project, code, job_id=id_number),
                 copied_files=copied_files,
             )
         )

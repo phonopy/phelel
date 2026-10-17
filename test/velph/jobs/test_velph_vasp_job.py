@@ -3,53 +3,56 @@
 from __future__ import annotations
 
 import pathlib
-from collections.abc import Callable
 
 import numpy as np
 import pytest
-import tomli_w
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
 
 from phelel.velph.cli.utils import echo_vasp_vca_hint
-from phelel.velph.config.io import VelphConfigError, parse_velph_toml
+from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.schema import (
     InputSetSection,
     KpointsMesh,
     VaspSection,
     VelphConfig,
 )
-from phelel.velph.errors import VelphError
+from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
     effective_scheduler,
-    get_kpoints,
     make_job_script,
-    read_velph_toml,
     write_poscar,
     write_vasp_job,
 )
 
 
-def _config_with_nac(
-    nac: InputSetSection, scheduler: dict | None = None
-) -> VelphConfig:
-    return VelphConfig(vasp=VaspSection(input_sets={"nac": nac}), scheduler=scheduler)
+def _project_with_nac(nac: InputSetSection, scheduler: dict | None = None) -> Project:
+    """Return Project with [vasp.nac] and [scheduler].
+
+    The cells are not used by the scheduler settings, and one atom is given.
+
+    """
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0, symbols=["Na"], scaled_positions=[[0, 0, 0]]
+    )
+    config = VelphConfig(vasp=VaspSection(input_sets={"nac": nac}), scheduler=scheduler)
+    return Project(config, pathlib.Path("velph.toml"), unitcell=cell, primitive=cell)
 
 
 def test_effective_scheduler():
     """Settings of the input set have priority, and job_id is appended."""
-    config = _config_with_nac(
+    project = _project_with_nac(
         InputSetSection(scheduler={"walltime": "1:00:00"}),
         scheduler={"job_name": "vasp", "walltime": "96:00:00", "nodes": 1},
     )
-    assert effective_scheduler(config, "nac") == {
+    assert effective_scheduler(project, "nac") == {
         "job_name": "vasp",
         "walltime": "1:00:00",
         "nodes": 1,
     }
-    assert effective_scheduler(config, "nac", job_id="iter2") == {
+    assert effective_scheduler(project, "nac", job_id="iter2") == {
         "job_name": "vasp-iter2",
         "walltime": "1:00:00",
         "nodes": 1,
@@ -62,8 +65,8 @@ def test_effective_scheduler_without_scheduler_section():
     The settings of the input set are not used alone, as in velph 0.14.
 
     """
-    config = _config_with_nac(InputSetSection(scheduler={"nodes": 2}))
-    assert effective_scheduler(config, "nac") is None
+    project = _project_with_nac(InputSetSection(scheduler={"nodes": 2}))
+    assert effective_scheduler(project, "nac") is None
 
 
 def test_add_cell_tags(nacl_cell: PhonopyAtoms):
@@ -97,7 +100,7 @@ def test_write_vasp_job(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
     potcar.write_text("potcar\n")
     job = VaspJob(
         directory=tmp_path / "nac",
-        poscar=nacl_cell,
+        cell=nacl_cell,
         incar={"encut": 500, "lepsilon": True},
         kpoints={
             "KPOINTS": KpointsMesh(mesh=(4, 4, 4)),
@@ -136,12 +139,13 @@ def test_write_vasp_job(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
 
 
 def test_write_vasp_job_copied_poscar(nacl_cell: PhonopyAtoms, tmp_path: pathlib.Path):
-    """A path as poscar is copied as POSCAR, and _job.sh needs job_script."""
+    """poscar_source is copied as POSCAR, and _job.sh needs job_script."""
     contcar = tmp_path / "CONTCAR"
     contcar.write_text("contcar\n")
     job = VaspJob(
         directory=tmp_path / "relax" / "iter2",
-        poscar=contcar,
+        cell=nacl_cell,
+        poscar_source=contcar,
         incar={"nsw": 10},
         kpoints={"KPOINTS": KpointsMesh(mesh=(4, 4, 4))},
     )
@@ -149,73 +153,6 @@ def test_write_vasp_job_copied_poscar(nacl_cell: PhonopyAtoms, tmp_path: pathlib
     directory = tmp_path / "relax" / "iter2"
     assert (directory / "POSCAR").read_text() == "contcar\n"
     assert sorted(p.name for p in directory.iterdir()) == ["INCAR", "KPOINTS", "POSCAR"]
-
-
-def test_read_velph_toml(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
-    """velph.toml is read, and errors are VelphError.
-
-    The errors are a missing file, which is VelphError, and a missing input set,
-    an unknown key and a file that is not TOML, which are VelphConfigError.
-
-    """
-    toml_path = tmp_path / "velph.toml"
-    with pytest.raises(VelphError, match="not found") as e:
-        read_velph_toml(toml_path, "nac")
-    assert not isinstance(e.value, VelphConfigError)
-
-    data = nacl_velph_toml()
-    toml_path.write_text(tomli_w.dumps(data))
-    config = read_velph_toml(toml_path, "nac")
-    assert config.vasp is not None and config.vasp.input_sets is not None
-    assert "nac" in config.vasp.input_sets
-
-    del data["vasp"]["nac"]
-    toml_path.write_text(tomli_w.dumps(data))
-    with pytest.raises(VelphConfigError) as e:
-        read_velph_toml(toml_path, "nac")
-    assert str(e.value) == (
-        f'[vasp.nac] is not found in "{toml_path}".\n'
-        f'Add [vasp.nac] to "{toml_path}", or run "velph init" again.'
-    )
-
-    data["phelel"]["unknown_key"] = 1
-    toml_path.write_text(tomli_w.dumps(data))
-    with pytest.raises(VelphConfigError, match="unknown_key"):
-        read_velph_toml(toml_path, "relax")
-
-    toml_path.write_text("[phelel\n")
-    with pytest.raises(VelphConfigError) as e:
-        read_velph_toml(toml_path, "relax")
-    assert str(e.value).startswith(f'Error in reading "{toml_path}"')
-
-
-def test_read_velph_toml_v014(
-    nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Path
-):
-    """velph.toml of velph 0.14 is read by the legacy reader."""
-    data = nacl_velph_toml_v014()
-    assert "version" in data["phelel"]
-    toml_path = tmp_path / "velph.toml"
-    toml_path.write_text(tomli_w.dumps(data))
-    config = read_velph_toml(toml_path, "el_dos")
-    assert config.vasp is not None and config.vasp.input_sets is not None
-    assert "el_dos" in config.vasp.input_sets
-
-
-def test_get_kpoints(nacl_velph_toml: Callable[[], dict]):
-    """The meshes of all k-point files of an input set are returned.
-
-    KPOINTS is given by the block kpoints and KPOINTS_ELPH by kpoints_dense.
-
-    """
-    data = nacl_velph_toml()
-    selfenergy = data["vasp"]["selfenergy"]
-    assert selfenergy["kpoints"]["mesh"] != selfenergy["kpoints_dense"]["mesh"]
-    config = parse_velph_toml(data)
-    assert get_kpoints(config, "selfenergy") == {
-        "KPOINTS": KpointsMesh(mesh=tuple(selfenergy["kpoints"]["mesh"])),
-        "KPOINTS_ELPH": KpointsMesh(mesh=tuple(selfenergy["kpoints_dense"]["mesh"])),
-    }
 
 
 def test_make_job_script():

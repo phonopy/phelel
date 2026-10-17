@@ -14,16 +14,12 @@ from typing import Literal
 import click
 
 from phelel.velph.cli.utils import echo_vasp_vca_hint
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project, read_velph_toml
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
     find_potcar,
-    get_cell,
-    get_input_set,
-    get_kpoints,
     job_script,
-    read_velph_toml,
     write_vasp_job,
 )
 
@@ -33,7 +29,7 @@ PHELEL_PARAMS = pathlib.Path("phelel/phelel_params.hdf5")
 
 
 def plan_elph(
-    config: VelphConfig, set_name: ElphInputSetName, dry_run: bool = False
+    project: Project, set_name: ElphInputSetName, dry_run: bool = False
 ) -> VaspJob:
     """Return the VASP job of an electron-phonon input set.
 
@@ -45,8 +41,8 @@ def plan_elph(
     needed nor copied.
 
     """
-    cell = get_cell(config, "primitive")
-    incar = dict(get_input_set(config, set_name).incar or {})
+    cell = project.cell_of(set_name)
+    incar = dict(project.input_set(set_name).incar or {})
     copied_files = find_potcar()
     if dry_run:
         incar.update({"nelm": 0, "elph_run": False})
@@ -60,10 +56,10 @@ def plan_elph(
         copied_files[PHELEL_PARAMS.name] = PHELEL_PARAMS
     return VaspJob(
         directory=pathlib.Path(set_name),
-        poscar=cell,
+        cell=cell,
         incar=add_cell_tags(incar, cell),
-        kpoints=get_kpoints(config, set_name),
-        job_script=job_script(config, set_name),
+        kpoints=project.kpoints(set_name),
+        job_script=job_script(project, set_name),
         copied_files=copied_files,
     )
 
@@ -72,8 +68,7 @@ def write_input_files(
     toml_filename: pathlib.Path, set_name: ElphInputSetName, dry_run: bool
 ) -> None:
     """Generate VASP inputs of an electron-phonon input set."""
-    config = read_velph_toml(toml_filename, set_name)
-    job = plan_elph(config, set_name, dry_run=dry_run)
+    job = plan_elph(read_velph_toml(toml_filename, set_name), set_name, dry_run=dry_run)
     write_vasp_job(job)
     click.echo(f'VASP input files were written in "{job.directory}".')
-    echo_vasp_vca_hint(get_cell(config, "primitive"))
+    echo_vasp_vca_hint(job.cell)

@@ -7,12 +7,12 @@ from pathlib import Path
 import numpy as np
 
 from phelel.velph.cli.phelel.init import run_init
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 cwd = Path(__file__).parent
 
 
-def test_nac_NaCl_ucell(request, code_init_config: Callable[[dict], VelphConfig]):
+def test_nac_NaCl_ucell(request, code_init_project: Callable[[dict], Project]):
     """Test of different NAC cell."""
     toml_str = """[phelel]
 supercell_dimension = [2, 2, 2]
@@ -88,7 +88,7 @@ coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
 """
 
     toml_dict = tomllib.loads(toml_str)
-    phe = run_init(code_init_config(toml_dict), current_directory=request.path.parent)
+    phe = run_init(code_init_project(toml_dict), current_directory=request.path.parent)
     ref_born = 1.74040591
     ref_dielectric = 3.74364141
     np.testing.assert_array_almost_equal(

@@ -20,7 +20,7 @@ from phelel.velph.config.io import (
     parse_template,
     parse_velph_toml,
 )
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 cwd = pathlib.Path(__file__).parent
 VELPH_TOML_V014_DIR = cwd / "data" / "velph_toml_v014"
@@ -330,8 +330,8 @@ def _load_velph_toml_v014(filename: str) -> dict:
 
 
 @pytest.fixture(scope="session")
-def code_init_config() -> Callable[[dict], VelphConfig]:
-    """Return a function giving VelphConfig of a part of velph.toml.
+def code_init_project() -> Callable[[dict], Project]:
+    """Return a function giving Project of a part of velph.toml.
 
     The argument is a dict of the sections of velph.toml that the init of a
     code reads, such as [phelel], [phonopy], [phono3py], [vasp.nac] and
@@ -341,12 +341,12 @@ def code_init_config() -> Callable[[dict], VelphConfig]:
 
     """
 
-    def _get_config(data: dict) -> VelphConfig:
+    def _get_project(data: dict) -> Project:
         full = {"velph": {"version": __version__}, "primitive_cell": data["unitcell"]}
         full.update(data)
-        return parse_velph_toml(full)
+        return Project.from_config(parse_velph_toml(full))
 
-    return _get_config
+    return _get_project
 
 
 _TI_UNITCELL = """
@@ -393,16 +393,16 @@ def ti_velph_toml() -> Callable[[Sequence[str]], dict]:
 
 
 @pytest.fixture(scope="session")
-def write_phonopy_disp_yaml() -> Callable[[VelphConfig, pathlib.Path], Phonopy]:
+def write_phonopy_disp_yaml() -> Callable[[Project, pathlib.Path], Phonopy]:
     """Return a function writing phonopy/phonopy_disp.yaml as velph phonopy init.
 
-    The arguments are the config and the directory where phonopy/ is made.  The
+    The arguments are the project and the directory where phonopy/ is made.  The
     function returns Phonopy written in the file.
 
     """
 
-    def _write(config: VelphConfig, directory: pathlib.Path) -> Phonopy:
-        ph = run_phonopy_init(config, current_directory=directory)
+    def _write(project: Project, directory: pathlib.Path) -> Phonopy:
+        ph = run_phonopy_init(project, current_directory=directory)
         filename = directory / PHONOPY_DISP_YAML
         filename.parent.mkdir(parents=True, exist_ok=True)
         ph.save(filename)

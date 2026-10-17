@@ -18,6 +18,7 @@ from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.config.io import parse_velph_toml
+from phelel.velph.jobs.project import Project
 
 
 def _write_phelel_disp_yaml(path: pathlib.Path, with_phonon: bool = True) -> Phelel:
@@ -196,7 +197,9 @@ def test_create_phonopy_yaml_site_mixture(
 
     """
     data = site_mixture_velph_toml(split_site_mixture)
-    phe = run_init(parse_velph_toml(data), current_directory=tmp_path)
+    phe = run_init(
+        Project.from_config(parse_velph_toml(data)), current_directory=tmp_path
+    )
     assert (phe.unmerged_supercell is None) == split_site_mixture
     assert phe.supercells_with_displacements is not None
     supercell = (

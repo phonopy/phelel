@@ -12,12 +12,12 @@ from phonopy import Phonopy
 
 from phelel.velph.cli.phono3py.init import run_init
 from phelel.velph.config.io import parse_velph_toml
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 
 @pytest.mark.parametrize("distance", [0.03, 0.05])
 def test_phono3py_init_random_displacements(
-    distance: float, code_init_config: Callable[[dict], VelphConfig]
+    distance: float, code_init_project: Callable[[dict], Project]
 ):
     """Test of plusminus and diagonal with Ti."""
     phelel_str = f"""[phelel]
@@ -50,7 +50,7 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
         tomllib.loads(phono3py_str + unitcell_str),
         tomllib.loads(phelel_str + phono3py_str + unitcell_str),
     ):
-        ph3 = run_init(code_init_config(toml_dict), number_of_snapshots=10)
+        ph3 = run_init(code_init_project(toml_dict), number_of_snapshots=10)
         assert ph3 is not None
         np.testing.assert_array_equal(ph3.supercell_matrix, np.diag([2, 2, 1]))
 
@@ -78,20 +78,20 @@ coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
 def _get_phono3py_displacements(
     displacement_lines: list[str],
     tmp_path: pathlib.Path,
-    code_init_config: Callable[[dict], VelphConfig],
+    code_init_project: Callable[[dict], Project],
 ) -> np.ndarray:
     toml_str = "\n".join(
         ["[phono3py]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
     ph3 = run_init(
-        code_init_config(tomllib.loads(toml_str + _TI_UNITCELL)),
+        code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
         current_directory=tmp_path,
     )
     return np.array(ph3.displacements)
 
 
 def test_phono3py_init_default_displacement_settings(
-    tmp_path: pathlib.Path, code_init_config: Callable[[dict], VelphConfig]
+    tmp_path: pathlib.Path, code_init_project: Callable[[dict], Project]
 ):
     """Test defaults of plusminus, diagonal, and amplitude in [phono3py].
 
@@ -100,16 +100,16 @@ def test_phono3py_init_default_displacement_settings(
     differ from those with the defaults of phonopy ("auto", true, and 0.01).
 
     """
-    disps = _get_phono3py_displacements([], tmp_path, code_init_config)
+    disps = _get_phono3py_displacements([], tmp_path, code_init_project)
     disps_velph = _get_phono3py_displacements(
         ["plusminus = true", "diagonal = false", "amplitude = 0.03"],
         tmp_path,
-        code_init_config,
+        code_init_project,
     )
     disps_phonopy = _get_phono3py_displacements(
         ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"],
         tmp_path,
-        code_init_config,
+        code_init_project,
     )
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
@@ -129,21 +129,23 @@ def test_phono3py_init_site_mixture_is_error(
     """
     with pytest.raises(click.ClickException, match="site-mixture"):
         run_init(
-            parse_velph_toml(site_mixture_velph_toml(split_site_mixture)),
+            Project.from_config(
+                parse_velph_toml(site_mixture_velph_toml(split_site_mixture))
+            ),
             current_directory=tmp_path,
         )
 
 
 def test_phono3py_init_number_of_snapshots_of_section(
-    code_init_config: Callable[[dict], VelphConfig],
+    code_init_project: Callable[[dict], Project],
 ):
     """Without --rd, number_of_snapshots of [phono3py] gives random displacements."""
     toml_str = "\n".join(
         ["[phono3py]", "supercell_dimension = [2, 2, 1]", "number_of_snapshots = 7"]
     )
-    config = code_init_config(tomllib.loads(toml_str + _TI_UNITCELL))
-    assert run_init(config).displacements.shape == (7, 8, 3)
-    assert run_init(config, number_of_snapshots=5).displacements.shape == (5, 8, 3)
+    project = code_init_project(tomllib.loads(toml_str + _TI_UNITCELL))
+    assert run_init(project).displacements.shape == (7, 8, 3)
+    assert run_init(project, number_of_snapshots=5).displacements.shape == (5, 8, 3)
 
 
 @pytest.mark.parametrize(
@@ -152,8 +154,8 @@ def test_phono3py_init_number_of_snapshots_of_section(
 def test_phono3py_init_phonon_from_phonopy(
     phonopy_lines: list[str],
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
 ):
     """The fc2 supercells are those of phonopy/phonopy_disp.yaml.
@@ -164,10 +166,10 @@ def test_phono3py_init_phonon_from_phonopy(
     the displacements of fc2 are random.
 
     """
-    config = code_init_config(ti_velph_toml(phonopy_lines))
-    ph = write_phonopy_disp_yaml(config, tmp_path)
+    project = code_init_project(ti_velph_toml(phonopy_lines))
+    ph = write_phonopy_disp_yaml(project, tmp_path)
     ph3 = run_init(
-        config,
+        project,
         current_directory=tmp_path,
         number_of_snapshots=4,
         phonon_from_phonopy=True,
@@ -195,10 +197,10 @@ def test_phono3py_init_phonon_from_phonopy(
 
 def test_phono3py_init_phonon_from_phonopy_without_phonopy_disp_yaml(
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
+    code_init_project: Callable[[dict], Project],
     tmp_path: pathlib.Path,
 ):
     """Without phonopy/phonopy_disp.yaml, velph phonopy init is asked for."""
-    config = code_init_config(ti_velph_toml([]))
+    project = code_init_project(ti_velph_toml([]))
     with pytest.raises(click.ClickException, match='"velph phonopy init" first'):
-        run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+        run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)

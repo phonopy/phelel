@@ -14,6 +14,7 @@ from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import LinePath
+from phelel.velph.jobs.project import Project
 
 
 def test_plan_ph_bands(
@@ -23,17 +24,17 @@ def test_plan_ph_bands(
 ):
     """phelel_params.hdf5 is required, and QPOINTS is a band path."""
     pytest.importorskip("seekpath")
-    config = parse_velph_toml(nacl_velph_toml())
+    project = Project.from_config(parse_velph_toml(nacl_velph_toml()))
     monkeypatch.chdir(tmp_path)
     with pytest.raises(click.ClickException) as e:
-        plan_ph_bands(config)
+        plan_ph_bands(project)
     assert e.value.message == (
         '"phelel/phelel_params.hdf5" not found.  It is copied to "ph_bands".\n'
         'Run "velph phelel differentiate" to make it.'
     )
     PHELEL_PARAMS.parent.mkdir()
     PHELEL_PARAMS.write_text("hdf5\n")
-    job = plan_ph_bands(config)
+    job = plan_ph_bands(project)
     assert job.directory == pathlib.Path("ph_bands")
     assert isinstance(job.kpoints["QPOINTS"], LinePath)
     assert job.kpoints["QPOINTS"].path is not None

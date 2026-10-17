@@ -30,6 +30,21 @@ from types import MappingProxyType
 from typing import Any, Literal, get_args
 
 CodeName = Literal["phelel", "phonopy", "phono3py"]
+# Names of the input sets, the sections [vasp.<input set>].  INPUT_SETS of
+# input_sets.py gives what each input set is.
+InputSetName = Literal[
+    "relax",
+    "nac",
+    "phelel",
+    "phonopy",
+    "phono3py",
+    "selfenergy",
+    "transport",
+    "ph_selfenergy",
+    "el_bands",
+    "el_dos",
+    "ph_bands",
+]
 CellChoice = Literal["unitcell", "primitive"]
 PrimitiveCellChoice = Literal["standardized", "reduced"]
 SiteMixtureScheme = Literal["merge", "split"]
@@ -240,7 +255,7 @@ class VaspSection:
     """
 
     incar: Mapping[str, Any] | None = _keys()
-    input_sets: Mapping[str, InputSetSection] | None = _sections()
+    input_sets: Mapping[InputSetName, InputSetSection] | None = _sections()
 
     def __post_init__(self) -> None:
         """Make incar and input_sets read-only."""

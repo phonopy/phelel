@@ -13,7 +13,7 @@ from phelel.velph.cli.phelel.generate import write_supercell_input_files
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.jobs.vasp_job import read_velph_toml
+from phelel.velph.jobs.project import read_velph_toml
 
 
 @cmd_root.group("phelel")
@@ -53,10 +53,8 @@ def cmd_init(toml_filename: str, phonon_from_phonopy: bool):
     """Generate displacements and write phelel_disp.yaml."""
     dir_name = "phelel"
 
-    config = read_velph_toml(toml_filename)
-    phe = run_init(
-        config, phonon_from_phonopy=phonon_from_phonopy, toml_filename=toml_filename
-    )
+    project = read_velph_toml(toml_filename)
+    phe = run_init(project, phonon_from_phonopy=phonon_from_phonopy)
 
     phelel_yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
     phelel_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -135,18 +133,15 @@ def cmd_differentiate(
     hdf5_filename = pathlib.Path(f"{dir_name}/phelel_params.hdf5")
     yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
 
-    config = read_velph_toml(toml_filename)
-    is_symmetry = True
-    if config.phelel is not None and config.phelel.nosym:
+    project = read_velph_toml(toml_filename)
+    is_symmetry = not project.code_section("phelel").nosym
+    if not is_symmetry:
         click.echo(
             'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
         )
-        is_symmetry = False
 
     phe = phelel.load(yaml_filename, is_symmetry=is_symmetry)
-    phe.fft_mesh = get_fft_mesh(
-        config, phe.primitive.cell, encut=encut, toml_filename=toml_filename
-    )
+    phe.fft_mesh = get_fft_mesh(project, phe.primitive.cell, encut=encut)
     if encut is None:
         click.echo(f"FFT mesh: {phe.fft_mesh}.")
     else:

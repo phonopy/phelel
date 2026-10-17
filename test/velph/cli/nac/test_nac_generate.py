@@ -8,11 +8,11 @@ from collections.abc import Callable
 import pytest
 import tomli_w
 from click.testing import CliRunner
-from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.nac.generate import plan_nac
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
+from phelel.velph.jobs.project import Project
 
 
 def test_plan_nac(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
@@ -24,13 +24,13 @@ def test_plan_nac(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
     """
     data = nacl_velph_toml()
     assert data["vasp"]["nac"]["cell"] == "primitive"
-    config = parse_velph_toml(data)
+    project = Project.from_config(parse_velph_toml(data))
     with pytest.MonkeyPatch.context() as m:
         m.chdir(tmp_path)
-        job = plan_nac(config)
+        job = plan_nac(project)
     assert job.directory == pathlib.Path("nac")
-    assert isinstance(job.poscar, PhonopyAtoms)
-    assert len(job.poscar) == 2
+    assert job.poscar_source is None
+    assert len(job.cell) == 2
     assert job.incar == data["vasp"]["nac"]["incar"]
     assert job.job_script is not None
     assert "#SBATCH --job-name=vasp-elph\n" in job.job_script

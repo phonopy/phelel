@@ -9,21 +9,17 @@ from phono3py import Phono3py
 
 from phelel.velph.cli.supercells import (
     PHONOPY_DISP_YAML,
-    get_cells,
-    get_code_section,
-    get_supercell_matrix,
     read_phonopy_phonon,
     set_nac_params,
 )
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 
 def run_init(
-    config: VelphConfig,
+    project: Project,
     current_directory: pathlib.Path = pathlib.Path(""),
     number_of_snapshots: int | None = None,
     phonon_from_phonopy: bool = False,
-    toml_filename: str | pathlib.Path = "velph.toml",
 ) -> Phono3py:
     """Return Phono3py with the supercells with displacements of [phono3py].
 
@@ -32,29 +28,26 @@ def run_init(
     plusminus are not used.  With phonon_from_phonopy, the phonon supercell
     matrix and the phonon dataset, those of fc2, are those of
     phonopy/phonopy_disp.yaml.  current_directory is where the directories
-    "nac" and "phonopy" are looked for.  toml_filename is used in error
-    messages.
+    "nac" and "phonopy" are looked for.
 
     """
-    section = get_code_section(config, "phono3py", toml_filename)
-    # The defaults of velph init give these fields.
+    section = project.code_section("phono3py")
+    # code_section fills these fields with the defaults of velph init.
     assert section.plusminus is not None and section.diagonal is not None
-    unitcell, _, primitive_matrix = get_cells(config)
+    unitcell = project.unitcell
     if unitcell.has_mixtures or unitcell.has_weighted_species:
         raise click.ClickException(
             "phono3py does not support site-mixture cells (mixture or weight in "
-            f'[unitcell] of "{toml_filename}").'
+            f'[unitcell] of "{project.toml_filename}").'
         )
     ph_phonon = (
-        read_phonopy_phonon(config, current_directory, toml_filename)
-        if phonon_from_phonopy
-        else None
+        read_phonopy_phonon(project, current_directory) if phonon_from_phonopy else None
     )
     is_symmetry = not section.nosym
     ph3py = Phono3py(
         unitcell,
-        supercell_matrix=get_supercell_matrix(section),
-        primitive_matrix=primitive_matrix,
+        supercell_matrix=project.supercell_matrix("phono3py"),
+        primitive_matrix=project.primitive_matrix,
         phonon_supercell_matrix=(
             None if ph_phonon is None else ph_phonon.supercell_matrix
         ),
@@ -81,5 +74,5 @@ def run_init(
             f"{len(ph3py.phonon_supercells_with_displacements)}, taken from "
             f'"{current_directory / PHONOPY_DISP_YAML}".'
         )
-    set_nac_params(ph3py, config, is_symmetry, current_directory)
+    set_nac_params(ph3py, project, is_symmetry, current_directory)
     return ph3py
