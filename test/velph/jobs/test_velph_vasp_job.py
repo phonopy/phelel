@@ -5,26 +5,29 @@ from __future__ import annotations
 import pathlib
 from collections.abc import Callable
 
-import click
 import numpy as np
 import pytest
 import tomli_w
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
 
-from phelel.velph.config.io import parse_velph_toml
+from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.config.io import VelphConfigError, parse_velph_toml
 from phelel.velph.config.schema import (
     InputSetSection,
     KpointsMesh,
     VaspSection,
     VelphConfig,
 )
+from phelel.velph.errors import VelphError
 from phelel.velph.jobs.vasp_job import (
     VaspJob,
     add_cell_tags,
     effective_scheduler,
     get_kpoints,
+    make_job_script,
     read_velph_toml,
+    write_poscar,
     write_vasp_job,
 )
 
@@ -149,15 +152,16 @@ def test_write_vasp_job_copied_poscar(nacl_cell: PhonopyAtoms, tmp_path: pathlib
 
 
 def test_read_velph_toml(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
-    """velph.toml is read, and errors are click.ClickException.
+    """velph.toml is read, and errors are VelphError.
 
-    The errors are a missing file, a missing input set, an unknown key and a
-    file that is not TOML.
+    The errors are a missing file, which is VelphError, and a missing input set,
+    an unknown key and a file that is not TOML, which are VelphConfigError.
 
     """
     toml_path = tmp_path / "velph.toml"
-    with pytest.raises(click.ClickException, match="not found"):
+    with pytest.raises(VelphError, match="not found") as e:
         read_velph_toml(toml_path, "nac")
+    assert not isinstance(e.value, VelphConfigError)
 
     data = nacl_velph_toml()
     toml_path.write_text(tomli_w.dumps(data))
@@ -167,22 +171,22 @@ def test_read_velph_toml(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.
 
     del data["vasp"]["nac"]
     toml_path.write_text(tomli_w.dumps(data))
-    with pytest.raises(click.ClickException) as e:
+    with pytest.raises(VelphConfigError) as e:
         read_velph_toml(toml_path, "nac")
-    assert e.value.message == (
+    assert str(e.value) == (
         f'[vasp.nac] is not found in "{toml_path}".\n'
         f'Add [vasp.nac] to "{toml_path}", or run "velph init" again.'
     )
 
     data["phelel"]["unknown_key"] = 1
     toml_path.write_text(tomli_w.dumps(data))
-    with pytest.raises(click.ClickException, match="unknown_key"):
+    with pytest.raises(VelphConfigError, match="unknown_key"):
         read_velph_toml(toml_path, "relax")
 
     toml_path.write_text("[phelel\n")
-    with pytest.raises(click.ClickException) as e:
+    with pytest.raises(VelphConfigError) as e:
         read_velph_toml(toml_path, "relax")
-    assert e.value.message.startswith(f'Error in reading "{toml_path}"')
+    assert str(e.value).startswith(f'Error in reading "{toml_path}"')
 
 
 def test_read_velph_toml_v014(
@@ -212,3 +216,77 @@ def test_get_kpoints(nacl_velph_toml: Callable[[], dict]):
         "KPOINTS": KpointsMesh(mesh=tuple(selfenergy["kpoints"]["mesh"])),
         "KPOINTS_ELPH": KpointsMesh(mesh=tuple(selfenergy["kpoints_dense"]["mesh"])),
     }
+
+
+def test_make_job_script():
+    """The keys in braces in scheduler_template are replaced by the values."""
+    scheduler = {
+        "scheduler_template": "#!/bin/bash\n#$ -N {job_name}\n#$ -pe {pe} {cores}\n",
+        "job_name": "PbTe-001",
+        "pe": "mpi*",
+        "cores": 48,
+        "walltime": "12:00:00",
+    }
+    assert make_job_script(scheduler) == "#!/bin/bash\n#$ -N PbTe-001\n#$ -pe mpi* 48\n"
+
+
+@pytest.mark.parametrize(
+    "scheduler_dict,missing",
+    [
+        ({"job_name": "x"}, "scheduler_template"),
+        ({"scheduler_template": "#!/bin/bash\n# {pe}\n", "job_name": "x"}, "pe"),
+    ],
+)
+def test_make_job_script_missing_keys(scheduler_dict: dict, missing: str):
+    """Test that a missing scheduler setting is an error naming the key."""
+    with pytest.raises(VelphConfigError, match=missing):
+        make_job_script(scheduler_dict)
+
+
+@pytest.mark.parametrize("template", ["echo }\n", "echo {\n", "echo {0}\n"])
+def test_make_job_script_unreadable_template(template: str):
+    """A template that str.format cannot read is an error on braces."""
+    with pytest.raises(VelphConfigError) as e:
+        make_job_script({"scheduler_template": template})
+    assert str(e.value).startswith("The job script template cannot be read:")
+    assert str(e.value).endswith(
+        'To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
+    )
+
+
+def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
+    """Return CsCl-like cell with Ge and Sn (0.5 each) co-located and Te."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Ge", "Sn", "Te"],
+        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    return apply_site_mixture(cell, [0.5, 0.5, 1.0])
+
+
+def test_write_poscar_of_site_mixture(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+):
+    """A cell with weighted species is written for VASP VCA with the hint."""
+    cell = _get_GeSnTe_weighted_cell()
+    write_poscar(tmp_path, cell)
+    lines = (tmp_path / "POSCAR").read_text().splitlines()
+    assert lines[5].split() == ["Ge", "Sn", "Te"]
+    assert lines[6].split() == ["1", "1", "1"]
+    echo_vasp_vca_hint(cell)
+    assert "INCAR:               VCA = 0.5 0.5 1" in capsys.readouterr().out
+
+
+def test_write_poscar_of_ordinary_cell(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+):
+    """An ordinary cell is written without the hint of VCA."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Na", "Cl"],
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    write_poscar(tmp_path, cell)
+    assert (tmp_path / "POSCAR").read_text().splitlines()[5].split() == ["Na", "Cl"]
+    echo_vasp_vca_hint(cell)
+    assert capsys.readouterr().out == ""

@@ -419,10 +419,7 @@ def cmd_init(
 
     template: VelphConfig | None = None
     if template_filepath is not None:
-        try:
-            template = load_template(template_filepath)
-        except VelphConfigError as e:
-            raise click.ClickException(str(e)) from e
+        template = load_template(template_filepath)
         click.echo(f'Read velph init template "{template_toml_filename}".')
 
     config = build_velph_config(input_cell, template, options)

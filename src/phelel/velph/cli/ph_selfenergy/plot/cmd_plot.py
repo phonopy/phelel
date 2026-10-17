@@ -10,7 +10,7 @@ import h5py
 
 from phelel.velph.cli.ph_selfenergy.cmd_ph_selfenergy import cmd_ph_selfenergy
 from phelel.velph.cli.ph_selfenergy.plot.plot_selfenergy import plot_selfenergy
-from phelel.velph.utils.plot_eigenvalues import (
+from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )

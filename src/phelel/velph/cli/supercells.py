@@ -107,7 +107,8 @@ def set_nac_params(
     """Set NAC parameters read from nac/vasprun.xml, if the directory exists.
 
     The cell of the NAC calculation is given by "cell" of [vasp.nac].  NAC is
-    not supported with the merge scheme of site mixture.
+    not supported with the merge scheme of site mixture.  click.ClickException
+    is raised when nac/vasprun.xml cannot be parsed.
 
     """
     nac_directory = current_directory / "nac"
@@ -130,9 +131,7 @@ def set_nac_params(
     unitcell, primitive, _ = get_cells(config)
     cell_choice = get_input_set(config, "nac").cell
     nac_cell = primitive if cell_choice == "primitive" else unitcell
-    nac_params = get_nac_params(nac_cell, vasprun_path, primitive, is_symmetry)
-    if nac_params is not None:
-        ph.nac_params = nac_params
+    ph.nac_params = get_nac_params(nac_cell, vasprun_path, primitive, is_symmetry)
 
 
 def load_phonopy_yaml(

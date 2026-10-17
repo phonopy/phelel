@@ -11,6 +11,7 @@ import click
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.input_sets import InputSetName
 from phelel.velph.config.schema import InputSetSection
+from phelel.velph.errors import VelphError
 from phelel.velph.jobs.vasp_job import job_script, read_velph_toml
 
 
@@ -66,8 +67,8 @@ def cmd_scheduler(set_names: tuple[str, ...], toml_filename: str):
         click.echo(f"[vasp.{set_name}]")
         try:
             text = job_script(config, cast(InputSetName, set_name))
-        except click.ClickException as e:
-            click.echo(f"Error: {e.message}")
+        except VelphError as e:
+            click.echo(f"Error: {e}")
             failed = True
             continue
         assert text is not None

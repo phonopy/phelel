@@ -2,37 +2,15 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
 import xml.parsers.expat
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Sequence
 
 import click
-from phonopy.interface.vasp import (
-    VasprunxmlExpat,
-    get_vasp_vca_hint_lines,
-    write_vasp,
-)
+from phonopy.interface.vasp import VasprunxmlExpat, get_vasp_vca_hint_lines
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
-
-
-def write_poscar(
-    directory: os.PathLike, cell: PhonopyAtoms, filename: str = "POSCAR"
-) -> None:
-    """Write POSCAR.
-
-    A cell with weighted species of site mixture is written for VASP VCA. Atoms
-    of one symbol and weight that are next to each other in the cell are written
-    in one species row. The INCAR tag VCA is added by add_cell_tags in
-    jobs/vasp_job.py.
-
-    """
-    write_vasp(
-        pathlib.Path(directory) / filename, cell, for_vca=cell.has_weighted_species
-    )
 
 
 def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
@@ -40,38 +18,6 @@ def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
     if cell.has_weighted_species:
         for line in get_vasp_vca_hint_lines(cell):
             click.echo(line)
-
-
-_BRACES_HINT = (
-    '  To write "{" or "}" in _job.sh, write "{{" or "}}" in scheduler_template.'
-)
-
-
-def make_job_script(scheduler: Mapping[str, Any]) -> str:
-    """Return the job script _job.sh made from the scheduler settings of a job.
-
-    The keys in braces in scheduler_template, such as {job_name}, are replaced
-    by the values of the settings, as str.format does.  click.ClickException is
-    raised when scheduler_template is not given, when a key that it uses is not
-    given, and when str.format cannot read it, for example for a single "}".
-
-    """
-    if "scheduler_template" not in scheduler:
-        raise click.ClickException(
-            '"scheduler_template" has to be given in [scheduler] or '
-            "[vasp.<input set>.scheduler]."
-        )
-    try:
-        return scheduler["scheduler_template"].format(**scheduler)
-    except KeyError as e:
-        raise click.ClickException(
-            f'"{e.args[0]}" used in the job script template is not given in '
-            "[scheduler] or [vasp.<input set>.scheduler]." + _BRACES_HINT
-        ) from e
-    except (IndexError, ValueError) as e:
-        raise click.ClickException(
-            f"The job script template cannot be read: {e}." + _BRACES_HINT
-        ) from e
 
 
 def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:
@@ -88,19 +34,23 @@ def get_nac_params(
     primitive: PhonopyAtoms,
     is_symmetry: bool,
     symprec: float = 1e-5,
-) -> dict | None:
+) -> dict:
     """Collect NAC parameters from vasprun.xml and return them.
 
     nac_cell is the cell of the NAC calculation, given by "cell" of [vasp.nac].
+    click.ClickException is raised when vasprun.xml cannot be parsed, for
+    example when VASP has not finished writing it.
 
     """
     with open(vasprun_path, "rb") as f:
         try:
             vasprun = VasprunxmlExpat(f)
             vasprun.parse()
-        except xml.parsers.expat.ExpatError:
-            click.echo(f'Parsing "{vasprun_path}" failed.')
-            return None
+        except xml.parsers.expat.ExpatError as e:
+            raise click.ClickException(
+                f'"{vasprun_path}" cannot be parsed: {e}.\n'
+                f'Check that VASP in "{vasprun_path.parent}" has finished.'
+            ) from e
 
     borns_, epsilon_ = symmetrize_borns_and_epsilon(
         vasprun.born,

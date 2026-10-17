@@ -58,6 +58,7 @@ from phelel.velph.config.schema import (
     VaspSection,
     VelphConfig,
 )
+from phelel.velph.errors import VelphError
 
 VelphFileKind = Literal["template", "velph_toml"]
 
@@ -108,7 +109,7 @@ INIT_KEYS = (
 )
 
 
-class VelphConfigError(ValueError):
+class VelphConfigError(VelphError, ValueError):
     """Error in a velph.toml or a velph init template."""
 
 

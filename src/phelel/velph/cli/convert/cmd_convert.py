@@ -5,7 +5,6 @@ from __future__ import annotations
 import click
 
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.legacy import convert_legacy_velph_toml
 
 
@@ -26,7 +25,7 @@ def cmd_convert(old_filename: str, new_filename: str):
     """
     try:
         messages = convert_legacy_velph_toml(old_filename, new_filename)
-    except (OSError, VelphConfigError) as e:
+    except OSError as e:
         raise click.ClickException(str(e)) from e
     for message in messages:
         click.echo(message)
