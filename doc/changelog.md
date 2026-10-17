@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- tomli is no longer required. TOML files are read by `tomllib` of the Python
+  standard library.
 - velph is redesigned, and the format of `velph.toml` and of the `velph init`
   template changes. See {ref}`velph_changes_0_15` for the changes from velph
   0.14.

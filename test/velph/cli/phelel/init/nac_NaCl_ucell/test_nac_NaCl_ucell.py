@@ -1,10 +1,10 @@
 """Tests CLIs."""
 
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
-import tomli
 
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.config.schema import VelphConfig
@@ -87,7 +87,7 @@ symbol = "Cl"
 coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
 """
 
-    toml_dict = tomli.loads(toml_str)
+    toml_dict = tomllib.loads(toml_str)
     phe = run_init(code_init_config(toml_dict), current_directory=request.path.parent)
     ref_born = 1.74040591
     ref_dielectric = 3.74364141

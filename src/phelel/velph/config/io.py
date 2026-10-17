@@ -27,11 +27,11 @@ from __future__ import annotations
 import os
 import re
 import textwrap
+import tomllib
 from collections.abc import Iterator, Mapping, Sequence
 from types import MappingProxyType
 from typing import IO, Any, Literal, NoReturn, cast
 
-import tomli
 import tomli_w
 from phonopy.structure.atoms import parse_cell_dict
 
@@ -142,7 +142,7 @@ def load_template(source: str | os.PathLike | IO[bytes]) -> VelphConfig:
 
 
 def parse_template(data: Mapping[str, Any], name: str = "template") -> VelphConfig:
-    """Return VelphConfig of a velph init template parsed by tomli.
+    """Return VelphConfig of a velph init template parsed by tomllib.
 
     name is the name of the template used in error messages.
 
@@ -151,7 +151,7 @@ def parse_template(data: Mapping[str, Any], name: str = "template") -> VelphConf
 
 
 def parse_velph_toml(data: Mapping[str, Any], name: str = "velph.toml") -> VelphConfig:
-    """Return VelphConfig of a velph.toml parsed by tomli.
+    """Return VelphConfig of a velph.toml parsed by tomllib.
 
     name is the name of the file used in error messages.
 
@@ -205,8 +205,8 @@ def _parse_sections(data: Mapping[str, Any], file_kind: VelphFileKind) -> VelphC
 
 def _load_toml(f: IO[bytes], name: str) -> dict[str, Any]:
     try:
-        return tomli.load(f)
-    except tomli.TOMLDecodeError as e:
+        return tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
         raise VelphConfigError(f'Error in reading "{name}": {e}') from e
 
 
@@ -779,7 +779,7 @@ def _float_vector3(value: Any, where: str, key: str) -> tuple[float, float, floa
 def write_velph_toml(config: VelphConfig, filename: str | os.PathLike) -> None:
     """Write a velph.toml after checking that it is read back as velph.toml."""
     text = dumps_config(config)
-    parse_velph_toml(tomli.loads(text), name=str(filename))
+    parse_velph_toml(tomllib.loads(text), name=str(filename))
     with open(filename, "w") as w:
         w.write(text)
 
@@ -913,7 +913,7 @@ def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> 
         [[unitcell.points]]
         symbol = "Cl"
 
-    tomli reads a table as a dict, and an array of tables as a list of
+    tomllib reads a table as a dict, and an array of tables as a list of
     dicts.  The TOML text above is read as
 
         {"phelel": {"supercell_dimension": [2, 2, 2]},

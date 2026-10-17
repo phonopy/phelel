@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import tomllib
+
 import pytest
-import tomli
 
 from phelel.velph.config.defaults import get_default_config
 from phelel.velph.config.io import parse_template
@@ -22,7 +23,7 @@ from phelel.velph.config.schema import (
 
 
 def _template(text: str) -> VelphConfig:
-    return parse_template(tomli.loads(text))
+    return parse_template(tomllib.loads(text))
 
 
 def test_merge_none():

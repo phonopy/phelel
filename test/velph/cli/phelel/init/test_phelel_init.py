@@ -2,13 +2,13 @@
 
 import itertools
 import pathlib
+import tomllib
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import click
 import numpy as np
 import pytest
-import tomli
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 
@@ -59,7 +59,7 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]
 """
 
     print(toml_str)
-    toml_dict = tomli.loads(toml_str)
+    toml_dict = tomllib.loads(toml_str)
     phe = run_init(code_init_config(toml_dict))
     np.testing.assert_array_equal(phe.supercell_matrix, np.diag([4, 4, 2]))
     print(phe.dataset["first_atoms"])
@@ -114,7 +114,7 @@ def _get_phelel_displacements(
         ["[phelel]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
     phe = run_init(
-        code_init_config(tomli.loads(toml_str + _TI_UNITCELL)),
+        code_init_config(tomllib.loads(toml_str + _TI_UNITCELL)),
         current_directory=tmp_path,
     )
     assert phe.dataset is not None

@@ -7,7 +7,6 @@
 * spglib
 * {ref}`reference_finufft`
 * click
-* tomli
 * tomli-w
 * seekpath (optional)
 
@@ -25,7 +24,7 @@ From source code of phelel,
 ```
 % conda create -n phelel -c conda-forge
 % conda activate phelel
-% conda install -c conda-forge phono3py finufft click tomli tomli-w seekpath
+% conda install -c conda-forge phono3py finufft click tomli-w seekpath
 % git clone https://github.com/phonopy/phelel.git
 % cd phelel
 % pip install -e .

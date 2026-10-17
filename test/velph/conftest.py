@@ -1,12 +1,12 @@
 """Pytest conftest."""
 
 import pathlib
+import tomllib
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
 import pytest
-import tomli
 from phonopy import Phonopy
 from phonopy.structure.atoms import PhonopyAtoms
 
@@ -245,7 +245,7 @@ def _velph_init_toml(cell: PhonopyAtoms, options: dict[str, Any]) -> str:
     velph.toml has [scheduler].
 
     """
-    template = parse_template(tomli.loads(SCHEDULER_TEMPLATE_TOML))
+    template = parse_template(tomllib.loads(SCHEDULER_TEMPLATE_TOML))
     config = build_velph_config(cell, template=template, options=parse_init(options))
     return dumps_config(config)
 
@@ -263,7 +263,7 @@ def nacl_velph_toml(nacl_cell: PhonopyAtoms) -> Callable[[], dict]:
     text = _velph_init_toml(nacl_cell, {"supercell_dimension": [2, 2, 2]})
 
     def _get_velph_toml() -> dict:
-        return tomli.loads(text)
+        return tomllib.loads(text)
 
     return _get_velph_toml
 
@@ -292,7 +292,7 @@ def site_mixture_velph_toml() -> Callable[[bool], dict]:
     }
 
     def _get_velph_toml(split_site_mixture: bool) -> dict:
-        return tomli.loads(texts[split_site_mixture])
+        return tomllib.loads(texts[split_site_mixture])
 
     return _get_velph_toml
 
@@ -326,7 +326,7 @@ def velph_toml_v014() -> Callable[[str], dict]:
 def _load_velph_toml_v014(filename: str) -> dict:
     """Return velph.toml dict of a file written by velph init of velph 0.14."""
     with open(VELPH_TOML_V014_DIR / filename, "rb") as f:
-        return tomli.load(f)
+        return tomllib.load(f)
 
 
 @pytest.fixture(scope="session")
@@ -387,7 +387,7 @@ def ti_velph_toml() -> Callable[[Sequence[str]], dict]:
                 *phonopy_lines,
             ]
         )
-        return tomli.loads(toml_str + _TI_UNITCELL)
+        return tomllib.loads(toml_str + _TI_UNITCELL)
 
     return _get_velph_toml
 

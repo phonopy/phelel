@@ -1,12 +1,12 @@
 """Tests velph-phonopy-init."""
 
 import pathlib
+import tomllib
 from collections.abc import Callable
 
 import numpy as np
 import phonopy
 import pytest
-import tomli
 
 from phelel.velph.cli.phonopy.init import run_init
 from phelel.velph.config.io import parse_velph_toml
@@ -46,8 +46,8 @@ coordinates = [  0.666666666666664,  0.333333333333336,  0.750000000000000 ]
 magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
 
     for toml_dict in (
-        tomli.loads(phonopy_str + unitcell_str),
-        tomli.loads(phelel_str + phonopy_str + unitcell_str),
+        tomllib.loads(phonopy_str + unitcell_str),
+        tomllib.loads(phelel_str + phonopy_str + unitcell_str),
     ):
         ph = run_init(code_init_config(toml_dict))
         np.testing.assert_array_equal(ph.supercell_matrix, np.diag([2, 2, 1]))
@@ -83,7 +83,7 @@ def _get_phonopy_displacements(
         ["[phonopy]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
     ph = run_init(
-        code_init_config(tomli.loads(toml_str + _TI_UNITCELL)),
+        code_init_config(tomllib.loads(toml_str + _TI_UNITCELL)),
         current_directory=tmp_path,
     )
     return np.array(ph.displacements)
