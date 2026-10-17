@@ -12,7 +12,12 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("ph_selfenergy")
 @click.help_option("-h", "--help")
 def cmd_ph_selfenergy():
-    """Choose ph_selfenergy options."""
+    """Phonon self-energy.
+
+    Write VASP input files of the phonon self-energy calculation, plot its results
+    and write them for phono3py.
+
+    """
     pass
 
 

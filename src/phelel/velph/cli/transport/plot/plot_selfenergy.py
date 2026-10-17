@@ -55,13 +55,13 @@ def plot_selfenergy(
     txt_filename = pathlib.Path(dir_name) / "selfenergy.txt"
     with open(txt_filename, "w") as w:
         print("\n".join(lines), file=w)
-    click.echo(f'Summary of data structure was saved in "{txt_filename}".')
+    click.echo(f'Summary of the data structure was written to "{txt_filename}".')
 
     plt.tight_layout()
     if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
-        click.echo(f'Transport plot was saved in "{plot_filename}".')
+        click.echo(f'Self-energy plot was written to "{plot_filename}".')
     else:
         plt.show()
     plt.close()

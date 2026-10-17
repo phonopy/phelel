@@ -13,7 +13,12 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("nac")
 @click.help_option("-h", "--help")
 def cmd_nac():
-    """Choose nac options."""
+    """Born effective charges and dielectric constant.
+
+    Write VASP input files of the calculation of Born effective charges and
+    dielectric constant for NAC.
+
+    """
     pass
 
 
@@ -26,7 +31,7 @@ def cmd_nac():
 )
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
-    """Generate relax input files."""
+    """Generate nac input files."""
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 

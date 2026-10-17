@@ -27,6 +27,6 @@ def write_supercell_input_files(
     jobs = plan_supercells(config, "phelel", ph)
     for job in jobs:
         write_vasp_job(job)
-        click.echo(f'VASP input files were generated in "{job.directory}".')
+        click.echo(f'VASP input files were written in "{job.directory}".')
     assert not isinstance(jobs[0].poscar, pathlib.Path)
     echo_vasp_vca_hint(jobs[0].poscar)

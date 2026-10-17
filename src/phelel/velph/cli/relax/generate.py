@@ -62,8 +62,8 @@ def write_input_files(
     job = plan_relax(config, directory, prev_directory=prev_directory)
     write_vasp_job(job)
     if prev_directory is not None:
-        click.echo(f'"{job.poscar}" will be as new "POSCAR".', err=True)
-    click.echo(f'VASP input files were generated in "{directory}".')
+        click.echo(f'"{job.poscar}" was copied to "{directory / "POSCAR"}".')
+    click.echo(f'VASP input files were written in "{directory}".')
     echo_vasp_vca_hint(_get_relax_cell(config))
 
 

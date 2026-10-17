@@ -20,7 +20,7 @@ from phelel.velph.utils.plot_eigenvalues import (
 @cmd_transport.group("plot")
 @click.help_option("-h", "--help")
 def cmd_plot():
-    """Choose plot options."""
+    """Plot the results of the electronic transport calculation."""
     pass
 
 
@@ -34,7 +34,7 @@ def cmd_plot():
 @click.option(
     "--save",
     "save_plot",
-    is_flag=bool,
+    is_flag=True,
     default=False,
     help=("Save plot to file."),
 )
@@ -58,7 +58,7 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
 @click.option(
     "--save",
     "save_plot",
-    is_flag=bool,
+    is_flag=True,
     default=False,
     help="Save plot to file.",
 )
@@ -85,8 +85,9 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     type=int,
     default=None,
     help=(
-        "Index of temperature for collecting chemical potential and "
-        "temperature. (tid: int, default=None)"
+        "Index of temperature of the self-energy calculation. The temperature "
+        "and the chemical potential of this index are used in place of "
+        "--temperature and --mu. (tid: int, default=None)"
     ),
 )
 @click.option(

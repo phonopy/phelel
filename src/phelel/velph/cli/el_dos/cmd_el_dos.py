@@ -18,7 +18,11 @@ from phelel.velph.utils.plot_eigenvalues import (
 @cmd_root.group("el_dos")
 @click.help_option("-h", "--help")
 def cmd_el_dos():
-    """Choose electronic DOS options."""
+    """Electronic DOS.
+
+    Write VASP input files of the electronic DOS and plot it.
+
+    """
     pass
 
 

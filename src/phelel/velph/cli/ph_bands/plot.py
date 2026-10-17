@@ -35,16 +35,18 @@ def plot_ph_bandstructures(
     """
     import matplotlib.pyplot as plt
 
-    f = h5py.File(vaspout_filename)
-    eigvals: NDArray = f["results/phonons/eigenvalues"][:]  # type: ignore
+    with h5py.File(vaspout_filename) as f:
+        eigvals: NDArray = f["results/phonons/eigenvalues"][:]  # type: ignore
+        reclat = get_reclat_from_vaspout(f)
+        labels = [
+            label.decode("utf-8")
+            for label in f["input/qpoints/labels_kpoints"][:]  # type: ignore
+        ]
+        nk_per_seg: int = f["input/qpoints/number_kpoints"][()]  # type: ignore
+        kpoint_coords: NDArray = f["results/phonons/kpoint_coords"][:]  # type: ignore
     if use_ordinary_frequency:
         eigvals /= 2 * np.pi
     omega_max = 1.1 * eigvals.max()
-
-    reclat = get_reclat_from_vaspout(f)
-    labels = [label.decode("utf-8") for label in f["input/qpoints/labels_kpoints"][:]]  # type: ignore
-    nk_per_seg: int = f["input/qpoints/number_kpoints"][()]  # type: ignore
-    kpoint_coords: NDArray = f["results/phonons/kpoint_coords"][:]  # type: ignore
     distances, points, labels_at_points = get_bands_data(
         kpoint_coords, reclat, nk_per_seg, labels
     )
@@ -67,7 +69,7 @@ def plot_ph_bandstructures(
     if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
-        click.echo(f'Phonon band structure plot was saved in "{plot_filename}".')
+        click.echo(f'Phonon band structure plot was written to "{plot_filename}".')
     else:
         plt.show()
     plt.close()

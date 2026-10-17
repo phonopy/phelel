@@ -20,16 +20,10 @@ def plot_selfenergy(
     plot_filename: str | os.PathLike,
     save_plot: bool = False,
 ):
-    """Plot imaginary part of self-energies.
+    """Plot imaginary part of phonon self-energies against phonon frequency.
 
-    Number of "self_energy_*" is
-
-    (N(delta) * N(nbands_sum_array) * N(selfen_approx))
-      * N(ncarrier_per_cell) * N(ncarrier_den) * N(mu)
-
-    sefeln_approx includes
-    - scattering_approximation (CRTA, ERTA, MRTA, MRTA2)
-    - static_approximation (True or False)
+    One panel is drawn for each self-energy calculation of vaspout.h5, each
+    spin and each temperature.
 
     """
     import matplotlib.pyplot as plt
@@ -70,7 +64,7 @@ def plot_selfenergy(
     if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
-        click.echo(f'Transport plot was saved in "{plot_filename}".')
+        click.echo(f'Self-energy plot was written to "{plot_filename}".')
     else:
         plt.show()
     plt.close()

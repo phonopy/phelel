@@ -75,5 +75,5 @@ def write_input_files(
     config = read_velph_toml(toml_filename, set_name)
     job = plan_elph(config, set_name, dry_run=dry_run)
     write_vasp_job(job)
-    click.echo(f'VASP input files were generated in "{job.directory}".')
+    click.echo(f'VASP input files were written in "{job.directory}".')
     echo_vasp_vca_hint(get_cell(config, "primitive"))

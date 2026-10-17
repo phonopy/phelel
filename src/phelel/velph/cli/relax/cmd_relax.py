@@ -14,7 +14,11 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("relax")
 @click.help_option("-h", "--help")
 def cmd_relax():
-    """Choose relax options."""
+    """Relaxation of the crystal structure.
+
+    Write VASP input files of the relaxation of the crystal structure.
+
+    """
     pass
 
 

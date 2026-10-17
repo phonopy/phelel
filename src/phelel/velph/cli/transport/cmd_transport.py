@@ -11,7 +11,12 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 @cmd_root.group("transport")
 @click.help_option("-h", "--help")
 def cmd_transport():
-    """Choose transport options."""
+    """Electronic transport.
+
+    Write VASP input files of the electronic transport calculation and plot its
+    results.
+
+    """
     pass
 
 

@@ -60,7 +60,7 @@ def plot_transport(
     with open(dir_name / "transport.txt", "w") as w:
         print("\n".join(lines), file=w)
     click.echo(
-        f'Summary of data structure was saved in "{dir_name / "transport.txt"}".'
+        f'Summary of the data structure was written to "{dir_name / "transport.txt"}".'
     )
 
     n_props = len(property_names)
@@ -86,7 +86,7 @@ def plot_transport(
     if save_plot:
         plt.rcParams["pdf.fonttype"] = 42
         plt.savefig(plot_filename)
-        click.echo(f'Transport plot was saved in "{plot_filename}".')
+        click.echo(f'Transport plot was written to "{plot_filename}".')
     else:
         plt.show()
     plt.close()
@@ -142,7 +142,7 @@ def _plot(
         print("# temperature", *label_property_names, file=w)
         for temp, props in zip(temps, np.transpose(properties), strict=True):
             print(temp, *props, file=w)
-        click.echo(f'Transport data {index + 1} was saved in "{dat_filename}".')
+        click.echo(f'Transport data {index + 1} was written to "{dat_filename}".')
 
     for i, label_property in enumerate(label_property_names):
         if label_property == "e_conductivity":

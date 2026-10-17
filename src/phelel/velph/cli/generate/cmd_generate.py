@@ -55,5 +55,5 @@ def _write_cell(filename: str, cell: PhonopyAtoms):
         click.echo(f'"{filename}" was not overwritten because it exists.', err=True)
         return
     write_vasp(filename, cell, for_vca=cell.has_weighted_species)
-    click.echo(f'"{filename}" was generated.')
+    click.echo(f'"{filename}" was written.')
     echo_vasp_vca_hint(cell)

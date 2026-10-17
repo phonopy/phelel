@@ -33,9 +33,9 @@ def eigenvalue_plot_options(func):
         type=float,
         default=1e-2,
         help=(
-            "Cutoff for the occupancy to show eigenvalues in eV. Eigenvalus with "
-            "occupances in interval [cutoff_occupancy, 1 - cutoff_occupancy] is "
-            "shown. (cutoff_occupancy: float, default=1e-2)"
+            "Cutoff of the occupancy to show eigenvalues. Eigenvalues with "
+            "occupancies in the interval [cutoff_occupancy, 1 - cutoff_occupancy] "
+            "are shown. (cutoff_occupancy: float, default=1e-2)"
         ),
     )
     @click.option(
@@ -44,7 +44,7 @@ def eigenvalue_plot_options(func):
         type=float,
         default=None,
         help=(
-            "Chemical potential in eV unless --tid is specified. "
+            "Chemical potential in eV. "
             "(mu: float, default=None, which means Fermi energy)"
         ),
     )
@@ -54,7 +54,7 @@ def eigenvalue_plot_options(func):
         type=float,
         default=None,
         help=(
-            "Temperature for Fermi-Dirac distribution in K unless --tid is specified. "
+            "Temperature for Fermi-Dirac distribution in K. "
             "(temperature: float, default=None, which means 300 K)"
         ),
     )
@@ -118,7 +118,7 @@ def cmd_plot_eigenvalues(
                     f"{i + 1} {e:.6f} {wt:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]",
                     file=w,
                 )
-        click.echo(f'"{bz_dat_filename}" file was created.')
+        click.echo(f'"{bz_dat_filename}" was written.')
 
 
 def _plot_eigenvalues(
@@ -137,14 +137,36 @@ def _plot_eigenvalues(
     ----------
     f_h5py : h5py.File
         vaspout.h5 file object.
-    temperature : float
-        Temperature for Fermi-Dirac distribution in K.
+    tid : int or None
+        Index of temperature, counted from 1, of the self-energy calculation
+        calcid.  With tid, the temperature and the chemical potential of this
+        index are used in place of temperature and mu.  It is used only for
+        calc_type "transport" and "ph_selfenergy".
+    calcid : int or None
+        Index of the self-energy calculation, counted from 1.  None means 1.
+    temperature : float or None
+        Temperature for Fermi-Dirac distribution in K.  None means 300 K.
     cutoff_occupancy : float
-        Cutoff for the occupancy to show eigenvalues in eV. Eigenvalus with
-        occupances in interval [cutoff_occupancy, 1 - cutoff_occupancy] is
-        shown.
+        Cutoff of the occupancy to show eigenvalues.  Eigenvalues with
+        occupancies in the interval [cutoff_occupancy, 1 - cutoff_occupancy]
+        are shown.
     mu : float or None
-        Chemical potential in eV. If None, the Fermi energy.
+        Chemical potential in eV.  None means the Fermi energy.
+    time_reversal : bool
+        When the point group has no inversion, the rotations multiplied by -1
+        are added to the rotations, as time-reversal symmetry gives.
+    calc_type : str
+        Calculation whose eigenvalues are read.  "transport" and
+        "ph_selfenergy" read the eigenvalues of the electron-phonon
+        calculation, and "el_dos" reads those of KPOINTS_OPT.
+
+    Returns
+    -------
+    tuple of three np.ndarray, or None
+        Eigenvalues minus the chemical potential in eV, their occupancies, and
+        the Cartesian coordinates of their k-points in the Brillouin zone,
+        without the factor 2 pi, for the eigenvalues within the cutoff of the
+        occupancy.  None when no eigenvalue is within it.
 
     """
     cell = read_crystal_structure_from_vaspout_h5(f_h5py, "results/positions")

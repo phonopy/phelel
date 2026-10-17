@@ -305,7 +305,7 @@ def _parse_supercell(
     key = given[0]
     if key == "max_num_atoms":
         if file_kind == "velph_toml":
-            _intent_error(where, key)
+            _template_only_error(where, key)
         return MaxNumAtoms(max_num_atoms=_int(table[key], where, key))
     if key == "supercell_dimension":
         return SupercellDimension(
@@ -419,7 +419,7 @@ def _kpoints(value: Any, where: str, file_kind: VelphFileKind) -> KpointsSpec:
         _fail(where, 'Give either "mesh" or "kspacing", not both.')
     if "kspacing" in table:
         if file_kind == "velph_toml":
-            _intent_error(where, "kspacing")
+            _template_only_error(where, "kspacing")
         return KpointsSpacing(
             kspacing=_float(table["kspacing"], where, "kspacing"), shift=shift
         )
@@ -644,7 +644,7 @@ def _fail(where: str, message: str) -> NoReturn:
     raise VelphConfigError(message)
 
 
-def _intent_error(where: str, key: str) -> NoReturn:
+def _template_only_error(where: str, key: str) -> NoReturn:
     _fail(
         where,
         f'"{key}" cannot be given in velph.toml.  velph.toml holds the supercell '

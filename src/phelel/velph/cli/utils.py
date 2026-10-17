@@ -9,12 +9,6 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import click
-from phono3py.interface.calculator import (
-    get_default_displacement_distance as get_phono3py_displacement_distance,
-)
-from phonopy.interface.calculator import (
-    get_default_displacement_distance as get_phonopy_displacement_distance,
-)
 from phonopy.interface.vasp import (
     VasprunxmlExpat,
     get_vasp_vca_hint_lines,
@@ -24,20 +18,6 @@ from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
-from phelel.velph.config.schema import CodeName
-
-
-def get_default_amplitude(calc_type: CodeName) -> float:
-    """Return default displacement distance of a calculation type.
-
-    The default displacement distances of phonopy (for phonopy) and phono3py
-    (for phono3py and phelel) for VASP are used.
-
-    """
-    if calc_type == "phonopy":
-        return get_phonopy_displacement_distance("vasp")
-    return get_phono3py_displacement_distance("vasp")
-
 
 def write_poscar(
     directory: os.PathLike, cell: PhonopyAtoms, filename: str = "POSCAR"
@@ -46,7 +26,8 @@ def write_poscar(
 
     A cell with weighted species of site mixture is written for VASP VCA. Atoms
     of one symbol and weight that are next to each other in the cell are written
-    in one species row. The INCAR VCA tag is written by ``write_incar``.
+    in one species row. The INCAR tag VCA is added by add_cell_tags in
+    jobs/vasp_job.py.
 
     """
     write_vasp(

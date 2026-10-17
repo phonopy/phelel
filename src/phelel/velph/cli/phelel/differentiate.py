@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import textwrap
 
 import click
 import numpy as np
@@ -51,8 +52,19 @@ def run_derivatives(
         filepath = pathlib.Path(f"{dir_name}/disp-{id_number}")
         if not filepath.exists():
             raise click.ClickException(f'"{filepath}" does not exist.')
-        if not _check_files_exist(filepath):
-            raise click.ClickException(f'Necessary file not found in "{filepath}".')
+        missing = _missing_files(filepath)
+        if missing:
+            raise click.ClickException(
+                f'"{filepath}" does not have the files for the derivatives.\n'
+                + textwrap.fill(
+                    "It needs vaspout.h5, or "
+                    + ", ".join(_VASPRUN_FILES[:-1])
+                    + f" and {_VASPRUN_FILES[-1]}.",
+                    width=80,
+                    break_on_hyphens=False,
+                )
+                + f"\nNot found: {', '.join(missing)}."
+            )
         dir_names.append(filepath)
 
     if phe.phonon_supercell_matrix is not None:
@@ -104,45 +116,36 @@ def _get_phonon_dir_names(
     return dir_names
 
 
-def _check_files_exist(filepath: pathlib.Path) -> bool:
-    if (filepath / "vaspout.h5").exists():
-        click.echo(f'Found "{filepath}/vaspout.h5".', err=False)
-        return True
-    else:
-        if not _check_file_exists(filepath, "vasprun.xml"):
-            click.echo(f'"{filepath}/vasprun.xml" not found.', err=True)
-            return False
-        return _check_four_files_exist(filepath)
+# Files that a directory of a supercell needs for the derivatives when it does
+# not have vaspout.h5.
+_VASPRUN_FILES = (
+    "vasprun.xml",
+    "inwap.yaml",
+    "LOCAL-POTENTIAL.bin",
+    "PAW-STRENGTH.bin",
+    "PAW-OVERLAP.bin",
+)
 
 
-def _check_four_files_exist(filepath: pathlib.Path) -> bool:
-    four_files_exist = True
-    for filename in (
-        "inwap.yaml",
-        "LOCAL-POTENTIAL.bin",
-        "PAW-STRENGTH.bin",
-        "PAW-OVERLAP.bin",
-    ):
-        if not _check_file_exists(filepath, filename):
-            click.echo(f'"{filepath}/{filename}" not found.', err=True)
-            four_files_exist = False
-    return four_files_exist
+def _missing_files(filepath: pathlib.Path) -> list[str]:
+    """Return the files for the derivatives that are not found in filepath.
 
-
-def _check_file_exists(filepath: pathlib.Path, filename: str) -> bool:
-    """Check if the necessary file exists.
-
-    The file can be compressed with xz, etc.
-
-    The file names that can be checked are:
-        inwap.yaml
-        LOCAL-POTENTIAL.bin
-        PAW-STRENGTH.bin
-        PAW-OVERLAP.bin
-        vasprun.xml
+    vaspout.h5 alone is enough.  Without it, all of _VASPRUN_FILES are needed,
+    and the returned list starts with vaspout.h5.  A file of _VASPRUN_FILES is
+    found also with a suffix, such as inwap.yaml.xz.
 
     """
-    return bool(list(pathlib.Path(filepath).glob(f"{filename}*")))
+    if (filepath / "vaspout.h5").exists():
+        click.echo(f'Found "{filepath}/vaspout.h5".')
+        return []
+    missing = [
+        filename
+        for filename in _VASPRUN_FILES
+        if not list(filepath.glob(f"{filename}*"))
+    ]
+    if not missing:
+        return []
+    return ["vaspout.h5"] + missing
 
 
 # Input sets whose VASP calculations read phelel_params.hdf5.  Their FFT grid

@@ -10,10 +10,15 @@ from typing import Any, cast
 
 import numpy as np
 import pytest
+from phono3py.interface.calculator import (
+    get_default_displacement_distance as get_phono3py_displacement_distance,
+)
+from phonopy.interface.calculator import (
+    get_default_displacement_distance as get_phonopy_displacement_distance,
+)
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict, parse_cell_dict
 from phonopy.structure.cells import apply_site_mixture, build_mixture_cell
 
-from phelel.velph.cli.utils import get_default_amplitude
 from phelel.velph.config.defaults import get_default_config
 from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
 from phelel.velph.config.io import (
@@ -113,12 +118,19 @@ def _template(text: str) -> VelphConfig:
 
 
 def test_defaults_amplitude():
-    """Default amplitudes are those of phonopy and phono3py for VASP."""
+    """Default amplitudes are those of phonopy and phono3py for VASP.
+
+    phelel uses the default of phono3py.
+
+    """
     defaults = get_default_config()
+    expected = {
+        "phelel": get_phono3py_displacement_distance("vasp"),
+        "phonopy": get_phonopy_displacement_distance("vasp"),
+        "phono3py": get_phono3py_displacement_distance("vasp"),
+    }
     for code in CODES:
-        assert getattr(defaults, code).amplitude == pytest.approx(
-            get_default_amplitude(code)
-        )
+        assert getattr(defaults, code).amplitude == pytest.approx(expected[code])
 
 
 def test_defaults_init_acts_on_no_section():

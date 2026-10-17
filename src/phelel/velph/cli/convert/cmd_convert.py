@@ -30,4 +30,4 @@ def cmd_convert(old_filename: str, new_filename: str):
         raise click.ClickException(str(e)) from e
     for message in messages:
         click.echo(message)
-    click.echo(f'"{new_filename}" has been written from "{old_filename}".')
+    click.echo(f'"{new_filename}" was written from "{old_filename}".')
