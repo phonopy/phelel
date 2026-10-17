@@ -44,8 +44,7 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
         "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
     )
     with h5py.File(_vaspout_filename, "r") as f_h5py:
-        if f_h5py is not None and plot_filename is not None:
-            plot_selfenergy(f_h5py, plot_filename, save_plot=save_plot)
+        plot_selfenergy(f_h5py, plot_filename, save_plot=save_plot)
 
 
 @cmd_plot.command("eigenvalues")
@@ -98,17 +97,22 @@ def _get_h5py_and_plot_filenames(
     property_name: str,
     vaspout_filename: str | os.PathLike | None = None,
     plot_filename: str | os.PathLike | None = None,
-) -> tuple[pathlib.Path, pathlib.Path] | tuple[None, None]:
-    """Return h5py.File object and plot filename."""
+) -> tuple[pathlib.Path, pathlib.Path]:
+    """Return vaspout.h5 and plot filename.
+
+    click.ClickException is raised when vaspout.h5 does not exist.
+
+    """
     if vaspout_filename is None:
         _vaspout_filename = pathlib.Path(f"{property_name}/vaspout.h5")
     else:
         _vaspout_filename = pathlib.Path(vaspout_filename)
 
     if not _vaspout_filename.exists():
-        click.echo(f'"{_vaspout_filename}" (default path) not found.')
-        click.echo("Please specify vaspout.h5 file path.")
-        return None, None
+        raise click.ClickException(
+            f'"{_vaspout_filename}" not found.  Give the path of vaspout.h5 with '
+            "--vaspout-filename."
+        )
 
     dir_name = _vaspout_filename.parent
 
