@@ -23,6 +23,10 @@ _GIVE_PATH = "Give the path of vaspout.h5 with --vaspout-filename."
         ),
         (["ph_bands", "plot"], '"ph_bands/vaspout.h5" not found.'),
         (
+            ["el_dos", "plot", "--window", "-1", "1"],
+            f'"el_dos/vaspout.h5" not found.  {_GIVE_PATH}',
+        ),
+        (
             ["el_dos", "plot_eigenvalues"],
             f'"el_dos/vaspout.h5" not found.  {_GIVE_PATH}',
         ),

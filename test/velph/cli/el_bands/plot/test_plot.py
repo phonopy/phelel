@@ -1,13 +1,16 @@
 """Tests velph-el_bands-plot."""
 
 import pathlib
+import shutil
 
 import h5py
 import numpy as np
 import pytest
-from numpy.typing import NDArray
+from click.testing import CliRunner
 
-from phelel.velph.cli.el_bands.plot import _get_bands_data, _get_dos_data
+from phelel.velph.cli.el_bands.plot import _get_bands_data
+from phelel.velph.cli.el_dos.plot import get_dos_max, read_electron_dos
+from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.utils.vasp import get_reclat_from_vaspout
 
 cwd = pathlib.Path(__file__).parent
@@ -22,7 +25,6 @@ def test_velph_el_bands_plot_TiNiSn():
     assert vaspout_filename_dos.exists()
     assert vaspout_filename_bands.exists()
     f_h5py_bands = h5py.File(vaspout_filename_bands)
-    f_h5py_dos = h5py.File(vaspout_filename_dos)
     reclat = get_reclat_from_vaspout(f_h5py_bands)
     distances, eigvals, points, labels_at_points = _get_bands_data(
         reclat,
@@ -30,10 +32,10 @@ def test_velph_el_bands_plot_TiNiSn():
         f_h5py_bands["input/kpoints_opt"],  # type: ignore
     )
     ymin, ymax = 3.575980267703933, 17.575980267703933
-    f_h5py_dos_results = f_h5py_dos["results/electron_dos_kpoints_opt"]
-    dos: NDArray = f_h5py_dos_results["dos"][:]  # type: ignore
-    energies: NDArray = f_h5py_dos_results["energies"][:]  # type: ignore
-    xmax = _get_dos_data(dos, energies, ymin, ymax)
+    electron_dos = read_electron_dos(vaspout_filename_dos)
+    dos = electron_dos.dos
+    energies = electron_dos.energies
+    xmax = get_dos_max(electron_dos, ymin, ymax)
 
     assert len(distances) == 306
     assert pytest.approx(distances[100], 1e-5) == 1.421887803385511
@@ -58,3 +60,46 @@ def test_velph_el_bands_plot_TiNiSn():
     assert pytest.approx(dos[0, 4000], 1e-5) == 1.57397389
     assert pytest.approx(energies[4000], 1e-5) == 4.63468648
     assert pytest.approx(xmax, 1e-5) == 32.237937064036856
+
+
+def test_velph_el_bands_plot_cli(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+):
+    """The DOS is drawn on the right of the band structure against the energies.
+
+    With --save, el_bands/el_bands.pdf is written.
+
+    """
+    pytest.importorskip("seekpath")
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.collections import LineCollection
+
+    for name, directory in (("bands", "el_bands"), ("dos", "el_dos")):
+        (tmp_path / directory).mkdir()
+        shutil.copy(cwd / "TiNiSn" / name / "vaspout.h5", tmp_path / directory)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(plt, "close", lambda *args: None)
+    result = CliRunner().invoke(
+        cmd_root, ["el_bands", "plot", "--window", "-5", "9", "--save"]
+    )
+    assert result.exit_code == 0, result.output
+    assert result.stdout == (
+        'Electronic band structure plot was saved in "el_bands/el_bands.pdf".\n'
+    )
+    assert (tmp_path / "el_bands" / "el_bands.pdf").read_bytes()[:4] == b"%PDF"
+
+    efermi = 8.575980267703933
+    ax = plt.gcf().axes[1]
+    assert ax.get_xlim() == pytest.approx((0, 32.237937064036856))
+    assert ax.get_ylim() == pytest.approx((efermi - 5, efermi + 9))
+    electron_dos = read_electron_dos(cwd / "TiNiSn" / "dos" / "vaspout.h5")
+    (line,) = ax.lines
+    np.testing.assert_array_equal(line.get_xdata(), electron_dos.dos[0])
+    np.testing.assert_array_equal(line.get_ydata(), electron_dos.energies)
+    (fermi_level,) = ax.collections
+    assert isinstance(fermi_level, LineCollection)
+    (segment,) = fermi_level.get_segments()
+    np.testing.assert_allclose(segment, [[0, efermi], [32.237937064036856, efermi]])
+    plt.close("all")

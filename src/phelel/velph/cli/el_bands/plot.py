@@ -6,9 +6,9 @@ import pathlib
 
 import click
 import h5py
-import numpy as np
 from numpy.typing import NDArray
 
+from phelel.velph.cli.el_dos.plot import draw_dos, get_dos_max, read_electron_dos
 from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
 
 
@@ -37,22 +37,13 @@ def plot_el_bandstructures(
     """
     import matplotlib.pyplot as plt
 
+    electron_dos = read_electron_dos(vaspout_filename_dos)
+    efermi = electron_dos.efermi
     f_h5py_bands = h5py.File(vaspout_filename_bands)
-    f_h5py_dos = h5py.File(vaspout_filename_dos)
     if "results" not in f_h5py_bands:
-        raise ValueError(
-            f"No electronic band structure results found in {vaspout_filename_bands}."
+        raise click.ClickException(
+            f'No electronic band structure is found in "{vaspout_filename_bands}".'
         )
-    if "results" not in f_h5py_dos:
-        raise ValueError(f"No electronic DOS results found in {vaspout_filename_dos}.")
-    if "electron_dos_kpoints_opt" in f_h5py_dos["results"]:  # type: ignore
-        f_h5py_dos_results = f_h5py_dos["results/electron_dos_kpoints_opt"]
-    elif "electron_dos" in f_h5py_dos["results"]:  # type: ignore
-        f_h5py_dos_results = f_h5py_dos["results/electron_dos"]
-    else:
-        raise ValueError("No electron DOS data found in vaspout.h5.")
-
-    efermi: float = f_h5py_dos_results["efermi"][()]  # type: ignore
     emin = window[0]
     emax = window[1]
     _, axs = plt.subplots(1, 2, gridspec_kw={"width_ratios": [3, 1]})
@@ -78,17 +69,9 @@ def plot_el_bandstructures(
     ax0.set_ylabel("E[eV]", fontsize=14)
     ymin, ymax = ax0.get_ylim()
 
-    dos: NDArray = f_h5py_dos_results["dos"][:]  # type: ignore
-    energies: NDArray = f_h5py_dos_results["energies"][:]  # type: ignore
-    xmax = _get_dos_data(dos, energies, ymin, ymax)
-
-    lines = ["-k", "--k"]
-    for i, dos_spin in enumerate(dos):
-        ax1.plot(dos_spin, energies, lines[i], linewidth=1)
-    if len(dos) == 2:
-        ax1.plot(dos.sum(axis=0), energies, ":k", linewidth=1)
-    ax1.hlines(efermi, 0, xmax, "r", linewidth=1)
-    ax1.set_xlim(0, xmax)
+    dos_max = get_dos_max(electron_dos, ymin, ymax)
+    draw_dos(ax1, electron_dos, dos_max, energy_axis="y")
+    ax1.set_xlim(0, dos_max)
     ax1.set_ylim(ymin, ymax)
     ax1.yaxis.tick_right()
 
@@ -121,31 +104,3 @@ def _get_bands_data(
     )
 
     return distances, eigvals, points, labels_at_points
-
-
-def _get_dos_data(dos: NDArray, energies: NDArray, ymin: float, ymax: float) -> float:
-    i_min = 0
-    i_max = len(energies)
-    for i, val in enumerate(energies):
-        if val < ymin:
-            i_min = i
-        if val > ymax:
-            i_max = i
-            break
-
-    # Take only total for non-collinear case.
-    if len(dos) == 4:
-        dos = dos[0][None, :]
-
-    # NaN elements are replaced by 0.
-    if np.isfinite(dos).any():
-        dos = np.nan_to_num(dos, nan=0.0, posinf=0.0, neginf=0.0)
-
-    xmax = dos[:, i_min : i_max + 1].max() * 1.1
-
-    # Check unphysical values.
-    if xmax > 10000:
-        dos = np.where(dos > 10000, 0, dos)
-        xmax = dos[:, i_min : i_max + 1].max() * 1.1
-
-    return xmax

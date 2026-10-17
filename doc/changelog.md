@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- `velph el_dos plot` plots the electronic DOS of `el_dos/vaspout.h5`.
+- `velph el_bands plot` draws the total DOS of a non-collinear calculation.
+  Before, it stopped with an IndexError.
 - tomli is no longer required. TOML files are read by `tomllib` of the Python
   standard library.
 - velph is redesigned, and the format of `velph.toml` and of the `velph init`
