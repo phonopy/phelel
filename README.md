@@ -21,7 +21,6 @@ https://phonopy.github.io/phelel/
 * spglib
 * finufft
 * click
-* tomli
 * tomli-w
 * seekpath (optional)
 
@@ -32,7 +31,7 @@ A simplest installation using conda-forge packages:
 ```
 % conda create -n phelel -c conda-forge
 % conda activate phelel
-% conda install -c conda-forge phono3py finufft click tomli tomli-w seekpath
+% conda install -c conda-forge phono3py finufft click tomli-w seekpath
 % git clone https://github.com/phonopy/phelel.git
 % cd phelel
 % pip install -e .

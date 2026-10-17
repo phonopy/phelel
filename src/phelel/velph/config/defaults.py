@@ -12,7 +12,7 @@ for example cell in [vasp.relax] and amplitude in [phelel].
 
 from __future__ import annotations
 
-import tomli
+import tomllib
 
 from phelel.velph.config.io import parse_template
 from phelel.velph.config.schema import VelphConfig
@@ -142,4 +142,4 @@ line = 51
 
 def get_default_config() -> VelphConfig:
     """Return the default settings of velph init."""
-    return parse_template(tomli.loads(DEFAULT_TEMPLATE_TOML), name="defaults")
+    return parse_template(tomllib.loads(DEFAULT_TEMPLATE_TOML), name="defaults")

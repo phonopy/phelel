@@ -5,11 +5,11 @@ from __future__ import annotations
 import dataclasses
 import io
 import pathlib
+import tomllib
 from typing import Any, cast
 
 import numpy as np
 import pytest
-import tomli
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict, parse_cell_dict
 from phonopy.structure.cells import apply_site_mixture, build_mixture_cell
 
@@ -105,11 +105,11 @@ def _velph_toml_text(cell: PhonopyAtoms) -> str:
 
 
 def _parse_text(text: str) -> VelphConfig:
-    return parse_velph_toml(tomli.loads(text))
+    return parse_velph_toml(tomllib.loads(text))
 
 
 def _template(text: str) -> VelphConfig:
-    return parse_template(tomli.loads(text))
+    return parse_template(tomllib.loads(text))
 
 
 def test_defaults_amplitude():
@@ -228,7 +228,7 @@ def test_round_trip_cell(name: str):
 
 def test_cell_old_extended_symbol():
     """Symbol = "Fe1" written by velph earlier than 0.15 is still read."""
-    toml_dict = tomli.loads(
+    toml_dict = tomllib.loads(
         "\n".join(
             [
                 "[unitcell]",
@@ -553,7 +553,7 @@ def test_velph_toml_required_blocks(nacl_cell: PhonopyAtoms):
 def test_invalid_cell(nacl_cell: PhonopyAtoms):
     """A cell that phonopy does not read is an error."""
     text = _velph_toml_text(nacl_cell)
-    document = tomli.loads(text)
+    document = tomllib.loads(text)
     document["unitcell"]["lattice"] = [[1.0, 0.0, 0.0]]
     with pytest.raises(VelphConfigError) as e:
         parse_velph_toml(document)
@@ -597,7 +597,7 @@ def test_scheduler_errors(
     scheduler_template has to be a string.
 
     """
-    document = tomli.loads(_velph_toml_text(nacl_cell))
+    document = tomllib.loads(_velph_toml_text(nacl_cell))
     table = document
     for name in path:
         table = table.setdefault(name, {})
@@ -616,7 +616,7 @@ def test_old_velph_toml_digest():
         '[vasp.relax.scheduler]\nscheduler_name = "sge"\n'
     )
     with pytest.raises(VelphConfigError) as e:
-        parse_velph_toml(tomli.loads(text), name="old/velph.toml")
+        parse_velph_toml(tomllib.loads(text), name="old/velph.toml")
     message = str(e.value)
     assert message.startswith(
         '"old/velph.toml" was written by velph earlier than 0.15 and cannot be read.'
@@ -659,7 +659,7 @@ def test_old_template_digest():
         '[scheduler]\nscheduler_name = "sge"\n'
     )
     with pytest.raises(VelphConfigError) as e:
-        parse_template(tomli.loads(text), name="tmpl.toml")
+        parse_template(tomllib.loads(text), name="tmpl.toml")
     message = str(e.value)
     assert message.startswith(
         '"tmpl.toml" is a velph init template of velph earlier than 0.15.'

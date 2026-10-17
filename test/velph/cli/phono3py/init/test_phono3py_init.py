@@ -1,13 +1,13 @@
 """Tests velph-phono3py-init."""
 
 import pathlib
+import tomllib
 from collections.abc import Callable, Sequence
 
 import click
 import numpy as np
 import phono3py
 import pytest
-import tomli
 from phonopy import Phonopy
 
 from phelel.velph.cli.phono3py.init import run_init
@@ -47,8 +47,8 @@ coordinates = [  0.666666666666664,  0.333333333333336,  0.750000000000000 ]
 magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
 
     for toml_dict in (
-        tomli.loads(phono3py_str + unitcell_str),
-        tomli.loads(phelel_str + phono3py_str + unitcell_str),
+        tomllib.loads(phono3py_str + unitcell_str),
+        tomllib.loads(phelel_str + phono3py_str + unitcell_str),
     ):
         ph3 = run_init(code_init_config(toml_dict), number_of_snapshots=10)
         assert ph3 is not None
@@ -84,7 +84,7 @@ def _get_phono3py_displacements(
         ["[phono3py]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
     ph3 = run_init(
-        code_init_config(tomli.loads(toml_str + _TI_UNITCELL)),
+        code_init_config(tomllib.loads(toml_str + _TI_UNITCELL)),
         current_directory=tmp_path,
     )
     return np.array(ph3.displacements)
@@ -141,7 +141,7 @@ def test_phono3py_init_number_of_snapshots_of_section(
     toml_str = "\n".join(
         ["[phono3py]", "supercell_dimension = [2, 2, 1]", "number_of_snapshots = 7"]
     )
-    config = code_init_config(tomli.loads(toml_str + _TI_UNITCELL))
+    config = code_init_config(tomllib.loads(toml_str + _TI_UNITCELL))
     assert run_init(config).displacements.shape == (7, 8, 3)
     assert run_init(config, number_of_snapshots=5).displacements.shape == (5, 8, 3)
 

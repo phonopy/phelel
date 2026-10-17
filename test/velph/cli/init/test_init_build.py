@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import pathlib
+import tomllib
 from typing import Any
 
 import click
 import pytest
-import tomli
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import get_primitive
 
@@ -33,7 +33,7 @@ def _build(
     """Return build_velph_config with a template given by lines and options."""
     template = None
     if template_lines is not None:
-        template = parse_template(tomli.loads("\n".join(template_lines)))
+        template = parse_template(tomllib.loads("\n".join(template_lines)))
     return build_velph_config(cell, template, InitSection(**options))
 
 

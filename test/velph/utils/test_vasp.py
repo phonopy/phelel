@@ -3,9 +3,9 @@
 import io
 import pathlib
 import tempfile
+import tomllib
 
 import numpy as np
-import tomli
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 
 from phelel.velph.utils.vasp import (
@@ -48,7 +48,7 @@ fractional
 
 
 def _get_str_of_write_kpoints_line_mode(toml_str):
-    toml_dict = tomli.loads(toml_str)
+    toml_dict = tomllib.loads(toml_str)
     with tempfile.TemporaryFile() as fp:
         VaspKpoints.write_line_mode(fp, toml_dict)
         fp.seek(0)
@@ -110,7 +110,7 @@ Reciprocal
 
 
 def _get_str_of_write_kpoints_mesh_mode(toml_str):
-    toml_dict = tomli.loads(toml_str)
+    toml_dict = tomllib.loads(toml_str)
     with tempfile.TemporaryFile() as fp:
         VaspKpoints.write_mesh_mode(fp, toml_dict)
         fp.seek(0)
@@ -310,7 +310,7 @@ SYSTEM = default"""
 
 
 def _get_str_of_write_incar(toml_str):
-    toml_dict = tomli.loads(toml_str)
+    toml_dict = tomllib.loads(toml_str)
     with tempfile.TemporaryFile() as fp:
         VaspIncar.write(fp, toml_dict)
         fp.seek(0)

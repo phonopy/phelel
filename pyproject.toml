@@ -17,7 +17,6 @@ dependencies = [
     "spglib >= 2.5.0",
     "finufft",
     "click",
-    "tomli",
     "tomli-w"
 ]
 license = "BSD-3-Clause"
