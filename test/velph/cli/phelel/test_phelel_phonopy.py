@@ -182,18 +182,27 @@ def test_create_phonopy_yaml_reads_phelel_supercells(
     ]
 
 
-def test_create_phonopy_yaml_site_mixture_merge(
+@pytest.mark.parametrize("split_site_mixture", [False, True])
+def test_create_phonopy_yaml_site_mixture(
+    split_site_mixture: bool,
     site_mixture_velph_toml: Callable[[bool], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """With the merge scheme, forces are on the atoms of the unmerged supercell."""
-    phe = run_init(
-        parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
-    )
-    assert phe.unmerged_supercell is not None
+    """Forces are on the atoms of the supercells written in phelel/disp-*.
+
+    With the merge scheme, these are the atoms of the unmerged supercell.  The
+    site mixture scheme of phonopy_params.yaml is that of phelel_disp.yaml.
+
+    """
+    data = site_mixture_velph_toml(split_site_mixture)
+    phe = run_init(parse_velph_toml(data), current_directory=tmp_path)
+    assert (phe.unmerged_supercell is None) == split_site_mixture
     assert phe.supercells_with_displacements is not None
-    n_atoms = len(phe.unmerged_supercell)
+    supercell = (
+        phe.supercell if phe.unmerged_supercell is None else phe.unmerged_supercell
+    )
+    n_atoms = len(supercell)
     (tmp_path / "phelel_disp.yaml").write_text(str(phe.to_phelel_yaml()))
     _write_force_files(tmp_path / "phelel", "disp", phe.supercells_with_displacements)
     rng = np.random.default_rng(3)
@@ -204,13 +213,14 @@ def test_create_phonopy_yaml_site_mixture_merge(
 
     monkeypatch.setattr(phelel_phonopy, "read_vasp_forces", _read_forces)
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "velph.toml").write_text(tomli_w.dumps(site_mixture_velph_toml(False)))
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
     create_phonopy_yaml(
         pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
     )
 
     ph = phonopy.load(tmp_path / "phelel" / "phonopy_params.yaml", produce_fc=False)
-    assert ph.site_mixture_scheme == "merge"
-    assert ph.unmerged_supercell is not None
-    assert len(ph.unmerged_supercell) == n_atoms
+    assert ph.site_mixture_scheme == ("split" if split_site_mixture else "merge")
+    if not split_site_mixture:
+        assert ph.unmerged_supercell is not None
+        assert len(ph.unmerged_supercell) == n_atoms
     assert ph.forces.shape == (len(phe.supercells_with_displacements), n_atoms, 3)

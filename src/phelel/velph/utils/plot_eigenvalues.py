@@ -80,7 +80,8 @@ def cmd_plot_eigenvalues(
     When tid is specified, temperature and mu are set according to the tid-th
     temperature and chemical potential in self-energy calculation. In this case,
     these are consistently determined values. Otherwise, temperature and mu are
-    set independently.  click.ClickException is raised when vaspout_filename
+    set independently.  bz.dat is written in the directory of
+    vaspout_filename.  click.ClickException is raised when vaspout_filename
     does not exist.
 
     """
@@ -110,13 +111,14 @@ def cmd_plot_eigenvalues(
         )
 
     if retvals is not None:
-        with open(f"{calc_type}/bz.dat", "w") as w:
+        bz_dat_filename = _vaspout_filename.parent / "bz.dat"
+        with open(bz_dat_filename, "w") as w:
             for i, (e, wt, rk) in enumerate(zip(*retvals, strict=True)):
                 print(
                     f"{i + 1} {e:.6f} {wt:.6f} [{rk[0]:.6f} {rk[1]:.6f} {rk[2]:.6f}]",
                     file=w,
                 )
-        click.echo(f'"{calc_type}/bz.dat" file was created.')
+        click.echo(f'"{bz_dat_filename}" file was created.')
 
 
 def _plot_eigenvalues(

@@ -10,7 +10,7 @@ from phelel.interface.vasp.derivatives import (
     get_vasp_force_filenames,
     read_vasp_forces,
 )
-from phelel.velph.cli.supercells import load_phonopy_yaml
+from phelel.velph.cli.supercells import load_phelel_yaml_as_phonopy
 from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.jobs.vasp_job import read_velph_toml
 
@@ -41,7 +41,7 @@ def create_phonopy_yaml(
         is_symmetry = False
 
     # NAC params are those of phelel_disp.yaml.
-    ph = load_phonopy_yaml(yaml_filename, is_symmetry=is_symmetry)
+    ph = load_phelel_yaml_as_phonopy(yaml_filename, is_symmetry=is_symmetry)
     supercell = ph.supercell if ph.unmerged_supercell is None else ph.unmerged_supercell
     cells = ph.supercells_with_displacements
     assert cells is not None

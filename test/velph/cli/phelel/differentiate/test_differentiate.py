@@ -33,7 +33,7 @@ def test_run_derivatives(tmp_path: pathlib.Path):
 
     """
     phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
-    assert run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
+    run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
 
     hdf5_filename = tmp_path / "phelel_params.hdf5"
     phe.save_hdf5(filename=hdf5_filename)
@@ -89,15 +89,14 @@ def test_run_derivatives_with_wrong_supercell_matrix():
         run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
 
 
-def test_run_derivatives_without_phonopy_disp_yaml(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
-):
+def test_run_derivatives_without_phonopy_disp_yaml(tmp_path: pathlib.Path):
     """With the phonon supercell, phonopy_disp.yaml of velph phonopy is needed."""
     phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
-    assert not run_derivatives(
-        phe, dir_name=cwd / "C111" / "phelel", phonon_dir_name=tmp_path / "phonopy"
-    )
-    assert 'phonopy_disp.yaml" does not exist' in capsys.readouterr().err
+    with pytest.raises(click.ClickException) as e:
+        run_derivatives(
+            phe, dir_name=cwd / "C111" / "phelel", phonon_dir_name=tmp_path / "phonopy"
+        )
+    assert 'phonopy_disp.yaml" does not exist' in e.value.message
 
 
 def _init_phonon_from_phonopy(
@@ -154,7 +153,7 @@ def test_run_derivatives_phonon_from_phonopy(
         calls.append(dir_names)
 
     monkeypatch.setattr(differentiate, "create_derivatives", _create_derivatives)
-    assert run_derivatives(
+    run_derivatives(
         phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
     )
     assert calls == [phelel_dir_names + phonopy_dir_names]
@@ -169,7 +168,6 @@ def test_run_derivatives_phonopy_disp_yaml_changed(
     code_init_config: Callable[[dict], VelphConfig],
     write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture[str],
 ):
     """phonopy_disp.yaml written again after velph phelel init is an error.
 
@@ -185,10 +183,11 @@ def test_run_derivatives_phonopy_disp_yaml_changed(
         tmp_path,
     )
     write_phonopy_disp_yaml(code_init_config(ti_velph_toml(phonopy_lines)), tmp_path)
-    assert not run_derivatives(
-        phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
-    )
-    assert "differ from those of" in capsys.readouterr().err
+    with pytest.raises(click.ClickException) as e:
+        run_derivatives(
+            phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
+        )
+    assert "differ from those of" in e.value.message
 
 
 def test_run_derivatives_without_phonopy_directory(
@@ -196,7 +195,6 @@ def test_run_derivatives_without_phonopy_directory(
     code_init_config: Callable[[dict], VelphConfig],
     write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture[str],
 ):
     """A missing directory of the phonon supercells is named."""
     phe, _, phonopy_dir_names = _init_phonon_from_phonopy(
@@ -207,10 +205,11 @@ def test_run_derivatives_without_phonopy_directory(
         tmp_path,
     )
     shutil.rmtree(phonopy_dir_names[-1])
-    assert not run_derivatives(
-        phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
-    )
-    assert f'"{phonopy_dir_names[-1]}" does not exist' in capsys.readouterr().err
+    with pytest.raises(click.ClickException) as e:
+        run_derivatives(
+            phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
+        )
+    assert e.value.message == f'"{phonopy_dir_names[-1]}" does not exist.'
 
 
 def test_run_derivatives_without_force_files(
@@ -242,14 +241,14 @@ def test_run_derivatives_without_force_files(
 def test_run_derivatives_site_mixture_merge(
     site_mixture_velph_toml: Callable[[bool], dict],
     tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture[str],
 ):
     """Derivatives are not calculated with the merge scheme of site mixture."""
     phe = run_init(
         parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
     )
-    assert not run_derivatives(phe, dir_name=tmp_path / "phelel")
-    assert "not supported with the merge scheme" in capsys.readouterr().err
+    with pytest.raises(click.ClickException) as e:
+        run_derivatives(phe, dir_name=tmp_path / "phelel")
+    assert "not supported with the merge scheme" in e.value.message
 
 
 def _elph_config(incars: dict[str, dict]) -> VelphConfig:
@@ -382,3 +381,20 @@ def test_differentiate_writes_fft_mesh(
     )
     with h5py.File(tmp_path / "phelel" / "phelel_params.hdf5") as f:
         np.testing.assert_array_equal(f["FFT_mesh"][:], expected)
+
+
+def test_differentiate_without_supercell_directory(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A missing phelel/disp-* gives exit code 1, and no hdf5 file is written."""
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cmd_root, ["phelel", "init"])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cmd_root, ["phelel", "differentiate"])
+    assert result.exit_code == 1, result.output
+    assert 'Error: "phelel/disp-000" does not exist.' in result.stderr
+    assert not (tmp_path / "phelel" / "phelel_params.hdf5").exists()

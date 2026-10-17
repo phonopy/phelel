@@ -39,20 +39,18 @@ def plot_selfenergy(
 
     assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])  # type: ignore
 
-    if len(selfens) == 1:
-        fig, axs = plt.subplots(1, 1, figsize=(4, 4))
-    else:
-        nrows = len(selfens) // 2
-        fig, axs = plt.subplots(nrows, 2, figsize=(8, 4 * nrows), squeeze=True)
+    # One column for one calculation, otherwise two columns.
+    ncols = 1 if len(selfens) == 1 else 2
+    nrows = (len(selfens) + ncols - 1) // ncols
+    _, axs = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows), squeeze=False)
+    for ax in axs.flat[len(selfens) :]:
+        ax.set_visible(False)
 
     lines = []
     for i in range(len(selfens)):
         selfen = selfens[i + 1]
         lines += _get_text_lines(selfen, i + 1)
-        if len(selfens) == 1:
-            _plot(axs, selfen)
-        else:
-            _plot(axs[i], selfen)  # type: ignore
+        _plot(axs.flat[i], selfen)
 
     txt_filename = pathlib.Path(dir_name) / "selfenergy.txt"
     with open(txt_filename, "w") as w:

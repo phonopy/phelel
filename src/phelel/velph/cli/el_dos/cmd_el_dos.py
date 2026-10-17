@@ -99,7 +99,7 @@ def cmd_plot_dos_eigenvalues(
         temperature,
         cutoff_occupancy,
         mu,
-        None,
-        None,
+        tid=None,
+        calcid=None,
         calc_type="el_dos",
     )

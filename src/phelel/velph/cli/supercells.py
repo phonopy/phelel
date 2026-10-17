@@ -17,12 +17,14 @@ import click
 import numpy as np
 from numpy.typing import NDArray
 from phono3py import Phono3py
+from phono3py.interface.phono3py_yaml import Phono3pyYaml
 from phonopy import Phonopy
 from phonopy.interface.phonopy_yaml import PhonopyYaml
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import isclose
 
 from phelel import Phelel
+from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.velph.cli.utils import get_nac_params, get_num_digits
 from phelel.velph.config.defaults import get_default_config
 from phelel.velph.config.merge import merge
@@ -133,14 +135,30 @@ def set_nac_params(
 def load_phonopy_yaml(
     filename: str | pathlib.Path, is_symmetry: bool = True
 ) -> Phonopy:
-    """Return Phonopy with the cells, dataset and NAC params of a yaml file.
+    """Return Phonopy with the cells, dataset and NAC params of phonopy_disp.yaml.
 
-    filename is phonopy_disp.yaml or a file of its format, such as
-    phelel_disp.yaml, whose phonon supercell is not read.  Unlike phonopy.load,
-    files in the current directory, such as FORCE_SETS and BORN, are not read.
+    Unlike phonopy.load, files in the current directory, such as FORCE_SETS and
+    BORN, are not read.
 
     """
-    ph_yaml = PhonopyYaml().read(filename)
+    return _make_phonopy(PhonopyYaml().read(filename), is_symmetry)
+
+
+def load_phelel_yaml_as_phonopy(
+    filename: str | pathlib.Path, is_symmetry: bool = True
+) -> Phonopy:
+    """Return Phonopy with the cells, dataset and NAC params of phelel_disp.yaml.
+
+    The supercells with displacements are those of phelel.  The phonon
+    supercell and the phonon dataset are not read.  Unlike phelel.load, files
+    in the current directory, such as phelel_params.hdf5 and BORN, are not
+    read.
+
+    """
+    return _make_phonopy(PhelelYaml().read(filename), is_symmetry)
+
+
+def _make_phonopy(ph_yaml: PhonopyYaml, is_symmetry: bool) -> Phonopy:
     assert ph_yaml.unitcell is not None
     ph = Phonopy(
         ph_yaml.unitcell,
@@ -155,6 +173,30 @@ def load_phonopy_yaml(
     if ph_yaml.nac_params is not None:
         ph.nac_params = ph_yaml.nac_params
     return ph
+
+
+def load_phono3py_yaml(filename: str | pathlib.Path) -> Phono3py:
+    """Return Phono3py with the cells and datasets of phono3py_disp.yaml.
+
+    Unlike phono3py.load, files in the current directory, such as fc3.hdf5,
+    FORCES_FC3 and BORN, are not read.
+
+    """
+    ph3py_yaml = Phono3pyYaml()
+    ph3py_yaml.read(filename)
+    assert ph3py_yaml.unitcell is not None
+    ph3py = Phono3py(
+        ph3py_yaml.unitcell,
+        supercell_matrix=ph3py_yaml.supercell_matrix,
+        primitive_matrix=ph3py_yaml.primitive_matrix,
+        phonon_supercell_matrix=ph3py_yaml.phonon_supercell_matrix,
+        calculator=ph3py_yaml.calculator,
+    )
+    if ph3py_yaml.dataset is not None:
+        ph3py.dataset = ph3py_yaml.dataset
+    if ph3py_yaml.phonon_dataset is not None:
+        ph3py.phonon_dataset = ph3py_yaml.phonon_dataset
+    return ph3py
 
 
 def read_phonopy_phonon(

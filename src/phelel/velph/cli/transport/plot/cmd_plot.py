@@ -85,7 +85,7 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     type=int,
     default=None,
     help=(
-        "Index of self-energy calculation for collecting chemical potential and "
+        "Index of temperature for collecting chemical potential and "
         "temperature. (tid: int, default=None)"
     ),
 )
@@ -114,8 +114,9 @@ def cmd_plot_transport_eigenvalues(
         temperature,
         cutoff_occupancy,
         mu,
-        calcid,
-        tid,
+        tid=tid,
+        calcid=calcid,
+        calc_type="transport",
     )
 
 

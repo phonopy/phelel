@@ -14,7 +14,7 @@ from click.testing import CliRunner
 
 from phelel import __version__
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import load_velph_toml
+from phelel.velph.config.io import VelphConfigError, load_velph_toml
 from phelel.velph.config.legacy import (
     convert_legacy_velph_toml,
     load_velph_toml_any_version,
@@ -429,3 +429,27 @@ def test_convert_legacy_velph_toml_error(
         assert new_filename.read_text() == "x = 1\n"
     else:
         assert not new_filename.exists()
+
+
+def test_load_velph_toml_without_version(
+    nacl_velph_toml_v014: Callable[[], dict], tmp_path: pathlib.Path
+):
+    """A velph.toml without [velph] version and [phelel] version is an error.
+
+    velph tells the format of a velph.toml by these keys, and the message names
+    both of them.
+
+    """
+    data = nacl_velph_toml_v014()
+    del data["phelel"]["version"]
+    filename = tmp_path / "velph.toml"
+    filename.write_text(tomli_w.dumps(data))
+    with pytest.raises(VelphConfigError) as e:
+        load_velph_toml_any_version(filename)
+    assert str(e.value) == (
+        f'"{filename}" has no version.\n'
+        "velph chooses how to read velph.toml by its version.\n"
+        "velph 0.15 and later write [velph] version.\n"
+        "velph 0.14 and earlier write [phelel] version.\n"
+        'Run "velph init" to make a new velph.toml.'
+    )

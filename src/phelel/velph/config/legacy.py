@@ -6,6 +6,14 @@ the velph.toml files written by velph 0.14.  A file of velph 0.14 is converted
 to the new format and read into VelphConfig, so that the generate commands
 write the same VASP input files as those of velph 0.14.
 
+velph init of every version up to 0.14 writes [phelel] version, so a
+velph.toml of velph earlier than 0.14 is read in the same way as one of velph
+0.14.  The conversion is written for the format of velph 0.14, and it has not
+been checked on files of earlier versions.  A key that the new format does not
+have is reported by parse_velph_toml as an unknown key.  A key whose meaning
+differs from that in velph 0.14 is read with the meaning of velph 0.14, and no
+error is raised.
+
 The conversion is as follows.
 
 - [phelel] version becomes [velph] version.
@@ -106,7 +114,21 @@ def parse_legacy_velph_toml(
     parse_velph_toml with the section names of the new format, for example
     [vasp.el_dos] for [vasp.el_bands.dos].
 
+    velph init of every version up to 0.14 writes [phelel] version, and
+    VelphConfigError is raised when data does not have it.  data with [phelel]
+    version of velph earlier than 0.14 is converted as a velph.toml of velph
+    0.14 (see the docstring of this module).
+
     """
+    phelel = data.get("phelel")
+    if not (isinstance(phelel, Mapping) and "version" in phelel):
+        raise VelphConfigError(
+            f'"{name}" has no version.\n'
+            "velph chooses how to read velph.toml by its version.\n"
+            "velph 0.15 and later write [velph] version.\n"
+            "velph 0.14 and earlier write [phelel] version.\n"
+            'Run "velph init" to make a new velph.toml.'
+        )
     converted = copy.deepcopy(dict(data))
     _convert_code_sections(converted)
     vasp = converted.get("vasp")

@@ -115,3 +115,24 @@ def test_relax_generate_without_velph_toml(
     assert result.exit_code == 1
     assert 'Error: "velph.toml" not found.' in result.stderr
     assert list(tmp_path.iterdir()) == []
+
+
+def test_relax_generate_after_iter100(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """After relax/iter100, the next relax is written in relax/iter101.
+
+    relax/iter100 is not changed.
+
+    """
+    write_velph_toml(parse_velph_toml(nacl_velph_toml()), tmp_path / "velph.toml")
+    for i in range(1, 101):
+        (tmp_path / "relax" / f"iter{i}").mkdir(parents=True)
+    (tmp_path / "relax" / "iter100" / "CONTCAR").write_text("contcar\n")
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cmd_root, ["relax", "generate"])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "relax" / "iter101" / "POSCAR").read_text() == "contcar\n"
+    assert [p.name for p in (tmp_path / "relax" / "iter100").iterdir()] == ["CONTCAR"]
