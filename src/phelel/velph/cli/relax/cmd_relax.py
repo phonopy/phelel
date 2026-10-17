@@ -30,10 +30,6 @@ def cmd_generate(toml_filename: str):
     if not pathlib.Path("POTCAR").exists():
         click.echo('"POTCAR" not found in current directory.')
 
-    if not pathlib.Path(toml_filename).exists():
-        click.echo(f'"{toml_filename}" not found.', err=True)
-        return None
-
     prev_directory = None
     for i in range(1, 101):
         directory = pathlib.Path(f"relax/iter{i}")

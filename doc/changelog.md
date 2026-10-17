@@ -21,6 +21,8 @@
   they write any file. Before, the directory was left without `_job.sh`.
 - `velph scheduler` shows the job script `_job.sh` of each input set without
   writing any file.
+- `velph relax generate` without `velph.toml` stops with an error. Before, the
+  exit code was 0.
 - Fix the force constants of the derivatives with a phonon supercell. They were
   computed from the displacements of the phelel supercells and the forces of
   the phonon supercells, and they are now computed from the displacements of

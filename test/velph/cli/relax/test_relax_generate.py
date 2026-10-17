@@ -104,3 +104,14 @@ def test_relax_generate_new_format(
         "--job-name=vasp-elph-iter2"
         in (tmp_path / "relax" / "iter2" / "_job.sh").read_text()
     )
+
+
+def test_relax_generate_without_velph_toml(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Without velph.toml, the exit code is 1 and no directory is made."""
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(cmd_root, ["relax", "generate"])
+    assert result.exit_code == 1
+    assert 'Error: "velph.toml" not found.' in result.stderr
+    assert list(tmp_path.iterdir()) == []
