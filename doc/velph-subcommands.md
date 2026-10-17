@@ -154,6 +154,7 @@ path that seekpath gives is written (see {ref}`velph_toml_vasp_bands`).
 VASP input files were generated in "el_bands".
 ```
 
+(velph_el_bands_plot)=
 ### `velph el_bands plot`
 
 The electronic band structure and density of states are plotted from
@@ -173,7 +174,7 @@ Electronic band structure plot was saved in "el_bands/el_bands.pdf".
 ## `velph el_dos`
 
 This subcommand is used to prepare VASP input files for electronic density of
-states calculation.
+states calculation, and to plot the density of states.
 
 ### `velph el_dos generate`
 
@@ -184,6 +185,20 @@ and the Fermi level.
 ```bash
 % velph el_dos generate
 VASP input files were generated in "el_dos".
+```
+
+### `velph el_dos plot`
+
+The electronic density of states is plotted from `el_dos/vaspout.h5`, with the
+energy on the horizontal axis. The Fermi level of the DOS calculation is shown
+by a red line. The energy range must be specified using the `--window` option
+in the same way as {ref}`velph el_bands plot <velph_el_bands_plot>`. Another
+`vaspout.h5` can be given with `--vaspout-filename`. With `--save` option, the
+plot is saved in `el_dos.pdf` in the directory of `vaspout.h5`.
+
+```bash
+% velph el_dos plot --window -5 9 --save
+Electronic DOS plot was saved in "el_dos/el_dos.pdf".
 ```
 
 ### `velph el_dos plot_eigenvalues`

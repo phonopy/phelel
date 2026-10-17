@@ -211,6 +211,7 @@ in the format of velph 0.15 (see {ref}`velph_changes_0_15_convert`).
   of `el_bands/bands` and `el_bands/dos`.
 - `velph el_dos generate` is a new subcommand, which writes the input files of
   the DOS calculation in `el_dos`.
+- `velph el_dos plot` is a new subcommand, which plots the DOS.
 - `velph el_bands plot_eigenvalues` is now `velph el_dos plot_eigenvalues`.
 - `velph ph_bands generate` writes the input files in `ph_bands`, in place of
   `ph_bands/bands`.
