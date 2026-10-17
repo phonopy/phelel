@@ -11,6 +11,7 @@ import pytest
 import tomli_w
 from click.testing import CliRunner
 from phonopy import Phonopy
+from phonopy.structure.atoms import PhonopyAtoms
 
 import phelel
 import phelel.velph.cli.phelel.differentiate as differentiate
@@ -21,6 +22,7 @@ from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import InputSetSection, VaspSection, VelphConfig
+from phelel.velph.jobs.project import Project
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 cwd = pathlib.Path(__file__).parent
@@ -102,8 +104,8 @@ def test_run_derivatives_without_phonopy_disp_yaml(tmp_path: pathlib.Path):
 def _init_phonon_from_phonopy(
     phonopy_lines: Sequence[str],
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
 ) -> tuple[Phelel, list[pathlib.Path], list[pathlib.Path]]:
     """Return Phelel with the phonon supercells of phonopy and the directories.
@@ -112,9 +114,9 @@ def _init_phonon_from_phonopy(
     are made in tmp_path.
 
     """
-    config = code_init_config(ti_velph_toml(phonopy_lines))
-    write_phonopy_disp_yaml(config, tmp_path)
-    phe = run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+    project = code_init_project(ti_velph_toml(phonopy_lines))
+    write_phonopy_disp_yaml(project, tmp_path)
+    phe = run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
     assert phe.supercells_with_displacements is not None
     assert phe.phonon_supercells_with_displacements is not None
     dir_names = []
@@ -134,8 +136,8 @@ def _init_phonon_from_phonopy(
 
 def test_run_derivatives_phonon_from_phonopy(
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -143,7 +145,7 @@ def test_run_derivatives_phonon_from_phonopy(
     phe, phelel_dir_names, phonopy_dir_names = _init_phonon_from_phonopy(
         ["amplitude = 0.01"],
         ti_velph_toml,
-        code_init_config,
+        code_init_project,
         write_phonopy_disp_yaml,
         tmp_path,
     )
@@ -165,8 +167,8 @@ def test_run_derivatives_phonon_from_phonopy(
 def test_run_derivatives_phonopy_disp_yaml_changed(
     phonopy_lines: list[str],
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
 ):
     """phonopy_disp.yaml written again after velph phelel init is an error.
@@ -178,11 +180,11 @@ def test_run_derivatives_phonopy_disp_yaml_changed(
     phe, _, _ = _init_phonon_from_phonopy(
         ["amplitude = 0.01"],
         ti_velph_toml,
-        code_init_config,
+        code_init_project,
         write_phonopy_disp_yaml,
         tmp_path,
     )
-    write_phonopy_disp_yaml(code_init_config(ti_velph_toml(phonopy_lines)), tmp_path)
+    write_phonopy_disp_yaml(code_init_project(ti_velph_toml(phonopy_lines)), tmp_path)
     with pytest.raises(click.ClickException) as e:
         run_derivatives(
             phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
@@ -192,15 +194,15 @@ def test_run_derivatives_phonopy_disp_yaml_changed(
 
 def test_run_derivatives_without_phonopy_directory(
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
 ):
     """A missing directory of the phonon supercells is named."""
     phe, _, phonopy_dir_names = _init_phonon_from_phonopy(
         ["amplitude = 0.01"],
         ti_velph_toml,
-        code_init_config,
+        code_init_project,
         write_phonopy_disp_yaml,
         tmp_path,
     )
@@ -214,8 +216,8 @@ def test_run_derivatives_without_phonopy_directory(
 
 def test_run_derivatives_without_force_files(
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -223,7 +225,7 @@ def test_run_derivatives_without_force_files(
     phe, _, _ = _init_phonon_from_phonopy(
         ["amplitude = 0.01"],
         ti_velph_toml,
-        code_init_config,
+        code_init_project,
         write_phonopy_disp_yaml,
         tmp_path,
     )
@@ -244,22 +246,29 @@ def test_run_derivatives_site_mixture_merge(
 ):
     """Derivatives are not calculated with the merge scheme of site mixture."""
     phe = run_init(
-        parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
+        Project.from_config(parse_velph_toml(site_mixture_velph_toml(False))),
+        current_directory=tmp_path,
     )
     with pytest.raises(click.ClickException) as e:
         run_derivatives(phe, dir_name=tmp_path / "phelel")
     assert "not supported with the merge scheme" in e.value.message
 
 
-def _elph_config(incars: dict[str, dict]) -> VelphConfig:
-    """Return VelphConfig with the electron-phonon input sets of incars."""
-    return VelphConfig(
+def _elph_project(incars: dict[str, dict]) -> Project:
+    """Return Project with the electron-phonon input sets of incars.
+
+    The cells are not used by get_fft_mesh, and one atom is given.
+
+    """
+    config = VelphConfig(
         vasp=VaspSection(
             input_sets={
                 name: InputSetSection(incar=incar) for name, incar in incars.items()
             }
         )
     )
+    cell = PhonopyAtoms(cell=_LATTICE, symbols=["C"], scaled_positions=[[0, 0, 0]])
+    return Project(config, pathlib.Path("velph.toml"), unitcell=cell, primitive=cell)
 
 
 _LATTICE = np.eye(3) * 5.0
@@ -272,21 +281,21 @@ def test_get_fft_mesh_from_input_sets():
     Accurate differ for this lattice, so the test fails if Accurate is assumed.
 
     """
-    mesh = get_fft_mesh(_elph_config({"selfenergy": {"encut": 500}}), _LATTICE)
+    mesh = get_fft_mesh(_elph_project({"selfenergy": {"encut": 500}}), _LATTICE)
     np.testing.assert_array_equal(
         mesh, CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "normal")
     )
     assert not np.array_equal(
         mesh, CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "accurate")
     )
-    config = _elph_config(
+    project = _elph_project(
         {
             "selfenergy": {"encut": 500, "prec": "accurate"},
             "transport": {"encut": 500, "prec": "high"},
         }
     )
     np.testing.assert_array_equal(
-        get_fft_mesh(config, _LATTICE),
+        get_fft_mesh(project, _LATTICE),
         CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "accurate"),
     )
 
@@ -299,35 +308,35 @@ def test_get_fft_mesh_different_meshes():
     replaces ENCUT of the input sets, but not PREC.
 
     """
-    config = _elph_config(
+    project = _elph_project(
         {
             "selfenergy": {"encut": 500, "prec": "accurate"},
             "transport": {"encut": 400, "prec": "accurate"},
         }
     )
-    np.testing.assert_array_equal(get_fft_mesh(config, _LATTICE), [36, 36, 36])
-    config = _elph_config(
+    np.testing.assert_array_equal(get_fft_mesh(project, _LATTICE), [36, 36, 36])
+    project = _elph_project(
         {
             "selfenergy": {"encut": 500, "prec": "accurate"},
             "transport": {"encut": 300, "prec": "accurate"},
         }
     )
     with pytest.raises(click.ClickException) as e:
-        get_fft_mesh(config, _LATTICE)
+        get_fft_mesh(project, _LATTICE)
     assert e.value.message.startswith(
         'The FFT meshes of the electron-phonon input sets of "velph.toml" differ:\n'
         "  [vasp.selfenergy]: encut = 500, prec = accurate, mesh = "
     )
     assert e.value.message.endswith("or give ENCUT by --encut.")
     np.testing.assert_array_equal(
-        get_fft_mesh(config, _LATTICE, encut=600),
+        get_fft_mesh(project, _LATTICE, encut=600),
         CutoffToFFTMesh.get_FFTMesh(600, _LATTICE, "accurate"),
     )
-    config = _elph_config(
+    project = _elph_project(
         {"selfenergy": {"encut": 500}, "transport": {"encut": 500, "prec": "accurate"}}
     )
     with pytest.raises(click.ClickException) as e:
-        get_fft_mesh(config, _LATTICE, encut=500)
+        get_fft_mesh(project, _LATTICE, encut=500)
     assert e.value.message.endswith(
         'Make "prec" of these input sets give the same mesh.'
     )
@@ -336,20 +345,20 @@ def test_get_fft_mesh_different_meshes():
 def test_get_fft_mesh_without_encut():
     """ENCUT has to be given by the input sets or by --encut."""
     with pytest.raises(click.ClickException) as e:
-        get_fft_mesh(_elph_config({"selfenergy": {"prec": "accurate"}}), _LATTICE)
+        get_fft_mesh(_elph_project({"selfenergy": {"prec": "accurate"}}), _LATTICE)
     assert e.value.message == (
         '[vasp.selfenergy.incar] of "velph.toml" does not give "encut".\n'
         'Give "encut" there, or give ENCUT by --encut.'
     )
     with pytest.raises(click.ClickException) as e:
-        get_fft_mesh(VelphConfig(), _LATTICE)
+        get_fft_mesh(_elph_project({}), _LATTICE)
     assert e.value.message == (
         '"velph.toml" has no electron-phonon input set, [vasp.selfenergy], '
         "[vasp.transport] or [vasp.ph_selfenergy], from which ENCUT is taken.\n"
         "Give ENCUT by --encut."
     )
     np.testing.assert_array_equal(
-        get_fft_mesh(VelphConfig(), _LATTICE, encut=500),
+        get_fft_mesh(_elph_project({}), _LATTICE, encut=500),
         CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, None),
     )
 

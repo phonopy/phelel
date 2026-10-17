@@ -10,7 +10,7 @@ from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.utils import echo_vasp_vca_hint
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.jobs.vasp_job import get_cell, read_velph_toml
+from phelel.velph.jobs.project import read_velph_toml
 
 
 #
@@ -45,9 +45,9 @@ def cmd_generate(toml_filename: str, prefix: str):
 
 def _run_generate(toml_filename: str, prefix: str) -> None:
     """Generate {prefix}-unitcell and {prefix}-primitive."""
-    config = read_velph_toml(toml_filename)
-    _write_cell(f"{prefix}-unitcell", get_cell(config, "unitcell"))
-    _write_cell(f"{prefix}-primitive", get_cell(config, "primitive"))
+    project = read_velph_toml(toml_filename)
+    _write_cell(f"{prefix}-unitcell", project.unitcell)
+    _write_cell(f"{prefix}-primitive", project.primitive)
 
 
 def _write_cell(filename: str, cell: PhonopyAtoms):

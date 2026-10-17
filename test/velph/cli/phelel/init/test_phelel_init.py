@@ -16,7 +16,7 @@ import phelel
 from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.config.io import parse_velph_toml
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 cwd = Path(__file__).parent
 
@@ -25,7 +25,7 @@ cwd = Path(__file__).parent
     "plusminus,diagonal", itertools.product([True, False], repeat=2)
 )
 def test_supercell_init_plusminus_diagonal(
-    plusminus: bool, diagonal: bool, code_init_config: Callable[[dict], VelphConfig]
+    plusminus: bool, diagonal: bool, code_init_project: Callable[[dict], Project]
 ):
     """Test of plusminus and diagonal with Ti."""
     if plusminus:
@@ -60,7 +60,7 @@ magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]
 
     print(toml_str)
     toml_dict = tomllib.loads(toml_str)
-    phe = run_init(code_init_config(toml_dict))
+    phe = run_init(code_init_project(toml_dict))
     np.testing.assert_array_equal(phe.supercell_matrix, np.diag([4, 4, 2]))
     print(phe.dataset["first_atoms"])
     if plusminus and diagonal:
@@ -108,13 +108,13 @@ coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
 def _get_phelel_displacements(
     displacement_lines: list[str],
     tmp_path: pathlib.Path,
-    code_init_config: Callable[[dict], VelphConfig],
+    code_init_project: Callable[[dict], Project],
 ) -> np.ndarray:
     toml_str = "\n".join(
         ["[phelel]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
     )
     phe = run_init(
-        code_init_config(tomllib.loads(toml_str + _TI_UNITCELL)),
+        code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
         current_directory=tmp_path,
     )
     assert phe.dataset is not None
@@ -122,7 +122,7 @@ def _get_phelel_displacements(
 
 
 def test_phelel_init_default_displacement_settings(
-    tmp_path: pathlib.Path, code_init_config: Callable[[dict], VelphConfig]
+    tmp_path: pathlib.Path, code_init_project: Callable[[dict], Project]
 ):
     """Test defaults of plusminus, diagonal, and amplitude in [phelel].
 
@@ -131,16 +131,16 @@ def test_phelel_init_default_displacement_settings(
     differ from those with the defaults of phonopy ("auto", true, and 0.01).
 
     """
-    disps = _get_phelel_displacements([], tmp_path, code_init_config)
+    disps = _get_phelel_displacements([], tmp_path, code_init_project)
     disps_velph = _get_phelel_displacements(
         ["plusminus = true", "diagonal = false", "amplitude = 0.03"],
         tmp_path,
-        code_init_config,
+        code_init_project,
     )
     disps_phonopy = _get_phelel_displacements(
         ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"],
         tmp_path,
-        code_init_config,
+        code_init_project,
     )
     assert disps.shape == disps_velph.shape
     np.testing.assert_allclose(disps, disps_velph)
@@ -155,7 +155,9 @@ def test_phelel_init_site_mixture(
 ):
     """Test that phelel_disp.yaml of a site-mixture cell is read back."""
     phe = run_init(
-        parse_velph_toml(site_mixture_velph_toml(split_site_mixture)),
+        Project.from_config(
+            parse_velph_toml(site_mixture_velph_toml(split_site_mixture))
+        ),
         current_directory=tmp_path,
     )
     filename = tmp_path / "phelel_disp.yaml"
@@ -187,7 +189,8 @@ def test_phelel_init_site_mixture_merge_without_nac(
     (tmp_path / "nac").mkdir()
     (tmp_path / "nac" / "vasprun.xml").write_text("")
     phe = run_init(
-        parse_velph_toml(site_mixture_velph_toml(False)), current_directory=tmp_path
+        Project.from_config(parse_velph_toml(site_mixture_velph_toml(False))),
+        current_directory=tmp_path,
     )
     assert phe.nac_params is None
     assert "NAC is not supported with the merge scheme" in capsys.readouterr().out
@@ -199,8 +202,8 @@ def test_phelel_init_site_mixture_merge_without_nac(
 def test_phelel_init_phonon_from_phonopy(
     phonopy_lines: list[str],
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
 ):
     """The phonon supercells are those of phonopy/phonopy_disp.yaml.
@@ -210,9 +213,9 @@ def test_phelel_init_phonon_from_phonopy(
     supercells.  With number_of_snapshots, the displacements are random.
 
     """
-    config = code_init_config(ti_velph_toml(phonopy_lines))
-    ph = write_phonopy_disp_yaml(config, tmp_path)
-    phe = run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+    project = code_init_project(ti_velph_toml(phonopy_lines))
+    ph = write_phonopy_disp_yaml(project, tmp_path)
+    phe = run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
     np.testing.assert_array_equal(phe.phonon_supercell_matrix, ph.supercell_matrix)
     assert len(phe.supercell) == 2
     yaml_filename = tmp_path / "phelel_disp.yaml"
@@ -228,30 +231,30 @@ def test_phelel_init_phonon_from_phonopy(
 
 def test_phelel_init_phonon_from_phonopy_without_phonopy_disp_yaml(
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
+    code_init_project: Callable[[dict], Project],
     tmp_path: pathlib.Path,
 ):
     """Without phonopy/phonopy_disp.yaml, velph phonopy init is asked for."""
-    config = code_init_config(ti_velph_toml([]))
+    project = code_init_project(ti_velph_toml([]))
     with pytest.raises(click.ClickException, match='"velph phonopy init" first'):
-        run_init(config, current_directory=tmp_path, phonon_from_phonopy=True)
+        run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
 
 
 def test_phelel_init_phonon_from_phonopy_of_other_unit_cell(
     ti_velph_toml: Callable[[Sequence[str]], dict],
-    code_init_config: Callable[[dict], VelphConfig],
-    write_phonopy_disp_yaml: Callable[[VelphConfig, pathlib.Path], Phonopy],
+    code_init_project: Callable[[dict], Project],
+    write_phonopy_disp_yaml: Callable[[Project, pathlib.Path], Phonopy],
     tmp_path: pathlib.Path,
 ):
     """phonopy_disp.yaml of another unit cell is an error."""
     data = ti_velph_toml([])
-    write_phonopy_disp_yaml(code_init_config(data), tmp_path)
+    write_phonopy_disp_yaml(code_init_project(data), tmp_path)
     data["unitcell"]["lattice"] = (
         np.array(data["unitcell"]["lattice"]) * 1.01
     ).tolist()
     with pytest.raises(click.ClickException, match="differs"):
         run_init(
-            code_init_config(data),
+            code_init_project(data),
             current_directory=tmp_path,
             phonon_from_phonopy=True,
         )

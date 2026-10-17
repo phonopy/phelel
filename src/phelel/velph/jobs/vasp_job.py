@@ -18,20 +18,12 @@ from collections.abc import Mapping
 from typing import Any
 
 from phonopy.interface.vasp import get_vasp_vca_weights, write_vasp
-from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
+from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.config.input_sets import INPUT_SETS, InputSetName, KpointsFileName
+from phelel.velph.config.input_sets import KpointsFileName
 from phelel.velph.config.io import VelphConfigError
-from phelel.velph.config.legacy import load_velph_toml_any_version
-from phelel.velph.config.schema import (
-    CellChoice,
-    InputSetSection,
-    KpointsMesh,
-    LinePath,
-    VelphConfig,
-)
-from phelel.velph.errors import VelphError
-from phelel.velph.utils.kpath import get_seekpath_line_path
+from phelel.velph.config.schema import InputSetName, KpointsMesh, LinePath
+from phelel.velph.jobs.project import Project
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
@@ -39,32 +31,48 @@ from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 class VaspJob:
     """Input files of one VASP calculation in one directory.
 
-    poscar is the cell written as POSCAR, or the path of a file copied as
-    POSCAR, such as CONTCAR of the previous relax.  incar is the INCAR as it is
-    written.  kpoints maps the name of each k-point file to its mesh, or to
-    its band path, which has to give "path".
-    job_script is _job.sh as it is written, and _job.sh is not written when
-    job_script is None.
-    copied_files maps a file name in the directory to the file copied there,
-    such as POTCAR.
+    Attributes
+    ----------
+    directory : pathlib.Path
+        Directory in which the input files are written, such as
+        "relax/iter1".  It is made when it does not exist.
+    cell : PhonopyAtoms
+        Cell of the calculation.  It is written as POSCAR, unless
+        poscar_source is given.
+    incar : Mapping[str, Any]
+        INCAR tags as they are written, with the tags that cell needs, such as
+        MAGMOM (add_cell_tags).
+    kpoints : Mapping[KpointsFileName, KpointsMesh | LinePath]
+        Name of each k-point file mapped to its mesh, or to its band path,
+        which has to give "path".
+    job_script : str or None
+        _job.sh as it is written.  _job.sh is not written when it is None.
+    copied_files : Mapping[str, pathlib.Path]
+        Name of a file in directory mapped to the file copied there, such as
+        {"POTCAR": pathlib.Path("POTCAR")}.
+    poscar_source : pathlib.Path or None
+        File copied as POSCAR in place of cell, such as CONTCAR of the
+        previous relax.  cell is then still used for the INCAR tags and for
+        the hint of the species rows of site mixture.
 
     """
 
     directory: pathlib.Path
-    poscar: PhonopyAtoms | pathlib.Path
+    cell: PhonopyAtoms
     incar: Mapping[str, Any]
     kpoints: Mapping[KpointsFileName, KpointsMesh | LinePath]
     job_script: str | None = None
     copied_files: Mapping[str, pathlib.Path] = dataclasses.field(default_factory=dict)
+    poscar_source: pathlib.Path | None = None
 
 
 def write_vasp_job(job: VaspJob) -> None:
     """Write the VASP input files of a job in its directory."""
     job.directory.mkdir(parents=True, exist_ok=True)
-    if isinstance(job.poscar, pathlib.Path):
-        shutil.copy2(job.poscar, job.directory / "POSCAR")
+    if job.poscar_source is not None:
+        shutil.copy2(job.poscar_source, job.directory / "POSCAR")
     else:
-        write_poscar(job.directory, job.poscar)
+        write_poscar(job.directory, job.cell)
     VaspIncar.write(job.directory / "INCAR", dict(job.incar))
     for filename, block in job.kpoints.items():
         kpoints: dict[str, Any]
@@ -85,45 +93,8 @@ def write_vasp_job(job: VaspJob) -> None:
         (job.directory / "_job.sh").write_text(job.job_script)
 
 
-def read_velph_toml(
-    toml_filename: str | os.PathLike, set_name: InputSetName | None = None
-) -> VelphConfig:
-    """Read velph.toml for a velph command.
-
-    A velph.toml of the new format or of velph 0.14 is read.  VelphError is
-    raised when the file does not exist.  VelphConfigError is raised when it
-    has an error, or, with set_name, when it does not have [vasp.<set_name>].
-
-    """
-    if not pathlib.Path(toml_filename).exists():
-        raise VelphError(f'"{toml_filename}" not found.')
-    config = load_velph_toml_any_version(toml_filename)
-    if set_name is None:
-        return config
-    if (
-        config.vasp is None
-        or config.vasp.input_sets is None
-        or set_name not in config.vasp.input_sets
-    ):
-        raise VelphConfigError(
-            f'[vasp.{set_name}] is not found in "{toml_filename}".\n'
-            f'Add [vasp.{set_name}] to "{toml_filename}", or run "velph init" again.'
-        )
-    return config
-
-
-def get_input_set(config: VelphConfig, set_name: InputSetName) -> InputSetSection:
-    """Return the input set [vasp.<set_name>].
-
-    The caller checks that velph.toml has the input set.
-
-    """
-    assert config.vasp is not None and config.vasp.input_sets is not None
-    return config.vasp.input_sets[set_name]
-
-
 def effective_scheduler(
-    config: VelphConfig, set_name: InputSetName, job_id: str | None = None
+    project: Project, set_name: InputSetName, job_id: str | None = None
 ) -> dict[str, Any] | None:
     """Return the scheduler settings of a job of an input set.
 
@@ -134,17 +105,17 @@ def effective_scheduler(
     written.
 
     """
-    if config.scheduler is None:
+    if project.config.scheduler is None:
         return None
-    scheduler = dict(config.scheduler)
-    scheduler.update(get_input_set(config, set_name).scheduler or {})
+    scheduler = dict(project.config.scheduler)
+    scheduler.update(project.input_set(set_name).scheduler or {})
     if job_id is not None and "job_name" in scheduler:
         scheduler["job_name"] = f"{scheduler['job_name']}-{job_id}"
     return scheduler
 
 
 def job_script(
-    config: VelphConfig, set_name: InputSetName, job_id: str | None = None
+    project: Project, set_name: InputSetName, job_id: str | None = None
 ) -> str | None:
     """Return _job.sh of a job of an input set.
 
@@ -153,7 +124,7 @@ def job_script(
     make_job_script when the job script template cannot be filled.
 
     """
-    scheduler = effective_scheduler(config, set_name, job_id=job_id)
+    scheduler = effective_scheduler(project, set_name, job_id=job_id)
     if scheduler is None:
         return None
     return make_job_script(scheduler)
@@ -172,56 +143,6 @@ def add_cell_tags(incar: Mapping[str, Any], cell: PhonopyAtoms) -> dict[str, Any
     if cell.has_weighted_species:
         incar_with_cell_tags["vca"] = get_vasp_vca_weights(cell)
     return incar_with_cell_tags
-
-
-def get_cell(config: VelphConfig, cell_choice: CellChoice) -> PhonopyAtoms:
-    """Return [unitcell] or [primitive_cell] of velph.toml."""
-    cell_dict = config.unitcell if cell_choice == "unitcell" else config.primitive_cell
-    assert cell_dict is not None
-    cell = parse_cell_dict(dict(cell_dict))  # type: ignore[arg-type]
-    assert cell is not None
-    return cell
-
-
-def get_kpoints(
-    config: VelphConfig, set_name: InputSetName, cell: PhonopyAtoms | None = None
-) -> dict[KpointsFileName, KpointsMesh | LinePath]:
-    """Return the meshes and band paths of the k-point files of an input set.
-
-    The k-point files and the k-point blocks that give them are those of
-    INPUT_SETS.  The loader of velph.toml checks that the blocks exist and that
-    a block other than a line block gives a mesh.  A line block without "path"
-    gets the band path that seekpath gives for cell, which is then required.
-    VelphError is raised when seekpath is not installed.
-
-    """
-    input_set = get_input_set(config, set_name)
-    kpoints: dict[KpointsFileName, KpointsMesh | LinePath] = {}
-    for filename, block in INPUT_SETS[set_name].kpoints_files.items():
-        value = getattr(input_set, block)
-        if isinstance(value, LinePath):
-            if value.path is None:
-                assert cell is not None
-                value = _seekpath_line_path(
-                    cell, value.line, f"vasp.{set_name}.{block}"
-                )
-        else:
-            assert isinstance(value, KpointsMesh)
-        kpoints[filename] = value
-    return kpoints
-
-
-def _seekpath_line_path(cell: PhonopyAtoms, line: int, where: str) -> LinePath:
-    try:
-        return get_seekpath_line_path(cell, line)
-    except ModuleNotFoundError as e:
-        if e.name != "seekpath":
-            raise
-        raise VelphError(
-            f'[{where}] does not give "path", and seekpath, which makes the band '
-            "path, is not installed.\n"
-            f'Install seekpath, or give "path" and "label" in [{where}].'
-        ) from e
 
 
 def write_poscar(

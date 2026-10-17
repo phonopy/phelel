@@ -14,7 +14,8 @@ from phelel import Phelel
 from phelel.interface.vasp.derivatives import create_derivatives
 from phelel.velph.cli.supercells import load_phonopy_yaml
 from phelel.velph.cli.utils import get_num_digits
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.config.schema import InputSetName
+from phelel.velph.jobs.project import Project
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 
@@ -150,14 +151,11 @@ def _missing_files(filepath: pathlib.Path) -> list[str]:
 
 # Input sets whose VASP calculations read phelel_params.hdf5.  Their FFT grid
 # has to be the FFT mesh of the local potentials in phelel_params.hdf5.
-ELPH_INPUT_SETS = ("selfenergy", "transport", "ph_selfenergy")
+ELPH_INPUT_SETS: tuple[InputSetName, ...] = ("selfenergy", "transport", "ph_selfenergy")
 
 
 def get_fft_mesh(
-    config: VelphConfig,
-    lattice: NDArray,
-    encut: float | None = None,
-    toml_filename: str | os.PathLike = "velph.toml",
+    project: Project, lattice: NDArray, encut: float | None = None
 ) -> NDArray:
     """Return the FFT mesh of the local potentials for phelel_params.hdf5.
 
@@ -173,7 +171,8 @@ def get_fft_mesh(
     differ.
 
     """
-    input_sets = (config.vasp.input_sets or {}) if config.vasp is not None else {}
+    input_sets = project.input_sets
+    toml_filename = project.toml_filename
     incars = {
         set_name: input_sets[set_name].incar or {}
         for set_name in ELPH_INPUT_SETS

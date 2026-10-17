@@ -10,43 +10,35 @@ from phelel import Phelel
 from phelel.cui.create_supercells import generate_phelel_supercells
 from phelel.velph.cli.supercells import (
     PHONOPY_DISP_YAML,
-    get_cells,
-    get_code_section,
-    get_supercell_matrix,
     read_phonopy_phonon,
     set_nac_params,
 )
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 
 def run_init(
-    config: VelphConfig,
+    project: Project,
     current_directory: pathlib.Path = pathlib.Path(""),
     phonon_from_phonopy: bool = False,
-    toml_filename: str | pathlib.Path = "velph.toml",
 ) -> Phelel:
     """Return Phelel with the supercells with displacements of [phelel].
 
     With phonon_from_phonopy, the phonon supercell matrix and the phonon dataset
     are those of phonopy/phonopy_disp.yaml.  current_directory is where the
-    directories "nac" and "phonopy" are looked for.  toml_filename is used in
-    error messages.
+    directories "nac" and "phonopy" are looked for.
 
     """
-    section = get_code_section(config, "phelel", toml_filename)
-    # The defaults of velph init give these fields.
+    section = project.code_section("phelel")
+    # code_section fills these fields with the defaults of velph init.
     assert section.plusminus is not None and section.diagonal is not None
-    unitcell, _, primitive_matrix = get_cells(config)
     ph_phonon = (
-        read_phonopy_phonon(config, current_directory, toml_filename)
-        if phonon_from_phonopy
-        else None
+        read_phonopy_phonon(project, current_directory) if phonon_from_phonopy else None
     )
     is_symmetry = not section.nosym
     phe = Phelel(
-        unitcell,
-        supercell_matrix=get_supercell_matrix(section),
-        primitive_matrix=primitive_matrix,
+        project.unitcell,
+        supercell_matrix=project.supercell_matrix("phelel"),
+        primitive_matrix=project.primitive_matrix,
         phonon_supercell_matrix=(
             None if ph_phonon is None else ph_phonon.supercell_matrix
         ),
@@ -72,5 +64,5 @@ def run_init(
             f"{len(phe.phonon_supercells_with_displacements)}, taken from "
             f'"{current_directory / PHONOPY_DISP_YAML}".'
         )
-    set_nac_params(phe, config, is_symmetry, current_directory)
+    set_nac_params(phe, project, is_symmetry, current_directory)
     return phe

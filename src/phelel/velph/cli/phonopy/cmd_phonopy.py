@@ -9,7 +9,7 @@ import click
 from phelel.velph.cli.phonopy.generate import write_supercell_input_files
 from phelel.velph.cli.phonopy.init import run_init
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.jobs.vasp_job import read_velph_toml
+from phelel.velph.jobs.project import read_velph_toml
 
 
 @cmd_root.group("phonopy")
@@ -36,8 +36,7 @@ def cmd_phonopy():
 @click.help_option("-h", "--help")
 def cmd_init(toml_filename: str):
     """Generate displacements and write phonopy_disp.yaml."""
-    config = read_velph_toml(toml_filename)
-    ph = run_init(config, toml_filename=toml_filename)
+    ph = run_init(read_velph_toml(toml_filename))
 
     phonopy_yaml_filename = pathlib.Path("phonopy/phonopy_disp.yaml")
     phonopy_yaml_filename.parent.mkdir(parents=True, exist_ok=True)

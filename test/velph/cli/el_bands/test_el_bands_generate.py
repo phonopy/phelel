@@ -16,6 +16,7 @@ from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import KpointsMesh, LinePath, VaspSection, VelphConfig
 from phelel.velph.errors import VelphError
+from phelel.velph.jobs.project import Project
 
 
 def _with_el_bands_path(config: VelphConfig) -> VelphConfig:
@@ -36,7 +37,7 @@ def test_plan_el_bands(nacl_velph_toml: Callable[[], dict]):
     pytest.importorskip("seekpath")
     data = nacl_velph_toml()
     assert "path" not in data["vasp"]["el_bands"]["kpoints_opt"]
-    job = plan_el_bands(parse_velph_toml(data))
+    job = plan_el_bands(Project.from_config(parse_velph_toml(data)))
     assert job.directory == pathlib.Path("el_bands")
     kpoints_opt = job.kpoints["KPOINTS_OPT"]
     assert isinstance(kpoints_opt, LinePath)
@@ -53,14 +54,14 @@ def test_plan_el_bands_without_seekpath(
     monkeypatch.setitem(sys.modules, "seekpath", None)
     config = parse_velph_toml(nacl_velph_toml())
     with pytest.raises(VelphError) as e:
-        plan_el_bands(config)
+        plan_el_bands(Project.from_config(config))
     assert str(e.value) == (
         '[vasp.el_bands.kpoints_opt] does not give "path", and seekpath, which '
         "makes the band path, is not installed.\n"
         'Install seekpath, or give "path" and "label" in '
         "[vasp.el_bands.kpoints_opt]."
     )
-    job = plan_el_bands(_with_el_bands_path(config))
+    job = plan_el_bands(Project.from_config(_with_el_bands_path(config)))
     assert job.kpoints["KPOINTS_OPT"] == LinePath(
         line=21, path=(((0.0, 0.0, 0.0), (0.5, 0.0, 0.5)),), label=(("G", "X"),)
     )
@@ -69,7 +70,7 @@ def test_plan_el_bands_without_seekpath(
 def test_plan_el_dos(nacl_velph_toml: Callable[[], dict]):
     """KPOINTS_OPT of el_dos is the mesh of [vasp.el_dos.kpoints_dense]."""
     data = nacl_velph_toml()
-    job = plan_el_dos(parse_velph_toml(data))
+    job = plan_el_dos(Project.from_config(parse_velph_toml(data)))
     dos = data["vasp"]["el_dos"]
     assert job.directory == pathlib.Path("el_dos")
     assert job.kpoints == {

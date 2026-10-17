@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import dataclasses
 import pathlib
 from collections.abc import Callable
 
-import click
 import pytest
 import tomli_w
 from click.testing import CliRunner
 
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
-from phelel.velph.cli.supercells import get_code_section, plan_supercells
+from phelel.velph.cli.supercells import plan_supercells
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
-from phelel.velph.config.schema import CodeSection
+from phelel.velph.jobs.project import Project
 
 
 def test_plan_supercells(
@@ -30,16 +28,16 @@ def test_plan_supercells(
 
     """
     data = nacl_velph_toml()
-    config = parse_velph_toml(data)
+    project = Project.from_config(parse_velph_toml(data))
     monkeypatch.chdir(tmp_path)
-    phe = run_init(config, current_directory=tmp_path)
+    phe = run_init(project, current_directory=tmp_path)
     assert phe.supercells_with_displacements is not None
-    jobs = plan_supercells(config, "phelel", phe)
+    jobs = plan_supercells(project, "phelel", phe)
     assert [job.directory for job in jobs] == [
         pathlib.Path(f"phelel/disp-{i:03d}")
         for i in range(len(phe.supercells_with_displacements) + 1)
     ]
-    assert jobs[0].poscar is phe.supercell
+    assert jobs[0].cell is phe.supercell
     assert jobs[1].job_script is not None
     assert "#SBATCH --job-name=vasp-elph-001\n" in jobs[1].job_script
     assert jobs[1].incar == data["vasp"]["phelel"]["incar"]
@@ -73,40 +71,6 @@ def test_supercells_site_mixture_merge(
         assert lines[6].split() == ["8", "8", "8"]
         assert "VCA = 0.5 0.5 1.0" in (directory / "INCAR").read_text()
     assert result.output.count("VASP VCA hint:") == 1
-
-
-def test_get_code_section(nacl_velph_toml: Callable[[], dict]):
-    """Fields not given take the defaults of velph init, and errors name the file.
-
-    The supercell has to be given.
-
-    """
-    config = parse_velph_toml(nacl_velph_toml())
-    assert config.phelel is not None
-    config = dataclasses.replace(
-        config,
-        phelel=CodeSection(supercell=config.phelel.supercell),
-        phonopy=None,
-    )
-    section = get_code_section(config, "phelel", "velph.toml")
-    assert (section.amplitude, section.diagonal, section.plusminus) == (
-        0.03,
-        False,
-        True,
-    )
-    with pytest.raises(click.ClickException) as e:
-        get_code_section(config, "phonopy", "velph.toml")
-    assert e.value.message == (
-        '[phonopy] is not found in "velph.toml".\n'
-        'Add [phonopy] to "velph.toml", or run "velph init" again.'
-    )
-    config = dataclasses.replace(config, phelel=CodeSection(amplitude=0.02))
-    with pytest.raises(click.ClickException) as e:
-        get_code_section(config, "phelel", "velph.toml")
-    assert e.value.message == (
-        '[phelel] of "velph.toml" does not give the supercell.\n'
-        'Give "supercell_dimension" or "supercell_matrix" in [phelel].'
-    )
 
 
 def test_generate_without_yaml(
@@ -187,7 +151,8 @@ def test_set_nac_params_without_vasprun(
     """Without nac/vasprun.xml, the message says how to set the NAC parameters."""
     (tmp_path / "nac").mkdir()
     ph = run_phonopy_init(
-        parse_velph_toml(nacl_velph_toml()), current_directory=tmp_path
+        Project.from_config(parse_velph_toml(nacl_velph_toml())),
+        current_directory=tmp_path,
     )
     assert ph.nac_params is None
     assert (

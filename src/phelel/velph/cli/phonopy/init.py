@@ -7,36 +7,29 @@ import pathlib
 import click
 from phonopy import Phonopy
 
-from phelel.velph.cli.supercells import (
-    get_cells,
-    get_code_section,
-    get_supercell_matrix,
-    set_nac_params,
-)
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.cli.supercells import set_nac_params
+from phelel.velph.jobs.project import Project
 
 
 def run_init(
-    config: VelphConfig,
+    project: Project,
     current_directory: pathlib.Path = pathlib.Path(""),
-    toml_filename: str | pathlib.Path = "velph.toml",
 ) -> Phonopy:
     """Return Phonopy with the supercells with displacements of [phonopy].
 
     With number_of_snapshots, the displacements are random, and diagonal and
     plusminus are not used.  current_directory is where the directory "nac"
-    is looked for.  toml_filename is used in error messages.
+    is looked for.
 
     """
-    section = get_code_section(config, "phonopy", toml_filename)
-    # The defaults of velph init give these fields.
+    section = project.code_section("phonopy")
+    # code_section fills these fields with the defaults of velph init.
     assert section.plusminus is not None and section.diagonal is not None
-    unitcell, _, primitive_matrix = get_cells(config)
     is_symmetry = not section.nosym
     ph = Phonopy(
-        unitcell,
-        supercell_matrix=get_supercell_matrix(section),
-        primitive_matrix=primitive_matrix,
+        project.unitcell,
+        supercell_matrix=project.supercell_matrix("phonopy"),
+        primitive_matrix=project.primitive_matrix,
         is_symmetry=is_symmetry,
         calculator="vasp",
         site_mixture_scheme=section.site_mixture_scheme or "merge",
@@ -51,5 +44,5 @@ def run_init(
     assert ph.supercells_with_displacements is not None
     click.echo(f"Displacement distance: {section.amplitude}")
     click.echo(f"Number of displacements: {len(ph.supercells_with_displacements)}")
-    set_nac_params(ph, config, is_symmetry, current_directory)
+    set_nac_params(ph, project, is_symmetry, current_directory)
     return ph

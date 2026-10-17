@@ -45,6 +45,7 @@ from phelel.velph.config.schema import (
     VASP_KSPACING_TAGS,
     CodeSection,
     InitSection,
+    InputSetName,
     InputSetSection,
     KpointsMesh,
     KpointsSpacing,
@@ -331,8 +332,11 @@ def _parse_vasp(value: Any, file_kind: VelphFileKind) -> VaspSection:
     incar = (
         _incar(table["incar"], "vasp.incar", file_kind) if "incar" in table else None
     )
+    # The keys other than "incar" are names of input sets (_check_keys).
     input_sets = {
-        set_name: _parse_input_set(input_set_value, set_name, file_kind)
+        cast(InputSetName, set_name): _parse_input_set(
+            input_set_value, cast(InputSetName, set_name), file_kind
+        )
         for set_name, input_set_value in table.items()
         if set_name != "incar"
     }
@@ -340,7 +344,7 @@ def _parse_vasp(value: Any, file_kind: VelphFileKind) -> VaspSection:
 
 
 def _parse_input_set(
-    value: Any, set_name: str, file_kind: VelphFileKind
+    value: Any, set_name: InputSetName, file_kind: VelphFileKind
 ) -> InputSetSection:
     where = f"vasp.{set_name}"
     table = _table(value, where)

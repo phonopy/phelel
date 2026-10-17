@@ -7,12 +7,12 @@ from pathlib import Path
 import numpy as np
 
 from phelel.velph.cli.phelel.init import run_init
-from phelel.velph.config.schema import VelphConfig
+from phelel.velph.jobs.project import Project
 
 cwd = Path(__file__).parent
 
 
-def test_nac_Bi2Te3_ucell(request, code_init_config: Callable[[dict], VelphConfig]):
+def test_nac_Bi2Te3_ucell(request, code_init_project: Callable[[dict], Project]):
     """Test of different NAC cell."""
     toml_str = """[phelel]
 supercell_dimension = [2, 2, 1]
@@ -119,7 +119,7 @@ coordinates = [0.213380750346879, 0.213380750346872, 0.213380750346879]
 """
 
     toml_dict = tomllib.loads(toml_str)
-    phe = run_init(code_init_config(toml_dict), current_directory=request.path.parent)
+    phe = run_init(code_init_project(toml_dict), current_directory=request.path.parent)
     ref_born = [
         [11.5925019, 11.5925019, -1.15102317],
         [11.5925019, 11.5925019, -1.15102317],

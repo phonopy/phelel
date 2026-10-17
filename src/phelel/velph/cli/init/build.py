@@ -54,7 +54,7 @@ from phonopy.structure.cells import get_supercell
 from phelel import __version__
 from phelel.velph.cli.init.cells import InitCells, make_cells, resolve_supercell
 from phelel.velph.config.defaults import get_default_config
-from phelel.velph.config.input_sets import INPUT_SETS, InputSetName
+from phelel.velph.config.input_sets import INPUT_SETS
 from phelel.velph.config.merge import merge
 from phelel.velph.config.resolve import resolve_incar
 from phelel.velph.config.schema import (
@@ -62,6 +62,7 @@ from phelel.velph.config.schema import (
     CodeName,
     CodeSection,
     InitSection,
+    InputSetName,
     InputSetSection,
     KpointsMesh,
     KpointsSpacing,
@@ -192,14 +193,11 @@ def _init_layer(
         )
         if section != CodeSection():
             code_sections[code] = section
-    input_sets = {
-        set_name: InputSetSection(cell=cell)
-        for set_name, cell in (
-            ("relax", init.cell_for_relax),
-            ("nac", init.cell_for_nac),
-        )
-        if cell is not None
-    }
+    input_sets: dict[InputSetName, InputSetSection] = {}
+    if init.cell_for_relax is not None:
+        input_sets["relax"] = InputSetSection(cell=init.cell_for_relax)
+    if init.cell_for_nac is not None:
+        input_sets["nac"] = InputSetSection(cell=init.cell_for_nac)
     vasp = VaspSection(input_sets=input_sets) if input_sets else None
     return VelphConfig(init=init, vasp=vasp, **code_sections)  # type: ignore[arg-type]
 
@@ -259,7 +257,7 @@ def _resolve_vasp(
     if config.vasp is None:
         return None
     given = config.vasp.input_sets or {}
-    input_sets: dict[str, InputSetSection] = {}
+    input_sets: dict[InputSetName, InputSetSection] = {}
     for set_name, entry in INPUT_SETS.items():
         if set_name not in given:
             continue
