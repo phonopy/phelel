@@ -12,6 +12,7 @@ phonon supercells from phonopy/phonopy_disp.yaml written by velph phonopy init.
 from __future__ import annotations
 
 import pathlib
+from collections.abc import Callable
 
 import click
 import numpy as np
@@ -23,19 +24,18 @@ from phonopy.structure.cells import isclose
 
 from phelel import Phelel
 from phelel.interface.phelel_yaml import PhelelYaml
-from phelel.velph.cli.utils import get_nac_params, get_num_digits
+from phelel.velph.cli.utils import get_nac_params, write_jobs
 from phelel.velph.config.schema import CodeName
-from phelel.velph.jobs.project import Project
-from phelel.velph.jobs.vasp_job import VaspJob, add_cell_tags, find_potcar, job_script
-
-PHONOPY_DISP_YAML = pathlib.Path("phonopy") / "phonopy_disp.yaml"
+from phelel.velph.jobs.project import Project, read_velph_toml
+from phelel.velph.jobs.project_directory import ProjectDirectory
+from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set
 
 
 def set_nac_params(
     ph: Phelel | Phonopy | Phono3py,
     project: Project,
     is_symmetry: bool,
-    current_directory: pathlib.Path,
+    project_dir: ProjectDirectory,
 ) -> None:
     """Set NAC parameters read from nac/vasprun.xml, if the directory exists.
 
@@ -44,7 +44,7 @@ def set_nac_params(
     is raised when nac/vasprun.xml cannot be parsed.
 
     """
-    nac_directory = current_directory / "nac"
+    nac_directory = project_dir.nac_directory
     if not nac_directory.exists():
         return
     if getattr(ph, "unmerged_unitcell", None) is not None:
@@ -133,8 +133,8 @@ def load_phono3py_yaml(filename: str | pathlib.Path) -> Phono3py:
     return ph3py
 
 
-def read_phonopy_phonon(project: Project, current_directory: pathlib.Path) -> Phonopy:
-    """Return Phonopy of phonopy/phonopy_disp.yaml in current_directory.
+def read_phonopy_phonon(project: Project, project_dir: ProjectDirectory) -> Phonopy:
+    """Return Phonopy of phonopy/phonopy_disp.yaml of the project.
 
     Its supercell matrix and dataset are the phonon supercell matrix and the
     phonon dataset of phelel and phono3py.  click.ClickException is raised when
@@ -142,7 +142,7 @@ def read_phonopy_phonon(project: Project, current_directory: pathlib.Path) -> Ph
     from that of velph.toml.
 
     """
-    filename = current_directory / PHONOPY_DISP_YAML
+    filename = project_dir.disp_yaml("phonopy")
     if not filename.exists():
         raise click.ClickException(
             f'"{filename}" is not found.\nRun "velph phonopy init" first.'
@@ -161,37 +161,70 @@ def read_phonopy_phonon(project: Project, current_directory: pathlib.Path) -> Ph
 
 
 def plan_supercells(
-    project: Project, code: CodeName, ph: Phelel | Phonopy | Phono3py
+    project: Project,
+    code: CodeName,
+    ph: Phelel | Phonopy | Phono3py,
+    project_dir: ProjectDirectory | None = None,
 ) -> list[VaspJob]:
     """Return the VASP jobs of the supercells of a code.
 
     The jobs are the perfect supercell in <code>/disp-000 and the supercells
     with displacements in <code>/disp-001, ...  With the merge scheme of site
     mixture, the atoms of the supercells are those of the unmerged supercell.
-    The directory name, such as "001", is appended to job_name of the
+    The number of the directory, such as "001", is appended to job_name of the
     scheduler settings.
 
     """
+    if project_dir is None:
+        project_dir = ProjectDirectory()
     assert ph.supercells_with_displacements is not None
     if isinstance(ph, (Phelel, Phonopy)) and ph.unmerged_supercell is not None:
         supercell = ph.unmerged_supercell
     else:
         supercell = ph.supercell
-    incar = project.input_set(code).incar or {}
-    kpoints = project.kpoints(code)
-    copied_files = find_potcar()
-    nd = get_num_digits(ph.supercells_with_displacements)
-    jobs = []
-    for i, cell in enumerate([supercell] + ph.supercells_with_displacements):
-        id_number = f"{i:0{nd}d}"
-        jobs.append(
-            VaspJob(
-                directory=pathlib.Path(f"{code}/disp-{id_number}"),
-                cell=cell,
-                incar=add_cell_tags(incar, cell),
-                kpoints=kpoints,
-                job_script=job_script(project, code, job_id=id_number),
-                copied_files=copied_files,
-            )
+    cells = [supercell] + ph.supercells_with_displacements
+    directories = project_dir.disp_directories(
+        code, len(ph.supercells_with_displacements)
+    )
+    return [
+        plan_input_set(
+            project,
+            code,
+            project_dir=project_dir,
+            directory=directory,
+            cell=cell,
+            job_id=ProjectDirectory.disp_id(directory),
         )
-    return jobs
+        for directory, cell in zip(directories, cells, strict=True)
+    ]
+
+
+# Readers of <code>/<code>_disp.yaml for the generate commands.
+_DISP_YAML_LOADERS: dict[CodeName, Callable[[pathlib.Path], Phonopy | Phono3py]] = {
+    "phelel": load_phelel_yaml_as_phonopy,
+    "phonopy": load_phonopy_yaml,
+    "phono3py": load_phono3py_yaml,
+}
+
+
+def write_supercell_input_files(
+    toml_filename: str | pathlib.Path,
+    code: CodeName,
+    project_dir: ProjectDirectory | None = None,
+) -> None:
+    """Write the VASP inputs of the supercells of <code>/<code>_disp.yaml.
+
+    click.ClickException is raised when <code>/<code>_disp.yaml, written by the
+    init command of the code, does not exist.
+
+    """
+    if project_dir is None:
+        project_dir = ProjectDirectory()
+    yaml_filename = project_dir.disp_yaml(code)
+    if not yaml_filename.exists():
+        raise click.ClickException(
+            f'"{yaml_filename}" not found.\nRun "velph {code} init" to make it.'
+        )
+    project = read_velph_toml(toml_filename, code)
+    ph = _DISP_YAML_LOADERS[code](yaml_filename)
+    write_jobs(plan_supercells(project, code, ph, project_dir=project_dir))

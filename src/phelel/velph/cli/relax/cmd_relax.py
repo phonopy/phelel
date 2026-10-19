@@ -9,6 +9,7 @@ import click
 
 from phelel.velph.cli.relax.generate import write_input_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("relax")
@@ -32,12 +33,10 @@ def cmd_relax():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate relax input files."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
+    project_dir = ProjectDirectory()
     prev_directory = None
     for i in itertools.count(1):
-        directory = pathlib.Path(f"relax/iter{i}")
+        directory = project_dir.relax_directory(i)
         if not directory.exists():
             break
         click.echo(f'"{directory}" exists.')

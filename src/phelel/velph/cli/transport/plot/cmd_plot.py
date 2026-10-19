@@ -15,6 +15,7 @@ from phelel.velph.cli.plot_eigenvalues import (
 from phelel.velph.cli.transport.cmd_transport import cmd_transport
 from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
 from phelel.velph.cli.transport.plot.plot_transport import plot_transport
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_transport.group("plot")
@@ -29,7 +30,7 @@ def cmd_plot():
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="transport/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("transport")),
 )
 @click.option(
     "--save",
@@ -53,7 +54,7 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="transport/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("transport")),
 )
 @click.option(
     "--save",
@@ -77,7 +78,7 @@ def cmd_plot_transport(vaspout_filename: str, save_plot: bool):
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="transport/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("transport")),
 )
 @click.option(
     "--tid",
@@ -122,31 +123,20 @@ def cmd_plot_transport_eigenvalues(
 
 
 def _get_h5py_and_plot_filenames(
-    property_name: str,
-    vaspout_filename: str | os.PathLike | None = None,
-    plot_filename: str | os.PathLike | None = None,
+    property_name: str, vaspout_filename: str | os.PathLike
 ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
     """Return vaspout.h5, plot filename and the directory of vaspout.h5.
 
+    The plot is <property_name>.pdf in the directory of vaspout.h5.
     click.ClickException is raised when vaspout.h5 does not exist.
 
     """
-    if vaspout_filename is None:
-        _vaspout_filename = pathlib.Path(f"{property_name}/vaspout.h5")
-    else:
-        _vaspout_filename = pathlib.Path(vaspout_filename)
-
+    _vaspout_filename = pathlib.Path(vaspout_filename)
     if not _vaspout_filename.exists():
         raise click.ClickException(
             f'"{_vaspout_filename}" not found.  Give the path of vaspout.h5 with '
             "--vaspout-filename."
         )
-
     dir_name = _vaspout_filename.parent
-
-    if plot_filename is None:
-        _plot_filename = dir_name / f"{property_name}.pdf"
-    else:
-        _plot_filename = pathlib.Path(plot_filename)
-
+    _plot_filename = dir_name / f"{property_name}.pdf"
     return _vaspout_filename, _plot_filename, dir_name

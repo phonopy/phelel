@@ -6,13 +6,14 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.el_dos.generate import write_input_files
 from phelel.velph.cli.el_dos.plot import plot_el_dos
 from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
+from phelel.velph.cli.utils import write_input_set_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("el_dos")
@@ -39,10 +40,7 @@ def cmd_el_dos():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to calculate electronic DOS."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_input_files(pathlib.Path(toml_filename))
+    write_input_set_files(toml_filename, "el_dos")
 
 
 #
@@ -59,7 +57,7 @@ def cmd_generate(toml_filename: str):
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="el_dos/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("el_dos")),
     show_default=True,
 )
 @click.option(
@@ -88,7 +86,7 @@ def cmd_plot(window: tuple[float, float], vaspout_filename: str, save_plot: bool
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="el_dos/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("el_dos")),
 )
 @eigenvalue_plot_options
 def cmd_plot_dos_eigenvalues(

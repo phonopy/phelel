@@ -2,26 +2,27 @@
 
 from __future__ import annotations
 
-import pathlib
-
 import click
 from phonopy import Phonopy
 
 from phelel.velph.cli.supercells import set_nac_params
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 def run_init(
     project: Project,
-    current_directory: pathlib.Path = pathlib.Path(""),
+    project_dir: ProjectDirectory | None = None,
 ) -> Phonopy:
     """Return Phonopy with the supercells with displacements of [phonopy].
 
     With number_of_snapshots, the displacements are random, and diagonal and
-    plusminus are not used.  current_directory is where the directory "nac"
-    is looked for.
+    plusminus are not used.  project_dir gives the directory "nac", in the
+    current directory by default.
 
     """
+    if project_dir is None:
+        project_dir = ProjectDirectory()
     section = project.code_section("phonopy")
     # code_section fills these fields with the defaults of velph init.
     assert section.plusminus is not None and section.diagonal is not None
@@ -44,5 +45,5 @@ def run_init(
     assert ph.supercells_with_displacements is not None
     click.echo(f"Displacement distance: {section.amplitude}")
     click.echo(f"Number of displacements: {len(ph.supercells_with_displacements)}")
-    set_nac_params(ph, project, is_symmetry, current_directory)
+    set_nac_params(ph, project, is_symmetry, project_dir)
     return ph

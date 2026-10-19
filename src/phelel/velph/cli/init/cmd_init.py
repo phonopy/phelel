@@ -18,7 +18,13 @@ from phelel.velph.config.io import (
     parse_init,
     write_velph_toml,
 )
-from phelel.velph.config.schema import CODES, CodeName, InitSection, VelphConfig
+from phelel.velph.config.schema import (
+    CODES,
+    CodeName,
+    InitSection,
+    InputSetName,
+    VelphConfig,
+)
 from phelel.velph.utils.vasp import VaspPotcar
 
 _DEFAULTS = get_default_config()
@@ -45,7 +51,7 @@ def _code_default(name: str) -> str:
     return ", ".join(f"{value} for {code}" for code, value in values.items())
 
 
-def _cell_default(set_name: str) -> str:
+def _cell_default(set_name: InputSetName) -> str:
     """Return the default cell of an input set."""
     assert _DEFAULTS.vasp is not None and _DEFAULTS.vasp.input_sets is not None
     cell = _DEFAULTS.vasp.input_sets[set_name].cell

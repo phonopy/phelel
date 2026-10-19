@@ -17,6 +17,7 @@ from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 cwd = Path(__file__).parent
 
@@ -115,7 +116,7 @@ def _get_phelel_displacements(
     )
     phe = run_init(
         code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     assert phe.dataset is not None
     return np.array([a["displacement"] for a in phe.dataset["first_atoms"]])
@@ -158,7 +159,7 @@ def test_phelel_init_site_mixture(
         Project.from_config(
             parse_velph_toml(site_mixture_velph_toml(split_site_mixture))
         ),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     filename = tmp_path / "phelel_disp.yaml"
     finalize_phelel(
@@ -190,7 +191,7 @@ def test_phelel_init_site_mixture_merge_without_nac(
     (tmp_path / "nac" / "vasprun.xml").write_text("")
     phe = run_init(
         Project.from_config(parse_velph_toml(site_mixture_velph_toml(False))),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     assert phe.nac_params is None
     assert "NAC is not supported with the merge scheme" in capsys.readouterr().out
@@ -215,7 +216,9 @@ def test_phelel_init_phonon_from_phonopy(
     """
     project = code_init_project(ti_velph_toml(phonopy_lines))
     ph = write_phonopy_disp_yaml(project, tmp_path)
-    phe = run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
+    phe = run_init(
+        project, project_dir=ProjectDirectory(tmp_path), phonon_from_phonopy=True
+    )
     np.testing.assert_array_equal(phe.phonon_supercell_matrix, ph.supercell_matrix)
     assert len(phe.supercell) == 2
     yaml_filename = tmp_path / "phelel_disp.yaml"
@@ -237,7 +240,9 @@ def test_phelel_init_phonon_from_phonopy_without_phonopy_disp_yaml(
     """Without phonopy/phonopy_disp.yaml, velph phonopy init is asked for."""
     project = code_init_project(ti_velph_toml([]))
     with pytest.raises(click.ClickException, match='"velph phonopy init" first'):
-        run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
+        run_init(
+            project, project_dir=ProjectDirectory(tmp_path), phonon_from_phonopy=True
+        )
 
 
 def test_phelel_init_phonon_from_phonopy_of_other_unit_cell(
@@ -255,7 +260,7 @@ def test_phelel_init_phonon_from_phonopy_of_other_unit_cell(
     with pytest.raises(click.ClickException, match="differs"):
         run_init(
             code_init_project(data),
-            current_directory=tmp_path,
+            project_dir=ProjectDirectory(tmp_path),
             phonon_from_phonopy=True,
         )
 

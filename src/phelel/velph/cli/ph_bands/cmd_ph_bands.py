@@ -11,6 +11,7 @@ from phelel.velph.cli.ph_bands.generate import (
 )
 from phelel.velph.cli.ph_bands.plot import plot_ph_bandstructures
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("ph_bands")
@@ -37,9 +38,6 @@ def cmd_ph_bands():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to plot phonon band structure."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
     write_input_files_ph_bandstructures(pathlib.Path(toml_filename))
 
 
@@ -64,7 +62,7 @@ def cmd_generate(toml_filename: str):
 @click.help_option("-h", "--help")
 def cmd_plot(use_ordinary_frequency: bool, save_plot: bool):
     """Plot phonon band structure."""
-    vaspout_filename = pathlib.Path("ph_bands/vaspout.h5")
+    vaspout_filename = ProjectDirectory().vaspout("ph_bands")
     if not vaspout_filename.exists():
         raise click.ClickException(f'"{vaspout_filename}" not found.')
     plot_ph_bandstructures(

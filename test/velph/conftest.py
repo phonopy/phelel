@@ -13,7 +13,6 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phelel import __version__
 from phelel.velph.cli.init.build import build_velph_config
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
-from phelel.velph.cli.supercells import PHONOPY_DISP_YAML
 from phelel.velph.config.io import (
     dumps_config,
     parse_init,
@@ -21,6 +20,7 @@ from phelel.velph.config.io import (
     parse_velph_toml,
 )
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 cwd = pathlib.Path(__file__).parent
 VELPH_TOML_V014_DIR = cwd / "data" / "velph_toml_v014"
@@ -402,8 +402,9 @@ def write_phonopy_disp_yaml() -> Callable[[Project, pathlib.Path], Phonopy]:
     """
 
     def _write(project: Project, directory: pathlib.Path) -> Phonopy:
-        ph = run_phonopy_init(project, current_directory=directory)
-        filename = directory / PHONOPY_DISP_YAML
+        project_dir = ProjectDirectory(directory)
+        ph = run_phonopy_init(project, project_dir=project_dir)
+        filename = project_dir.disp_yaml("phonopy")
         filename.parent.mkdir(parents=True, exist_ok=True)
         ph.save(filename)
         return ph

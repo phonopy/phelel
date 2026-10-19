@@ -8,6 +8,7 @@ import numpy as np
 
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 cwd = Path(__file__).parent
 
@@ -88,7 +89,9 @@ coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
 """
 
     toml_dict = tomllib.loads(toml_str)
-    phe = run_init(code_init_project(toml_dict), current_directory=request.path.parent)
+    phe = run_init(
+        code_init_project(toml_dict), project_dir=ProjectDirectory(request.path.parent)
+    )
     ref_born = 1.74040591
     ref_dielectric = 3.74364141
     np.testing.assert_array_almost_equal(

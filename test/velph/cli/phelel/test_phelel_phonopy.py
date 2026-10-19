@@ -16,9 +16,9 @@ import phelel.velph.cli.phelel.phonopy as phelel_phonopy
 from phelel import Phelel
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
-from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 def _write_phelel_disp_yaml(path: pathlib.Path, with_phonon: bool = True) -> Phelel:
@@ -48,25 +48,23 @@ def _write_phelel_disp_yaml(path: pathlib.Path, with_phonon: bool = True) -> Phe
         "dielectric": np.eye(3) * 2.4,
         "factor": 14.4,
     }
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(str(phe.to_phelel_yaml()))
     return phe
 
 
 def _write_force_files(
-    directory: pathlib.Path,
-    prefix: str,
+    project_dir: ProjectDirectory,
     cells: list[PhonopyAtoms],
     vaspout_ids: tuple[int, ...] = (),
 ) -> None:
     """Write empty force files of the perfect supercell and cells.
 
-    The files are written in <directory>/<prefix>-*, vaspout.h5 for vaspout_ids
+    The files are written in phelel/disp-* of project_dir, vaspout.h5 for vaspout_ids
     and vasprun.xml for the others.
 
     """
-    nd = get_num_digits(cells)
-    for i in range(len(cells) + 1):
-        d = directory / f"{prefix}-{i:0{nd}d}"
+    for i, d in enumerate(project_dir.disp_directories("phelel", len(cells))):
         d.mkdir(parents=True)
         (d / ("vaspout.h5" if i in vaspout_ids else "vasprun.xml")).touch()
 
@@ -86,14 +84,14 @@ def test_create_phonopy_yaml_with_phonon_supercell(
     that the phonopy calculation is in "phonopy".
 
     """
-    phe = _write_phelel_disp_yaml(tmp_path / "phelel_disp.yaml")
+    phe = _write_phelel_disp_yaml(ProjectDirectory(tmp_path).disp_yaml("phelel"))
     assert phe.phonon_supercell is not None
     assert phe.supercells_with_displacements is not None
     assert phe.nac_params is not None
     n_atoms = len(phe.supercell)
     assert len(phe.phonon_supercell) != n_atoms
     disps = phe.supercells_with_displacements
-    _write_force_files(tmp_path / "phelel", "disp", disps)
+    _write_force_files(ProjectDirectory(tmp_path), disps)
     filenames: list[pathlib.Path] = []
     forces = np.random.default_rng(5).standard_normal((len(disps), n_atoms, 3))
 
@@ -108,13 +106,11 @@ def test_create_phonopy_yaml_with_phonon_supercell(
     if not with_vasp_phonopy:
         del toml_dict["vasp"]["phonopy"]
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(toml_dict))
-    create_phonopy_yaml(
-        pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
-    )
+    create_phonopy_yaml(pathlib.Path("velph.toml"))
 
-    nd = get_num_digits(disps)
     assert [str(f) for f in filenames] == [
-        f"phelel/disp-{i:0{nd}d}/vasprun.xml" for i in range(len(disps) + 1)
+        str(d / "vasprun.xml")
+        for d in ProjectDirectory().disp_directories("phelel", len(disps))
     ]
     ph = phonopy.load(tmp_path / "phelel" / "phonopy_params.yaml", produce_fc=False)
     assert len(ph.supercell) == n_atoms
@@ -134,17 +130,19 @@ def test_create_phonopy_yaml_without_force_files(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """A directory without vaspout.h5 and vasprun.xml is click.ClickException."""
-    phe = _write_phelel_disp_yaml(tmp_path / "phelel_disp.yaml", with_phonon=False)
+    phe = _write_phelel_disp_yaml(
+        ProjectDirectory(tmp_path).disp_yaml("phelel"), with_phonon=False
+    )
     assert phe.supercells_with_displacements is not None
-    _write_force_files(tmp_path / "phelel", "disp", phe.supercells_with_displacements)
-    nd = get_num_digits(phe.supercells_with_displacements)
-    (tmp_path / "phelel" / f"disp-{1:0{nd}d}" / "vasprun.xml").unlink()
+    _write_force_files(ProjectDirectory(tmp_path), phe.supercells_with_displacements)
+    disp_001 = ProjectDirectory(tmp_path).disp_directories(
+        "phelel", len(phe.supercells_with_displacements)
+    )[1]
+    (disp_001 / "vasprun.xml").unlink()
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
-    with pytest.raises(click.ClickException, match=f"disp-{1:0{nd}d}"):
-        create_phonopy_yaml(
-            pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
-        )
+    with pytest.raises(click.ClickException, match=disp_001.name):
+        create_phonopy_yaml(pathlib.Path("velph.toml"))
 
 
 def test_create_phonopy_yaml_reads_phelel_supercells(
@@ -157,11 +155,13 @@ def test_create_phonopy_yaml_reads_phelel_supercells(
     vaspout.h5 is read in place of vasprun.xml where it is found.
 
     """
-    phe = _write_phelel_disp_yaml(tmp_path / "phelel_disp.yaml", with_phonon=False)
+    phe = _write_phelel_disp_yaml(
+        ProjectDirectory(tmp_path).disp_yaml("phelel"), with_phonon=False
+    )
     assert phe.supercells_with_displacements is not None
     n_atoms = len(phe.supercell)
     disps = phe.supercells_with_displacements
-    _write_force_files(tmp_path / "phelel", "disp", disps, vaspout_ids=(1,))
+    _write_force_files(ProjectDirectory(tmp_path), disps, vaspout_ids=(1,))
     filenames: list[pathlib.Path] = []
 
     def _read_forces(vasp_filenames, supercell, perfect_filename=None):
@@ -172,14 +172,11 @@ def test_create_phonopy_yaml_reads_phelel_supercells(
     monkeypatch.setattr(phelel_phonopy, "read_vasp_forces", _read_forces)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
-    create_phonopy_yaml(
-        pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
-    )
+    create_phonopy_yaml(pathlib.Path("velph.toml"))
 
-    nd = get_num_digits(disps)
     assert [str(f) for f in filenames] == [
-        f"phelel/disp-{i:0{nd}d}/" + ("vaspout.h5" if i == 1 else "vasprun.xml")
-        for i in range(len(disps) + 1)
+        str(d / ("vaspout.h5" if i == 1 else "vasprun.xml"))
+        for i, d in enumerate(ProjectDirectory().disp_directories("phelel", len(disps)))
     ]
 
 
@@ -198,7 +195,8 @@ def test_create_phonopy_yaml_site_mixture(
     """
     data = site_mixture_velph_toml(split_site_mixture)
     phe = run_init(
-        Project.from_config(parse_velph_toml(data)), current_directory=tmp_path
+        Project.from_config(parse_velph_toml(data)),
+        project_dir=ProjectDirectory(tmp_path),
     )
     assert (phe.unmerged_supercell is None) == split_site_mixture
     assert phe.supercells_with_displacements is not None
@@ -206,8 +204,10 @@ def test_create_phonopy_yaml_site_mixture(
         phe.supercell if phe.unmerged_supercell is None else phe.unmerged_supercell
     )
     n_atoms = len(supercell)
-    (tmp_path / "phelel_disp.yaml").write_text(str(phe.to_phelel_yaml()))
-    _write_force_files(tmp_path / "phelel", "disp", phe.supercells_with_displacements)
+    yaml_filename = ProjectDirectory(tmp_path).disp_yaml("phelel")
+    yaml_filename.parent.mkdir(parents=True)
+    yaml_filename.write_text(str(phe.to_phelel_yaml()))
+    _write_force_files(ProjectDirectory(tmp_path), phe.supercells_with_displacements)
     rng = np.random.default_rng(3)
 
     def _read_forces(vasp_filenames, supercell, perfect_filename=None):
@@ -217,9 +217,7 @@ def test_create_phonopy_yaml_site_mixture(
     monkeypatch.setattr(phelel_phonopy, "read_vasp_forces", _read_forces)
     monkeypatch.chdir(tmp_path)
     (tmp_path / "velph.toml").write_text(tomli_w.dumps(data))
-    create_phonopy_yaml(
-        pathlib.Path("velph.toml"), pathlib.Path("phelel_disp.yaml"), "phelel"
-    )
+    create_phonopy_yaml(pathlib.Path("velph.toml"))
 
     ph = phonopy.load(tmp_path / "phelel" / "phonopy_params.yaml", produce_fc=False)
     assert ph.site_mixture_scheme == ("split" if split_site_mixture else "merge")

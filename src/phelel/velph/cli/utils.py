@@ -12,20 +12,49 @@ from phonopy.physical_units import get_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import symmetrize_borns_and_epsilon
 
+from phelel.velph.config.schema import InputSetName
+from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set, write_vasp_job
+
+
+def write_jobs(jobs: Sequence[VaspJob]) -> None:
+    """Write the VASP input files of jobs and show what was written.
+
+    A message is shown first when POTCAR is not copied, because it is not
+    found in the current directory.  The hint of VCA is shown once, for the
+    cell of the first job, because the species rows of POSCAR are the same
+    in all the jobs of a command.
+
+    """
+    if "POTCAR" not in jobs[0].copied_files:
+        click.echo('"POTCAR" not found in current directory.')
+    for job in jobs:
+        write_vasp_job(job)
+        if job.poscar_source is not None:
+            click.echo(
+                f'"{job.poscar_source}" was copied to "{job.directory / "POSCAR"}".'
+            )
+        click.echo(f'VASP input files were written in "{job.directory}".')
+    echo_vasp_vca_hint(jobs[0].cell)
+
+
+def write_input_set_files(
+    toml_filename: str | pathlib.Path, name: InputSetName
+) -> None:
+    """Write the VASP input files of an input set in its directory.
+
+    This is for the input sets whose job needs nothing but velph.toml, such as
+    nac, el_bands and el_dos (plan_input_set).
+
+    """
+    write_jobs([plan_input_set(read_velph_toml(toml_filename, name), name)])
+
 
 def echo_vasp_vca_hint(cell: PhonopyAtoms) -> None:
     """Show POSCAR species rows, POTCAR order and VCA tag of site mixture."""
     if cell.has_weighted_species:
         for line in get_vasp_vca_hint_lines(cell):
             click.echo(line)
-
-
-def get_num_digits(sequence: Sequence, min_length: int = 3) -> int:
-    """Return number of digits of sequence."""
-    nd = len(str(len(sequence)))
-    if nd < min_length:
-        nd = min_length
-    return nd
 
 
 def get_nac_params(

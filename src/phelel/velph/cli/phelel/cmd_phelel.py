@@ -9,11 +9,12 @@ import click
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
-from phelel.velph.cli.phelel.generate import write_supercell_input_files
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
+from phelel.velph.cli.supercells import write_supercell_input_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("phelel")
@@ -44,19 +45,17 @@ def cmd_phelel():
     is_flag=True,
     default=False,
     help=(
-        "Take the phonon supercells from phonopy/phonopy_disp.yaml written by "
-        '"velph phonopy init".'
+        "Take the phonon supercells from "
+        f'{ProjectDirectory().disp_yaml("phonopy")} written by "velph phonopy init".'
     ),
 )
 @click.help_option("-h", "--help")
 def cmd_init(toml_filename: str, phonon_from_phonopy: bool):
     """Generate displacements and write phelel_disp.yaml."""
-    dir_name = "phelel"
-
     project = read_velph_toml(toml_filename)
     phe = run_init(project, phonon_from_phonopy=phonon_from_phonopy)
 
-    phelel_yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
+    phelel_yaml_filename = ProjectDirectory().disp_yaml("phelel")
     phelel_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
     finalize_phelel(
         phe,
@@ -82,13 +81,7 @@ def cmd_init(toml_filename: str, phonon_from_phonopy: bool):
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate phelel input files."""
-    dir_name = "phelel"
-
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
-    write_supercell_input_files(pathlib.Path(toml_filename), yaml_filename)
+    write_supercell_input_files(toml_filename, "phelel")
 
 
 #
@@ -129,9 +122,9 @@ def cmd_differentiate(
     the electron-phonon input sets of velph.toml, or for --encut.
 
     """
-    dir_name = "phelel"
-    hdf5_filename = pathlib.Path(f"{dir_name}/phelel_params.hdf5")
-    yaml_filename = pathlib.Path(f"{dir_name}/phelel_disp.yaml")
+    project_dir = ProjectDirectory()
+    hdf5_filename = project_dir.phelel_params
+    yaml_filename = project_dir.disp_yaml("phelel")
 
     project = read_velph_toml(toml_filename)
     is_symmetry = not project.code_section("phelel").nosym
@@ -147,8 +140,8 @@ def cmd_differentiate(
     else:
         click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
 
-    run_derivatives(phe, dir_name=dir_name, verbose=verbose)
-    pathlib.Path(hdf5_filename).parent.mkdir(parents=True, exist_ok=True)
+    run_derivatives(phe, project_dir=project_dir, verbose=verbose)
+    hdf5_filename.parent.mkdir(parents=True, exist_ok=True)
     phe.save_hdf5(filename=hdf5_filename)
     click.echo(f'"{hdf5_filename}" was written.')
 
@@ -166,9 +159,4 @@ def cmd_differentiate(
 @click.help_option("-h", "--help")
 def cmd_phonopy(toml_filename: str):
     """Create phonopy_params.yaml."""
-    dir_name = "phelel"
-    create_phonopy_yaml(
-        pathlib.Path(toml_filename),
-        pathlib.Path(f"{dir_name}/phelel_disp.yaml"),
-        dir_name=dir_name,
-    )
+    create_phonopy_yaml(pathlib.Path(toml_filename))

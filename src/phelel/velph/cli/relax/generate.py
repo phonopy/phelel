@@ -6,15 +6,9 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.cli.utils import write_jobs
 from phelel.velph.jobs.project import Project, read_velph_toml
-from phelel.velph.jobs.vasp_job import (
-    VaspJob,
-    add_cell_tags,
-    find_potcar,
-    job_script,
-    write_vasp_job,
-)
+from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set
 
 
 def plan_relax(
@@ -30,7 +24,6 @@ def plan_relax(
     appended to job_name of the scheduler settings.
 
     """
-    cell = project.cell_of("relax")
     poscar_source = None
     if prev_directory is not None:
         poscar_source = prev_directory / "CONTCAR"
@@ -38,13 +31,11 @@ def plan_relax(
             raise click.ClickException(
                 f'"{poscar_source}" not found.  It is used as POSCAR of "{directory}".'
             )
-    return VaspJob(
+    return plan_input_set(
+        project,
+        "relax",
         directory=directory,
-        cell=cell,
-        incar=add_cell_tags(project.input_set("relax").incar or {}, cell),
-        kpoints=project.kpoints("relax"),
-        job_script=job_script(project, "relax", job_id=directory.name),
-        copied_files=find_potcar(),
+        job_id=directory.name,
         poscar_source=poscar_source,
     )
 
@@ -56,9 +47,4 @@ def write_input_files(
 ) -> None:
     """Generate VASP relax inputs."""
     project = read_velph_toml(toml_filename, "relax")
-    job = plan_relax(project, directory, prev_directory=prev_directory)
-    write_vasp_job(job)
-    if job.poscar_source is not None:
-        click.echo(f'"{job.poscar_source}" was copied to "{directory / "POSCAR"}".')
-    click.echo(f'VASP input files were written in "{directory}".')
-    echo_vasp_vca_hint(job.cell)
+    write_jobs([plan_relax(project, directory, prev_directory=prev_directory)])

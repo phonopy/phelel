@@ -10,11 +10,14 @@ import pytest
 from click.testing import CliRunner
 
 from phelel.velph.cli.ph_bands.generate import plan_ph_bands
-from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml, write_velph_toml
 from phelel.velph.config.schema import LinePath
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
+
+# phelel_params.hdf5 in the current directory, which the tests change to tmp_path.
+PHELEL_PARAMS = ProjectDirectory().phelel_params
 
 
 def test_plan_ph_bands(
