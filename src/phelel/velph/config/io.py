@@ -24,6 +24,7 @@ lists only the changes that concern the keys found in the file.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import re
 import textwrap
@@ -86,28 +87,26 @@ _TOP_KEYS: Mapping[VelphFileKind, tuple[str, ...]] = MappingProxyType(
     }
 )
 
+
+def _init_keys() -> tuple[str, ...]:
+    """Return the keys of [init], made from the fields of InitSection.
+
+    The keys are the fields in their order, except that the field supercell is
+    given by one of SUPERCELL_KEYS, which take its place.
+
+    """
+    keys: list[str] = []
+    for field in dataclasses.fields(InitSection):
+        if field.name == "supercell":
+            keys.extend(SUPERCELL_KEYS)
+        else:
+            keys.append(field.name)
+    return tuple(keys)
+
+
 # Keys of [init], which are the click parameter names of the velph init
 # options that [init] can give.
-INIT_KEYS = (
-    "codes",
-    *SUPERCELL_KEYS,
-    "amplitude",
-    "diagonal",
-    "plusminus",
-    "nosym",
-    "cell_for_relax",
-    "cell_for_nac",
-    "tolerance",
-    "symmetrize_cell",
-    "find_primitive",
-    "primitive_cell_choice",
-    "use_grg",
-    "kspacing",
-    "kspacing_dense",
-    "magmom",
-    "site_mixture",
-    "split_site_mixture",
-)
+INIT_KEYS = _init_keys()
 
 
 class VelphConfigError(VelphError, ValueError):
