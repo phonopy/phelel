@@ -14,6 +14,7 @@ from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_ph_selfenergy.group("plot")
@@ -28,7 +29,7 @@ def cmd_plot():
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="ph_selfenergy/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("ph_selfenergy")),
 )
 @click.option(
     "--save",
@@ -52,7 +53,7 @@ def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="ph_selfenergy/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("ph_selfenergy")),
 )
 @click.option(
     "--tid",
@@ -95,31 +96,20 @@ def cmd_plot_ph_selfenergy_eigenvalues(
 
 
 def _get_h5py_and_plot_filenames(
-    property_name: str,
-    vaspout_filename: str | os.PathLike | None = None,
-    plot_filename: str | os.PathLike | None = None,
+    property_name: str, vaspout_filename: str | os.PathLike
 ) -> tuple[pathlib.Path, pathlib.Path]:
     """Return vaspout.h5 and plot filename.
 
+    The plot is <property_name>.pdf in the directory of vaspout.h5.
     click.ClickException is raised when vaspout.h5 does not exist.
 
     """
-    if vaspout_filename is None:
-        _vaspout_filename = pathlib.Path(f"{property_name}/vaspout.h5")
-    else:
-        _vaspout_filename = pathlib.Path(vaspout_filename)
-
+    _vaspout_filename = pathlib.Path(vaspout_filename)
     if not _vaspout_filename.exists():
         raise click.ClickException(
             f'"{_vaspout_filename}" not found.  Give the path of vaspout.h5 with '
             "--vaspout-filename."
         )
-
     dir_name = _vaspout_filename.parent
-
-    if plot_filename is None:
-        _plot_filename = dir_name / f"{property_name}.pdf"
-    else:
-        _plot_filename = pathlib.Path(plot_filename)
-
+    _plot_filename = dir_name / f"{property_name}.pdf"
     return _vaspout_filename, _plot_filename

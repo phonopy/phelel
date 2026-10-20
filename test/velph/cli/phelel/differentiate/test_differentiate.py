@@ -18,11 +18,11 @@ import phelel.velph.cli.phelel.differentiate as differentiate
 from phelel import Phelel
 from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
 from phelel.velph.cli.phelel.init import run_init
-from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import InputSetSection, VaspSection, VelphConfig
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 cwd = pathlib.Path(__file__).parent
@@ -35,7 +35,7 @@ def test_run_derivatives(tmp_path: pathlib.Path):
 
     """
     phe = phelel.load(cwd / "C111" / "phelel_disp_C111.yaml", fft_mesh=[9, 9, 9])
-    run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
+    run_derivatives(phe, project_dir=ProjectDirectory(cwd / "C111"))
 
     hdf5_filename = tmp_path / "phelel_params.hdf5"
     phe.save_hdf5(filename=hdf5_filename)
@@ -88,16 +88,14 @@ def test_run_derivatives_with_wrong_supercell_matrix():
     """
     phe = phelel.load(cwd / "phelel_disp_C222.yaml", fft_mesh=[9, 9, 9])
     with pytest.raises(ValueError):
-        run_derivatives(phe, dir_name=cwd / "C111" / "phelel")
+        run_derivatives(phe, project_dir=ProjectDirectory(cwd / "C111"))
 
 
 def test_run_derivatives_without_phonopy_disp_yaml(tmp_path: pathlib.Path):
     """With the phonon supercell, phonopy_disp.yaml of velph phonopy is needed."""
     phe = phelel.load(cwd / "phelel_disp_C111-222.yaml", fft_mesh=[9, 9, 9])
     with pytest.raises(click.ClickException) as e:
-        run_derivatives(
-            phe, dir_name=cwd / "C111" / "phelel", phonon_dir_name=tmp_path / "phonopy"
-        )
+        run_derivatives(phe, project_dir=ProjectDirectory(cwd / "C111"))
     assert 'phonopy_disp.yaml" does not exist' in e.value.message
 
 
@@ -116,7 +114,9 @@ def _init_phonon_from_phonopy(
     """
     project = code_init_project(ti_velph_toml(phonopy_lines))
     write_phonopy_disp_yaml(project, tmp_path)
-    phe = run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
+    phe = run_init(
+        project, project_dir=ProjectDirectory(tmp_path), phonon_from_phonopy=True
+    )
     assert phe.supercells_with_displacements is not None
     assert phe.phonon_supercells_with_displacements is not None
     dir_names = []
@@ -124,10 +124,7 @@ def _init_phonon_from_phonopy(
         ("phelel", phe.supercells_with_displacements),
         ("phonopy", phe.phonon_supercells_with_displacements),
     ):
-        nd = get_num_digits(cells)
-        dir_names.append(
-            [tmp_path / code / f"disp-{i:0{nd}d}" for i in range(len(cells) + 1)]
-        )
+        dir_names.append(ProjectDirectory(tmp_path).disp_directories(code, len(cells)))
         for dir_name in dir_names[-1]:
             dir_name.mkdir(parents=True)
             (dir_name / "vaspout.h5").touch()
@@ -155,9 +152,7 @@ def test_run_derivatives_phonon_from_phonopy(
         calls.append(dir_names)
 
     monkeypatch.setattr(differentiate, "create_derivatives", _create_derivatives)
-    run_derivatives(
-        phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
-    )
+    run_derivatives(phe, project_dir=ProjectDirectory(tmp_path))
     assert calls == [phelel_dir_names + phonopy_dir_names]
 
 
@@ -186,9 +181,7 @@ def test_run_derivatives_phonopy_disp_yaml_changed(
     )
     write_phonopy_disp_yaml(code_init_project(ti_velph_toml(phonopy_lines)), tmp_path)
     with pytest.raises(click.ClickException) as e:
-        run_derivatives(
-            phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
-        )
+        run_derivatives(phe, project_dir=ProjectDirectory(tmp_path))
     assert "differ from those of" in e.value.message
 
 
@@ -208,9 +201,7 @@ def test_run_derivatives_without_phonopy_directory(
     )
     shutil.rmtree(phonopy_dir_names[-1])
     with pytest.raises(click.ClickException) as e:
-        run_derivatives(
-            phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
-        )
+        run_derivatives(phe, project_dir=ProjectDirectory(tmp_path))
     assert e.value.message == f'"{phonopy_dir_names[-1]}" does not exist.'
 
 
@@ -235,9 +226,7 @@ def test_run_derivatives_without_force_files(
 
     monkeypatch.setattr(differentiate, "create_derivatives", _create_derivatives)
     with pytest.raises(click.ClickException, match="Neither"):
-        run_derivatives(
-            phe, dir_name=tmp_path / "phelel", phonon_dir_name=tmp_path / "phonopy"
-        )
+        run_derivatives(phe, project_dir=ProjectDirectory(tmp_path))
 
 
 def test_run_derivatives_site_mixture_merge(
@@ -247,10 +236,10 @@ def test_run_derivatives_site_mixture_merge(
     """Derivatives are not calculated with the merge scheme of site mixture."""
     phe = run_init(
         Project.from_config(parse_velph_toml(site_mixture_velph_toml(False))),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     with pytest.raises(click.ClickException) as e:
-        run_derivatives(phe, dir_name=tmp_path / "phelel")
+        run_derivatives(phe, project_dir=ProjectDirectory(tmp_path))
     assert "not supported with the merge scheme" in e.value.message
 
 
@@ -422,7 +411,7 @@ def test_run_derivatives_missing_files(tmp_path: pathlib.Path):
     for filename in ("vasprun.xml", "inwap.yaml.xz", "LOCAL-POTENTIAL.bin"):
         (disp_000 / filename).touch()
     with pytest.raises(click.ClickException) as e:
-        run_derivatives(phe, dir_name=tmp_path / "phelel")
+        run_derivatives(phe, project_dir=ProjectDirectory(tmp_path))
     assert e.value.message == (
         f'"{disp_000}" does not have the files for the derivatives.\n'
         "It needs vaspout.h5, or vasprun.xml, inwap.yaml, LOCAL-POTENTIAL.bin,\n"

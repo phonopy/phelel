@@ -6,19 +6,15 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.selfenergy.generate import PHELEL_PARAMS
-from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.cli.utils import write_jobs
 from phelel.velph.jobs.project import Project, read_velph_toml
-from phelel.velph.jobs.vasp_job import (
-    VaspJob,
-    add_cell_tags,
-    find_potcar,
-    job_script,
-    write_vasp_job,
-)
+from phelel.velph.jobs.project_directory import ProjectDirectory
+from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set
 
 
-def plan_ph_bands(project: Project) -> VaspJob:
+def plan_ph_bands(
+    project: Project, project_dir: ProjectDirectory | None = None
+) -> VaspJob:
     """Return the VASP job of ph_bands in the directory "ph_bands".
 
     The cell is [primitive_cell].  QPOINTS is the band path of
@@ -27,25 +23,19 @@ def plan_ph_bands(project: Project) -> VaspJob:
     click.ClickException is raised when it does not exist.
 
     """
-    if not PHELEL_PARAMS.exists():
+    if project_dir is None:
+        project_dir = ProjectDirectory()
+    params = project_dir.phelel_params
+    if not params.exists():
         raise click.ClickException(
-            f'"{PHELEL_PARAMS}" not found.  It is copied to "ph_bands".\n'
+            f'"{params}" not found.  It is copied to "ph_bands".\n'
             'Run "velph phelel differentiate" to make it.'
         )
-    cell = project.cell_of("ph_bands")
-    return VaspJob(
-        directory=pathlib.Path("ph_bands"),
-        cell=cell,
-        incar=add_cell_tags(project.input_set("ph_bands").incar or {}, cell),
-        kpoints=project.kpoints("ph_bands"),
-        job_script=job_script(project, "ph_bands"),
-        copied_files={**find_potcar(), PHELEL_PARAMS.name: PHELEL_PARAMS},
+    return plan_input_set(
+        project, "ph_bands", project_dir=project_dir, extra_files={params.name: params}
     )
 
 
 def write_input_files(toml_filename: pathlib.Path) -> None:
     """Generate VASP inputs of the phonon band structure."""
-    job = plan_ph_bands(read_velph_toml(toml_filename, "ph_bands"))
-    write_vasp_job(job)
-    click.echo(f'VASP input files were written in "{job.directory}".')
-    echo_vasp_vca_hint(job.cell)
+    write_jobs([plan_ph_bands(read_velph_toml(toml_filename, "ph_bands"))])

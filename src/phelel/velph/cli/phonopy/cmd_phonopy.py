@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import pathlib
-
 import click
 
-from phelel.velph.cli.phonopy.generate import write_supercell_input_files
 from phelel.velph.cli.phonopy.init import run_init
+from phelel.velph.cli.supercells import write_supercell_input_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("phonopy")
@@ -38,7 +37,7 @@ def cmd_init(toml_filename: str):
     """Generate displacements and write phonopy_disp.yaml."""
     ph = run_init(read_velph_toml(toml_filename))
 
-    phonopy_yaml_filename = pathlib.Path("phonopy/phonopy_disp.yaml")
+    phonopy_yaml_filename = ProjectDirectory().disp_yaml("phonopy")
     phonopy_yaml_filename.parent.mkdir(parents=True, exist_ok=True)
     ph.save(phonopy_yaml_filename)
 
@@ -59,10 +58,4 @@ def cmd_init(toml_filename: str):
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate phonopy input files."""
-    yaml_filename = "phonopy/phonopy_disp.yaml"
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_supercell_input_files(
-        pathlib.Path(toml_filename), pathlib.Path(yaml_filename)
-    )
+    write_supercell_input_files(toml_filename, "phonopy")

@@ -24,6 +24,7 @@ from phelel.velph.config.input_sets import KpointsFileName
 from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.schema import InputSetName, KpointsMesh, LinePath
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
 
 
@@ -91,6 +92,74 @@ def write_vasp_job(job: VaspJob) -> None:
         shutil.copy2(source, job.directory / name)
     if job.job_script is not None:
         (job.directory / "_job.sh").write_text(job.job_script)
+
+
+def plan_input_set(
+    project: Project,
+    name: InputSetName,
+    *,
+    project_dir: ProjectDirectory | None = None,
+    directory: pathlib.Path | None = None,
+    cell: PhonopyAtoms | None = None,
+    job_id: str | None = None,
+    incar_update: Mapping[str, Any] | None = None,
+    extra_files: Mapping[str, pathlib.Path] | None = None,
+    poscar_source: pathlib.Path | None = None,
+) -> VaspJob:
+    """Return the VASP job of an input set.
+
+    Parameters
+    ----------
+    project : Project
+        velph.toml read for the command.
+    name : InputSetName
+        Input set, such as "nac".
+    project_dir : ProjectDirectory, optional
+        Directories of the project.  Default is ProjectDirectory(), whose root is the
+        current directory.  POTCAR in the root is copied when it exists.
+    directory : pathlib.Path, optional
+        Directory of the job.  Default is the directory of the input set,
+        ProjectDirectory.input_set_directory.
+    cell : PhonopyAtoms, optional
+        Cell of the calculation.  Default is the cell of the input set,
+        Project.cell_of.  The supercells of a code are given here.
+    job_id : str, optional
+        Name appended to job_name of the scheduler settings, such as "iter2"
+        of relax and "001" of the supercells.
+    incar_update : Mapping[str, Any], optional
+        INCAR tags that replace or are added to those of [vasp.<name>.incar].
+    extra_files : Mapping[str, pathlib.Path], optional
+        Files copied to the directory besides POTCAR, such as
+        {"phelel_params.hdf5": project_dir.phelel_params}.
+    poscar_source : pathlib.Path, optional
+        File copied as POSCAR in place of cell, such as CONTCAR of the
+        previous relax.
+
+    Returns
+    -------
+    VaspJob
+        The INCAR has the tags of the input set updated by incar_update, and
+        the tags that cell needs (add_cell_tags).  The k-point files are those
+        of the input set (Project.kpoints).
+
+    """
+    if project_dir is None:
+        project_dir = ProjectDirectory()
+    if cell is None:
+        cell = project.cell_of(name)
+    if directory is None:
+        directory = project_dir.input_set_directory(name)
+    incar = dict(project.input_set(name).incar or {})
+    incar.update(incar_update or {})
+    return VaspJob(
+        directory=directory,
+        cell=cell,
+        incar=add_cell_tags(incar, cell),
+        kpoints=project.kpoints(name),
+        job_script=job_script(project, name, job_id=job_id),
+        copied_files={**find_potcar(project_dir), **(extra_files or {})},
+        poscar_source=poscar_source,
+    )
 
 
 def effective_scheduler(
@@ -192,9 +261,9 @@ def make_job_script(scheduler: Mapping[str, Any]) -> str:
         ) from e
 
 
-def find_potcar() -> dict[str, pathlib.Path]:
-    """Return POTCAR of the current directory as a file to copy, if it exists."""
-    potcar = pathlib.Path("POTCAR")
+def find_potcar(project_dir: ProjectDirectory) -> dict[str, pathlib.Path]:
+    """Return POTCAR in the root of project_dir as a file to copy, if it exists."""
+    potcar = project_dir.root / "POTCAR"
     if potcar.exists():
         return {"POTCAR": potcar}
     return {}

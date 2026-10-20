@@ -13,6 +13,7 @@ from phonopy import Phonopy
 from phelel.velph.cli.phono3py.init import run_init
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @pytest.mark.parametrize("distance", [0.03, 0.05])
@@ -85,7 +86,7 @@ def _get_phono3py_displacements(
     )
     ph3 = run_init(
         code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     return np.array(ph3.displacements)
 
@@ -132,7 +133,7 @@ def test_phono3py_init_site_mixture_is_error(
             Project.from_config(
                 parse_velph_toml(site_mixture_velph_toml(split_site_mixture))
             ),
-            current_directory=tmp_path,
+            project_dir=ProjectDirectory(tmp_path),
         )
 
 
@@ -170,7 +171,7 @@ def test_phono3py_init_phonon_from_phonopy(
     ph = write_phonopy_disp_yaml(project, tmp_path)
     ph3 = run_init(
         project,
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
         number_of_snapshots=4,
         phonon_from_phonopy=True,
     )
@@ -203,4 +204,6 @@ def test_phono3py_init_phonon_from_phonopy_without_phonopy_disp_yaml(
     """Without phonopy/phonopy_disp.yaml, velph phonopy init is asked for."""
     project = code_init_project(ti_velph_toml([]))
     with pytest.raises(click.ClickException, match='"velph phonopy init" first'):
-        run_init(project, current_directory=tmp_path, phonon_from_phonopy=True)
+        run_init(
+            project, project_dir=ProjectDirectory(tmp_path), phonon_from_phonopy=True
+        )

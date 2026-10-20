@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
 import textwrap
 
@@ -13,44 +12,40 @@ from numpy.typing import NDArray
 from phelel import Phelel
 from phelel.interface.vasp.derivatives import create_derivatives
 from phelel.velph.cli.supercells import load_phonopy_yaml
-from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.config.schema import InputSetName
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import CutoffToFFTMesh
 
 
 def run_derivatives(
     phe: Phelel,
     subtract_residual_forces: bool = True,
-    dir_name: str | os.PathLike = "phelel",
-    phonon_dir_name: str | os.PathLike = "phonopy",
+    project_dir: ProjectDirectory | None = None,
     verbose: bool = False,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5.
 
-    With the phonon supercell, the forces of the phonon supercells are read from
-    <phonon_dir_name>/disp-*, whose supercells have to be those of
-    <phonon_dir_name>/phonopy_disp.yaml.  click.ClickException is raised when a
-    directory or a file is missing, when the supercells differ, and with the
-    merge scheme of site mixture.
+    The forces and the local potentials are read from phelel/disp-* of project_dir,
+    in the current directory by default.  With the phonon supercell, the forces
+    of the phonon supercells are read from phonopy/disp-*, whose supercells
+    have to be those of phonopy/phonopy_disp.yaml.  click.ClickException is
+    raised when a directory or a file is missing, when the supercells differ,
+    and with the merge scheme of site mixture.
 
     """
+    if project_dir is None:
+        project_dir = ProjectDirectory()
     if phe.unmerged_unitcell is not None:
         raise click.ClickException(
             "Derivatives are not supported with the merge scheme of site mixture."
         )
-    dir_names = []
     if phe.supercells_with_displacements is None:
         raise RuntimeError("supercells_with_displacements is None.")
-    nd = get_num_digits(phe.supercells_with_displacements)
-    for i, _ in enumerate(
-        [
-            phe.supercell,
-        ]
-        + phe.supercells_with_displacements
-    ):
-        id_number = f"{i:0{nd}d}"
-        filepath = pathlib.Path(f"{dir_name}/disp-{id_number}")
+    dir_names = project_dir.disp_directories(
+        "phelel", len(phe.supercells_with_displacements)
+    )
+    for filepath in dir_names:
         if not filepath.exists():
             raise click.ClickException(f'"{filepath}" does not exist.')
         missing = _missing_files(filepath)
@@ -66,10 +61,9 @@ def run_derivatives(
                 )
                 + f"\nNot found: {', '.join(missing)}."
             )
-        dir_names.append(filepath)
 
     if phe.phonon_supercell_matrix is not None:
-        dir_names += _get_phonon_dir_names(phe, pathlib.Path(phonon_dir_name))
+        dir_names += _get_phonon_dir_names(phe, project_dir)
 
     try:
         create_derivatives(
@@ -83,7 +77,7 @@ def run_derivatives(
 
 
 def _get_phonon_dir_names(
-    phe: Phelel, phonon_dir_name: pathlib.Path
+    phe: Phelel, project_dir: ProjectDirectory
 ) -> list[pathlib.Path]:
     """Return the directories of the phonon supercells made by velph phonopy.
 
@@ -94,7 +88,7 @@ def _get_phonon_dir_names(
     """
     cells = phe.phonon_supercells_with_displacements
     assert cells is not None
-    yaml_filename = phonon_dir_name / "phonopy_disp.yaml"
+    yaml_filename = project_dir.disp_yaml("phonopy")
     if not yaml_filename.exists():
         raise click.ClickException(f'"{yaml_filename}" does not exist.')
     phonopy_cells = load_phonopy_yaml(yaml_filename).supercells_with_displacements
@@ -109,8 +103,7 @@ def _get_phonon_dir_names(
             f'"{yaml_filename}".\nRun "velph phelel init --phonon-from-phonopy" '
             "again."
         )
-    nd = get_num_digits(cells)
-    dir_names = [phonon_dir_name / f"disp-{i:0{nd}d}" for i in range(len(cells) + 1)]
+    dir_names = project_dir.disp_directories("phonopy", len(cells))
     for filepath in dir_names:
         if not filepath.exists():
             raise click.ClickException(f'"{filepath}" does not exist.')

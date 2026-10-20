@@ -8,6 +8,7 @@ import numpy as np
 
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 cwd = Path(__file__).parent
 
@@ -119,7 +120,9 @@ coordinates = [0.213380750346879, 0.213380750346872, 0.213380750346879]
 """
 
     toml_dict = tomllib.loads(toml_str)
-    phe = run_init(code_init_project(toml_dict), current_directory=request.path.parent)
+    phe = run_init(
+        code_init_project(toml_dict), project_dir=ProjectDirectory(request.path.parent)
+    )
     ref_born = [
         [11.5925019, 11.5925019, -1.15102317],
         [11.5925019, 11.5925019, -1.15102317],

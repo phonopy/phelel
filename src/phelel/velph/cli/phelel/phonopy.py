@@ -11,26 +11,30 @@ from phelel.interface.vasp.derivatives import (
     read_vasp_forces,
 )
 from phelel.velph.cli.supercells import load_phelel_yaml_as_phonopy
-from phelel.velph.cli.utils import get_num_digits
 from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 def create_phonopy_yaml(
     toml_filename: pathlib.Path,
-    yaml_filename: pathlib.Path,
-    dir_name: str,
+    project_dir: ProjectDirectory | None = None,
     subtract_residual_forces: bool = True,
 ):
-    """Write phonopy_params.yaml with the forces of the supercells of phelel.
+    """Write phelel/phonopy_params.yaml with the forces of the phelel supercells.
 
-    The forces are read from <dir_name>/disp-*, also when yaml_filename has the
-    phonon supercell, which is calculated by velph phonopy.  With the merge
-    scheme of site mixture, the forces are on the atoms of the unmerged
-    supercell.  click.ClickException is raised when neither vaspout.h5 nor
-    vasprun.xml is found in a directory.
+    The supercells are those of phelel/phelel_disp.yaml, and the forces are
+    read from phelel/disp-*, also when phelel_disp.yaml has the phonon
+    supercell, which is calculated by velph phonopy.  The directories are those
+    of project_dir, in the current directory by default.  With the merge scheme of
+    site mixture, the forces are on the atoms of the unmerged supercell.
+    click.ClickException is raised when neither vaspout.h5 nor vasprun.xml is
+    found in a directory.
 
     """
-    phonopy_yaml_filename = pathlib.Path(dir_name) / "phonopy_params.yaml"
+    if project_dir is None:
+        project_dir = ProjectDirectory()
+    yaml_filename = project_dir.disp_yaml("phelel")
+    phonopy_yaml_filename = project_dir.phonopy_params
 
     project = read_velph_toml(toml_filename)
     is_symmetry = not project.code_section("phelel").nosym
@@ -44,10 +48,7 @@ def create_phonopy_yaml(
     supercell = ph.supercell if ph.unmerged_supercell is None else ph.unmerged_supercell
     cells = ph.supercells_with_displacements
     assert cells is not None
-    nd = get_num_digits(cells)
-    dir_names = [
-        pathlib.Path(dir_name) / f"disp-{i:0{nd}d}" for i in range(len(cells) + 1)
-    ]
+    dir_names = project_dir.disp_directories("phelel", len(cells))
     try:
         filenames = get_vasp_force_filenames(dir_names)
     except FileNotFoundError as e:

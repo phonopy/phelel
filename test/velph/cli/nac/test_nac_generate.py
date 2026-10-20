@@ -9,10 +9,10 @@ import pytest
 import tomli_w
 from click.testing import CliRunner
 
-from phelel.velph.cli.nac.generate import plan_nac
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.vasp_job import plan_input_set
 
 
 def test_plan_nac(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
@@ -27,7 +27,7 @@ def test_plan_nac(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
     project = Project.from_config(parse_velph_toml(data))
     with pytest.MonkeyPatch.context() as m:
         m.chdir(tmp_path)
-        job = plan_nac(project)
+        job = plan_input_set(project, "nac")
     assert job.directory == pathlib.Path("nac")
     assert job.poscar_source is None
     assert len(job.cell) == 2

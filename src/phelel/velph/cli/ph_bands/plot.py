@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 from numpy.typing import NDArray
 
+from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
 
 
@@ -16,7 +17,7 @@ def plot_ph_bandstructures(
     vaspout_filename: pathlib.Path,
     use_ordinary_frequency: bool = False,
     save_plot: bool = False,
-    plot_filename: pathlib.Path = pathlib.Path("ph_bands/ph_bands.pdf"),
+    plot_filename: pathlib.Path | None = None,
 ):
     """Plot phonon band structure.
 
@@ -30,10 +31,13 @@ def plot_ph_bandstructures(
     save_plot : bool, optional
         Save plot to file.
     plot_filename : pathlib.Path, optional
-        File name of band structure plot.
+        File name of band structure plot.  Default is ph_bands/ph_bands.pdf.
 
     """
     import matplotlib.pyplot as plt
+
+    if plot_filename is None:
+        plot_filename = ProjectDirectory().plot_pdf("ph_bands")
 
     with h5py.File(vaspout_filename) as f:
         eigvals: NDArray = f["results/phonons/eigenvalues"][:]  # type: ignore

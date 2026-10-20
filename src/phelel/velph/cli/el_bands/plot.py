@@ -9,6 +9,7 @@ import h5py
 from numpy.typing import NDArray
 
 from phelel.velph.cli.el_dos.plot import draw_dos, get_dos_max, read_electron_dos
+from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
 
 
@@ -17,7 +18,7 @@ def plot_el_bandstructures(
     vaspout_filename_bands: pathlib.Path,
     vaspout_filename_dos: pathlib.Path,
     save_plot: bool = False,
-    plot_filename: pathlib.Path = pathlib.Path("el_bands/el_bands.pdf"),
+    plot_filename: pathlib.Path | None = None,
 ):
     """Plot electronic band structure.
 
@@ -32,10 +33,13 @@ def plot_el_bandstructures(
     save_plot : bool, optional
         Save plot to file.
     plot_filename : pathlib.Path, optional
-        File name of band structure plot.
+        File name of band structure plot.  Default is el_bands/el_bands.pdf.
 
     """
     import matplotlib.pyplot as plt
+
+    if plot_filename is None:
+        plot_filename = ProjectDirectory().plot_pdf("el_bands")
 
     electron_dos = read_electron_dos(vaspout_filename_dos)
     efermi = electron_dos.efermi

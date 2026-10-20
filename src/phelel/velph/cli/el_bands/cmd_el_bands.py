@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import pathlib
-
 import click
 
-from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
+from phelel.velph.cli.utils import write_input_set_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("el_bands")
@@ -35,10 +34,7 @@ def cmd_el_bands():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to plot electronic band structure."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_input_files(pathlib.Path(toml_filename))
+    write_input_set_files(toml_filename, "el_bands")
 
 
 #
@@ -61,8 +57,8 @@ def cmd_generate(toml_filename: str):
 @click.help_option("-h", "--help")
 def cmd_plot(window: tuple[float, float], save_plot: bool):
     """Plot electronic band structure."""
-    vaspout_filename_bands = pathlib.Path("el_bands/vaspout.h5")
-    vaspout_filename_dos = pathlib.Path("el_dos/vaspout.h5")
+    vaspout_filename_bands = ProjectDirectory().vaspout("el_bands")
+    vaspout_filename_dos = ProjectDirectory().vaspout("el_dos")
     messages = []
     if not vaspout_filename_bands.exists():
         messages.append(f'"{vaspout_filename_bands}" not found.')

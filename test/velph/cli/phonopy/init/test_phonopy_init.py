@@ -11,6 +11,7 @@ import pytest
 from phelel.velph.cli.phonopy.init import run_init
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @pytest.mark.parametrize("distance", [0.03, 0.05])
@@ -84,7 +85,7 @@ def _get_phonopy_displacements(
     )
     ph = run_init(
         code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     return np.array(ph.displacements)
 
@@ -127,7 +128,7 @@ def test_phonopy_init_site_mixture(
         Project.from_config(
             parse_velph_toml(site_mixture_velph_toml(split_site_mixture))
         ),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     filename = tmp_path / "phonopy_disp.yaml"
     ph.save(filename)
@@ -157,7 +158,7 @@ def test_phonopy_init_site_mixture_merge_without_nac(
     (tmp_path / "nac" / "vasprun.xml").write_text("")
     ph = run_init(
         Project.from_config(parse_velph_toml(site_mixture_velph_toml(False))),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     assert ph.nac_params is None
     assert "NAC is not supported with the merge scheme" in capsys.readouterr().out

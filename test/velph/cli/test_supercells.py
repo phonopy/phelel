@@ -15,6 +15,7 @@ from phelel.velph.cli.supercells import plan_supercells
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 def test_plan_supercells(
@@ -30,7 +31,7 @@ def test_plan_supercells(
     data = nacl_velph_toml()
     project = Project.from_config(parse_velph_toml(data))
     monkeypatch.chdir(tmp_path)
-    phe = run_init(project, current_directory=tmp_path)
+    phe = run_init(project, project_dir=ProjectDirectory(tmp_path))
     assert phe.supercells_with_displacements is not None
     jobs = plan_supercells(project, "phelel", phe)
     assert [job.directory for job in jobs] == [
@@ -152,7 +153,7 @@ def test_set_nac_params_without_vasprun(
     (tmp_path / "nac").mkdir()
     ph = run_phonopy_init(
         Project.from_config(parse_velph_toml(nacl_velph_toml())),
-        current_directory=tmp_path,
+        project_dir=ProjectDirectory(tmp_path),
     )
     assert ph.nac_params is None
     assert (

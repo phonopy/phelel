@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import pathlib
-
 import click
 
-from phelel.velph.cli.nac.generate import write_input_files
+from phelel.velph.cli.utils import write_input_set_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
@@ -32,7 +30,4 @@ def cmd_nac():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate nac input files."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_input_files(pathlib.Path(toml_filename))
+    write_input_set_files(toml_filename, "nac")

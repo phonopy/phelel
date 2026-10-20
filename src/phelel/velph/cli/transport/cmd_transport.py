@@ -38,9 +38,6 @@ def cmd_transport():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str, dry_run: bool):
     """Generate transport input files."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
     write_input_files(pathlib.Path(toml_filename), "transport", dry_run)
 
 

@@ -13,23 +13,19 @@ from typing import Literal
 
 import click
 
-from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.cli.utils import write_jobs
 from phelel.velph.jobs.project import Project, read_velph_toml
-from phelel.velph.jobs.vasp_job import (
-    VaspJob,
-    add_cell_tags,
-    find_potcar,
-    job_script,
-    write_vasp_job,
-)
+from phelel.velph.jobs.project_directory import ProjectDirectory
+from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set
 
 ElphInputSetName = Literal["selfenergy", "transport", "ph_selfenergy"]
 
-PHELEL_PARAMS = pathlib.Path("phelel/phelel_params.hdf5")
-
 
 def plan_elph(
-    project: Project, set_name: ElphInputSetName, dry_run: bool = False
+    project: Project,
+    set_name: ElphInputSetName,
+    dry_run: bool = False,
+    project_dir: ProjectDirectory | None = None,
 ) -> VaspJob:
     """Return the VASP job of an electron-phonon input set.
 
@@ -41,26 +37,24 @@ def plan_elph(
     needed nor copied.
 
     """
-    cell = project.cell_of(set_name)
-    incar = dict(project.input_set(set_name).incar or {})
-    copied_files = find_potcar()
+    if project_dir is None:
+        project_dir = ProjectDirectory()
     if dry_run:
-        incar.update({"nelm": 0, "elph_run": False})
-    else:
-        if not PHELEL_PARAMS.exists():
-            raise click.ClickException(
-                f'"{PHELEL_PARAMS}" not found.  It is copied to "{set_name}".\n'
-                'Run "velph phelel differentiate" to make it, or run this command '
-                "with --dry-run."
-            )
-        copied_files[PHELEL_PARAMS.name] = PHELEL_PARAMS
-    return VaspJob(
-        directory=pathlib.Path(set_name),
-        cell=cell,
-        incar=add_cell_tags(incar, cell),
-        kpoints=project.kpoints(set_name),
-        job_script=job_script(project, set_name),
-        copied_files=copied_files,
+        return plan_input_set(
+            project,
+            set_name,
+            project_dir=project_dir,
+            incar_update={"nelm": 0, "elph_run": False},
+        )
+    params = project_dir.phelel_params
+    if not params.exists():
+        raise click.ClickException(
+            f'"{params}" not found.  It is copied to "{set_name}".\n'
+            'Run "velph phelel differentiate" to make it, or run this command '
+            "with --dry-run."
+        )
+    return plan_input_set(
+        project, set_name, project_dir=project_dir, extra_files={params.name: params}
     )
 
 
@@ -68,7 +62,5 @@ def write_input_files(
     toml_filename: pathlib.Path, set_name: ElphInputSetName, dry_run: bool
 ) -> None:
     """Generate VASP inputs of an electron-phonon input set."""
-    job = plan_elph(read_velph_toml(toml_filename, set_name), set_name, dry_run=dry_run)
-    write_vasp_job(job)
-    click.echo(f'VASP input files were written in "{job.directory}".')
-    echo_vasp_vca_hint(job.cell)
+    project = read_velph_toml(toml_filename, set_name)
+    write_jobs([plan_elph(project, set_name, dry_run=dry_run)])
