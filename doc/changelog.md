@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+- `velph ph_selfenergy dump_phono3py` writes `frequency_<i>`, `gamma_<i>` and
+  `temperature_<i>` of the i-th self-energy calculation also with ten or more
+  calculations, and `velph ph_selfenergy plot selfenergy` shows the right
+  numbers of the calculations. Before, the data of the calculations were
+  written under the names of other calculations, for example those of the
+  second calculation as `frequency_10`.
+- `velph transport plot transport` writes the summary `transport.txt` at every
+  temperature. Before, it had only the first temperature.
 - `velph generate` takes the file name of `velph.toml` by `--toml-filename`, as
   the other commands do, in place of `-f`. The help of `--toml-filename` shows
   its default, `velph.toml`, in every command that reads `velph.toml`.
