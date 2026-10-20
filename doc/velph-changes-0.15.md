@@ -246,6 +246,8 @@ of `[phelel]`. A missing `prec` is taken as Normal, the default of VASP.
 
 ### Other subcommands
 
+- `velph generate` takes the file name of `velph.toml` by `--toml-filename`, as
+  the other subcommands do. `-f` of velph 0.14 is removed.
 - `check-fft` of `velph selfenergy` and `velph transport` is removed.
 - When `CONTCAR` of the previous step does not exist, `velph relax generate`
   stops with an error and does not make the next directory. velph 0.14 made
