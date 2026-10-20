@@ -5,12 +5,15 @@ from __future__ import annotations
 import dataclasses
 import os
 import pathlib
+import re
+from typing import cast
 
 import h5py
 import numpy as np
 from numpy.typing import NDArray
 from phonopy.physical_units import get_physical_units
 from phonopy.structure.cells import PhonopyAtoms
+from spglib import SpgCell
 
 from phelel.velph.errors import VelphError
 
@@ -35,10 +38,16 @@ def get_reclat_from_vaspout(fp_vaspout: h5py.File) -> NDArray[np.float64]:
     return reclat
 
 
-def read_crystal_structure_from_vaspout_h5(
+def _read_positions(
     f_vaspout_h5: h5py.File, group: str
-) -> PhonopyAtoms:
-    """Read crystal structure from vaspout.h5."""
+) -> tuple[NDArray, NDArray, NDArray, NDArray]:
+    """Return the lattice, positions, ion_types and number_ion_types of group.
+
+    The lattice vectors are the rows, multiplied by the scale.  The positions
+    are in direct coordinates, converted from Cartesian coordinates when
+    direct_coordinates of group is 0.
+
+    """
     direct = int(f_vaspout_h5[f"{group}/direct_coordinates"][()])  # type: ignore
     scale = f_vaspout_h5[f"{group}/scale"][()]  # type: ignore
     lattice: NDArray = f_vaspout_h5[f"{group}/lattice_vectors"][:] * scale  # type: ignore
@@ -46,18 +55,61 @@ def read_crystal_structure_from_vaspout_h5(
     number_ion_types: NDArray = f_vaspout_h5[f"{group}/number_ion_types"][:]  # type: ignore
     ion_types: NDArray = f_vaspout_h5[f"{group}/ion_types"][:]  # type: ignore
 
+    if not direct:
+        positions = positions @ np.linalg.inv(lattice)
+
+    assert number_ion_types.sum() == len(positions)
+
+    return lattice, positions, ion_types, number_ion_types
+
+
+def read_crystal_structure_from_vaspout_h5(
+    f_vaspout_h5: h5py.File, group: str
+) -> PhonopyAtoms:
+    """Read crystal structure from vaspout.h5."""
+    lattice, positions, ion_types, number_ion_types = _read_positions(
+        f_vaspout_h5, group
+    )
     symbols = []
     for symbol, number in zip(ion_types, number_ion_types, strict=True):
         symbols += [symbol.decode()] * number
 
-    if not direct:
-        positions = positions @ np.linalg.inv(lattice)
-
-    assert len(symbols) == len(positions)
-
     cell = PhonopyAtoms(cell=lattice, scaled_positions=positions, symbols=symbols)
 
     return cell
+
+
+def read_spglib_cell_from_vaspout_h5(f_vaspout_h5: h5py.File, group: str) -> SpgCell:
+    """Return the crystal structure of group of vaspout.h5 for spglib.
+
+    The atoms of the i-th species, counted from 1, have the number i.  Two
+    species of the same element are therefore told apart, which the symbols
+    of read_crystal_structure_from_vaspout_h5 do not.
+
+    """
+    lattice, positions, _, number_ion_types = _read_positions(f_vaspout_h5, group)
+    numbers = np.repeat(np.arange(1, len(number_ion_types) + 1), number_ion_types)
+    return cast(SpgCell, (lattice, positions, numbers))
+
+
+def get_numbered_groups(
+    parent: h5py.Group, prefix: str
+) -> list[tuple[int, h5py.Group]]:
+    """Return the groups <prefix>_1, <prefix>_2, ... of parent with their numbers.
+
+    The groups are in the order of their numbers.  h5py gives them in the
+    order of their names, in which <prefix>_10 comes before <prefix>_2.  The
+    other groups, such as <prefix>_meta, are left out.
+
+    """
+    pattern = re.compile(rf"{re.escape(prefix)}_(\d+)")
+    groups = []
+    for key in parent:
+        match = pattern.fullmatch(key)
+        if match:
+            groups.append((int(match.group(1)), parent[key]))
+    groups.sort(key=lambda numbered_group: numbered_group[0])
+    return groups
 
 
 def read_freqs_and_ph_gammas_from_vaspout_h5(
@@ -82,22 +134,15 @@ def read_freqs_and_ph_gammas_from_vaspout_h5(
     """
     THzToEv = get_physical_units().THzToEv
 
-    f_elph = f_h5py["results/electron_phonon/phonons"]
-    indices = []
-    for key in f_elph:  # type: ignore
-        if "self_energy_" in key:
-            # self_energy_1, self_energy_2, ...
-            index = key.split("_")[-1]
-            if index.isdigit():
-                indices.append(int(index))
-
-    # h5py gives self_energy_10 before self_energy_2, in the order of names.
-    indices.sort()
+    groups = get_numbered_groups(
+        f_h5py["results/electron_phonon/phonons"],  # type: ignore
+        "self_energy",
+    )
+    indices = [index for index, _ in groups]
     gammas_calcs = []
     freqs_calcs = []
     temps_calcs = []
-    for index in indices:
-        selfen = f_elph[f"self_energy_{index}"]  # type: ignore
+    for _, selfen in groups:
         # Imag part of self-energy [ispin, ib, ikpt , nw, temp] in eV
         selfen_ph: NDArray = selfen["selfen_ph"][:, :, :, :, :, 1]  # type: ignore
         # [ikpt, ib] in 2piTHz

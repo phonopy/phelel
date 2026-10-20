@@ -9,6 +9,7 @@ import click
 import h5py
 
 from phelel.velph.cli.utils import save_or_show_plot
+from phelel.velph.utils.vaspout import get_numbered_groups
 
 
 def plot_selfenergy(
@@ -31,13 +32,11 @@ def plot_selfenergy(
     """
     import matplotlib.pyplot as plt
 
-    selfens = {}
     f_elph = f_h5py["results/electron_phonon/electrons"]
-    for key in f_elph:  # type: ignore
-        if "self_energy_" in key:
-            index = key.split("_")[-1]
-            if index.isdigit():
-                selfens[int(index)] = f_elph[key]  # type: ignore
+    selfens = [
+        selfen
+        for _, selfen in get_numbered_groups(f_elph, "self_energy")  # type: ignore
+    ]
 
     assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])  # type: ignore
 
@@ -49,8 +48,7 @@ def plot_selfenergy(
         ax.set_visible(False)
 
     lines = []
-    for i in range(len(selfens)):
-        selfen = selfens[i + 1]
+    for i, selfen in enumerate(selfens):
         lines += _get_text_lines(selfen, i + 1)
         _plot(axs.flat[i], selfen)
 

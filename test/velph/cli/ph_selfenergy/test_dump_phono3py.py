@@ -89,9 +89,7 @@ def test_id_map(mesh: list[list[int]], n_ir: int | None):
     if n_ir is not None:
         assert len(kpoints) == n_ir
     k_gen_vecs = np.linalg.inv(np.array(mesh, dtype=float)).T
-    id_map, bz_grid = _get_bz_grid_and_id_map(
-        cell[0], cell[1], cell[2], k_gen_vecs, kpoints, weights
-    )
+    id_map, bz_grid = _get_bz_grid_and_id_map(cell, k_gen_vecs, kpoints, weights)
     np.testing.assert_array_equal(id_map, expected)
     assert np.prod(bz_grid.D_diag) == round(abs(np.linalg.det(mesh)))
 
@@ -238,3 +236,45 @@ def test_velph_ph_selfenergy_dump_phono3py_many_calculations(
         for i in range(1, 12):
             freqs = 10.0 * expected[:, None] + np.arange(4) + 100 * (i - 1)
             np.testing.assert_allclose(f[f"frequency_{i}"][:], freqs / (2 * np.pi))
+
+
+def test_velph_ph_selfenergy_dump_phono3py_cartesian_positions(
+    nacl_prim_cell: PhonopyAtoms,
+    write_vaspout_positions: Callable[[h5py.Group, PhonopyAtoms], None],
+    tmp_path: pathlib.Path,
+):
+    """Positions in Cartesian coordinates give the q-points of those in direct.
+
+    vaspout.h5 tells by results/positions/direct_coordinates whether the
+    positions are in direct or in Cartesian coordinates.
+
+    """
+    outputs = []
+    for direct in (True, False):
+        directory = tmp_path / ("direct" if direct else "cartesian")
+        directory.mkdir()
+        vaspout = directory / "vaspout.h5"
+        _write_ph_selfenergy_vaspout(
+            vaspout, nacl_prim_cell, 4, 1, write_vaspout_positions
+        )
+        if not direct:
+            with h5py.File(vaspout, "r+") as f:
+                del f["results/positions/position_ions"]
+                del f["results/positions/direct_coordinates"]
+                f["results/positions/position_ions"] = nacl_prim_cell.positions
+                f["results/positions/direct_coordinates"] = 0
+        result = CliRunner().invoke(
+            cmd_root,
+            [
+                "ph_selfenergy",
+                "dump_phono3py",
+                "--vaspout-filename",
+                str(vaspout),
+                "--output-filename",
+                str(directory / "gamma_elph{mesh}.hdf5"),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        with h5py.File(directory / "gamma_elph-m444.hdf5") as f:
+            outputs.append(f["qpoint"][:])
+    np.testing.assert_allclose(outputs[1], outputs[0])

@@ -11,6 +11,7 @@ import h5py
 import numpy as np
 
 from phelel.velph.cli.utils import save_or_show_plot
+from phelel.velph.utils.vaspout import get_numbered_groups
 
 
 @dataclasses.dataclass(frozen=True)
@@ -73,14 +74,11 @@ def plot_transport(
 
     f_elph = f_h5py["results/electron_phonon/electrons"]
 
-    n_transport = len(
-        [key for key in f_elph if "transport_" in key and key.split("_")[1].isdigit()]
-    )
-    assert n_transport == int(f_elph["transport_meta/ncalculators"][()])
     transports = [
-        f_h5py[f"results/electron_phonon/electrons/transport_{n + 1}"]
-        for n in range(n_transport)
+        transport
+        for _, transport in get_numbered_groups(f_elph, "transport")  # type: ignore
     ]
+    assert len(transports) == int(f_elph["transport_meta/ncalculators"][()])  # type: ignore
 
     lines = []
     for i, transport in enumerate(transports):

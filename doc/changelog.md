@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- `velph ph_selfenergy dump_phono3py` reads the positions of the atoms in
+  Cartesian coordinates of `vaspout.h5` as such. Before, it took them as
+  direct coordinates, and stopped with an error on the irreducible k-points.
 - `velph ph_selfenergy dump_phono3py` writes `frequency_<i>`, `gamma_<i>` and
   `temperature_<i>` of the i-th self-energy calculation also with ten or more
   calculations, and `velph ph_selfenergy plot selfenergy` shows the right
