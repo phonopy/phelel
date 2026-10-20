@@ -217,7 +217,7 @@ def _show(transport: h5py.Group, index: int) -> list[str]:
             "peltier",
             "seebeck",
         ):
-            v = transport[key][:].ravel()
+            v = transport[key][i].ravel()
             lines.append(
                 f"      {key}: [{v[0]:.3e}, {v[4]:.3e}, {v[8]:.3e}, "
                 f"{v[5]:.3e}, {v[2]:.3e}, {v[1]:.3e}]"
@@ -234,4 +234,4 @@ def _show(transport: h5py.Group, index: int) -> list[str]:
             else:
                 lines.append(f"      {key}: {list(transport[key][i].shape)}")
 
-        return lines
+    return lines

@@ -75,8 +75,9 @@ def read_freqs_and_ph_gammas_from_vaspout_h5(
         calculation in 2piTHz. Positive sign is chosen.
         [[ispin, ib, ikpt , nw, temp], ...]
     indices : list[int]
-        List of self-energy calculation indices. [1, 2, ...] for self_energy_1,
-        self_energy_2, ...
+        List of self-energy calculation indices in increasing order, [1, 2,
+        ...] for self_energy_1, self_energy_2, ...  The lists above are in this
+        order.
 
     """
     THzToEv = get_physical_units().THzToEv
@@ -90,10 +91,12 @@ def read_freqs_and_ph_gammas_from_vaspout_h5(
             if index.isdigit():
                 indices.append(int(index))
 
+    # h5py gives self_energy_10 before self_energy_2, in the order of names.
+    indices.sort()
     gammas_calcs = []
     freqs_calcs = []
     temps_calcs = []
-    for index in sorted(indices):
+    for index in indices:
         selfen = f_elph[f"self_energy_{index}"]  # type: ignore
         # Imag part of self-energy [ispin, ib, ikpt , nw, temp] in eV
         selfen_ph: NDArray = selfen["selfen_ph"][:, :, :, :, :, 1]  # type: ignore

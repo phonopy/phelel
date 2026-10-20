@@ -205,3 +205,36 @@ def test_velph_ph_selfenergy_plot_selfenergy(
     )
     assert result.exit_code == 0, result.output
     assert (tmp_path / "selfenergy.pdf").exists()
+
+
+def test_velph_ph_selfenergy_dump_phono3py_many_calculations(
+    nacl_prim_cell: PhonopyAtoms,
+    write_vaspout_positions: Callable[[h5py.Group, PhonopyAtoms], None],
+    tmp_path: pathlib.Path,
+):
+    """frequency_<i> is written from self_energy_<i> also for i of 10 and more.
+
+    h5py gives the groups in the order of their names, in which self_energy_10
+    comes before self_energy_2.
+
+    """
+    vaspout = tmp_path / "vaspout.h5"
+    expected = _write_ph_selfenergy_vaspout(
+        vaspout, nacl_prim_cell, 4, 11, write_vaspout_positions
+    )
+    result = CliRunner().invoke(
+        cmd_root,
+        [
+            "ph_selfenergy",
+            "dump_phono3py",
+            "--vaspout-filename",
+            str(vaspout),
+            "--output-filename",
+            str(tmp_path / "gamma_elph{mesh}.hdf5"),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    with h5py.File(tmp_path / "gamma_elph-m444.hdf5") as f:
+        for i in range(1, 12):
+            freqs = 10.0 * expected[:, None] + np.arange(4) + 100 * (i - 1)
+            np.testing.assert_allclose(f[f"frequency_{i}"][:], freqs / (2 * np.pi))

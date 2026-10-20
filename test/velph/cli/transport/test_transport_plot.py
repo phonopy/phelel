@@ -12,6 +12,7 @@ from click.testing import CliRunner
 
 from phelel.velph.cli import plot_eigenvalues
 from phelel.velph.cli.transport.plot.plot_selfenergy import plot_selfenergy
+from phelel.velph.cli.transport.plot.plot_transport import _show
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
@@ -198,3 +199,26 @@ def test_velph_transport_plot_selfenergy(
     assert result.exit_code == 0, result.output
     assert (directory / "selfenergy.pdf").exists()
     assert (directory / "selfenergy.txt").read_text().count("- parameters:") == 3
+
+
+def test_transport_summary_of_each_temperature(tmp_path: pathlib.Path):
+    """The summary of transport has the values at each temperature.
+
+    The diagonal elements of e_conductivity are those of the tensor at the
+    temperature.
+
+    """
+    temps = [100.0, 200.0, 300.0]
+    vaspout = tmp_path / "vaspout.h5"
+    _write_transport_vaspout(vaspout, temps)
+    with h5py.File(vaspout) as f:
+        lines = _show(f["results/electron_phonon/electrons/transport_2"], 2)
+    assert [line for line in lines if "temperature:" in line] == [
+        f"  - temperature: {t}" for t in temps
+    ]
+    sigmas = [
+        line.split("[")[1].split(",")[0]
+        for line in lines
+        if line.startswith("      e_conductivity:")
+    ]
+    assert sigmas == [f"{_transport_values(1, t)[0]:.3e}" for t in temps]
