@@ -8,58 +8,16 @@ structure.
 
 from __future__ import annotations
 
-import dataclasses
 import pathlib
 from typing import TYPE_CHECKING, Literal
 
 import click
-import h5py
 import numpy as np
-from numpy.typing import NDArray
+
+from phelel.velph.utils.vaspout import ElectronDos, read_electron_dos
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
-
-
-@dataclasses.dataclass(frozen=True)
-class ElectronDos:
-    """Electronic DOS of vaspout.h5.
-
-    energies has shape (energies,).  dos has shape (spin, energies), where
-    spin is 1, or 2 for a spin-polarized calculation.  efermi is the Fermi
-    level of the DOS calculation.
-
-    """
-
-    energies: NDArray
-    dos: NDArray
-    efermi: float
-
-
-def read_electron_dos(vaspout_filename: pathlib.Path) -> ElectronDos:
-    """Return the electronic DOS of vaspout.h5.
-
-    The DOS of KPOINTS_OPT is read when vaspout.h5 has it.  For a
-    non-collinear calculation, whose dos has four rows, only the first row,
-    the total DOS, is kept.  click.ClickException is raised when vaspout.h5
-    has no electronic DOS.
-
-    """
-    with h5py.File(vaspout_filename, "r") as f:
-        for name in ("results/electron_dos_kpoints_opt", "results/electron_dos"):
-            if name in f:
-                group = f[name]
-                break
-        else:
-            raise click.ClickException(
-                f'No electronic DOS is found in "{vaspout_filename}".'
-            )
-        dos: NDArray = group["dos"][:]  # type: ignore
-        energies: NDArray = group["energies"][:]  # type: ignore
-        efermi = float(group["efermi"][()])  # type: ignore
-    if len(dos) == 4:
-        dos = dos[:1]
-    return ElectronDos(energies=energies, dos=dos, efermi=efermi)
 
 
 def get_dos_max(electron_dos: ElectronDos, emin: float, emax: float) -> float:

@@ -23,7 +23,7 @@ from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import InputSetSection, VaspSection, VelphConfig
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
-from phelel.velph.utils.vasp import CutoffToFFTMesh
+from phelel.velph.utils.fft_mesh import get_vasp_fft_mesh
 
 cwd = pathlib.Path(__file__).parent
 
@@ -271,12 +271,8 @@ def test_get_fft_mesh_from_input_sets():
 
     """
     mesh = get_fft_mesh(_elph_project({"selfenergy": {"encut": 500}}), _LATTICE)
-    np.testing.assert_array_equal(
-        mesh, CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "normal")
-    )
-    assert not np.array_equal(
-        mesh, CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "accurate")
-    )
+    np.testing.assert_array_equal(mesh, get_vasp_fft_mesh(500, _LATTICE, "normal"))
+    assert not np.array_equal(mesh, get_vasp_fft_mesh(500, _LATTICE, "accurate"))
     project = _elph_project(
         {
             "selfenergy": {"encut": 500, "prec": "accurate"},
@@ -285,7 +281,7 @@ def test_get_fft_mesh_from_input_sets():
     )
     np.testing.assert_array_equal(
         get_fft_mesh(project, _LATTICE),
-        CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, "accurate"),
+        get_vasp_fft_mesh(500, _LATTICE, "accurate"),
     )
 
 
@@ -319,7 +315,7 @@ def test_get_fft_mesh_different_meshes():
     assert e.value.message.endswith("or give ENCUT by --encut.")
     np.testing.assert_array_equal(
         get_fft_mesh(project, _LATTICE, encut=600),
-        CutoffToFFTMesh.get_FFTMesh(600, _LATTICE, "accurate"),
+        get_vasp_fft_mesh(600, _LATTICE, "accurate"),
     )
     project = _elph_project(
         {"selfenergy": {"encut": 500}, "transport": {"encut": 500, "prec": "accurate"}}
@@ -348,7 +344,7 @@ def test_get_fft_mesh_without_encut():
     )
     np.testing.assert_array_equal(
         get_fft_mesh(_elph_project({}), _LATTICE, encut=500),
-        CutoffToFFTMesh.get_FFTMesh(500, _LATTICE, None),
+        get_vasp_fft_mesh(500, _LATTICE, None),
     )
 
 
@@ -374,7 +370,7 @@ def test_differentiate_writes_fft_mesh(
     result = CliRunner().invoke(cmd_root, ["phelel", "differentiate"])
     assert result.exit_code == 0, result.output
     phe = phelel.load(tmp_path / "phelel" / "phelel_disp.yaml")
-    expected = CutoffToFFTMesh.get_FFTMesh(
+    expected = get_vasp_fft_mesh(
         selfenergy_incar["encut"], phe.primitive.cell, selfenergy_incar.get("prec")
     )
     with h5py.File(tmp_path / "phelel" / "phelel_params.hdf5") as f:

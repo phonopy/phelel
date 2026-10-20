@@ -15,7 +15,7 @@ from phonopy.structure.cells import get_reduced_bases
 from scipy.spatial import Voronoi
 
 from phelel.velph.utils.structure import get_symmetry_dataset
-from phelel.velph.utils.vasp import read_crystal_structure_from_vaspout_h5
+from phelel.velph.utils.vaspout import read_crystal_structure_from_vaspout_h5
 
 if TYPE_CHECKING:
     from mpl_toolkits.mplot3d import Axes3D

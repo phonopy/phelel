@@ -25,7 +25,11 @@ from phelel.velph.config.schema import InputSetName, KpointsMesh, LinePath
 from phelel.velph.errors import VelphConfigError
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
-from phelel.velph.utils.vasp import VaspIncar, VaspKpoints
+from phelel.velph.utils.vasp_input import (
+    write_incar,
+    write_kpoints_line,
+    write_kpoints_mesh,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -74,20 +78,12 @@ def write_vasp_job(job: VaspJob) -> None:
         shutil.copy2(job.poscar_source, job.directory / "POSCAR")
     else:
         write_poscar(job.directory, job.cell)
-    VaspIncar.write(job.directory / "INCAR", dict(job.incar))
+    write_incar(job.directory / "INCAR", job.incar)
     for filename, block in job.kpoints.items():
-        kpoints: dict[str, Any]
         if isinstance(block, LinePath):
-            assert block.path is not None
-            kpoints = {"line": block.line, "path": block.path}
-            if block.label is not None:
-                kpoints["label"] = block.label
-            VaspKpoints.write_line_mode(job.directory / filename, kpoints)
+            write_kpoints_line(job.directory / filename, block)
         else:
-            kpoints = {"mesh": block.mesh}
-            if block.shift is not None:
-                kpoints["shift"] = block.shift
-            VaspKpoints.write_mesh_mode(job.directory / filename, kpoints)
+            write_kpoints_mesh(job.directory / filename, block)
     for name, source in job.copied_files.items():
         shutil.copy2(source, job.directory / name)
     if job.job_script is not None:

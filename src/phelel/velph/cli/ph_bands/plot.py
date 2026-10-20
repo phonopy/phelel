@@ -10,7 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from phelel.velph.jobs.project_directory import ProjectDirectory
-from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
+from phelel.velph.utils.band_path import get_bands_data
+from phelel.velph.utils.vaspout import get_reclat_from_vaspout
 
 
 def plot_ph_bandstructures(

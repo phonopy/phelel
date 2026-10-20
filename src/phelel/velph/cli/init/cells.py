@@ -40,7 +40,7 @@ from phelel.velph.utils.structure import (
     get_reduced_cell,
     get_symmetry_dataset,
 )
-from phelel.velph.utils.vasp import VaspIncar
+from phelel.velph.utils.vasp_input import expand_incar_value
 
 
 @dataclasses.dataclass(frozen=True)
@@ -100,7 +100,7 @@ def make_cells(
     if magmom is not None and site_mixture is not None:
         raise click.ClickException("--site-mixture cannot be combined with --magmom.")
     if magmom is not None:
-        cell.magnetic_moments = VaspIncar().expand(magmom.strip())
+        cell.magnetic_moments = expand_incar_value(magmom.strip())
     if site_mixture is not None:
         # The co-located atoms are kept as the atoms of the input cell.  With
         # the merge scheme, phonopy merges them into sites.

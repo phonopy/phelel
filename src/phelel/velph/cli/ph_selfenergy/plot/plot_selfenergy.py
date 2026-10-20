@@ -9,7 +9,7 @@ import click
 import h5py
 from numpy.typing import NDArray
 
-from phelel.velph.utils.vasp import read_freqs_and_ph_gammas_from_vaspout_h5
+from phelel.velph.utils.vaspout import read_freqs_and_ph_gammas_from_vaspout_h5
 
 if TYPE_CHECKING:
     import matplotlib.axes as axes

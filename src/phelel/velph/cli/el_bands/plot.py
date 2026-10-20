@@ -8,9 +8,10 @@ import click
 import h5py
 from numpy.typing import NDArray
 
-from phelel.velph.cli.el_dos.plot import draw_dos, get_dos_max, read_electron_dos
+from phelel.velph.cli.el_dos.plot import draw_dos, get_dos_max
 from phelel.velph.jobs.project_directory import ProjectDirectory
-from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
+from phelel.velph.utils.band_path import get_bands_data
+from phelel.velph.utils.vaspout import get_reclat_from_vaspout, read_electron_dos
 
 
 def plot_el_bandstructures(
