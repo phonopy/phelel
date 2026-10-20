@@ -162,10 +162,8 @@ class Project:
     def supercell_matrix(self, code: CodeName) -> NDArray[np.int64]:
         """Return the supercell matrix of [<code>] as a 3x3 matrix."""
         supercell = self.code_section(code).supercell
-        if isinstance(supercell, SupercellDimension):
-            return np.diag(supercell.supercell_dimension)
-        assert isinstance(supercell, SupercellMatrix)
-        return np.array(supercell.supercell_matrix)
+        assert isinstance(supercell, (SupercellDimension, SupercellMatrix))
+        return get_supercell_matrix(supercell)
 
     def cell_of(self, name: InputSetName) -> PhonopyAtoms:
         """Return the cell on which the VASP calculation of an input set is run.
@@ -211,6 +209,19 @@ class Project:
                 assert isinstance(value, KpointsMesh)
             kpoints[filename] = value
         return kpoints
+
+
+def get_supercell_matrix(
+    supercell: SupercellDimension | SupercellMatrix,
+) -> NDArray[np.int64]:
+    """Return the supercell matrix of a supercell of velph.toml as a 3x3 matrix.
+
+    supercell_dimension gives the diagonal elements of the matrix.
+
+    """
+    if isinstance(supercell, SupercellDimension):
+        return np.diag(supercell.supercell_dimension)
+    return np.array(supercell.supercell_matrix)
 
 
 def _parse_cell(cell_dict: Mapping[str, Any] | None) -> PhonopyAtoms:

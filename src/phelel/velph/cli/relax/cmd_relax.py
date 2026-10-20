@@ -8,6 +8,7 @@ import pathlib
 import click
 
 from phelel.velph.cli.relax.generate import write_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
@@ -24,12 +25,7 @@ def cmd_relax():
 
 
 @cmd_relax.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate relax input files."""

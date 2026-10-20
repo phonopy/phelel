@@ -10,6 +10,7 @@ from phelel.velph.cli.ph_bands.generate import (
     write_input_files as write_input_files_ph_bandstructures,
 )
 from phelel.velph.cli.ph_bands.plot import plot_ph_bandstructures
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
@@ -29,12 +30,7 @@ def cmd_ph_bands():
 # velph ph_bands generate
 #
 @cmd_ph_bands.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to plot phonon band structure."""

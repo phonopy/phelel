@@ -8,7 +8,7 @@ import click
 from phonopy.interface.vasp import write_vasp
 from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.cli.utils import echo_vasp_vca_hint
+from phelel.velph.cli.utils import echo_vasp_vca_hint, toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project import read_velph_toml
 
@@ -17,14 +17,7 @@ from phelel.velph.jobs.project import read_velph_toml
 # velph generate
 #
 @cmd_root.command("generate")
-@click.option(
-    "-f",
-    "toml_filename",
-    type=click.Path(exists=True),
-    default="velph.toml",
-    show_default=True,
-    help="Specify velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--prefix",
     "prefix",

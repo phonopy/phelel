@@ -18,9 +18,16 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, get_args
 
 from phelel.velph.config.schema import CodeName, InputSetName
+
+# Electron-phonon input sets, those of velph selfenergy, velph transport and
+# velph ph_selfenergy.  Their VASP calculations use phelel/phelel_params.hdf5,
+# and get_fft_mesh of velph phelel differentiate checks that their FFT grids
+# are the same.
+ElphInputSetName = Literal["selfenergy", "transport", "ph_selfenergy"]
+ELPH_INPUT_SETS: tuple[ElphInputSetName, ...] = get_args(ElphInputSetName)
 
 # Cell on which the VASP calculations of an input set are run (see
 # InputSetEntry.cell).

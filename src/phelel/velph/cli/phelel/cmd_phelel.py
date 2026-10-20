@@ -12,6 +12,7 @@ from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.supercells import write_supercell_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project import read_velph_toml
 from phelel.velph.jobs.project_directory import ProjectDirectory
@@ -33,12 +34,7 @@ def cmd_phelel():
 # velph phelel init
 #
 @cmd_phelel.command("init")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--phonon-from-phonopy",
     "phonon_from_phonopy",
@@ -72,12 +68,7 @@ def cmd_init(toml_filename: str, phonon_from_phonopy: bool):
 # velph phelel generate
 #
 @cmd_phelel.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate phelel input files."""
@@ -88,12 +79,7 @@ def cmd_generate(toml_filename: str):
 # velph phelel differentiate
 #
 @cmd_phelel.command("differentiate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--encut",
     type=float,
@@ -150,12 +136,7 @@ def cmd_differentiate(
 # velph phelel phonopy
 #
 @cmd_phelel.command("phonopy")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_phonopy(toml_filename: str):
     """Create phonopy_params.yaml."""

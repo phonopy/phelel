@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from phelel import Phelel
 from phelel.interface.vasp.derivatives import create_derivatives
 from phelel.velph.cli.supercells import load_phonopy_yaml
-from phelel.velph.config.schema import InputSetName
+from phelel.velph.config.input_sets import ELPH_INPUT_SETS
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import CutoffToFFTMesh
@@ -140,11 +140,6 @@ def _missing_files(filepath: pathlib.Path) -> list[str]:
     if not missing:
         return []
     return ["vaspout.h5"] + missing
-
-
-# Input sets whose VASP calculations read phelel_params.hdf5.  Their FFT grid
-# has to be the FFT mesh of the local potentials in phelel_params.hdf5.
-ELPH_INPUT_SETS: tuple[InputSetName, ...] = ("selfenergy", "transport", "ph_selfenergy")
 
 
 def get_fft_mesh(

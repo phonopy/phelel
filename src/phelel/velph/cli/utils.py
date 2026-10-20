@@ -16,6 +16,17 @@ from phelel.velph.config.schema import InputSetName
 from phelel.velph.jobs.project import read_velph_toml
 from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set, write_vasp_job
 
+# Option --toml-filename of the commands that read velph.toml.  velph init,
+# which writes velph.toml, has an option of the same name of its own.
+toml_filename_option = click.option(
+    "--toml-filename",
+    "toml_filename",
+    type=click.Path(),
+    default="velph.toml",
+    show_default=True,
+    help="velph.toml that the command reads.",
+)
+
 
 def write_jobs(jobs: Sequence[VaspJob]) -> None:
     """Write the VASP input files of jobs and show what was written.

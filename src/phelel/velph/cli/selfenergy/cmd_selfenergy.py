@@ -5,6 +5,7 @@ import pathlib
 import click
 
 from phelel.velph.cli.selfenergy.generate import write_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
@@ -20,12 +21,7 @@ def cmd_selfenergy():
 
 
 @cmd_selfenergy.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--dry-run/--no-dry-run",
     "-d",
