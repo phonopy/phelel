@@ -6,6 +6,7 @@ import click
 
 from phelel.velph.cli.ph_selfenergy.dump_phono3py import dump_phono3py
 from phelel.velph.cli.selfenergy.generate import write_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
@@ -23,12 +24,7 @@ def cmd_ph_selfenergy():
 
 
 @cmd_ph_selfenergy.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--dry-run/--no-dry-run",
     "-d",

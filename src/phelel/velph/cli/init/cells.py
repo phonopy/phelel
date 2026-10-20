@@ -34,6 +34,7 @@ from phelel.velph.config.schema import (
     SupercellSpec,
     SymmetrySection,
 )
+from phelel.velph.jobs.project import get_supercell_matrix
 from phelel.velph.utils.structure import (
     get_primitive_cell,
     get_reduced_cell,
@@ -170,10 +171,8 @@ def resolve_supercell(
                 cells.sym_dataset, max_num_atoms=supercell.max_num_atoms
             )
         )
-    elif isinstance(supercell, SupercellDimension):
-        smat = np.diag(supercell.supercell_dimension)
     else:
-        smat = np.array(supercell.supercell_matrix)
+        smat = get_supercell_matrix(supercell)
     smat = np.array(smat, dtype=int)
     _echo_if_point_group_lowered(code, smat, cells.unitcell, tolerance)
     if np.array_equal(smat, np.diag(np.diag(smat))):

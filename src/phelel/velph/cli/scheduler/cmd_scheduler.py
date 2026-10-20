@@ -7,6 +7,7 @@ from typing import cast
 
 import click
 
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.config.schema import InputSetName
 from phelel.velph.errors import VelphError
@@ -19,13 +20,7 @@ from phelel.velph.jobs.vasp_job import job_script
 #
 @cmd_root.command("scheduler")
 @click.argument("set_names", nargs=-1, metavar="[INPUT_SET]...")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-    show_default=True,
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_scheduler(set_names: tuple[str, ...], toml_filename: str):
     """Show the job script _job.sh of each input set.

@@ -11,9 +11,14 @@ import pytest
 import tomli_w
 
 from phelel.velph.config.io import VelphConfigError, parse_velph_toml
-from phelel.velph.config.schema import CodeSection, KpointsMesh
+from phelel.velph.config.schema import (
+    CodeSection,
+    KpointsMesh,
+    SupercellDimension,
+    SupercellMatrix,
+)
 from phelel.velph.errors import VelphError
-from phelel.velph.jobs.project import Project, read_velph_toml
+from phelel.velph.jobs.project import Project, get_supercell_matrix, read_velph_toml
 
 
 def test_read_velph_toml(nacl_velph_toml: Callable[[], dict], tmp_path: pathlib.Path):
@@ -155,4 +160,16 @@ def test_code_section(nacl_velph_toml: Callable[[], dict]):
     assert str(e.value) == (
         '[phelel] of "velph.toml" does not give the supercell.\n'
         'Give "supercell_dimension" or "supercell_matrix" in [phelel].'
+    )
+
+
+def test_get_supercell_matrix():
+    """supercell_dimension gives the diagonal, and supercell_matrix the matrix."""
+    np.testing.assert_array_equal(
+        get_supercell_matrix(SupercellDimension(supercell_dimension=(2, 3, 4))),
+        np.diag([2, 3, 4]),
+    )
+    matrix = ((0, 2, 2), (2, 0, 2), (2, 2, 0))
+    np.testing.assert_array_equal(
+        get_supercell_matrix(SupercellMatrix(supercell_matrix=matrix)), matrix
     )

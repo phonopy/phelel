@@ -11,7 +11,7 @@ from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
-from phelel.velph.cli.utils import write_input_set_files
+from phelel.velph.cli.utils import toml_filename_option, write_input_set_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
@@ -31,12 +31,7 @@ def cmd_el_dos():
 # velph el_dos generate
 #
 @cmd_el_dos.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to calculate electronic DOS."""

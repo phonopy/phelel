@@ -9,16 +9,14 @@ phelel/phelel_params.hdf5, which velph phelel differentiate makes.
 from __future__ import annotations
 
 import pathlib
-from typing import Literal
 
 import click
 
 from phelel.velph.cli.utils import write_jobs
+from phelel.velph.config.input_sets import ElphInputSetName
 from phelel.velph.jobs.project import Project, read_velph_toml
 from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.jobs.vasp_job import VaspJob, plan_input_set
-
-ElphInputSetName = Literal["selfenergy", "transport", "ph_selfenergy"]
 
 
 def plan_elph(

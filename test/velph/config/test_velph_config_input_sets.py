@@ -9,7 +9,11 @@ from typing import get_args
 import pytest
 
 from phelel.velph.config import input_sets
-from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
+from phelel.velph.config.input_sets import (
+    ELPH_INPUT_SETS,
+    INPUT_SETS,
+    input_set_fields,
+)
 from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import CODE_KEYS, InputSetName
 
@@ -21,6 +25,13 @@ def test_names_of_input_sets():
 
     """
     assert tuple(INPUT_SETS) == get_args(InputSetName)
+
+
+def test_elph_input_sets():
+    """The electron-phonon input sets are input sets run on the primitive cell."""
+    assert ELPH_INPUT_SETS == ("selfenergy", "transport", "ph_selfenergy")
+    for name in ELPH_INPUT_SETS:
+        assert INPUT_SETS[name].cell == "primitive"
 
 
 def test_input_set_fields():

@@ -47,7 +47,6 @@ import dataclasses
 from typing import Any, TypeVar
 
 import click
-import numpy as np
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phonopy.structure.cells import get_supercell
 
@@ -71,6 +70,7 @@ from phelel.velph.config.schema import (
     VaspSection,
     VelphConfig,
 )
+from phelel.velph.jobs.project import get_supercell_matrix
 from phelel.velph.utils.mesh import kspacing_to_mesh
 
 T = TypeVar("T")
@@ -331,12 +331,10 @@ def _cell_of_input_set(
         section = getattr(config, set_name)
         assert isinstance(section, CodeSection)
         assert isinstance(section.supercell, (SupercellDimension, SupercellMatrix))
-        if isinstance(section.supercell, SupercellDimension):
-            smat = np.diag(section.supercell.supercell_dimension)
-        else:
-            smat = np.array(section.supercell.supercell_matrix)
         supercell = get_supercell(
-            cells.unitcell, smat, symprec=_required(init.tolerance)
+            cells.unitcell,
+            get_supercell_matrix(section.supercell),
+            symprec=_required(init.tolerance),
         )
         return supercell, f"supercell of [{set_name}]"
     if entry.cell == "cell" and input_set.cell == "unitcell":

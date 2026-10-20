@@ -5,7 +5,7 @@ from __future__ import annotations
 import click
 
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
-from phelel.velph.cli.utils import write_input_set_files
+from phelel.velph.cli.utils import toml_filename_option, write_input_set_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
@@ -25,12 +25,7 @@ def cmd_el_bands():
 # velph el_bands generate
 #
 @cmd_el_bands.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to plot electronic band structure."""

@@ -6,6 +6,7 @@ import click
 
 from phelel.velph.cli.phono3py.init import run_init
 from phelel.velph.cli.supercells import write_supercell_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project import read_velph_toml
 from phelel.velph.jobs.project_directory import ProjectDirectory
@@ -26,12 +27,7 @@ def cmd_phono3py():
 # velph phono3py init
 #
 @cmd_phono3py.command("init")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--rd",
     "random_displacements",
@@ -74,12 +70,7 @@ def cmd_init(
 # velph phono3py generate
 #
 @cmd_phono3py.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate phono3py input files."""
