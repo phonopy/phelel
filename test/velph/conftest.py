@@ -5,6 +5,7 @@ import tomllib
 from collections.abc import Callable, Sequence
 from typing import Any
 
+import h5py
 import numpy as np
 import pytest
 from phonopy import Phonopy
@@ -404,5 +405,38 @@ def write_phonopy_disp_yaml() -> Callable[[Project, pathlib.Path], Phonopy]:
         filename.parent.mkdir(parents=True, exist_ok=True)
         ph.save(filename)
         return ph
+
+    return _write
+
+
+@pytest.fixture(scope="session")
+def nacl_prim_cell() -> PhonopyAtoms:
+    """Return the primitive cell of NaCl, with Na at the origin."""
+    a = 5.69
+    return PhonopyAtoms(
+        cell=[[0, a / 2, a / 2], [a / 2, 0, a / 2], [a / 2, a / 2, 0]],
+        symbols=["Na", "Cl"],
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+
+
+@pytest.fixture(scope="session")
+def write_vaspout_positions() -> Callable[[h5py.Group, PhonopyAtoms], None]:
+    """Return a function writing a cell in a group of vaspout.h5.
+
+    The group is results/positions of vaspout.h5, and the datasets are those
+    that read_crystal_structure_from_vaspout_h5 reads.  The atoms of a species
+    have to be next to each other in the cell.
+
+    """
+
+    def _write(group: h5py.Group, cell: PhonopyAtoms) -> None:
+        symbols = list(dict.fromkeys(cell.symbols))
+        group["scale"] = 1.0
+        group["lattice_vectors"] = cell.cell
+        group["position_ions"] = cell.scaled_positions
+        group["direct_coordinates"] = 1
+        group["number_ion_types"] = [cell.symbols.count(s) for s in symbols]
+        group["ion_types"] = np.array([s.encode() for s in symbols])
 
     return _write
