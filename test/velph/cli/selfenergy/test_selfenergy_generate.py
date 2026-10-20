@@ -11,8 +11,9 @@ from click.testing import CliRunner
 
 from phelel.velph.cli.selfenergy.generate import plan_elph
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import parse_velph_toml, write_velph_toml
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import KpointsMesh
+from phelel.velph.config.toml_writer import write_velph_toml
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
 

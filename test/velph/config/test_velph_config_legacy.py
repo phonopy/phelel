@@ -14,7 +14,7 @@ from click.testing import CliRunner
 
 from phelel import __version__
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.config.io import VelphConfigError, load_velph_toml
+from phelel.velph.config.io import load_velph_toml
 from phelel.velph.config.legacy import (
     convert_legacy_velph_toml,
     load_velph_toml_any_version,
@@ -27,6 +27,7 @@ from phelel.velph.config.schema import (
     SupercellDimension,
     VelphConfig,
 )
+from phelel.velph.errors import VelphConfigError
 from phelel.velph.utils.vasp import VaspKpoints
 
 # KPOINTS files that the generate commands of velph 0.14 write, for each input
