@@ -4,6 +4,48 @@
 
 ## Unreleased
 
+- `velph generate` takes the file name of `velph.toml` by `--toml-filename`, as
+  the other commands do, in place of `-f`. The help of `--toml-filename` shows
+  its default, `velph.toml`, in every command that reads `velph.toml`.
+- `velph phelel differentiate` stops with an error when a directory of a
+  supercell or a file in it is missing, and the message names the files that
+  are not found. Before, the exit code was 0.
+- `velph transport plot eigenvalues` gives `--tid` and `--calcid` to the plot
+  in the right order. Before, the two were swapped.
+- `velph phelel generate`, `velph phonopy generate` and `velph phono3py
+  generate` read only `<code>/<code>_disp.yaml`. Before, they also read files
+  in the current directory, such as `BORN`, `FORCE_SETS`, `fc3.hdf5` and
+  `phelel_params.hdf5`, and stopped with an error when such a file could not be
+  read.
+- `velph phelel phonopy` works with the split scheme of site mixture. Before,
+  it stopped with an IndexError.
+- `velph transport plot selfenergy` plots three or more self-energy
+  calculations. Before, it stopped with an error.
+- The eigenvalue plot commands write `bz.dat` in the directory of
+  `vaspout.h5`. Before, they wrote it in the directory named after the
+  calculation, such as `el_dos`, in the current directory, and stopped with an
+  error when that directory did not exist.
+- `velph ph_selfenergy dump_phono3py` works with a k-point mesh of a
+  generalized regular grid. Before, it stopped with an IndexError. The
+  irreducible k-points of VASP are put in the order of phono3py by
+  `get_ir_kpoint_map` of phonopy.
+- `velph relax generate` writes `relax/iter101` and later. Before, it wrote the
+  inputs again in `relax/iter100` after `relax/iter100`.
+- PREC of the electron-phonon input sets is read without regard to case for the
+  FFT mesh of `velph phelel differentiate`. Before, `SingleN` written with
+  capital letters gave the FFT mesh of `Single`.
+- `velph phelel init`, `velph phonopy init` and `velph phono3py init` stop with
+  an error when `nac/vasprun.xml` cannot be parsed, for example while VASP is
+  running in `nac`. Before, they made the supercells without NAC parameters.
+- `velph phelel differentiate` and `velph phelel phonopy` stop with an error
+  when `velph.toml` has no `[phelel]`, as `velph phelel init` does.
+- A `velph.toml` without `[velph] version` and `[phelel] version` gets a
+  message that says which versions of velph write which of the two keys.
+- The generate commands show the message on a missing `POTCAR` once, when they
+  write the VASP input files.
+- The messages on written files, the help of the command groups and the help of
+  some options of `velph init` and of the eigenvalue plot commands are revised.
+
 - `velph el_dos plot` plots the electronic DOS of `el_dos/vaspout.h5`.
 - `velph el_bands plot` draws the total DOS of a non-collinear calculation.
   Before, it stopped with an IndexError.
