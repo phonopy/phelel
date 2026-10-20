@@ -5,14 +5,15 @@ from __future__ import annotations
 import pathlib
 import shutil
 
-import click
 import h5py
 import numpy as np
 import pytest
 from click.testing import CliRunner
 
-from phelel.velph.cli.el_dos.plot import ElectronDos, draw_dos, read_electron_dos
+from phelel.velph.cli.el_dos.plot import draw_dos
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.errors import VelphError
+from phelel.velph.utils.vaspout import ElectronDos, read_electron_dos
 
 TINISN_DOS = (
     pathlib.Path(__file__).parent.parent / "el_bands" / "plot" / "TiNiSn" / "dos"
@@ -60,7 +61,7 @@ def test_el_dos_plot_TiNiSn(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPa
 def test_read_electron_dos(tmp_path: pathlib.Path):
     """The DOS of KPOINTS_OPT is read, and the total DOS of a non-collinear one.
 
-    Without DOS in vaspout.h5, click.ClickException is raised.
+    Without DOS in vaspout.h5, VelphError is raised.
 
     """
     filename = tmp_path / "vaspout.h5"
@@ -76,9 +77,9 @@ def test_read_electron_dos(tmp_path: pathlib.Path):
 
     with h5py.File(filename, "w") as w:
         w.create_group("results/electron_eigenvalues")
-    with pytest.raises(click.ClickException) as e:
+    with pytest.raises(VelphError) as e:
         read_electron_dos(filename)
-    assert e.value.message == f'No electronic DOS is found in "{filename}".'
+    assert str(e.value) == f'No electronic DOS is found in "{filename}".'
 
 
 def test_draw_dos_spin_polarized():

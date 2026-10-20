@@ -15,7 +15,7 @@ from phelel.velph.cli.supercells import load_phonopy_yaml
 from phelel.velph.config.input_sets import ELPH_INPUT_SETS
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
-from phelel.velph.utils.vasp import CutoffToFFTMesh
+from phelel.velph.utils.fft_mesh import get_vasp_fft_mesh
 
 
 def run_derivatives(
@@ -173,7 +173,7 @@ def get_fft_mesh(
                 "[vasp.selfenergy], [vasp.transport] or [vasp.ph_selfenergy], from "
                 "which ENCUT is taken.\nGive ENCUT by --encut."
             )
-        return CutoffToFFTMesh.get_FFTMesh(encut, lattice, None)
+        return get_vasp_fft_mesh(encut, lattice, None)
     meshes = {}
     for set_name, incar in incars.items():
         set_encut = encut if encut is not None else incar.get("encut")
@@ -184,10 +184,7 @@ def get_fft_mesh(
             )
         meshes[set_name] = (
             tuple(
-                int(n)
-                for n in CutoffToFFTMesh.get_FFTMesh(
-                    set_encut, lattice, incar.get("prec")
-                )
+                int(n) for n in get_vasp_fft_mesh(set_encut, lattice, incar.get("prec"))
             ),
             set_encut,
             incar.get("prec"),

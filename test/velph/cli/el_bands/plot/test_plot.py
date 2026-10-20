@@ -9,9 +9,9 @@ import pytest
 from click.testing import CliRunner
 
 from phelel.velph.cli.el_bands.plot import _get_bands_data
-from phelel.velph.cli.el_dos.plot import get_dos_max, read_electron_dos
+from phelel.velph.cli.el_dos.plot import get_dos_max
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.utils.vasp import get_reclat_from_vaspout
+from phelel.velph.utils.vaspout import get_reclat_from_vaspout, read_electron_dos
 
 cwd = pathlib.Path(__file__).parent
 

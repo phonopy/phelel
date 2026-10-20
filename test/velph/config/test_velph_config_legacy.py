@@ -28,7 +28,7 @@ from phelel.velph.config.schema import (
     VelphConfig,
 )
 from phelel.velph.errors import VelphConfigError
-from phelel.velph.utils.vasp import VaspKpoints
+from phelel.velph.utils.vasp_input import write_kpoints_mesh
 
 # KPOINTS files that the generate commands of velph 0.14 write, for each input
 # set and k-point block of the new format.  The paths are relative to the
@@ -200,10 +200,7 @@ def _run_generate_commands(set_names: tuple[str, ...]) -> None:
 
 def _kpoints_text(mesh: KpointsMesh, path: pathlib.Path) -> str:
     """Return KPOINTS written from mesh in the same way as the generate commands."""
-    kpoints: dict[str, Any] = {"mesh": mesh.mesh}
-    if mesh.shift is not None:
-        kpoints["shift"] = mesh.shift
-    VaspKpoints.write_mesh_mode(path, kpoints)
+    write_kpoints_mesh(path, mesh)
     return path.read_text()
 
 

@@ -22,7 +22,7 @@ from phelel.velph.config.schema import (
 )
 from phelel.velph.config.toml_writer import write_velph_toml
 from phelel.velph.errors import VelphConfigError
-from phelel.velph.utils.vasp import VaspPotcar
+from phelel.velph.utils.vasp_input import VaspPotcar
 
 _DEFAULTS = get_default_config()
 
