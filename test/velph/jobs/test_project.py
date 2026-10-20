@@ -10,14 +10,14 @@ import numpy as np
 import pytest
 import tomli_w
 
-from phelel.velph.config.io import VelphConfigError, parse_velph_toml
+from phelel.velph.config.io import parse_velph_toml
 from phelel.velph.config.schema import (
     CodeSection,
     KpointsMesh,
     SupercellDimension,
     SupercellMatrix,
 )
-from phelel.velph.errors import VelphError
+from phelel.velph.errors import VelphConfigError, VelphError
 from phelel.velph.jobs.project import Project, get_supercell_matrix, read_velph_toml
 
 

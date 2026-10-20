@@ -13,7 +13,7 @@ from phonopy.structure.cells import get_primitive
 
 from phelel import __version__
 from phelel.velph.cli.init.build import build_velph_config
-from phelel.velph.config.io import load_velph_toml, parse_template, write_velph_toml
+from phelel.velph.config.io import load_velph_toml, parse_template
 from phelel.velph.config.schema import (
     CodeSection,
     InitSection,
@@ -23,6 +23,7 @@ from phelel.velph.config.schema import (
     SupercellDimension,
     VelphConfig,
 )
+from phelel.velph.config.toml_writer import write_velph_toml
 
 _DIM222 = SupercellDimension(supercell_dimension=(2, 2, 2))
 

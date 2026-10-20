@@ -21,8 +21,8 @@ from phonopy.interface.vasp import get_vasp_vca_weights, write_vasp
 from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.config.input_sets import KpointsFileName
-from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.schema import InputSetName, KpointsMesh, LinePath
+from phelel.velph.errors import VelphConfigError
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.vasp import VaspIncar, VaspKpoints

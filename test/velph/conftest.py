@@ -13,12 +13,8 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phelel import __version__
 from phelel.velph.cli.init.build import build_velph_config
 from phelel.velph.cli.phonopy.init import run_init as run_phonopy_init
-from phelel.velph.config.io import (
-    dumps_config,
-    parse_init,
-    parse_template,
-    parse_velph_toml,
-)
+from phelel.velph.config.io import parse_init, parse_template, parse_velph_toml
+from phelel.velph.config.toml_writer import dumps_config
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.project_directory import ProjectDirectory
 

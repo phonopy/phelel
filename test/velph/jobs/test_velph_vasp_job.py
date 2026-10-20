@@ -10,13 +10,13 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
 
 from phelel.velph.cli.utils import echo_vasp_vca_hint
-from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.schema import (
     InputSetSection,
     KpointsMesh,
     VaspSection,
     VelphConfig,
 )
+from phelel.velph.errors import VelphConfigError
 from phelel.velph.jobs.project import Project
 from phelel.velph.jobs.vasp_job import (
     VaspJob,

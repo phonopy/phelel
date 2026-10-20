@@ -49,6 +49,8 @@ CellChoice = Literal["unitcell", "primitive"]
 PrimitiveCellChoice = Literal["standardized", "reduced"]
 SiteMixtureScheme = Literal["merge", "split"]
 Plusminus = bool | Literal["auto"]
+# Kinds of files read into VelphConfig.
+VelphFileKind = Literal["template", "velph_toml"]
 
 IntVector3 = tuple[int, int, int]
 IntMatrix3 = tuple[IntVector3, IntVector3, IntVector3]

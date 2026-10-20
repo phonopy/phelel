@@ -22,13 +22,10 @@ from phonopy.structure.cells import apply_site_mixture, build_mixture_cell
 from phelel.velph.config.defaults import get_default_config
 from phelel.velph.config.input_sets import INPUT_SETS, input_set_fields
 from phelel.velph.config.io import (
-    VelphConfigError,
-    dumps_config,
     load_template,
     load_velph_toml,
     parse_template,
     parse_velph_toml,
-    write_velph_toml,
 )
 from phelel.velph.config.merge import merge
 from phelel.velph.config.resolve import resolve_incar
@@ -46,6 +43,8 @@ from phelel.velph.config.schema import (
     VaspSection,
     VelphConfig,
 )
+from phelel.velph.config.toml_writer import dumps_config, write_velph_toml
+from phelel.velph.errors import VelphConfigError
 
 
 def _resolved_config(cell: PhonopyAtoms) -> VelphConfig:

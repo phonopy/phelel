@@ -54,14 +54,10 @@ from phonopy.structure.cells import (
 )
 
 from phelel import __version__
-from phelel.velph.config.io import (
-    VelphConfigError,
-    load_toml,
-    parse_velph_toml,
-    write_velph_toml,
-)
+from phelel.velph.config.io import load_toml, parse_velph_toml
 from phelel.velph.config.schema import CODES, VelphConfig
-from phelel.velph.errors import VelphError
+from phelel.velph.config.toml_writer import write_velph_toml
+from phelel.velph.errors import VelphConfigError, VelphError
 from phelel.velph.utils.mesh import kspacing_to_mesh
 
 # Tolerance with which Phelel, Phonopy and Phono3py make the supercell.

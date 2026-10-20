@@ -25,7 +25,6 @@ from phonopy.structure.atoms import PhonopyAtoms, parse_cell_dict
 
 from phelel.velph.config.defaults import get_default_config
 from phelel.velph.config.input_sets import INPUT_SETS, KpointsFileName
-from phelel.velph.config.io import VelphConfigError
 from phelel.velph.config.legacy import load_velph_toml_any_version
 from phelel.velph.config.merge import merge
 from phelel.velph.config.schema import (
@@ -39,7 +38,7 @@ from phelel.velph.config.schema import (
     SupercellMatrix,
     VelphConfig,
 )
-from phelel.velph.errors import VelphError
+from phelel.velph.errors import VelphConfigError, VelphError
 from phelel.velph.utils.kpath import get_seekpath_line_path
 
 
