@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import pathlib
-
 import click
 import h5py
 
@@ -14,6 +11,7 @@ from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
+from phelel.velph.cli.utils import existing_vaspout
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
@@ -41,11 +39,9 @@ def cmd_plot():
 @click.help_option("-h", "--help")
 def cmd_plot_selfenergy(vaspout_filename: str, save_plot: bool):
     """Plot self-energy in ph_selfenergy."""
-    _vaspout_filename, plot_filename = _get_h5py_and_plot_filenames(
-        "selfenergy", vaspout_filename=pathlib.Path(vaspout_filename)
-    )
-    with h5py.File(_vaspout_filename, "r") as f_h5py:
-        plot_selfenergy(f_h5py, plot_filename, save_plot=save_plot)
+    vaspout = existing_vaspout(vaspout_filename)
+    with h5py.File(vaspout, "r") as f_h5py:
+        plot_selfenergy(f_h5py, vaspout.parent / "selfenergy.pdf", save_plot)
 
 
 @cmd_plot.command("eigenvalues")
@@ -93,23 +89,3 @@ def cmd_plot_ph_selfenergy_eigenvalues(
         calcid=calcid,
         calc_type="ph_selfenergy",
     )
-
-
-def _get_h5py_and_plot_filenames(
-    property_name: str, vaspout_filename: str | os.PathLike
-) -> tuple[pathlib.Path, pathlib.Path]:
-    """Return vaspout.h5 and plot filename.
-
-    The plot is <property_name>.pdf in the directory of vaspout.h5.
-    click.ClickException is raised when vaspout.h5 does not exist.
-
-    """
-    _vaspout_filename = pathlib.Path(vaspout_filename)
-    if not _vaspout_filename.exists():
-        raise click.ClickException(
-            f'"{_vaspout_filename}" not found.  Give the path of vaspout.h5 with '
-            "--vaspout-filename."
-        )
-    dir_name = _vaspout_filename.parent
-    _plot_filename = dir_name / f"{property_name}.pdf"
-    return _vaspout_filename, _plot_filename

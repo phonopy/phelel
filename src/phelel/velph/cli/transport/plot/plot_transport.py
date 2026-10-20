@@ -2,12 +2,48 @@
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import pathlib
 
 import click
 import h5py
 import numpy as np
+
+from phelel.velph.cli.utils import save_or_show_plot
+
+
+@dataclasses.dataclass(frozen=True)
+class _TransportProperty:
+    """A property of transport_<n> of vaspout.h5 to plot.
+
+    The value at each temperature is the average of the diagonal elements of
+    the tensor of key, or the inverse of the average when inverse is True.
+    log_scale draws the values with a logarithmic y axis.
+
+    """
+
+    label: str
+    key: str
+    inverse: bool = False
+    log_scale: bool = False
+
+    def values(self, transport: h5py.Group) -> list[float]:
+        """Return the values at the temperatures of transport."""
+        if self.inverse:
+            return [3 / np.trace(tensor) for tensor in transport[self.key][:]]
+        return [np.trace(tensor) / 3 for tensor in transport[self.key][:]]
+
+
+# The properties plotted, in the order of the panels and of the columns of
+# transport-<n>.dat.  The resistivity is the inverse of the conductivity.
+_PROPERTIES = (
+    _TransportProperty("e_conductivity", "e_conductivity", log_scale=True),
+    _TransportProperty("e_resistivity", "e_conductivity", inverse=True),
+    _TransportProperty("e_t_conductivity", "e_t_conductivity"),
+    _TransportProperty("peltier", "peltier"),
+    _TransportProperty("seebeck", "seebeck"),
+)
 
 
 def plot_transport(
@@ -35,14 +71,6 @@ def plot_transport(
     """
     import matplotlib.pyplot as plt
 
-    property_names = (
-        "e_conductivity",
-        "e_conductivity",
-        "e_t_conductivity",
-        "peltier",
-        "seebeck",
-    )
-
     f_elph = f_h5py["results/electron_phonon/electrons"]
 
     n_transport = len(
@@ -63,7 +91,7 @@ def plot_transport(
         f'Summary of the data structure was written to "{dir_name / "transport.txt"}".'
     )
 
-    n_props = len(property_names)
+    n_props = len(_PROPERTIES)
     _, axs = plt.subplots(
         len(transports),
         n_props,
@@ -75,55 +103,29 @@ def plot_transport(
         _plot(
             axs[i, :],
             transport,
-            property_names,
             i,
             transport["id_idx"][:],
             last_transport_idx,
             transport_dir_name=dir_name,
         )
 
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Transport plot was written to "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Transport")
 
 
 def _plot(
     axs: np.ndarray,
     transport: h5py.Group,
-    property_names: tuple,
     index: int,
     transport_idx: np.ndarray,
     last_transport_idx: np.ndarray,
     transport_dir_name: pathlib.Path = pathlib.Path("transport"),
 ):
-    """Plot transport properties.
-
-    Second property with the property name "e_conductivity" is resistivity.
-
-    """
+    """Plot the properties of _PROPERTIES and write them in transport-<n>.dat."""
     import matplotlib.ticker as ticker
 
     temps = transport["temps"][:]
     dat_filename = transport_dir_name / f"transport-{index + 1}.dat"
-    properties = []
-
-    label_property_names = []
-    for prop_name in property_names:
-        if prop_name == "e_conductivity" and prop_name in label_property_names:
-            label_property_names.append("e_resistivity")
-        else:
-            label_property_names.append(prop_name)
-
-    for key, label_prop_name in zip(property_names, label_property_names, strict=True):
-        if label_prop_name == "e_resistivity":
-            properties.append([3 / np.trace(tensor) for tensor in transport[key][:]])
-        else:
-            properties.append([np.trace(tensor) / 3 for tensor in transport[key][:]])
+    properties = [prop.values(transport) for prop in _PROPERTIES]
 
     names = [name.decode("utf-8") for name in transport["id_name"][:]]
     labels = []
@@ -139,13 +141,13 @@ def _plot(
                 labels.append(transport["scattering_approximation"][()].decode("utf-8"))
 
     with open(dat_filename, "w") as w:
-        print("# temperature", *label_property_names, file=w)
+        print("# temperature", *[prop.label for prop in _PROPERTIES], file=w)
         for temp, props in zip(temps, np.transpose(properties), strict=True):
             print(temp, *props, file=w)
         click.echo(f'Transport data {index + 1} was written to "{dat_filename}".')
 
-    for i, label_property in enumerate(label_property_names):
-        if label_property == "e_conductivity":
+    for i, prop in enumerate(_PROPERTIES):
+        if prop.log_scale:
             axs[i].semilogy(temps, properties[i], ".-")
         else:
             axs[i].plot(temps, properties[i], ".-")
@@ -153,9 +155,9 @@ def _plot(
         axs[i].tick_params(axis="y", direction="in")
         axs[i].set_xlabel("temperature (K)")
         if labels:
-            axs[i].set_ylabel(f"[{index + 1}] {label_property} ({'-'.join(labels)})")
+            axs[i].set_ylabel(f"[{index + 1}] {prop.label} ({'-'.join(labels)})")
         else:
-            axs[i].set_ylabel(f"[{index + 1}] {label_property}")
+            axs[i].set_ylabel(f"[{index + 1}] {prop.label}")
         axs[i].set_xlim(left=0, right=max(temps))
         axs[i].yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
         axs[i].ticklabel_format(style="sci", axis="y", scilimits=(0, 0))

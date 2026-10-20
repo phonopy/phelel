@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
-
 import click
 
 from phelel.velph.cli.el_dos.plot import plot_el_dos
@@ -11,7 +9,11 @@ from phelel.velph.cli.plot_eigenvalues import (
     cmd_plot_eigenvalues,
     eigenvalue_plot_options,
 )
-from phelel.velph.cli.utils import toml_filename_option, write_input_set_files
+from phelel.velph.cli.utils import (
+    existing_vaspout,
+    toml_filename_option,
+    write_input_set_files,
+)
 from phelel.velph.cli.velph_cmd_root import cmd_root
 from phelel.velph.jobs.project_directory import ProjectDirectory
 
@@ -65,12 +67,7 @@ def cmd_generate(toml_filename: str):
 @click.help_option("-h", "--help")
 def cmd_plot(window: tuple[float, float], vaspout_filename: str, save_plot: bool):
     """Plot electronic DOS."""
-    path = pathlib.Path(vaspout_filename)
-    if not path.exists():
-        raise click.ClickException(
-            f'"{path}" not found.  Give the path of vaspout.h5 with --vaspout-filename.'
-        )
-    plot_el_dos(window, path, save_plot=save_plot)
+    plot_el_dos(window, existing_vaspout(vaspout_filename), save_plot=save_plot)
 
 
 #

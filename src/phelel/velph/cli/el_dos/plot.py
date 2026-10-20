@@ -11,9 +11,9 @@ from __future__ import annotations
 import pathlib
 from typing import TYPE_CHECKING, Literal
 
-import click
 import numpy as np
 
+from phelel.velph.cli.utils import save_or_show_plot
 from phelel.velph.utils.vaspout import ElectronDos, read_electron_dos
 
 if TYPE_CHECKING:
@@ -114,12 +114,6 @@ def plot_el_dos(
     ax.set_xlabel("E[eV]", fontsize=14)
     ax.set_ylabel("DOS", fontsize=14)
 
-    plt.tight_layout()
-    if save_plot:
-        plot_filename = vaspout_filename.parent / "el_dos.pdf"
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Electronic DOS plot was written to "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(
+        vaspout_filename.parent / "el_dos.pdf", save_plot, "Electronic DOS"
+    )
