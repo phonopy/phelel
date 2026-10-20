@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import io
+import pathlib
+from collections.abc import Callable
 
+import h5py
 import numpy as np
 import pytest
 import spglib
+from click.testing import CliRunner
 from numpy.typing import NDArray
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.phonon.grid import BZGrid, get_ir_grid_points
+from phonopy.physical_units import get_physical_units
+from phonopy.structure.atoms import PhonopyAtoms
 
 from phelel.velph.cli.ph_selfenergy.dump_phono3py import _get_bz_grid_and_id_map
+from phelel.velph.cli.velph_cmd_root import cmd_root
 
 # Primitive cell of rutile-type TiO2 in I4_1/amd, a body-centred tetragonal
 # lattice, whose k-point mesh of velph init is a generalized regular grid.
@@ -87,3 +94,114 @@ def test_id_map(mesh: list[list[int]], n_ir: int | None):
     )
     np.testing.assert_array_equal(id_map, expected)
     assert np.prod(bz_grid.D_diag) == round(abs(np.linalg.det(mesh)))
+
+
+def _write_ph_selfenergy_vaspout(
+    filename: pathlib.Path,
+    cell: PhonopyAtoms,
+    mesh: int,
+    n_calcs: int,
+    write_positions: Callable[[h5py.Group, PhonopyAtoms], None],
+) -> NDArray:
+    """Write vaspout.h5 of ph_selfenergy with n_calcs self-energy calculations.
+
+    The k-point mesh is mesh x mesh x mesh, and the irreducible k-points are in
+    an order shuffled as VASP may give them.  The frequency of band b at the
+    k-point k of calculation c is 10 * k + b + 100 * c, in 2 pi THz, and the
+    imaginary part of the self-energy is minus the frequency, in eV.  The index
+    of the k-point of each irreducible grid point of phono3py is returned.
+
+    """
+    kpoints, weights, expected = _ir_kpoints_of_vasp(
+        cell.totuple(), np.diag([mesh] * 3)
+    )
+    n_kpoints, n_bands, temps = len(kpoints), 2 * len(cell), [100.0, 300.0]
+    with h5py.File(filename, "w") as f:
+        write_positions(f.create_group("results/positions"), cell)
+        electrons = f.create_group("results/electron_phonon/electrons")
+        electrons["self_energy_meta/ncalculators"] = n_calcs
+        electrons["eigenvalues/kpoint_coords"] = kpoints
+        electrons["eigenvalues/kpoints_symmetry_weight"] = weights
+        for key in ("nkpx", "nkpy", "nkpz"):
+            f[f"input/kpoints_elph/{key}"] = mesh
+        f["input/kpoints/coordinate_space"] = np.bytes_("R")
+        for c in range(n_calcs):
+            freqs = 10.0 * np.arange(n_kpoints)[:, None] + np.arange(n_bands) + 100 * c
+            selfen = np.zeros((1, n_bands, n_kpoints, 1, len(temps), 2))
+            selfen[0, :, :, 0, :, 1] = -freqs.T[:, :, None]
+            g = f.create_group(f"results/electron_phonon/phonons/self_energy_{c + 1}")
+            g["phonon_freqs_ibz"] = freqs
+            g["selfen_ph"] = selfen
+            g["temps"] = np.array(temps)
+    return expected
+
+
+def test_velph_ph_selfenergy_dump_phono3py(
+    nacl_prim_cell: PhonopyAtoms,
+    write_vaspout_positions: Callable[[h5py.Group, PhonopyAtoms], None],
+    tmp_path: pathlib.Path,
+):
+    """The frequencies and gammas are written in the order of phono3py.
+
+    The frequencies are in THz, and the gammas have the axes of phono3py,
+    (spin, temperature, k-point, band), in THz.
+
+    """
+    vaspout = tmp_path / "vaspout.h5"
+    expected = _write_ph_selfenergy_vaspout(
+        vaspout, nacl_prim_cell, 4, 1, write_vaspout_positions
+    )
+    result = CliRunner().invoke(
+        cmd_root,
+        [
+            "ph_selfenergy",
+            "dump_phono3py",
+            "--vaspout-filename",
+            str(vaspout),
+            "--output-filename",
+            str(tmp_path / "gamma_elph{mesh}.hdf5"),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    thz_to_ev = get_physical_units().THzToEv
+    with (
+        h5py.File(vaspout) as f_in,
+        h5py.File(tmp_path / "gamma_elph-m444.hdf5") as f,
+    ):
+        kpoints = f_in["results/electron_phonon/electrons/eigenvalues/kpoint_coords"][:]
+        np.testing.assert_allclose(f["qpoint"][:], kpoints[expected])
+        np.testing.assert_array_equal(f["mesh"][:], [4, 4, 4])
+        assert f["weight"][:].sum() == 64
+        freqs = 10.0 * expected[:, None] + np.arange(4)
+        np.testing.assert_allclose(f["frequency_1"][:], freqs / (2 * np.pi))
+        gammas = f["gamma_1"][:]
+        assert gammas.shape == (1, 2, len(expected), 4)
+        np.testing.assert_allclose(
+            gammas[0, 0], freqs / (thz_to_ev / (2 * np.pi)) / (2 * np.pi)
+        )
+        np.testing.assert_array_equal(f["temperature_1"][:], [100.0, 300.0])
+
+
+def test_velph_ph_selfenergy_plot_selfenergy(
+    nacl_prim_cell: PhonopyAtoms,
+    write_vaspout_positions: Callable[[h5py.Group, PhonopyAtoms], None],
+    tmp_path: pathlib.Path,
+):
+    """The plot of the phonon self-energies is written."""
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    vaspout = tmp_path / "vaspout.h5"
+    _write_ph_selfenergy_vaspout(vaspout, nacl_prim_cell, 4, 2, write_vaspout_positions)
+    result = CliRunner().invoke(
+        cmd_root,
+        [
+            "ph_selfenergy",
+            "plot",
+            "selfenergy",
+            "--vaspout-filename",
+            str(vaspout),
+            "--save",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "selfenergy.pdf").exists()
