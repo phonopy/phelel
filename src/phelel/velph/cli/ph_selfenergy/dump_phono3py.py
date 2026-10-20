@@ -1,7 +1,5 @@
 """velph command line tool / velph-ph_selfenergy-dump_phono3py."""
 
-from typing import cast
-
 import click
 import h5py
 import numpy as np
@@ -10,7 +8,10 @@ from numpy.typing import NDArray
 from phonopy.phonon.grid import BZGrid, get_ir_kpoint_map
 from spglib import SpgCell
 
-from phelel.velph.utils.vaspout import read_freqs_and_ph_gammas_from_vaspout_h5
+from phelel.velph.utils.vaspout import (
+    read_freqs_and_ph_gammas_from_vaspout_h5,
+    read_spglib_cell_from_vaspout_h5,
+)
 
 
 def dump_phono3py(vaspout_filename: str, output_filename: str):
@@ -58,13 +59,7 @@ def _collect_data_from_vaspout(
     ir_kpoints_weights: NDArray = f_h5py[
         "results/electron_phonon/electrons/eigenvalues/kpoints_symmetry_weight"
     ][:]  # type: ignore
-    lat_scale = f_h5py["results/positions/scale"][()]  # type:ignore
-    # lattice: row vectors
-    lattice: NDArray = f_h5py["results/positions/lattice_vectors"][:] * lat_scale  # type: ignore
-    positions: NDArray = f_h5py["results/positions/position_ions"][:]  # type: ignore
-    number_ion_types: NDArray = f_h5py["results/positions/number_ion_types"][:]  # type: ignore
-    # The atoms of the i-th species, counted from 1, have the number i.
-    numbers = np.repeat(np.arange(1, len(number_ion_types) + 1), number_ion_types)
+    cell = read_spglib_cell_from_vaspout_h5(f_h5py, "results/positions")
     k_gen_vecs: NDArray
     if "basis_vectors" in f_h5py["input/kpoints_elph"]:  # type: ignore
         # When reading "basis_vectors" in python, the following 3x3 ndarray
@@ -83,7 +78,7 @@ def _collect_data_from_vaspout(
     assert f_h5py["input/kpoints/coordinate_space"][()] == b"R"  # type: ignore
 
     id_map, bz_grid = _get_bz_grid_and_id_map(
-        lattice, positions, numbers, k_gen_vecs, ir_kpoints, ir_kpoints_weights
+        cell, k_gen_vecs, ir_kpoints, ir_kpoints_weights
     )
     weights = ir_kpoints_weights[id_map] / np.linalg.det(k_gen_vecs)
     weights = np.rint(weights).astype(int)
@@ -91,9 +86,7 @@ def _collect_data_from_vaspout(
 
 
 def _get_bz_grid_and_id_map(
-    lattice: NDArray,
-    positions: NDArray,
-    numbers: NDArray,
+    cell: SpgCell,
     k_gen_vecs: NDArray,
     ir_kpoints: NDArray,
     ir_kpoints_weights: NDArray,
@@ -115,9 +108,8 @@ def _get_bz_grid_and_id_map(
         BZGrid of the mesh.
 
     """
-    cell = cast(SpgCell, (lattice, positions, numbers))
     sym_dataset = spglib.get_symmetry_dataset(cell)
     mesh = np.rint(np.linalg.inv(k_gen_vecs.T)).astype(int)
-    bz_grid = BZGrid(mesh, lattice=lattice, symmetry_dataset=sym_dataset)
+    bz_grid = BZGrid(mesh, lattice=cell[0], symmetry_dataset=sym_dataset)
     id_map = get_ir_kpoint_map(ir_kpoints, ir_kpoints_weights, bz_grid)
     return id_map, bz_grid
