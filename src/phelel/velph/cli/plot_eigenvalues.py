@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 from typing import TYPE_CHECKING, Literal
 
 import click
@@ -14,6 +13,7 @@ from phonopy.structure.brillouin_zone import get_qpoints_in_Brillouin_zone
 from phonopy.structure.cells import get_reduced_bases
 from scipy.spatial import Voronoi
 
+from phelel.velph.cli.utils import existing_vaspout
 from phelel.velph.utils.structure import get_symmetry_dataset
 from phelel.velph.utils.vaspout import read_crystal_structure_from_vaspout_h5
 
@@ -85,12 +85,7 @@ def cmd_plot_eigenvalues(
     does not exist.
 
     """
-    _vaspout_filename = pathlib.Path(vaspout_filename)
-    if not _vaspout_filename.exists():
-        raise click.ClickException(
-            f'"{_vaspout_filename}" not found.  Give the path of vaspout.h5 with '
-            "--vaspout-filename."
-        )
+    _vaspout_filename = existing_vaspout(vaspout_filename)
 
     with h5py.File(_vaspout_filename) as f_h5py:
         if calc_type in ("transport", "ph_selfenergy"):

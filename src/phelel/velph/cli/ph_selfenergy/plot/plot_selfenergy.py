@@ -5,10 +5,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-import click
 import h5py
 from numpy.typing import NDArray
 
+from phelel.velph.cli.utils import save_or_show_plot
 from phelel.velph.utils.vaspout import read_freqs_and_ph_gammas_from_vaspout_h5
 
 if TYPE_CHECKING:
@@ -60,14 +60,7 @@ def plot_selfenergy(
                     f"({indices[i]}) in 2$\\pi$THz"
                 )
 
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Self-energy plot was written to "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Self-energy")
 
 
 def _plot(ax: axes.Axes, gammas: NDArray, freqs: NDArray):

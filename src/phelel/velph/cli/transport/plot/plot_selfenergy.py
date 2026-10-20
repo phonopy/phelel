@@ -8,6 +8,8 @@ import pathlib
 import click
 import h5py
 
+from phelel.velph.cli.utils import save_or_show_plot
+
 
 def plot_selfenergy(
     f_h5py: h5py.File,
@@ -57,14 +59,7 @@ def plot_selfenergy(
         print("\n".join(lines), file=w)
     click.echo(f'Summary of the data structure was written to "{txt_filename}".')
 
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Self-energy plot was written to "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Self-energy")
 
 
 def _plot(ax, selfen):

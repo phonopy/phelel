@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pathlib
 
-import click
 import h5py
 import numpy as np
 from numpy.typing import NDArray
 
+from phelel.velph.cli.utils import save_or_show_plot
 from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.band_path import get_bands_data
 from phelel.velph.utils.vaspout import get_reclat_from_vaspout
@@ -70,11 +70,4 @@ def plot_ph_bandstructures(
         ax.set_ylabel(r"$\omega$[THz]", fontsize=14)
 
     # Finalize
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Phonon band structure plot was written to "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Phonon band structure")

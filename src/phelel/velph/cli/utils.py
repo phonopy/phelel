@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import xml.parsers.expat
 from collections.abc import Sequence
@@ -107,3 +108,38 @@ def get_nac_params(
         "dielectric": epsilon_,
     }
     return nac_params
+
+
+def existing_vaspout(vaspout_filename: str | os.PathLike) -> pathlib.Path:
+    """Return the path of vaspout.h5 given by --vaspout-filename.
+
+    click.ClickException is raised when the file does not exist.
+
+    """
+    path = pathlib.Path(vaspout_filename)
+    if not path.exists():
+        raise click.ClickException(
+            f'"{path}" not found.  Give the path of vaspout.h5 with --vaspout-filename.'
+        )
+    return path
+
+
+def save_or_show_plot(
+    plot_filename: str | os.PathLike, save_plot: bool, name: str
+) -> None:
+    """Save the current figure in plot_filename, or show it, and close it.
+
+    The fonts are embedded in the pdf as TrueType fonts (Type 42).  name is the
+    name of the plot in the message, such as "Phonon band structure".
+
+    """
+    import matplotlib.pyplot as plt
+
+    plt.tight_layout()
+    if save_plot:
+        plt.rcParams["pdf.fonttype"] = 42
+        plt.savefig(plot_filename)
+        click.echo(f'{name} plot was written to "{plot_filename}".')
+    else:
+        plt.show()
+    plt.close()

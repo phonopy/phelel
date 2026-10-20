@@ -9,6 +9,7 @@ import h5py
 from numpy.typing import NDArray
 
 from phelel.velph.cli.el_dos.plot import draw_dos, get_dos_max
+from phelel.velph.cli.utils import save_or_show_plot
 from phelel.velph.jobs.project_directory import ProjectDirectory
 from phelel.velph.utils.band_path import get_bands_data
 from phelel.velph.utils.vaspout import get_reclat_from_vaspout, read_electron_dos
@@ -79,14 +80,7 @@ def plot_el_bandstructures(
     ax1.set_ylim(ymin, ymax)
     ax1.yaxis.tick_right()
 
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Electronic band structure plot was written to "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Electronic band structure")
 
 
 def _get_bands_data(
