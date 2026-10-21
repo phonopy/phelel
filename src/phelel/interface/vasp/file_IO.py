@@ -293,13 +293,18 @@ def read_qtot(inwap: dict, filename: str | os.PathLike = "QTOT.bin") -> NDArray:
 
 
 def get_CHGCAR(charge: NDArray, header: str) -> str:
-    """Return CHGCAR style text from ndarray."""
+    """Return CHGCAR style text from ndarray.
+
+    Each value is preceded by a space, so that a negative value is separated
+    from the value before it.
+
+    """
     text = header + "\n%5d%5d%5d\n" % charge.shape[::-1]
     count = 0
     for z in range(charge.shape[0]):
         for y in range(charge.shape[1]):
             for x in range(charge.shape[2]):
-                text += "%18.11e" % charge[z, y, x]
+                text += " %17.11e" % charge[z, y, x]
                 count += 1
                 if (count % 5) == 0:
                     count = 0
