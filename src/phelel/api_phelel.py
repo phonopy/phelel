@@ -397,7 +397,7 @@ class Phelel:
 
         """
         if self._phonon is None:
-            return None
+            return self._phelel_phonon.unit_conversion_factor
         else:
             return self._phonon.unit_conversion_factor
 
@@ -464,8 +464,16 @@ class Phelel:
 
     @property
     def dynamical_matrix(self) -> DynamicalMatrix | None:
-        """Return DynamicalMatrix class instance."""
-        return self._phelel_phonon.dynamical_matrix
+        """Return DynamicalMatrix class instance.
+
+        It is that of the Phonopy instance holding the force constants, i.e.,
+        the phonon supercell when ``phonon_supercell_matrix`` is given.
+
+        """
+        if self._phonon is None:
+            return self._phelel_phonon.dynamical_matrix
+        else:
+            return self._phonon.dynamical_matrix
 
     def generate_displacements(
         self,
@@ -515,18 +523,25 @@ class Phelel:
         if phe_input.dataset is not None:
             self._phelel_phonon.dataset = phe_input.dataset
 
+        # With the phonon supercell, the dataset of the supercell has a different
+        # number of atoms, so the phonon dataset already stored is used.
         if phe_input.phonon_dataset is not None:
-            self._prepare_phonon(
-                dataset=phe_input.phonon_dataset,
-                forces=phe_input.forces,
-                calculate_full_force_constants=True,
+            phonon_dataset = phe_input.phonon_dataset
+        elif self._phonon is None:
+            phonon_dataset = self._phelel_phonon.dataset
+        elif self._phonon.dataset is None:
+            raise RuntimeError(
+                "The phonon supercell matrix is set, but the phonon dataset is "
+                "given neither in PhelelDataset.phonon_dataset nor in "
+                "Phelel.phonon_dataset."
             )
         else:
-            self._prepare_phonon(
-                dataset=self._phelel_phonon.dataset,
-                forces=phe_input.forces,
-                calculate_full_force_constants=True,
-            )
+            phonon_dataset = None
+        self._prepare_phonon(
+            dataset=phonon_dataset,
+            forces=phe_input.forces,
+            calculate_full_force_constants=True,
+        )
         assert self._phelel_phonon.dataset is not None
 
         self._dVdu = DLocalPotential(

@@ -747,11 +747,12 @@ class DLocalPotential:
         """Visualize dV/du in x, y, z."""
         assert self._grid_points is not None
         assert self._dVdu is not None
+        atom_number = self._atom_indices[i_atom] + 1
         for i_dir in range(3):
             xyz = "xyz"[i_dir]
             # spin 1 only
             multi = visualize_distribution(
-                "locpot_viz-%03d-%s.dat" % (self._atom_indices[i_atom] + 1, xyz),
+                "locpot_viz-%03d-%s.dat" % (atom_number, xyz),
                 pcell,
                 self._p2s_matrix,
                 self._fft_mesh,
@@ -763,8 +764,8 @@ class DLocalPotential:
             msg = (
                 "[%d, %d, %d] supercell of primitive cell is "
                 "used. dV/du is written in "
-                '"locpot_viz-%d-{x,y,z}.dat", in LOCPOT-like '
-                "format." % (tuple(multi) + (i_atom + 1,))
+                '"locpot_viz-%03d-{x,y,z}.dat", in LOCPOT-like '
+                "format." % (tuple(multi) + (atom_number,))
             )
             print(
                 textwrap.fill(
@@ -817,7 +818,6 @@ def visualize_distribution(
     # to the basis vectors of local potential cell.
     gp_viz = np.zeros((d * n, 3), dtype="double", order="C")
     snf = SNF3x3(M)
-    snf.run()
     P_inv = np.linalg.inv(snf.P)
     diag_A = tuple(np.diagonal(snf.D))
 
