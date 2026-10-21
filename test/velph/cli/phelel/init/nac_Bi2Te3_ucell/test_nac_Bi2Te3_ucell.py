@@ -1,39 +1,24 @@
 """Tests CLIs."""
 
+import tomllib
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
-import tomli
 
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 cwd = Path(__file__).parent
 
 
-def test_nac_Bi2Te3_ucell(request):
+def test_nac_Bi2Te3_ucell(request, code_init_project: Callable[[dict], Project]):
     """Test of different NAC cell."""
-    toml_str = """title = "VASP el-ph settings"
-
-[phelel]
+    toml_str = """[phelel]
 supercell_dimension = [2, 2, 1]
 amplitude = 0.03
 plusminus = true
-fft_mesh = [80, 80, 80]
-
-[vasp.supercell.incar]
-system = "default"
-ismear = 0
-sigma = 0.01
-prec = "accurate"
-ediff = 1e-06
-encut = 500
-elph_prepare = true
-lreal = false
-lwave = false
-lcharg = false
-isym = 0
-[vasp.supercell.kpoints]
-mesh = [1, 1, 1]
 
 [vasp.nac]
 cell = "unitcell"
@@ -134,8 +119,10 @@ symbol = "Te"
 coordinates = [0.213380750346879, 0.213380750346872, 0.213380750346879]
 """
 
-    toml_dict = tomli.loads(toml_str)
-    phe = run_init(toml_dict, current_directory=request.path.parent)
+    toml_dict = tomllib.loads(toml_str)
+    phe = run_init(
+        code_init_project(toml_dict), project_dir=ProjectDirectory(request.path.parent)
+    )
     ref_born = [
         [11.5925019, 11.5925019, -1.15102317],
         [11.5925019, 11.5925019, -1.15102317],

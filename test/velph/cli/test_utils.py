@@ -1,33 +1,19 @@
 """Tests cli/utils.py."""
 
-import copy
 import io
 import itertools
+import pathlib
 from collections.abc import Callable
 
 import numpy as np
+import pytest
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.cli.utils import get_scheduler_dict
-from phelel.velph.templates import default_template_dict
+from phelel.velph.cli.utils import write_jobs
+from phelel.velph.config.schema import KpointsMesh
+from phelel.velph.jobs.vasp_job import VaspJob
 from phelel.velph.utils.structure import get_reduced_cell
-
-
-def test_get_scheduler_dict():
-    """Test get_scheduler_dict."""
-    toml_dict = copy.deepcopy(default_template_dict)
-    scheduler_dict = get_scheduler_dict(toml_dict, "phelel")
-    assert scheduler_dict["vasp_binary"] == "vasp_std"
-
-    phonon_dict = copy.deepcopy(toml_dict["vasp"]["phelel"])
-    toml_dict["vasp"]["phelel"]["phonon"] = phonon_dict
-    scheduler_dict = get_scheduler_dict(toml_dict, "phelel.phonon")
-    assert scheduler_dict["vasp_binary"] == "vasp_std"
-
-    toml_dict["vasp"]["phelel"]["scheduler"] = {"vasp_binary": "vasp_gam"}
-    scheduler_dict = get_scheduler_dict(toml_dict, "phelel")
-    assert scheduler_dict["vasp_binary"] == "vasp_gam"
 
 
 def test_get_reduced_cell_bi2te3(
@@ -84,3 +70,43 @@ points:
             "recondier this test."
         )
         raise AssertionError(msg)
+
+
+@pytest.mark.parametrize("with_potcar", [True, False])
+def test_write_jobs(
+    with_potcar: bool,
+    nacl_cell: PhonopyAtoms,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Each directory is shown, and a missing POTCAR is said once, first.
+
+    A file copied as POSCAR is shown with the directory.
+
+    """
+    contcar = tmp_path / "CONTCAR"
+    contcar.write_text("contcar\n")
+    copied_files = {"POTCAR": contcar} if with_potcar else {}
+    kpoints = {"KPOINTS": KpointsMesh(mesh=(2, 2, 2))}
+    jobs = [
+        VaspJob(
+            directory=tmp_path / name,
+            cell=nacl_cell,
+            incar={"nsw": 0},
+            kpoints=kpoints,
+            copied_files=copied_files,
+            poscar_source=contcar if name == "b" else None,
+        )
+        for name in ("a", "b")
+    ]
+    write_jobs(jobs)
+    lines = capsys.readouterr().out.splitlines()
+    expected = [
+        f'VASP input files were written in "{tmp_path / "a"}".',
+        f'"{contcar}" was copied to "{tmp_path / "b" / "POSCAR"}".',
+        f'VASP input files were written in "{tmp_path / "b"}".',
+    ]
+    if not with_potcar:
+        expected.insert(0, '"POTCAR" not found in current directory.')
+    assert lines == expected
+    assert (tmp_path / "b" / "POSCAR").read_text() == "contcar\n"

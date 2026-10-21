@@ -4,19 +4,21 @@ from __future__ import annotations
 
 import pathlib
 
-import click
 import h5py
 import numpy as np
 from numpy.typing import NDArray
 
-from phelel.velph.utils.vasp import get_bands_data, get_reclat_from_vaspout
+from phelel.velph.cli.utils import save_or_show_plot
+from phelel.velph.jobs.project_directory import ProjectDirectory
+from phelel.velph.utils.band_path import get_bands_data
+from phelel.velph.utils.vaspout import get_reclat_from_vaspout
 
 
 def plot_ph_bandstructures(
     vaspout_filename: pathlib.Path,
     use_ordinary_frequency: bool = False,
     save_plot: bool = False,
-    plot_filename: pathlib.Path = pathlib.Path("ph_bands/ph_bands.pdf"),
+    plot_filename: pathlib.Path | None = None,
 ):
     """Plot phonon band structure.
 
@@ -30,21 +32,26 @@ def plot_ph_bandstructures(
     save_plot : bool, optional
         Save plot to file.
     plot_filename : pathlib.Path, optional
-        File name of band structure plot.
+        File name of band structure plot.  Default is ph_bands/ph_bands.pdf.
 
     """
     import matplotlib.pyplot as plt
 
-    f = h5py.File(vaspout_filename)
-    eigvals: NDArray = f["results/phonons/eigenvalues"][:]  # type: ignore
+    if plot_filename is None:
+        plot_filename = ProjectDirectory().plot_pdf("ph_bands")
+
+    with h5py.File(vaspout_filename) as f:
+        eigvals: NDArray = f["results/phonons/eigenvalues"][:]  # type: ignore
+        reclat = get_reclat_from_vaspout(f)
+        labels = [
+            label.decode("utf-8")
+            for label in f["input/qpoints/labels_kpoints"][:]  # type: ignore
+        ]
+        nk_per_seg: int = f["input/qpoints/number_kpoints"][()]  # type: ignore
+        kpoint_coords: NDArray = f["results/phonons/kpoint_coords"][:]  # type: ignore
     if use_ordinary_frequency:
         eigvals /= 2 * np.pi
     omega_max = 1.1 * eigvals.max()
-
-    reclat = get_reclat_from_vaspout(f)
-    labels = [label.decode("utf-8") for label in f["input/qpoints/labels_kpoints"][:]]  # type: ignore
-    nk_per_seg: int = f["input/qpoints/number_kpoints"][()]  # type: ignore
-    kpoint_coords: NDArray = f["results/phonons/kpoint_coords"][:]  # type: ignore
     distances, points, labels_at_points = get_bands_data(
         kpoint_coords, reclat, nk_per_seg, labels
     )
@@ -63,11 +70,4 @@ def plot_ph_bandstructures(
         ax.set_ylabel(r"$\omega$[THz]", fontsize=14)
 
     # Finalize
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Phonon band structure plot was saved in "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Phonon band structure")

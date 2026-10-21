@@ -7,7 +7,6 @@
 * spglib
 * {ref}`reference_finufft`
 * click
-* tomli
 * tomli-w
 * seekpath (optional)
 
@@ -25,7 +24,7 @@ From source code of phelel,
 ```
 % conda create -n phelel -c conda-forge
 % conda activate phelel
-% conda install -c conda-forge phono3py finufft click tomli tomli-w seekpath
+% conda install -c conda-forge phono3py finufft click tomli-w seekpath
 % git clone https://github.com/phonopy/phelel.git
 % cd phelel
 % pip install -e .
@@ -64,15 +63,19 @@ sub-commands are listed by pushing tab key:
 
 ```bash
 % velph [PUSH-TAB-KEY]
-el_bands    -- Choose electronic band structure options.
-generate    -- Write POSCAR-unitcell and POSCAR-primitive.
-hints       -- Show velph command hints.
-init        -- Initialize an electron phonon calculation...
-nac         -- Choose nac options.
-ph_bands    -- Choose phonon band structure options.
-phelel      -- Choose supercell options.
-phono3py    -- Choose phono3py options.
-relax       -- Choose relax options.
-selfenergy  -- Choose selfenergy options.
-transport   -- Choose transport options.
+convert        -- Write velph.toml of velph 0.14 in the...
+el_bands       -- Choose electronic band structure options.
+el_dos         -- Choose electronic DOS options.
+generate       -- Write POSCAR-unitcell and POSCAR-primitive.
+init           -- Initialize an electron phonon calculation...
+nac            -- Choose nac options.
+ph_bands       -- Choose phonon band structure options.
+ph_selfenergy  -- Choose ph_selfenergy options.
+phelel         -- Choose supercell options.
+phono3py       -- Choose phono3py options.
+phonopy        -- Choose phonopy options.
+relax          -- Choose relax options.
+scheduler      -- Show the job script _job.sh of each input...
+selfenergy     -- Choose selfenergy options.
+transport      -- Choose transport options.
 ```

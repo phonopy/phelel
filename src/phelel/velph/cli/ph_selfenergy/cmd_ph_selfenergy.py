@@ -5,25 +5,26 @@ import pathlib
 import click
 
 from phelel.velph.cli.ph_selfenergy.dump_phono3py import dump_phono3py
-from phelel.velph.cli.selfenergy.generate import write_selfenergy_input_files
-from phelel.velph.cli.utils import check_fft
+from phelel.velph.cli.selfenergy.generate import write_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("ph_selfenergy")
 @click.help_option("-h", "--help")
 def cmd_ph_selfenergy():
-    """Choose ph_selfenergy options."""
+    """Phonon self-energy.
+
+    Write VASP input files of the phonon self-energy calculation, plot its results
+    and write them for phono3py.
+
+    """
     pass
 
 
 @cmd_ph_selfenergy.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--dry-run/--no-dry-run",
     "-d",
@@ -35,23 +36,7 @@ def cmd_ph_selfenergy():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str, dry_run: bool):
     """Generate ph_selfenergy input files."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_selfenergy_input_files(pathlib.Path(toml_filename), dry_run, "ph_selfenergy")
-
-
-@cmd_ph_selfenergy.command("check-fft")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
-@click.help_option("-h", "--help")
-def cmd_check_fft(toml_filename: str):
-    """Show [NGX, NGY, NGZ] in vasprun.xml."""
-    check_fft(toml_filename, "ph_selfenergy")
+    write_input_files(pathlib.Path(toml_filename), "ph_selfenergy", dry_run)
 
 
 @cmd_ph_selfenergy.command("dump_phono3py")
@@ -59,15 +44,15 @@ def cmd_check_fft(toml_filename: str):
     "--vaspout-filename",
     "vaspout_filename",
     type=click.Path(),
-    default="ph_selfenergy/vaspout.h5",
+    default=str(ProjectDirectory().vaspout("ph_selfenergy")),
 )
 @click.option(
     "--output-filename",
     "output_filename",
     type=click.Path(),
-    default="ph_selfenergy/gamma_elph{mesh}.hdf5",
+    default=str(ProjectDirectory().gamma_elph_hdf5),
     help=(
-        'Output filename. Default is "ph_selfenergy/gamma_elph{mesh}.hdf5". '
+        f'Output filename. Default is "{ProjectDirectory().gamma_elph_hdf5}". '
         '{mesh} will be replaced by the mesh size, e.g. "-m202020".'
     ),
 )

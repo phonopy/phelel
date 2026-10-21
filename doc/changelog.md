@@ -2,6 +2,46 @@
 
 # Change Log
 
+## Oct-21-2026: Version 0.15.0
+
+- velph is redesigned, and the format of `velph.toml` and of the `velph init`
+  template changes. See {ref}`velph_changes_0_15` for the changes from velph
+  0.14.
+- `velph convert` writes a `velph.toml` of velph 0.14 in the format of velph
+  0.15.
+- The job script `_job.sh` is written differently from velph 0.14. velph writes
+  it from `scheduler_template` only, and `scheduler_name` in `velph.toml` or in
+  the `velph init` template is an error. `velph init` writes `[scheduler]` only
+  when its template has `[scheduler]`, and without it no `_job.sh` is written.
+  See {ref}`velph_changes_0_15_scheduler` for the `scheduler_template` that
+  gives the job script of velph 0.14.
+- An INCAR tag set to an empty table `{}` in the `velph init` template stops
+  `velph init` with an error. To keep a tag of `[vasp.incar]` out of an input
+  set, list the tag in `incar_unset` of that input set.
+- The DOS calculation has its own input set `el_dos`, written by `velph el_dos
+  generate`. Before, it was `el_bands/dos` of `velph el_bands generate`.
+- `velph el_dos plot` plots the electronic DOS of `el_dos/vaspout.h5`.
+- The calculations of the phonon supercell of phelel are read from
+  `phonopy/disp-*`, in place of `phelel/ph-disp-*`.
+- `velph phelel generate`, `velph phonopy generate` and `velph phono3py
+  generate` read only `<code>/<code>_disp.yaml`. Before, they also read files
+  in the current directory, such as `BORN`, `FORCE_SETS`, `fc3.hdf5` and
+  `phelel_params.hdf5`, and stopped with an error when such a file could not be
+  read.
+- `velph phelel phonopy` reads `vaspout.h5` as well as `vasprun.xml`.
+- tomli is no longer required. TOML files are read by `tomllib` of the Python
+  standard library.
+
+## Oct-9-2026: Version 0.14.0
+
+- Python 3.10 is no longer supported. Python 3.11 or later is required.
+- phonopy 4.8.2 or later and phono3py 4.8.0 or later are required.
+- Major refactoring of velph.
+- velph computes a k-point mesh from `kspacing` by rounding up, as VASP
+  `KSPACING` does, so the mesh can be larger than before.
+- `velph init` writes `amplitude = 0.01` in `[phonopy]` instead of 0.03 by
+  default.
+
 ## May-13-2026: Version 0.13.3
 
 - Fix import errors.

@@ -5,25 +5,19 @@ from __future__ import annotations
 import pathlib
 
 import click
-import tomli
-from phonopy.interface.calculator import write_crystal_structure
-from phonopy.structure.atoms import parse_cell_dict
+from phonopy.interface.vasp import write_vasp
+from phonopy.structure.atoms import PhonopyAtoms
 
+from phelel.velph.cli.utils import echo_vasp_vca_hint, toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
+from phelel.velph.jobs.project import read_velph_toml
 
 
 #
 # velph generate
 #
 @cmd_root.command("generate")
-@click.option(
-    "-f",
-    "toml_filename",
-    type=click.Path(exists=True),
-    default="velph.toml",
-    show_default=True,
-    help="Specify velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--prefix",
     "prefix",
@@ -44,26 +38,15 @@ def cmd_generate(toml_filename: str, prefix: str):
 
 def _run_generate(toml_filename: str, prefix: str) -> None:
     """Generate {prefix}-unitcell and {prefix}-primitive."""
-    with open(toml_filename, "rb") as f:
-        toml_dict = tomli.load(f)
-
-    filename = f"{prefix}-unitcell"
-    _write_cell(filename, toml_dict["unitcell"])
-    if "primitive_cell" in toml_dict:
-        filename = f"{prefix}-primitive"
-        _write_cell(filename, toml_dict["primitive_cell"])
+    project = read_velph_toml(toml_filename)
+    _write_cell(f"{prefix}-unitcell", project.unitcell)
+    _write_cell(f"{prefix}-primitive", project.primitive)
 
 
-def _write_cell(filename: str, toml_cell_dict: dict):
+def _write_cell(filename: str, cell: PhonopyAtoms):
     if pathlib.Path(filename).exists():
         click.echo(f'"{filename}" was not overwritten because it exists.', err=True)
-    else:
-        cell = parse_cell_dict(toml_cell_dict)
-        if cell is None:
-            click.echo(
-                f'"{filename}" was not generated because of invalid cell data.',
-                err=True,
-            )
-            return
-        write_crystal_structure(filename, cell)
-        click.echo(f'"{filename}" was generated.')
+        return
+    write_vasp(filename, cell, for_vca=cell.has_weighted_species)
+    click.echo(f'"{filename}" was written.')
+    echo_vasp_vca_hint(cell)

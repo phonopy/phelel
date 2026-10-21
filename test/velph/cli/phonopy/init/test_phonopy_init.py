@@ -1,21 +1,27 @@
 """Tests velph-phonopy-init."""
 
+import pathlib
+import tomllib
+from collections.abc import Callable
+
 import numpy as np
+import phonopy
 import pytest
-import tomli
 
 from phelel.velph.cli.phonopy.init import run_init
+from phelel.velph.config.io import parse_velph_toml
+from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @pytest.mark.parametrize("distance", [0.03, 0.05])
-def test_phonopy_init_random_displacements(distance: float):
+def test_phonopy_init_random_displacements(
+    distance: float, code_init_project: Callable[[dict], Project]
+):
     """Test of plusminus and diagonal with Ti."""
-    phelel_str = f"""title = "VASP el-ph settings"
-
-[phelel]
+    phelel_str = f"""[phelel]
 supercell_dimension = [4, 4, 2]
 amplitude = {distance}
-fft_mesh = [18, 18, 28]
 """
 
     phonopy_str = f"""[phonopy]
@@ -41,13 +47,118 @@ coordinates = [  0.666666666666664,  0.333333333333336,  0.750000000000000 ]
 magnetic_moment = [ 0.00000000, 0.00000000, 0.00000000 ]"""
 
     for toml_dict in (
-        tomli.loads(phonopy_str + unitcell_str),
-        tomli.loads(phelel_str + phonopy_str + unitcell_str),
+        tomllib.loads(phonopy_str + unitcell_str),
+        tomllib.loads(phelel_str + phonopy_str + unitcell_str),
     ):
-        ph = run_init(toml_dict)
+        ph = run_init(code_init_project(toml_dict))
         np.testing.assert_array_equal(ph.supercell_matrix, np.diag([2, 2, 1]))
 
         assert len(ph.supercell) == 8
         assert isinstance(ph.displacements, np.ndarray)
         assert ph.displacements.shape == (10, 8, 3)
         np.testing.assert_allclose(np.linalg.norm(ph.displacements, axis=2), distance)
+
+
+_TI_UNITCELL = """
+[unitcell]
+lattice = [
+  [ 2.930720886111760, 0.000000000000000, 0.000000000000000 ],
+  [ -1.465360443055880, 2.538078738774425, 0.000000000000000 ],
+  [ 0.000000000000000, 0.000000000000000, 4.646120482318025 ],
+]
+[[unitcell.points]]
+symbol = "Ti"
+coordinates = [ 0.333333333333336, 0.666666666666664, 0.25 ]
+[[unitcell.points]]
+symbol = "Ti"
+coordinates = [ 0.666666666666664, 0.333333333333336, 0.75 ]
+"""
+
+
+def _get_phonopy_displacements(
+    displacement_lines: list[str],
+    tmp_path: pathlib.Path,
+    code_init_project: Callable[[dict], Project],
+) -> np.ndarray:
+    toml_str = "\n".join(
+        ["[phonopy]", "supercell_dimension = [2, 2, 1]", *displacement_lines]
+    )
+    ph = run_init(
+        code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
+        project_dir=ProjectDirectory(tmp_path),
+    )
+    return np.array(ph.displacements)
+
+
+def test_phonopy_init_default_displacement_settings(
+    tmp_path: pathlib.Path, code_init_project: Callable[[dict], Project]
+):
+    """Test defaults of plusminus, diagonal, and amplitude in [phonopy].
+
+    When they are not given, the values written by velph init (plusminus=true,
+    diagonal=false, amplitude=0.01 for [phonopy]) are used. These give
+    displacements that differ from those with the defaults of phonopy ("auto",
+    true, and 0.01).
+
+    """
+    disps = _get_phonopy_displacements([], tmp_path, code_init_project)
+    disps_velph = _get_phonopy_displacements(
+        ["plusminus = true", "diagonal = false", "amplitude = 0.01"],
+        tmp_path,
+        code_init_project,
+    )
+    disps_phonopy = _get_phonopy_displacements(
+        ['plusminus = "auto"', "diagonal = true", "amplitude = 0.01"],
+        tmp_path,
+        code_init_project,
+    )
+    assert disps.shape == disps_velph.shape
+    np.testing.assert_allclose(disps, disps_velph)
+    assert disps.shape != disps_phonopy.shape or not np.allclose(disps, disps_phonopy)
+
+
+@pytest.mark.parametrize("split_site_mixture", [False, True])
+def test_phonopy_init_site_mixture(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    split_site_mixture: bool,
+):
+    """Test that phonopy_disp.yaml of a site-mixture cell is read back."""
+    ph = run_init(
+        Project.from_config(
+            parse_velph_toml(site_mixture_velph_toml(split_site_mixture))
+        ),
+        project_dir=ProjectDirectory(tmp_path),
+    )
+    filename = tmp_path / "phonopy_disp.yaml"
+    ph.save(filename)
+    ph2 = phonopy.load(filename, produce_fc=False, log_level=0)
+    if split_site_mixture:
+        assert ph2.site_mixture_scheme == "split"
+        assert ph2.unitcell.symbols == ["Ge", "Sn", "Te"]
+        assert ph2.unitcell.has_weighted_species
+        assert ph2.unmerged_unitcell is None
+    else:
+        assert ph2.site_mixture_scheme == "merge"
+        assert ph2.unitcell.symbols == ["GeSn", "Te"]
+        assert ph2.unitcell.has_mixtures
+        assert ph2.unmerged_unitcell is not None
+        assert ph2.unmerged_unitcell.symbols == ["Ge", "Sn", "Te"]
+    assert ph2.displacements is not None
+    assert len(ph2.displacements) > 0
+
+
+def test_phonopy_init_site_mixture_merge_without_nac(
+    site_mixture_velph_toml: Callable[[bool], dict],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    """NAC is not read with the merge scheme of site mixture."""
+    (tmp_path / "nac").mkdir()
+    (tmp_path / "nac" / "vasprun.xml").write_text("")
+    ph = run_init(
+        Project.from_config(parse_velph_toml(site_mixture_velph_toml(False))),
+        project_dir=ProjectDirectory(tmp_path),
+    )
+    assert ph.nac_params is None
+    assert "NAC is not supported with the merge scheme" in capsys.readouterr().out

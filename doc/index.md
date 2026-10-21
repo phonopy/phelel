@@ -41,6 +41,7 @@ velph-init
 velph-init-template
 velph-subcommands
 velph-example
+velph-changes-0.15
 reference
 changelog
 ```

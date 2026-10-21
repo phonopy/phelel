@@ -4,12 +4,74 @@ import io
 import pathlib
 
 import h5py
+import numpy as np
 import phonopy
 from phonopy.interface.phonopy_yaml import read_cell_yaml
+from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import apply_site_mixture, get_primitive
 
 from phelel.file_IO import write_phelel_params_hdf5
 
 cwd_called = pathlib.Path.cwd()
+
+
+def _site_mixture_cell():
+    """Return a weighted cell: co-located Ge/Sn (0.5/0.5) + pure Te."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+        symbols=["Ge", "Sn", "Te"],
+    )
+    return apply_site_mixture(cell, [0.5, 0.5, 1.0], symprec=1e-5)
+
+
+def test_write_phelel_params_hdf5_mixture_weights(tmp_path):
+    """Test mixture_weights datasets in write_phelel_params_hdf5.
+
+    A weighted cell emits a per-cell ``*_mixture_weights`` dataset for every
+    atom-bearing cell, with pure sites materialized to 1.0.
+
+    """
+    weighted = _site_mixture_cell()
+    primitive = get_primitive(weighted, np.eye(3), symprec=1e-5)
+    filename = tmp_path / "phelel_params.hdf5"
+    write_phelel_params_hdf5(
+        primitive=primitive,
+        unitcell=weighted,
+        supercell=weighted,
+        phonon_supercell=weighted,
+        filename=filename,
+    )
+    expected = [0.5, 0.5, 1.0]
+    with h5py.File(filename, "r") as f:
+        for key in (
+            "primitive_mixture_weights",
+            "unitcell_mixture_weights",
+            "supercell_mixture_weights",
+            "phonon_supercell_mixture_weights",
+        ):
+            assert key in f
+            np.testing.assert_allclose(f[key][:], expected)
+
+
+def test_write_phelel_params_hdf5_no_mixture_weights(tmp_path):
+    """Test that ordinary cells emit no mixture_weights datasets."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+        symbols=["Na", "Cl"],
+    )
+    primitive = get_primitive(cell, np.eye(3), symprec=1e-5)
+    filename = tmp_path / "phelel_params.hdf5"
+    write_phelel_params_hdf5(
+        primitive=primitive,
+        unitcell=cell,
+        supercell=cell,
+        phonon_supercell=cell,
+        filename=filename,
+    )
+    with h5py.File(filename, "r") as f:
+        assert not any("mixture_weights" in key for key in f.keys())
 
 
 def test_write_phelel_params_hdf5_magnetic_spacegroup_uni_number():

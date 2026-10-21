@@ -4,7 +4,12 @@ import pathlib
 
 import h5py
 import numpy as np
+import pytest
+from phonopy.file_IO import write_FORCE_SETS
+from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import apply_site_mixture
 
+import phelel
 from phelel import Phelel
 from phelel.file_IO import _get_smallest_vectors, read_phelel_params_hdf5
 from phelel.utils.data import cmplx2real
@@ -67,3 +72,78 @@ def _compare(filename: pathlib.Path, phe: Phelel):
                 shortest_vectors.shape, shortest_vectors_ref.shape
             )
             np.testing.assert_array_equal(multiplicities, multiplicities_ref)
+
+
+def _get_GeSnTe_weighted_cell() -> PhonopyAtoms:
+    """Return CsCl-like cell with Ge and Sn (0.5 each) co-located and Te."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Ge", "Sn", "Te"],
+        scaled_positions=[[0, 0, 0], [0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    return apply_site_mixture(cell, [0.5, 0.5, 1.0])
+
+
+def test_phelel_merge_scheme_yaml(tmp_path: pathlib.Path):
+    """With the merge scheme, phelel_disp.yaml has the unmerged cells."""
+    phe = Phelel(
+        _get_GeSnTe_weighted_cell(),
+        supercell_matrix=np.diag([2, 2, 2]),
+        phonon_supercell_matrix=np.diag([2, 2, 2]),
+        primitive_matrix="P",
+    )
+    assert phe.site_mixture_scheme == "merge"
+    assert phe.unitcell.symbols == ["GeSn", "Te"]
+    assert phe.unmerged_unitcell is not None
+    assert phe.unmerged_unitcell.symbols == ["Ge", "Sn", "Te"]
+    assert phe.phonon_supercell is not None
+    assert phe.phonon_unmerged_supercell is not None
+    assert len(phe.phonon_unmerged_supercell) == 24
+    assert len(phe.phonon_supercell) == 16
+    phe.generate_displacements()
+    phe.generate_phonon_displacements()
+
+    filename = tmp_path / "phelel_disp.yaml"
+    text = str(phe.to_phelel_yaml())
+    assert "site_mixture_scheme: merge" in text
+    assert "mixture:" not in text
+    filename.write_text(text)
+    phe2 = phelel.load(filename, log_level=0)
+    assert phe2.site_mixture_scheme == "merge"
+    assert phe2.unitcell.symbols == ["GeSn", "Te"]
+    assert phe2.phonon_dataset is not None
+    assert phe2.phonon_dataset["natom"] == 16
+    with pytest.raises(RuntimeError, match="merge scheme of site mixture"):
+        phe2.run_derivatives(None)  # type: ignore[arg-type]
+
+
+def test_phelel_load_force_sets_of_phonon_supercell(tmp_path: pathlib.Path):
+    """FORCE_SETS is read for the phonon supercell."""
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Na", "Cl"],
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    force_sets = tmp_path / "FORCE_SETS"
+    write_FORCE_SETS(
+        {
+            "natom": 16,
+            "first_atoms": [
+                {
+                    "number": 0,
+                    "displacement": np.array([0.01, 0, 0]),
+                    "forces": np.zeros((16, 3)),
+                }
+            ],
+        },
+        filename=force_sets,
+    )
+    phe = phelel.load(
+        unitcell=cell,
+        supercell_matrix=np.eye(3, dtype=int),
+        phonon_supercell_matrix=np.diag([2, 2, 2]),
+        primitive_matrix="P",
+        force_sets_filename=force_sets,
+    )
+    assert phe.phonon_dataset is not None
+    assert phe.phonon_dataset["natom"] == 16

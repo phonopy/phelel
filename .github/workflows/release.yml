@@ -26,9 +26,9 @@ jobs:
           # from the pushed "v*" tag instead of a dev/dirty fallback.
           fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       - name: Build sdist and wheel
         run: |

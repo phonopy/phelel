@@ -12,7 +12,7 @@ jobs:
         shell: bash -l {0}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v7
@@ -26,7 +26,7 @@ jobs:
         run: |
           conda activate test
           conda install --yes -c conda-forge python=${{ matrix.python-version }}
-          conda install --yes -c conda-forge finufft tomli tomli-w seekpath pytest click codecov pytest-cov matplotlib-base pyyaml h5py numpy scipy spglib cmake c-compiler cxx-compiler
+          conda install --yes -c conda-forge finufft tomli-w seekpath pytest click codecov pytest-cov matplotlib-base pyyaml h5py numpy scipy spglib cmake c-compiler cxx-compiler
       - name: Install symfc develop branch
         run: |
           conda activate test

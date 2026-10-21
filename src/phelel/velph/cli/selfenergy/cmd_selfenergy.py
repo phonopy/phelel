@@ -5,24 +5,23 @@ import pathlib
 import click
 
 from phelel.velph.cli.selfenergy.generate import write_input_files
-from phelel.velph.cli.utils import check_fft
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 @cmd_root.group("selfenergy")
 @click.help_option("-h", "--help")
 def cmd_selfenergy():
-    """Choose selfenergy options."""
+    """Electron self-energy.
+
+    Write VASP input files of the electron self-energy calculation.
+
+    """
     pass
 
 
 @cmd_selfenergy.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--dry-run/--no-dry-run",
     "-d",
@@ -34,20 +33,4 @@ def cmd_selfenergy():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str, dry_run: bool):
     """Generate elph input files."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_input_files(pathlib.Path(toml_filename), dry_run)
-
-
-@cmd_selfenergy.command("check-fft")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
-@click.help_option("-h", "--help")
-def cmd_check_fft(toml_filename: str):
-    """Show [NGX, NGY, NGZ] in vasprun.xml."""
-    check_fft(toml_filename, "selfenergy")
+    write_input_files(pathlib.Path(toml_filename), "selfenergy", dry_run)

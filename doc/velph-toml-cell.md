@@ -15,24 +15,26 @@ explains how to read them; edit them only if you understand the consequences.
 (velph_toml_cell_cells)=
 ## `[unitcell]` and `[primitive_cell]`
 
-Both sections use the same layout: a `lattice` table followed by one
+Both sections use the same layout: a `lattice` array followed by one
 `[[...points]]` entry per atom.
 
 ```toml
-[unitcell]
+[primitive_cell]
 lattice = [
-  [     6.000000000000000,     0.000000000000000,     0.000000000000000 ], # a
-  [     0.000000000000000,     6.000000000000000,     0.000000000000000 ], # b
-  [     0.000000000000000,     0.000000000000000,     6.000000000000000 ], # c
+  [0.0, 2.8451507380878356, 2.8451507380878356],
+  [2.8451507380878356, 0.0, 2.8451507380878356],
+  [2.8451507380878356, 2.8451507380878356, 0.0],
 ]
-[[unitcell.points]]  # 1
+
+[[primitive_cell.points]]  # 1
 symbol = "Na"
-coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
-mass = 22.989769
-[[unitcell.points]]  # 2
+coordinates = [0.0, 0.0, 0.0]
+mass = 22.98976928
+
+[[primitive_cell.points]]  # 2
 symbol = "Cl"
-coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
-mass = 35.453000
+coordinates = [0.5, 0.5, 0.5]
+mass = 35.453
 ```
 
 - `lattice` : the three lattice vectors **a**, **b**, **c** as rows, in Angstrom.
@@ -59,7 +61,8 @@ isotopes). These values may differ from the masses used internally by VASP
 (`POMASS`). `magnetic_moment` is written only when the structure carries magnetic
 moments (e.g. set through the `--magmom` option of `velph init`).
 <!-- Hidden until site mixture is public:
-`weight` is written only for site-mixture structures.
+For site-mixture structures, a merged mixed-species site has `mixture` (pairs
+of symbol and weight), and with `split_site_mixture` every atom has `weight`.
 -->
 ```
 
@@ -74,12 +77,12 @@ This section records the symmetry of the unit cell as found by spglib.
 
 ```toml
 [symmetry]
-spacegroup_type = "Fm-3m"
 tolerance = 1e-05
+spacegroup_type = "Fm-3m"
 primitive_matrix = [
-  [  0.000000000000000,  0.500000000000000,  0.500000000000000 ],
-  [  0.500000000000000,  0.000000000000000,  0.500000000000000 ],
-  [  0.500000000000000,  0.500000000000000,  0.000000000000000 ],
+  [0.0, 0.5, 0.5],
+  [0.5, 0.0, 0.5],
+  [0.5, 0.5, 0.0],
 ]
 ```
 

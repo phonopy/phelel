@@ -2,23 +2,22 @@
 
 from __future__ import annotations
 
-import pathlib
-
 import click
 
-from phelel.velph.cli.el_bands.generate import write_input_files
 from phelel.velph.cli.el_bands.plot import plot_el_bandstructures
+from phelel.velph.cli.utils import toml_filename_option, write_input_set_files
 from phelel.velph.cli.velph_cmd_root import cmd_root
-from phelel.velph.utils.plot_eigenvalues import (
-    cmd_plot_eigenvalues,
-    eigenvalue_plot_options,
-)
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 
 @cmd_root.group("el_bands")
 @click.help_option("-h", "--help")
 def cmd_el_bands():
-    """Choose electronic band structure options."""
+    """Electronic band structure.
+
+    Write VASP input files of the electronic band structure and plot it.
+
+    """
     pass
 
 
@@ -26,19 +25,11 @@ def cmd_el_bands():
 # velph el_bands generate
 #
 @cmd_el_bands.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str):
     """Generate input files to plot electronic band structure."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_input_files(pathlib.Path(toml_filename))
+    write_input_set_files(toml_filename, "el_bands")
 
 
 #
@@ -54,47 +45,25 @@ def cmd_generate(toml_filename: str):
 @click.option(
     "--save",
     "save_plot",
-    is_flag=bool,
+    is_flag=True,
     default=False,
     help=("Save plot to file."),
 )
 @click.help_option("-h", "--help")
 def cmd_plot(window: tuple[float, float], save_plot: bool):
     """Plot electronic band structure."""
-    vaspout_filename_bands = pathlib.Path("el_bands/bands/vaspout.h5")
-    vaspout_filename_dos = pathlib.Path("el_bands/dos/vaspout.h5")
+    vaspout_filename_bands = ProjectDirectory().vaspout("el_bands")
+    vaspout_filename_dos = ProjectDirectory().vaspout("el_dos")
+    messages = []
     if not vaspout_filename_bands.exists():
-        click.echo(f'"{vaspout_filename_bands}" not found.')
+        messages.append(f'"{vaspout_filename_bands}" not found.')
     if not vaspout_filename_dos.exists():
-        click.echo(f'"{vaspout_filename_dos}" not found.')
-
-    if vaspout_filename_bands.exists() and vaspout_filename_dos.exists():
-        plot_el_bandstructures(
-            window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
+        messages.append(
+            f'"{vaspout_filename_dos}" not found.  The Fermi level is taken from the '
+            'DOS calculation.\nRun "velph el_dos generate" and VASP in "el_dos".'
         )
-
-
-@cmd_el_bands.command("plot_eigenvalues")
-@click.option(
-    "--vaspout-filename",
-    "vaspout_filename",
-    type=click.Path(),
-    default="el_bands/dos/vaspout.h5",
-)
-@eigenvalue_plot_options
-def cmd_plot_transport_eigenvalues(
-    vaspout_filename: str,
-    temperature: float,
-    cutoff_occupancy: float,
-    mu: float | None,
-):
-    """Show eigenvalues in transports."""
-    cmd_plot_eigenvalues(
-        vaspout_filename,
-        temperature,
-        cutoff_occupancy,
-        mu,
-        None,
-        None,
-        calc_type="el_bands",
+    if messages:
+        raise click.ClickException("\n".join(messages))
+    plot_el_bandstructures(
+        window, vaspout_filename_bands, vaspout_filename_dos, save_plot=save_plot
     )

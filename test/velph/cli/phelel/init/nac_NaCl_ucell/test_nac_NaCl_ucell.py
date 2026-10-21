@@ -1,37 +1,24 @@
 """Tests CLIs."""
 
+import tomllib
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
-import tomli
 
 from phelel.velph.cli.phelel.init import run_init
+from phelel.velph.jobs.project import Project
+from phelel.velph.jobs.project_directory import ProjectDirectory
 
 cwd = Path(__file__).parent
 
 
-def test_nac_NaCl_ucell(request):
+def test_nac_NaCl_ucell(request, code_init_project: Callable[[dict], Project]):
     """Test of different NAC cell."""
-    toml_str = """title = "VASP el-ph settings"
-
-[phelel]
+    toml_str = """[phelel]
 supercell_dimension = [2, 2, 2]
 amplitude = 0.03
 plusminus = true
-fft_mesh = [30, 30, 30]
-
-[vasp.supercell.incar]
-system = "default"
-ismear = 0
-sigma = 0.1
-prec = "accurate"
-ediff = 1e-06
-elph_prepare = true
-lreal = false
-lwave = false
-lcharg = false
-[vasp.supercell.kpoints]
-mesh = [1, 1, 1]
 
 [vasp.nac]
 cell = "unitcell"
@@ -101,8 +88,10 @@ symbol = "Cl"
 coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
 """
 
-    toml_dict = tomli.loads(toml_str)
-    phe = run_init(toml_dict, current_directory=request.path.parent)
+    toml_dict = tomllib.loads(toml_str)
+    phe = run_init(
+        code_init_project(toml_dict), project_dir=ProjectDirectory(request.path.parent)
+    )
     ref_born = 1.74040591
     ref_dielectric = 3.74364141
     np.testing.assert_array_almost_equal(

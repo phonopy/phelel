@@ -1,26 +1,29 @@
-"""Test utils."""
+"""Tests of the writers and readers of VASP input files and of the FFT mesh."""
+
+from __future__ import annotations
 
 import io
 import pathlib
 import tempfile
+import tomllib
 
 import numpy as np
 import pytest
-import tomli
-from phonopy.interface.phonopy_yaml import read_cell_yaml
-from phonopy.structure.atoms import PhonopyAtoms
 
-from phelel.velph.utils.vasp import (
-    CutoffToFFTMesh,
-    VaspIncar,
-    VaspKpoints,
+from phelel.velph.config.schema import KpointsMesh, LinePath
+from phelel.velph.utils.fft_mesh import _cutoff_factor, _is_factorized_by_2357
+from phelel.velph.utils.vasp_input import (
     VaspPotcar,
+    expand_incar_value,
+    write_incar,
+    write_kpoints_line,
+    write_kpoints_mesh,
 )
 
 cwd = pathlib.Path(__file__).parent
 
 
-def test_write_kpoints_line_mode(nacl_cell: PhonopyAtoms):
+def test_write_kpoints_line_mode():
     """Test of KPOINTS writer in line mode."""
     toml_str = """line = 51
 path = [[[0.000000, 0.000000, 0.000000], [0.500000, 0.000000, 0.500000]],
@@ -45,47 +48,22 @@ fractional
 0.37500000 0.37500000 0.75000000 K
 0.00000000 0.00000000 0.00000000 GAMMA
 """
-    kpoints_str = _get_str_of_write_kpoints_line_mode(toml_str, nacl_cell)
-    assert kpoints_str == ref_str
+    kpoints_str = _get_str_of_write_kpoints_line_mode(toml_str)
+    assert kpoints_str == ref_str + "\n"
 
 
-def test_write_kpoints_line_mode_seekpath(nacl_cell: PhonopyAtoms):
-    """Test of KPOINTS writer in line mode with seekpath."""
-    pytest.importorskip("seekpath")
-    toml_str = """line = 51"""
-    ref_str = """k points along high symmetry lines by velph
-51
-line mode
-fractional
-0.00000000 0.00000000 0.00000000 GAMMA
-0.50000000 0.00000000 0.50000000 X
-
-0.50000000 0.00000000 0.50000000 X
-0.62500000 0.25000000 0.62500000 U
-
-0.37500000 0.37500000 0.75000000 K
-0.00000000 0.00000000 0.00000000 GAMMA
-
-0.00000000 0.00000000 0.00000000 GAMMA
-0.50000000 0.50000000 0.50000000 L
-
-0.50000000 0.50000000 0.50000000 L
-0.50000000 0.25000000 0.75000000 W
-
-0.50000000 0.25000000 0.75000000 W
-0.50000000 0.00000000 0.50000000 X
-"""
-    kpoints_str = _get_str_of_write_kpoints_line_mode(toml_str, nacl_cell)
-    assert kpoints_str == ref_str
-
-
-def _get_str_of_write_kpoints_line_mode(toml_str, cell):
-    toml_dict = tomli.loads(toml_str)
-    with tempfile.TemporaryFile() as fp:
-        VaspKpoints.write_line_mode(fp, cell, toml_dict)
-        fp.seek(0)
-        kpoints_str = fp.read().decode("utf-8")
-    return kpoints_str
+def _get_str_of_write_kpoints_line_mode(toml_str: str) -> str:
+    """Return KPOINTS written from the line block of toml_str."""
+    toml_dict = tomllib.loads(toml_str)
+    line_path = LinePath(
+        line=toml_dict["line"],
+        path=tuple((tuple(a), tuple(b)) for a, b in toml_dict["path"]),
+        label=tuple((a, b) for a, b in toml_dict["label"]),
+    )
+    with tempfile.TemporaryDirectory() as d:
+        filename = pathlib.Path(d) / "KPOINTS"
+        write_kpoints_line(filename, line_path)  # type: ignore[arg-type]
+        return filename.read_text()
 
 
 def test_write_kpoints_mesh_mode():
@@ -97,7 +75,7 @@ Gamma
             8             8             8
   0.0000000000000000   0.0000000000000000   0.0000000000000000"""
     kpoints_str = _get_str_of_write_kpoints_mesh_mode(toml_str)
-    assert kpoints_str == ref_str
+    assert kpoints_str == ref_str + "\n"
 
 
 def test_write_kpoints_mesh_mode_grg():
@@ -115,7 +93,7 @@ Reciprocal
   0.0454545454545455   0.0454545454545455   0.0000000000000000
   0.0000000000000000   0.0000000000000000   0.0000000000000000"""
     kpoints_str = _get_str_of_write_kpoints_mesh_mode(toml_str)
-    assert kpoints_str == ref_str
+    assert kpoints_str == ref_str + "\n"
 
 
 def test_write_kpoints_mesh_mode_grg_tio2_prim():
@@ -138,16 +116,18 @@ Reciprocal
   0.0000000000000000   0.0000000000000000   0.0000000000000000"""
     kpoints_str = _get_str_of_write_kpoints_mesh_mode(toml_str)
 
-    assert kpoints_str == ref_str
+    assert kpoints_str == ref_str + "\n"
 
 
-def _get_str_of_write_kpoints_mesh_mode(toml_str):
-    toml_dict = tomli.loads(toml_str)
-    with tempfile.TemporaryFile() as fp:
-        VaspKpoints.write_mesh_mode(fp, toml_dict)
-        fp.seek(0)
-        kpoints_str = fp.read().decode("utf-8")
-    return kpoints_str
+def _get_str_of_write_kpoints_mesh_mode(toml_str: str) -> str:
+    """Return KPOINTS written from the mesh of toml_str."""
+    mesh = tomllib.loads(toml_str)["mesh"]
+    if isinstance(mesh[0], list):
+        mesh = tuple(tuple(row) for row in mesh)
+    with tempfile.TemporaryDirectory() as d:
+        filename = pathlib.Path(d) / "KPOINTS"
+        write_kpoints_mesh(filename, KpointsMesh(mesh=tuple(mesh)))
+        return filename.read_text()
 
 
 def test_write_incar():
@@ -173,7 +153,7 @@ NSW = 0
 PREC = accurate
 SIGMA = 0.01"""
     incar_str = _get_str_of_write_incar(toml_str)
-    assert incar_str == ref_str
+    assert incar_str == ref_str + "\n"
 
 
 def test_write_incar2():
@@ -215,7 +195,7 @@ PREC = accurate
 SIGMA = 0.1
 SYSTEM = default"""
     incar_str = _get_str_of_write_incar(toml_str)
-    assert incar_str == ref_str
+    assert incar_str == ref_str + "\n"
 
 
 def test_write_incar3():
@@ -256,7 +236,7 @@ PREC = accurate
 SIGMA = 0.1
 SYSTEM = default"""
     incar_str = _get_str_of_write_incar(toml_str)
-    assert incar_str == ref_str
+    assert incar_str == ref_str + "\n"
 
 
 def test_write_incar4():
@@ -297,7 +277,7 @@ PREC = accurate
 SIGMA = 0.1
 SYSTEM = default"""
     incar_str = _get_str_of_write_incar(toml_str)
-    assert incar_str == ref_str
+    assert incar_str == ref_str + "\n"
 
 
 def test_write_incar5():
@@ -338,30 +318,29 @@ PREC = accurate
 SIGMA = 0.1
 SYSTEM = default"""
     incar_str = _get_str_of_write_incar(toml_str)
-    assert incar_str == ref_str
+    assert incar_str == ref_str + "\n"
 
 
-def _get_str_of_write_incar(toml_str):
-    toml_dict = tomli.loads(toml_str)
-    with tempfile.TemporaryFile() as fp:
-        VaspIncar.write(fp, toml_dict)
-        fp.seek(0)
-        incar_str = fp.read().decode("utf-8")
-    return incar_str
+def _get_str_of_write_incar(toml_str: str) -> str:
+    """Return INCAR written from the tags of toml_str."""
+    with tempfile.TemporaryDirectory() as d:
+        filename = pathlib.Path(d) / "INCAR"
+        write_incar(filename, tomllib.loads(toml_str))
+        return filename.read_text()
 
 
-def test_VaspIncar_expand():
+def test_expand_incar_value():
     """Test to handle asterisk in INCAR value.
 
     "3*1 0 0 0 3*2" -> [1., 1., 1., 0., 0., 0., 2., 2., 2.]
 
     """
-    vals = VaspIncar().expand("3*1 0 0 0 3*2")
+    vals = expand_incar_value("3*1 0 0 0 3*2")
     np.testing.assert_allclose(vals, [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0])
 
 
 def test_NGX_calculator():
-    """Test of CutoffToFFTMesh._is_factorized_by_2357.
+    """Test of _is_factorized_by_2357.
 
     The values in fftchk.dat were obtained from the Fortran code for reference.
     First line of fftchk.dat is dummy for simple indexing.
@@ -370,7 +349,7 @@ def test_NGX_calculator():
     ref_vasp = np.loadtxt(cwd / "fftchk.dat.bz2", dtype=int)
     for n in range(1, ref_vasp.shape[0]):
         n1 = n
-        while not CutoffToFFTMesh._is_factorized_by_2357(n1):
+        while not _is_factorized_by_2357(n1):
             n1 += 1
         assert (n, n1) == tuple(ref_vasp[n])
 
@@ -391,52 +370,21 @@ def test_VaspPotcar():
     assert vp.titel[0] == "PAW_PBE X 23Apr2024"
 
 
-def test_convert_ir_kpoints_from_VASP_to_phono3py():
-    """Test of convert_ir_kpoints_from_VASP_to_phono3py.
-
-    This test will have to be written with VASP results of kpoints.
-
-    """
-    tio2_cell = """primitive_cell:
-  lattice:
-  - [    -1.888070425000000,     1.888070425000000,     4.790243149999999 ] # a
-  - [     1.888070425000000,    -1.888070424999999,     4.790243149999999 ] # b
-  - [     1.888070425000000,     1.888070424999999,    -4.790243149999999 ] # c
-  points:
-  - symbol: O  # 1
-    coordinates: [  0.457386310000000,  0.957386310000000,  0.500000000000000 ]
-    mass: 15.999400
-  - symbol: O  # 2
-    coordinates: [  0.707386310000000,  0.707386310000000,  1.000000000000000 ]
-    mass: 15.999400
-  - symbol: O  # 3
-    coordinates: [  0.042613690000000,  0.542613690000000,  0.500000000000000 ]
-    mass: 15.999400
-  - symbol: O  # 4
-    coordinates: [  0.292613690000000,  0.292613690000000,  1.000000000000000 ]
-    mass: 15.999400
-  - symbol: Ti # 5
-    coordinates: [  0.500000000000000,  0.500000000000000,  1.000000000000000 ]
-    mass: 47.867000
-  - symbol: Ti # 6
-    coordinates: [  0.250000000000000,  0.750000000000000,  0.500000000000000 ]
-    mass: 47.867000"""
-
-    cell = read_cell_yaml(io.StringIO(tio2_cell), cell_type="primitive").totuple()
-    np.testing.assert_allclose(
-        cell[0],
-        [
-            [-1.888070425000000, 1.888070425000000, 4.790243149999999],
-            [1.888070425000000, -1.888070424999999, 4.790243149999999],
-            [1.888070425000000, 1.888070424999999, -4.790243149999999],
-        ],
-    )
-    # mesh = [[0, 8, 8], [8, 0, 8], [3, 3, 0]]
-    # convert_ir_kpoints_from_VASP_to_phono3py(
-    #     cell[0],
-    #     cell[1],
-    #     cell[2],
-    #     np.linalg.inv(mesh).T,
-    #     np.zeros(1),  # ir_kpoints
-    #     np.zeros(1),  # ir_weights
-    # )
+@pytest.mark.parametrize(
+    "prec,factor",
+    [
+        (None, 3),
+        ("normal", 3),
+        ("Normal", 3),
+        ("singlen", 3),
+        ("SingleN", 3),
+        ("single", 4),
+        ("Single", 4),
+        ("accurate", 4),
+        ("Accurate", 4),
+        ("high", 4),
+    ],
+)
+def test_cutoff_factor_of_prec(prec: str | None, factor: int):
+    """The factor of PREC does not depend on the case of the value."""
+    assert _cutoff_factor(prec) == factor

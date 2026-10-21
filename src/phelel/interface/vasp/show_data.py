@@ -1,6 +1,5 @@
 """Convenient routines to show detailed data."""
 
-import io
 import os
 
 import h5py
@@ -321,7 +320,7 @@ class VaspShowData:
         return rho
 
     def _parse_vasprun_xml(self, filename="vasprun.xml"):
-        with io.open(filename, "rb") as f:
+        with open(filename, "rb") as f:
             vxml = VasprunxmlExpat(f)
             if vxml.parse():
                 self._xml_eigvals = vxml.get_eigenvalues()

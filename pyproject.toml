@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0", "setuptools_scm >= 8"]
+requires = ["setuptools >= 77.0", "setuptools_scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,17 +10,17 @@ description = "Electron-phonon code."
 authors = [
     {name = "Atsushi Togo", email = "atztogo@gmail.com"}
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "phonopy >= 3.0.1",
-    "phono3py >= 3.27.1",
+    "phonopy >= 4.8.2",
+    "phono3py >= 4.8.0",
     "spglib >= 2.5.0",
     "finufft",
     "click",
-    "tomli",
     "tomli-w"
 ]
-license = {file = "LICENSE"}
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
@@ -38,10 +38,12 @@ lint.select = [
     "I", # isort
     "E", # pycodestyle-errors
     "D", # pydocstyle
+    "UP", # pyupgrade
 ]
 lint.extend-ignore = [
     "D417",
     "D100",
+    "UP031",
 ]
 
 [tool.ruff.lint.pydocstyle]

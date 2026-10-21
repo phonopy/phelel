@@ -8,6 +8,9 @@ import pathlib
 import click
 import h5py
 
+from phelel.velph.cli.utils import save_or_show_plot
+from phelel.velph.utils.vaspout import get_numbered_groups
+
 
 def plot_selfenergy(
     f_h5py: h5py.File,
@@ -29,44 +32,32 @@ def plot_selfenergy(
     """
     import matplotlib.pyplot as plt
 
-    selfens = {}
     f_elph = f_h5py["results/electron_phonon/electrons"]
-    for key in f_elph:  # type: ignore
-        if "self_energy_" in key:
-            index = key.split("_")[-1]
-            if index.isdigit():
-                selfens[int(index)] = f_elph[key]  # type: ignore
+    selfens = [
+        selfen
+        for _, selfen in get_numbered_groups(f_elph, "self_energy")  # type: ignore
+    ]
 
     assert len(selfens) == int(f_elph["self_energy_meta/ncalculators"][()])  # type: ignore
 
-    if len(selfens) == 1:
-        fig, axs = plt.subplots(1, 1, figsize=(4, 4))
-    else:
-        nrows = len(selfens) // 2
-        fig, axs = plt.subplots(nrows, 2, figsize=(8, 4 * nrows), squeeze=True)
+    # One column for one calculation, otherwise two columns.
+    ncols = 1 if len(selfens) == 1 else 2
+    nrows = (len(selfens) + ncols - 1) // ncols
+    _, axs = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows), squeeze=False)
+    for ax in axs.flat[len(selfens) :]:
+        ax.set_visible(False)
 
     lines = []
-    for i in range(len(selfens)):
-        selfen = selfens[i + 1]
+    for i, selfen in enumerate(selfens):
         lines += _get_text_lines(selfen, i + 1)
-        if len(selfens) == 1:
-            _plot(axs, selfen)
-        else:
-            _plot(axs[i], selfen)  # type: ignore
+        _plot(axs.flat[i], selfen)
 
     txt_filename = pathlib.Path(dir_name) / "selfenergy.txt"
     with open(txt_filename, "w") as w:
         print("\n".join(lines), file=w)
-    click.echo(f'Summary of data structure was saved in "{txt_filename}".')
+    click.echo(f'Summary of the data structure was written to "{txt_filename}".')
 
-    plt.tight_layout()
-    if save_plot:
-        plt.rcParams["pdf.fonttype"] = 42
-        plt.savefig(plot_filename)
-        click.echo(f'Transport plot was saved in "{plot_filename}".')
-    else:
-        plt.show()
-    plt.close()
+    save_or_show_plot(plot_filename, save_plot, "Self-energy")
 
 
 def _plot(ax, selfen):

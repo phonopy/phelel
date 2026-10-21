@@ -4,25 +4,25 @@ import pathlib
 
 import click
 
-from phelel.velph.cli.transport.generate import write_input_files
-from phelel.velph.cli.utils import check_fft
+from phelel.velph.cli.selfenergy.generate import write_input_files
+from phelel.velph.cli.utils import toml_filename_option
 from phelel.velph.cli.velph_cmd_root import cmd_root
 
 
 @cmd_root.group("transport")
 @click.help_option("-h", "--help")
 def cmd_transport():
-    """Choose transport options."""
+    """Electronic transport.
+
+    Write VASP input files of the electronic transport calculation and plot its
+    results.
+
+    """
     pass
 
 
 @cmd_transport.command("generate")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
+@toml_filename_option
 @click.option(
     "--dry-run/--no-dry-run",
     "-d",
@@ -34,23 +34,7 @@ def cmd_transport():
 @click.help_option("-h", "--help")
 def cmd_generate(toml_filename: str, dry_run: bool):
     """Generate transport input files."""
-    if not pathlib.Path("POTCAR").exists():
-        click.echo('"POTCAR" not found in current directory.')
-
-    write_input_files(pathlib.Path(toml_filename), dry_run)
-
-
-@cmd_transport.command("check-fft")
-@click.option(
-    "--toml-filename",
-    "toml_filename",
-    type=click.Path(),
-    default="velph.toml",
-)
-@click.help_option("-h", "--help")
-def cmd_check_fft(toml_filename: str):
-    """Show [NGX, NGY, NGZ] in vasprun.xml."""
-    check_fft(toml_filename, "transport")
+    write_input_files(pathlib.Path(toml_filename), "transport", dry_run)
 
 
 from phelel.velph.cli.transport.plot.cmd_plot import cmd_plot  # noqa: E402, F401

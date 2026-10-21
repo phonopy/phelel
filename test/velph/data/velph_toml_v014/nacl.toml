@@ -1,0 +1,154 @@
+# Written by velph init of velph 0.14 (commit 63c4abe) for
+# the conventional unit cell of NaCl (a = 5.69 Angstrom), no options
+
+[phelel]
+version = "0.14.1.dev37+g63c4abe06"
+
+[vasp.relax]
+cell = "unitcell"
+[vasp.relax.incar]
+ediffg = -1e-06
+ibrion = 2
+isif = 3
+nsw = 10
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.relax.kpoints]
+mesh = [12, 12, 12]
+
+[vasp.nac]
+cell = "primitive"
+[vasp.nac.incar]
+lepsilon = true
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.nac.kpoints]
+mesh = [20, 20, 20]
+
+[vasp.el_bands.bands.incar]
+ibrion = -1
+nsw = 0
+ismear = 0
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.el_bands.bands.kpoints]
+mesh = [20, 20, 20]
+[vasp.el_bands.bands.kpoints_opt]
+line = 51
+
+[vasp.el_bands.dos.incar]
+ibrion = -1
+nsw = 0
+lorbit = 11
+nedos = 5001
+ismear = -5
+sigma = 0.01
+ediff = 1e-08
+encut = 500
+prec = "accurate"
+lreal = false
+lwave = false
+lcharg = false
+[vasp.el_bands.dos.kpoints]
+mesh = [20, 20, 20]
+[vasp.el_bands.dos.kpoints_dense]
+mesh = [39, 39, 39]
+
+[scheduler]
+job_name = "vasp-elph"
+mpirun_command = "mpirun"
+vasp_binary = "vasp_std"
+prepend_text = ""
+append_text = ""
+nodes = 1
+walltime = "96:00:00"
+scheduler_template = """\
+#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --nodes={nodes}
+#SBATCH --time={walltime}
+#SBATCH --output=ci_%j.log
+
+{prepend_text}
+{mpirun_command} {vasp_binary}
+{append_text}
+"""
+
+[symmetry]
+spacegroup_type = "Fm-3m"
+tolerance = 1e-05
+primitive_matrix = [
+  [  0.000000000000000,  0.500000000000000,  0.500000000000000 ],
+  [  0.500000000000000,  0.000000000000000,  0.500000000000000 ],
+  [  0.500000000000000,  0.500000000000000,  0.000000000000000 ],
+]
+
+[unitcell]
+lattice = [
+  [     5.690000000000000,     0.000000000000000,     0.000000000000000 ], # a
+  [     0.000000000000000,     5.690000000000000,     0.000000000000000 ], # b
+  [     0.000000000000000,     0.000000000000000,     5.690000000000000 ], # c
+]
+[[unitcell.points]]  # 1
+symbol = "Na"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 22.989769
+[[unitcell.points]]  # 2
+symbol = "Na"
+coordinates = [  0.000000000000000,  0.500000000000000,  0.500000000000000 ]
+mass = 22.989769
+[[unitcell.points]]  # 3
+symbol = "Na"
+coordinates = [  0.500000000000000,  0.000000000000000,  0.500000000000000 ]
+mass = 22.989769
+[[unitcell.points]]  # 4
+symbol = "Na"
+coordinates = [  0.500000000000000,  0.500000000000000,  0.000000000000000 ]
+mass = 22.989769
+[[unitcell.points]]  # 5
+symbol = "Cl"
+coordinates = [  0.500000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 35.453000
+[[unitcell.points]]  # 6
+symbol = "Cl"
+coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
+mass = 35.453000
+[[unitcell.points]]  # 7
+symbol = "Cl"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.500000000000000 ]
+mass = 35.453000
+[[unitcell.points]]  # 8
+symbol = "Cl"
+coordinates = [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
+mass = 35.453000
+[primitive_cell]
+lattice = [
+  [     0.000000000000000,     2.845000000000000,     2.845000000000000 ], # a
+  [     2.845000000000000,     0.000000000000000,     2.845000000000000 ], # b
+  [     2.845000000000000,     2.845000000000000,     0.000000000000000 ], # c
+]
+[[primitive_cell.points]]  # 1
+symbol = "Na"
+coordinates = [  0.000000000000000,  0.000000000000000,  0.000000000000000 ]
+mass = 22.989769
+[[primitive_cell.points]]  # 2
+symbol = "Cl"
+coordinates = [  0.500000000000000,  0.500000000000000,  0.500000000000000 ]
+mass = 35.453000

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -27,17 +26,17 @@ class SxSySzMatrices:
         self._Sz = None
 
     @property
-    def Sx(self) -> Optional[np.ndarray]:
+    def Sx(self) -> np.ndarray | None:
         """Return <sigma'|Sx|sigma> for all sigma channel."""
         return self._Sx
 
     @property
-    def Sy(self) -> Optional[np.ndarray]:
+    def Sy(self) -> np.ndarray | None:
         """Return <sigma'|Sy|sigma> for all sigma channel."""
         return self._Sy
 
     @property
-    def Sz(self) -> Optional[np.ndarray]:
+    def Sz(self) -> np.ndarray | None:
         """Return <sigma'|Sz|sigma> for all sigma channel."""
         return self._Sz
 
@@ -116,7 +115,7 @@ class SpinorRotationMatrices:
         self,
         R: np.ndarray,
         lattice: np.ndarray,
-        sxsysz: Optional[SxSySzMatrices] = None,
+        sxsysz: SxSySzMatrices | None = None,
     ):
         """Init method.
 
