@@ -232,7 +232,11 @@ def test_kspacing_mesh_equals_generate(
     and the supercells of NaCl differ from each other, and the mesh on the
     primitive cell is a generalized regular grid.
 
+    "velph el_bands generate" needs seekpath, because [vasp.el_bands.kpoints_opt]
+    of this velph.toml does not give "path".
+
     """
+    pytest.importorskip("seekpath")
     set_names = tuple(_GENERATE_COMMANDS)
     data = _velph_toml_with_kspacing(nacl_velph_toml_v014())
     monkeypatch.chdir(tmp_path)
