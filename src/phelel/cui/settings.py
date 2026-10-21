@@ -100,7 +100,7 @@ class PhelelConfParser(ConfParser):
                     )
 
             if conf_key == "finufft_eps":
-                self._set_parameter("finufft_eps", confs["finufft_eps"])
+                self._set_parameter("finufft_eps", float(confs["finufft_eps"]))
 
             if conf_key == "subtract_rfs":
                 if confs["subtract_rfs"] == ".true.":

@@ -12,6 +12,7 @@ from dataclasses import dataclass, fields
 import h5py
 import pytest
 
+import phelel.cui.phelel_script as phelel_script
 from phelel import load
 from phelel.cui.phelel_script import main
 
@@ -171,6 +172,42 @@ def test_phelel_script_create_derivatives(use_poscar: bool, with_BORN_file: bool
             os.chdir(original_cwd)
 
 
+def test_phelel_script_create_derivatives_nac_from_phelel_disp_yaml(
+    tmp_path: pathlib.Path,
+):
+    """With POSCAR input, NAC parameters are read from phelel_disp.yaml.
+
+    phelel_disp.yaml in the current directory has the NAC parameters and BORN
+    does not exist, so the NAC parameters have to come from phelel_disp.yaml.
+
+    """
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        (tmp_path / "phelel_disp.yaml").write_text(
+            (cwd / "phelel_disp_C111_nac.yaml").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        dirname = cwd / ".." / "interface" / "vasp"
+        argparse_control = _get_phelel_load_args(
+            cell_filename=str(dirname / "POSCAR-unitcell_C111"),
+            create_derivatives=[
+                str(dirname / "C111_disp-000"),
+                str(dirname / "C111_disp-001"),
+            ],
+            supercell_dimenstion="1 1 1",
+            fft_mesh_numbers="1 1 1",
+        )
+        with pytest.raises(SystemExit) as excinfo:
+            main(**argparse_control)
+        assert excinfo.value.code == 0
+        with h5py.File("phelel_params.hdf5") as f:
+            assert "born_effective_charges" in f
+            assert "dielectric_constant" in f
+    finally:
+        os.chdir(original_cwd)
+
+
 @pytest.mark.parametrize("is_plusminus_displacements", [True, False])
 def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
     """Test phelel command for creating displacements."""
@@ -224,6 +261,44 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
 
         finally:
             os.chdir(original_cwd)
+
+
+@pytest.mark.parametrize("load_phelel_yaml", [True, False])
+def test_phelel_script_parser(load_phelel_yaml: bool, monkeypatch: pytest.MonkeyPatch):
+    """phelel-load builds the parser of phelel-load, not that of phelel."""
+
+    class _ParserCreated(Exception):
+        pass
+
+    calls = []
+
+    def _get_parser(load_phelel_yaml=False):
+        calls.append(load_phelel_yaml)
+        raise _ParserCreated
+
+    monkeypatch.setattr(phelel_script, "get_parser", _get_parser)
+    with pytest.raises(_ParserCreated):
+        main(load_phelel_yaml=load_phelel_yaml)
+    assert calls == [load_phelel_yaml]
+
+
+def test_phelel_loader_is_nac_false(tmp_path: pathlib.Path):
+    """With is_nac=False, BORN in the current directory is not read."""
+    born_str = """4.399652
+5.7 0 0 0 5.7 0 0 0 5.7
+0 0 0 0 0 0 0 0 0"""
+
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        pathlib.Path("BORN").write_text(born_str, encoding="utf-8")
+        dirname = cwd / ".." / "interface" / "vasp"
+        cell_filename = str(dirname / "phelel_disp_C111.yaml")
+        dispdirs = [str(dirname / "C111_disp-000"), str(dirname / "C111_disp-001")]
+        phe = load(cell_filename, dir_names=dispdirs, is_nac=False)
+        assert phe.nac_params is None
+    finally:
+        os.chdir(original_cwd)
 
 
 @pytest.mark.parametrize("with_BORN_file", [True, False])

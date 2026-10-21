@@ -147,3 +147,36 @@ def test_phelel_load_force_sets_of_phonon_supercell(tmp_path: pathlib.Path):
     )
     assert phe.phonon_dataset is not None
     assert phe.phonon_dataset["natom"] == 16
+
+
+@pytest.mark.parametrize("with_phonon_supercell", [True, False])
+def test_phelel_unit_conversion_factor_and_dynamical_matrix(
+    with_phonon_supercell: bool,
+):
+    """Both come from the Phonopy instance holding the force constants.
+
+    Without the phonon supercell, the force constants are those of the
+    supercell, and with it, those of the phonon supercell.
+
+    """
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 4.0,
+        symbols=["Na", "Cl"],
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    if with_phonon_supercell:
+        phonon_supercell_matrix = np.diag([2, 2, 2])
+        natom = 16
+    else:
+        phonon_supercell_matrix = None
+        natom = 2
+    phe = Phelel(
+        cell,
+        supercell_matrix=np.eye(3, dtype=int),
+        phonon_supercell_matrix=phonon_supercell_matrix,
+        primitive_matrix="P",
+    )
+    assert phe.unit_conversion_factor is not None
+    phe.force_constants = np.zeros((natom, natom, 3, 3))
+    assert phe.dynamical_matrix is not None
+    assert len(phe.dynamical_matrix.supercell) == natom

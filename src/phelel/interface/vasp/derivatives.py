@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -32,9 +32,15 @@ def read_files(
     dir_names: Sequence[str | os.PathLike],
     phonon_dir_names: Sequence[str | os.PathLike] | None = None,
     subtract_rfs: bool = False,
+    is_nac: bool = True,
     log_level: int = 0,
 ) -> PhelelDataset:
-    """Load files needed to create derivatives."""
+    """Load files needed to create derivatives.
+
+    When ``is_nac`` is True and the NAC parameters are not yet stored in
+    ``phelel``, they are read from BORN in the current directory if it exists.
+
+    """
     inwap_path = pathlib.Path(dir_names[0]) / "inwap.yaml"
     if inwap_path.exists():
         inwap_per = read_inwap_yaml(inwap_path)
@@ -84,7 +90,7 @@ def read_files(
     )
     phelel.forces = forces
 
-    if phelel.nac_params is None:
+    if is_nac and phelel.nac_params is None:
         # This situation is possible when this function is called from cui/load.
         nac_params = _read_born(
             phelel.primitive, phelel.primitive_symmetry, log_level=log_level
@@ -260,6 +266,33 @@ def _get_number_of_displacements(dataset: dict) -> int:
     return len(dataset["displacements"])
 
 
+def _find_vaspout_h5(
+    dir_names: Sequence[str | os.PathLike],
+) -> list[pathlib.Path] | None:
+    """Return the vaspout.h5 file of every directory.
+
+    None is returned when no directory has vaspout.h5, in which case the
+    files of the old format are read.  When only some of the directories have
+    vaspout.h5, the two formats are not mixed, because the data of a
+    directory would then be paired with the displacement of another one.
+
+    """
+    paths = [next(pathlib.Path(d).glob("vaspout.h5*"), None) for d in dir_names]
+    if all(path is not None for path in paths):
+        return cast(list[pathlib.Path], paths)
+    if all(path is None for path in paths):
+        return None
+    missing = ", ".join(
+        f'"{d}"' for d, path in zip(dir_names, paths, strict=True) if path is None
+    )
+    raise RuntimeError(
+        "vaspout.h5 was found in some of the directories but not in "
+        f"{missing}.  All directories have to contain the results in the same "
+        "format: vaspout.h5, or LOCAL-POTENTIAL.bin, PAW-STRENGTH.bin and "
+        "PAW-OVERLAP.bin."
+    )
+
+
 def _read_local_potentials(
     dir_names: Sequence[str | os.PathLike],
     inwap_per: dict,
@@ -267,25 +300,17 @@ def _read_local_potentials(
     log_level: int = 0,
 ) -> list[NDArray] | None:
     loc_pots = []
-    vaspout5_exists = True
-    for dir_name in dir_names:
-        try:
-            locpot_path = next(pathlib.Path(dir_name).glob("vaspout.h5*"))
-        except StopIteration:
-            vaspout5_exists = False
-            break
-
-        try:
-            loc_pots.append(
-                read_local_potential_vaspouth5(filename=locpot_path, key=key)
-            )
-        except KeyError:
-            return None
-
-        if log_level:
-            print(f'Local potential was read from "{locpot_path}".')
-
-    if vaspout5_exists:
+    vaspout_paths = _find_vaspout_h5(dir_names)
+    if vaspout_paths is not None:
+        for locpot_path in vaspout_paths:
+            try:
+                loc_pots.append(
+                    read_local_potential_vaspouth5(filename=locpot_path, key=key)
+                )
+            except KeyError:
+                return None
+            if log_level:
+                print(f'Local potential was read from "{locpot_path}".')
         return loc_pots
 
     # Old way for LOCAL-POTENTIAL.bin.
@@ -309,21 +334,14 @@ def _read_PAW_strength_and_overlap(
 ) -> tuple[list[NDArray], list[NDArray]]:
     Dijs = []
     qijs = []
-    vaspout5_exists = True
-    for dir_name in dir_names:
-        try:
-            Dij_qij_path = next(pathlib.Path(dir_name).glob("vaspout.h5*"))
-        except StopIteration:
-            vaspout5_exists = False
-            break
-
-        dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
-        Dijs.append(dij)
-        qijs.append(qij)
-        if log_level:
-            print(f'Dijs and qjis were read from "{Dij_qij_path}".')
-
-    if vaspout5_exists:
+    vaspout_paths = _find_vaspout_h5(dir_names)
+    if vaspout_paths is not None:
+        for Dij_qij_path in vaspout_paths:
+            dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
+            Dijs.append(dij)
+            qijs.append(qij)
+            if log_level:
+                print(f'Dijs and qjis were read from "{Dij_qij_path}".')
         return Dijs, qijs
 
     # Old way for PAW-*.bin.

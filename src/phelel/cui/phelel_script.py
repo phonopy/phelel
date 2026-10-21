@@ -95,7 +95,7 @@ def main(**argparse_control):
         args = argparse_control["args"]
         log_level = args.log_level
     else:
-        parser = get_parser()
+        parser = get_parser(load_phelel_yaml=load_phelel_yaml)
         args = parser.parse_args()
         # Set log level
         log_level = 1
@@ -248,7 +248,7 @@ def main(**argparse_control):
                 store_nac_params(
                     cast(Phonopy, phelel),
                     settings,
-                    cell_info.phelel_yaml,
+                    phe_yml,
                     unitcell_filename,
                     log_level,
                 )

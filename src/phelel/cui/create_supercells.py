@@ -172,7 +172,7 @@ def generate_phelel_supercells(
 
     if phelel.phonon_supercell_matrix is not None:
         phelel.generate_phonon_displacements(
-            distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
+            distance=_distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
         )
         if log_level:
             assert phelel.phonon_supercells_with_displacements is not None
