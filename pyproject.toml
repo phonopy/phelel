@@ -24,6 +24,7 @@ license-files = ["LICENSE"]
 
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
+phelel-init = "phelel.scripts.phelel_init:run"
 phelel-load = "phelel.scripts.phelel_load:run"
 velph = "phelel.velph.cli.velph_cmd_root:cmd_root"
 

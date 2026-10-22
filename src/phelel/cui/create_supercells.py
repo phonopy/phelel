@@ -8,6 +8,7 @@ import pathlib
 from collections.abc import Sequence
 from typing import Literal, cast
 
+import numpy as np
 from numpy.typing import NDArray
 from phono3py.interface.calculator import (
     get_additional_info_to_write_fc2_supercells,
@@ -44,7 +45,7 @@ def get_cell_info(
     load_phonopy_yaml: bool = True,
 ) -> PhelelCellInfoResult:
     """Return calculator interface and crystal structure information."""
-    cell_info = phonopy_get_cell_info(
+    ph_cell_info = phonopy_get_cell_info(
         settings,
         cell_filename,
         log_level=log_level,
@@ -53,18 +54,38 @@ def get_cell_info(
     )
 
     cell_info = PhelelCellInfoResult(
-        unitcell=cell_info.unitcell,
-        optional_structure_info=cell_info.optional_structure_info,
-        supercell_matrix=cell_info.supercell_matrix,
-        primitive_matrix=cell_info.primitive_matrix,
-        interface_mode=cell_info.interface_mode,
-        phelel_yaml=cell_info.phonopy_yaml,
+        unitcell=ph_cell_info.unitcell,
+        optional_structure_info=ph_cell_info.optional_structure_info,
+        supercell_matrix=ph_cell_info.supercell_matrix,
+        primitive_matrix=ph_cell_info.primitive_matrix,
+        interface_mode=ph_cell_info.interface_mode,
+        phelel_yaml=cast(PhelelYaml | None, ph_cell_info.phonopy_yaml),
         phonon_supercell_matrix=settings.phonon_supercell_matrix,
     )
 
+    # The phonon dataset belongs to the phonon supercell of the
+    # phelel_disp.yaml-like file, so its phonon supercell matrix is kept, but a
+    # different one given is reported.
     phelel_yaml = cell_info.phelel_yaml
-    if cell_info.phonon_supercell_matrix is None and phelel_yaml:
-        cell_info.phonon_supercell_matrix = phelel_yaml.phonon_supercell_matrix
+    if phelel_yaml is not None:
+        smat_in_settings = settings.phonon_supercell_matrix
+        smat_in_phe_yaml = phelel_yaml.phonon_supercell_matrix
+        cell_info.phonon_supercell_matrix = smat_in_phe_yaml
+        if log_level and smat_in_settings is not None:
+            yaml_filename = cell_info.optional_structure_info.unitcell_filename
+            if smat_in_phe_yaml is None:
+                print("Phonon supercell matrix given by DIM_PHONON is")
+                for v in smat_in_settings:
+                    print(f"  {v}")
+                print(f'But "{yaml_filename}" has no phonon supercell matrix, so')
+                print("it is not used.")
+            elif not np.array_equal(smat_in_settings, smat_in_phe_yaml):
+                print("Phonon supercell matrix given by DIM_PHONON is")
+                for v in smat_in_settings:
+                    print(f"  {v}")
+                print(f'But that in "{yaml_filename}" is used:')
+                for v in smat_in_phe_yaml:
+                    print(f"  {v}")
 
     return cell_info
 
