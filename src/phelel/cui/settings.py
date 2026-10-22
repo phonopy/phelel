@@ -18,7 +18,6 @@ class PhelelSettings(Settings):
         self.create_derivatives = None
         self.fft_mesh_numbers = None
         self.finufft_eps = None
-        self.grid_points = None
         self.phonon_supercell_matrix = None
         self.subtract_rfs = False
 

@@ -127,7 +127,7 @@ def create_derivatives(
     those directories have to be appdended after the directory names for
     el-ph.
 
-    % phelel -d --dim 2 2 2 --pa auto
+    % phelel-init -d --dim 2 2 2 --pa auto
     % phelel --fft-mesh 18 18 18 --cd perfect disp-001
 
     """

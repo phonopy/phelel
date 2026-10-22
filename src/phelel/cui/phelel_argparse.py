@@ -1,91 +1,50 @@
 """Option parser."""
 
+from __future__ import annotations
 
-def get_parser(load_phelel_yaml=False):
-    """Return ArgumentParser instance."""
-    import argparse
+import argparse
+from typing import Literal
 
-    parser = argparse.ArgumentParser(
-        description="Electron-phonon interaction calculator"
-    )
-    parser.add_argument(
-        "--amplitude",
-        dest="displacement_distance",
-        type=float,
-        default=None,
-        help="Distance of displacements",
-    )
-    if not load_phelel_yaml:
-        parser.add_argument(
-            "-c",
-            "--cell",
-            dest="cell_filename",
-            metavar="FILE",
-            default=None,
-            help="Read unit cell",
+
+def get_parser(mode: Literal["init", "run"]) -> argparse.ArgumentParser:
+    """Return ArgumentParser instance.
+
+    Parameters
+    ----------
+    mode : "init" or "run"
+        "init" is for phelel-init, which generates supercells with
+        displacements.  "run" is for phelel, which calculates the derivatives
+        from phelel_disp.yaml and the results of the supercell calculations.
+
+    """
+    if mode == "init":
+        description = (
+            "phelel-init: generate supercells with displacements for "
+            "electron-phonon calculation"
         )
-    parser.add_argument(
-        "--cd",
-        "--create-derivatives",
-        nargs="+",
-        dest="create_derivatives",
-        metavar="DIR",
-        default=None,
-        help=(
-            "Calculate dVdu and dDijdu and create phelel_disp.hdf5. "
-            "Directory names of perfect "
-            "and displacement supercells are given as arguments."
-        ),
-    )
-    if load_phelel_yaml:
-        parser.add_argument(
-            "--config",
-            dest="conf_filename",
-            metavar="FILE",
-            default=None,
-            help="Read phelel configuration file",
+    else:
+        description = (
+            "phelel: calculate derivatives of local potential and PAW strengths "
+            "with respect to atomic displacements"
         )
-    if not load_phelel_yaml:
+    parser = argparse.ArgumentParser(description=description)
+    _add_common_options(parser)
+    if mode == "init":
+        _add_init_options(parser)
+        parser.add_argument("filename", nargs="*", help="Phelel configuration file")
+    else:
+        _add_run_options(parser)
+        _reject_init_options(parser)
         parser.add_argument(
-            "-d",
-            "--disp",
-            dest="is_displacement",
-            action="store_true",
-            default=False,
-            help="As first stage, get least displacements",
+            "filename",
+            nargs="*",
+            help="phelel_disp.yaml-like file (default: phelel_disp.yaml)",
         )
-        parser.add_argument(
-            "--dim",
-            nargs="+",
-            dest="supercell_dimension",
-            metavar="INT",
-            default=None,
-            help=("Supercell dimensions with three integers or matrix with 9 integers"),
-        )
-        parser.add_argument(
-            "--dim-phonon",
-            nargs="+",
-            dest="phonon_supercell_dimension",
-            default=None,
-            help=(
-                "Supercell dimensions for phonon with three integers or "
-                "matrix with 9 integers"
-            ),
-        )
-    parser.add_argument(
-        "--fft-mesh",
-        nargs="+",
-        dest="fft_mesh_numbers",
-        default=None,
-        help="FFT mesh numbers used in primitive cell",
-    )
-    parser.add_argument(
-        "--finufft-eps",
-        dest="finufft_eps",
-        type=float,
-        default=None,
-        help="Accuracy of finufft interpolation (default=1e-6)",
-    )
+    return parser
+
+
+def _add_common_options(parser: argparse.ArgumentParser) -> None:
+    """Add options accepted by both phelel-init and phelel."""
     parser.add_argument(
         "--loglevel",
         dest="log_level",
@@ -102,13 +61,6 @@ def get_parser(load_phelel_yaml=False):
         help="Symmetry is not imposed.",
     )
     parser.add_argument(
-        "--nodiag",
-        dest="is_nodiag",
-        action="store_true",
-        default=False,
-        help="Set displacements parallel to axes",
-    )
-    parser.add_argument(
         "--pa",
         "--primitive-axis",
         "--primitive-axes",
@@ -118,34 +70,12 @@ def get_parser(load_phelel_yaml=False):
         help="Same as PRIMITIVE_AXES tags",
     )
     parser.add_argument(
-        "--pm",
-        dest="is_plusminus_displacements",
-        action="store_true",
-        default=False,
-        help="Set plus minus displacements",
-    )
-    parser.add_argument(
         "-q",
         "--quiet",
         dest="quiet",
         action="store_true",
         default=False,
         help="Print out smallest information",
-    )
-    parser.add_argument(
-        "--qpoints",
-        nargs="+",
-        dest="qpoints",
-        metavar="NUM",
-        default=None,
-        help="Phonon q-points for specific sampling to calculate |g|",
-    )
-    parser.add_argument(
-        "--read-qpoints",
-        dest="read_qpoints",
-        action="store_true",
-        default=False,
-        help="Read QPOITNS file for specific phonon sampling to calculate |g|",
     )
     parser.add_argument(
         "--tolerance",
@@ -162,6 +92,103 @@ def get_parser(load_phelel_yaml=False):
         default=False,
         help="Detailed run-time information is displayed.",
     )
+
+
+def _add_init_options(parser: argparse.ArgumentParser) -> None:
+    """Add options that only apply to phelel-init."""
+    parser.add_argument(
+        "--amplitude",
+        dest="displacement_distance",
+        type=float,
+        default=None,
+        help="Distance of displacements",
+    )
+    parser.add_argument(
+        "-c",
+        "--cell",
+        dest="cell_filename",
+        metavar="FILE",
+        default=None,
+        help="Read unit cell",
+    )
+    parser.add_argument(
+        "-d",
+        "--disp",
+        dest="is_displacement",
+        action="store_true",
+        default=False,
+        help="Generate supercells with displacements",
+    )
+    parser.add_argument(
+        "--dim",
+        nargs="+",
+        dest="supercell_dimension",
+        metavar="INT",
+        default=None,
+        help="Supercell dimensions with three integers or matrix with 9 integers",
+    )
+    parser.add_argument(
+        "--dim-phonon",
+        nargs="+",
+        dest="phonon_supercell_dimension",
+        default=None,
+        help=(
+            "Supercell dimensions for phonon with three integers or "
+            "matrix with 9 integers"
+        ),
+    )
+    parser.add_argument(
+        "--nodiag",
+        dest="is_nodiag",
+        action="store_true",
+        default=False,
+        help="Set displacements parallel to axes",
+    )
+    parser.add_argument(
+        "--pm",
+        dest="is_plusminus_displacements",
+        action="store_true",
+        default=False,
+        help="Set plus minus displacements",
+    )
+
+
+def _add_run_options(parser: argparse.ArgumentParser) -> None:
+    """Add options that only apply to phelel."""
+    parser.add_argument(
+        "--config",
+        dest="conf_filename",
+        metavar="FILE",
+        default=None,
+        help="Phelel configuration file",
+    )
+    parser.add_argument(
+        "--cd",
+        "--create-derivatives",
+        nargs="+",
+        dest="create_derivatives",
+        metavar="DIR",
+        default=None,
+        help=(
+            "Calculate the derivatives and write them in phelel_params.hdf5. "
+            "Directory names of perfect and displacement supercells are given "
+            "as arguments. --fft-mesh is required."
+        ),
+    )
+    parser.add_argument(
+        "--fft-mesh",
+        nargs="+",
+        dest="fft_mesh_numbers",
+        default=None,
+        help="FFT mesh numbers used in primitive cell",
+    )
+    parser.add_argument(
+        "--finufft-eps",
+        dest="finufft_eps",
+        type=float,
+        default=None,
+        help="Accuracy of finufft interpolation (default=1e-6)",
+    )
     parser.add_argument(
         "--srfs",
         "--subtract-residual-forces",
@@ -170,9 +197,44 @@ def get_parser(load_phelel_yaml=False):
         default=False,
         help="Subtract residual forces for force constants calculation.",
     )
-    if load_phelel_yaml:
-        parser.add_argument("filename", nargs="*", help="phelel.yaml like file")
-    else:
-        parser.add_argument("filename", nargs="*", help="Phelel configure file")
 
-    return parser
+
+class _MovedToInitAction(argparse.Action):
+    """Reject an option of phelel-init given to phelel."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.exit(
+            2,
+            f"{parser.prog}: error: '{option_string}' is an option of "
+            "'phelel-init', which generates supercells with displacements.\n"
+            f"Replace '{parser.prog}' with 'phelel-init' in your command.\n"
+            "See https://phonopy.github.io/phelel/phelel-command.html\n",
+        )
+
+
+def _reject_init_options(parser: argparse.ArgumentParser) -> None:
+    """Make phelel reject the options of phelel-init with a message that points there.
+
+    Without this, argparse rejects them with a generic 'unrecognized
+    arguments' message.
+
+    """
+    specs: list[tuple[tuple[str, ...], int | str]] = [
+        (("--amplitude",), 1),
+        (("-c", "--cell"), 1),
+        (("-d", "--disp"), 0),
+        (("--dim",), "+"),
+        (("--dim-phonon",), "+"),
+        (("--nodiag",), 0),
+        (("--pm",), 0),
+    ]
+    for option_strings, nargs in specs:
+        kwargs: dict = {
+            "action": _MovedToInitAction,
+            "nargs": nargs,
+            "help": argparse.SUPPRESS,
+            "default": argparse.SUPPRESS,
+        }
+        if nargs == 0:
+            kwargs["const"] = True
+        parser.add_argument(*option_strings, **kwargs)
