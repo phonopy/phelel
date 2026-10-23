@@ -188,6 +188,45 @@ def test_read_files_without_force_files(tmp_path: Path):
         )
 
 
+@pytest.mark.parametrize("reader", ["local_potentials", "PAW_strength_and_overlap"])
+def test_read_with_vaspout_h5_in_some_directories(
+    reader: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """vaspout.h5 found in only some of the directories is an error.
+
+    The first directory has both vaspout.h5 and the files of the old format,
+    and the second one has only the files of the old format.  Reading
+    vaspout.h5 of the first directory and then the old format of all
+    directories would pair the data with wrong displacements, so the
+    directory without vaspout.h5 has to be named in the error.  vaspout.h5 is
+    an empty file, and the functions reading it are replaced.
+
+    """
+    monkeypatch.setattr(
+        derivatives,
+        "read_local_potential_vaspouth5",
+        lambda filename, key: np.zeros(1),
+    )
+    monkeypatch.setattr(
+        derivatives,
+        "read_PAW_Dij_qij_vaspouth5",
+        lambda filename: (np.zeros(1), np.zeros(1)),
+    )
+    first_dir = tmp_path / "disp-000"
+    first_dir.mkdir()
+    for path in (cwd / "C111_disp-000").iterdir():
+        (first_dir / path.name).symlink_to(path)
+    (first_dir / "vaspout.h5").touch()
+    dir_names = [first_dir, cwd / "C111_disp-001"]
+    inwap_per = derivatives.read_inwap_yaml(cwd / "C111_disp-000" / "inwap.yaml")
+
+    with pytest.raises(RuntimeError, match="C111_disp-001"):
+        if reader == "local_potentials":
+            derivatives._read_local_potentials(dir_names, inwap_per)
+        else:
+            derivatives._read_PAW_strength_and_overlap(dir_names, inwap_per)
+
+
 @pytest.mark.parametrize("subtract_rfs", [True, False])
 def test_read_files_perfect_supercell_forces(
     subtract_rfs: bool, monkeypatch: pytest.MonkeyPatch
@@ -254,6 +293,51 @@ def test_create_derivatives_C111_ncl():
     create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
     fc = phelel.force_constants
     assert fc.shape[0] == fc.shape[1]
+
+
+def test_run_derivatives_without_phonon_dataset_in_input():
+    """The phonon dataset stored in Phelel is used when the input has none.
+
+    The dataset of the supercells (C-1x1x1) must not be given to the phonon
+    supercell (2x2x2), whose number of atoms is different.
+
+    """
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    phonon_dir_names = [cwd / "C222_disp-000", cwd / "C222_disp-001"]
+    phelel = _get_phelel_C111(
+        "phelel_disp_C111.yaml", phonon_supercell_matrix=np.diag([2, 2, 2])
+    )
+    ph = _get_phonopy_C222(phelel)
+    assert ph.dataset is not None
+    phelel.phonon_dataset = dict(copy.deepcopy(ph.dataset))
+    _produce_force_constants_C222(ph)
+
+    phe_input = read_files(
+        phelel, dir_names, phonon_dir_names=phonon_dir_names, subtract_rfs=True
+    )
+    phe_input.phonon_dataset = None
+    phelel.run_derivatives(phe_input)
+    assert phelel.phonon_dataset is not None
+    assert phelel.phonon_dataset["natom"] == len(ph.supercell)
+    assert phelel.force_constants is not None and ph.force_constants is not None
+    np.testing.assert_allclose(phelel.force_constants, ph.force_constants, atol=1e-6)
+
+
+def test_run_derivatives_without_any_phonon_dataset():
+    """Without the phonon dataset anywhere, the phonon supercell is an error."""
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    phonon_dir_names = [cwd / "C222_disp-000", cwd / "C222_disp-001"]
+    phelel = _get_phelel_C111(
+        "phelel_disp_C111.yaml", phonon_supercell_matrix=np.diag([2, 2, 2])
+    )
+    phelel.phonon_dataset = dict(copy.deepcopy(_get_phonopy_C222(phelel).dataset))
+    phe_input = read_files(
+        phelel, dir_names, phonon_dir_names=phonon_dir_names, subtract_rfs=True
+    )
+    phe_input.phonon_dataset = None
+    phelel.phonon_dataset = None
+    with pytest.raises(RuntimeError, match="Phelel.phonon_dataset"):
+        phelel.run_derivatives(phe_input)
 
 
 def _get_phelel_C111(

@@ -148,6 +148,18 @@ def test_phelel_init_default_displacement_settings(
     assert disps.shape != disps_phonopy.shape or not np.allclose(disps, disps_phonopy)
 
 
+def test_phelel_init_shows_displacements(
+    tmp_path: pathlib.Path,
+    code_init_project: Callable[[dict], Project],
+    capsys: pytest.CaptureFixture[str],
+):
+    """The displacement distance and the number of displacements are shown."""
+    disps = _get_phelel_displacements(["amplitude = 0.02"], tmp_path, code_init_project)
+    out = capsys.readouterr().out
+    assert "Displacement distance: 0.02" in out
+    assert f"Number of displacements: {len(disps)}" in out
+
+
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_phelel_init_site_mixture(
     site_mixture_velph_toml: Callable[[bool], dict],

@@ -12,7 +12,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "phonopy >= 4.8.2",
+    "phonopy >= 4.8.4",
     "phono3py >= 4.8.0",
     "spglib >= 2.5.0",
     "finufft",
@@ -24,6 +24,7 @@ license-files = ["LICENSE"]
 
 [project.scripts]
 phelel = "phelel.scripts.phelel:run"
+phelel-init = "phelel.scripts.phelel_init:run"
 phelel-load = "phelel.scripts.phelel_load:run"
 velph = "phelel.velph.cli.velph_cmd_root:cmd_root"
 

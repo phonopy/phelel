@@ -175,6 +175,7 @@ def load(
             dir_names,
             phonon_dir_names=phonon_dir_names,
             subtract_rfs=subtract_rfs,
+            is_nac=is_nac,
             log_level=log_level,
         )
         if phelel.fft_mesh is not None:

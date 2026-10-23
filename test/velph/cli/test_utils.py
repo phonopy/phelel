@@ -107,6 +107,10 @@ def test_write_jobs(
         f'VASP input files were written in "{tmp_path / "b"}".',
     ]
     if not with_potcar:
-        expected.insert(0, '"POTCAR" not found in current directory.')
+        expected.insert(
+            0,
+            '"POTCAR" was not found in the current directory, so the VASP input '
+            "files are written without POTCAR.",
+        )
     assert lines == expected
     assert (tmp_path / "b" / "POSCAR").read_text() == "contcar\n"

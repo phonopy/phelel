@@ -2,5 +2,5 @@ from phelel.cui.phelel_script import main
 
 
 def run():
-    """Run the phelel-load script."""
-    main(**{"load_phelel_yaml": True})
+    """Run the phelel-load script, a deprecated alias of phelel."""
+    main(mode="run", deprecated_command="phelel-load")

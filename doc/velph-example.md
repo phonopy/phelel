@@ -116,6 +116,9 @@ points:
   coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
   mass: 127.600000
 --------------------------------------------------------------------------------
+Supercell of [phelel]: 64 atoms, supercell matrix [[2, 0, 0], [0, 2, 0], [0, 0, 2]].
+Supercell of [phonopy]: 64 atoms, supercell matrix [[2, 0, 0], [0, 2, 0], [0, 0, 2]].
+Supercell of [phono3py]: 64 atoms, supercell matrix [[2, 0, 0], [0, 2, 0], [0, 0, 2]].
 Created new folder "relax".
 Initial settings were written to "relax/velph.toml".
 Found "POTCAR".
@@ -130,7 +133,7 @@ A directory `relax` is created and `velph.toml` is stored in it.
 `relax/velph.toml`,
 ```toml
 [velph]
-version = "0.15.0"
+version = "0.16.0"
 
 [phelel]
 supercell_dimension = [2, 2, 2]
@@ -143,7 +146,6 @@ nosym = false
 
 [vasp.relax]
 cell = "unitcell"
-
 [vasp.relax.incar]
 ismear = 0
 sigma = 0.01
@@ -158,7 +160,6 @@ ediffg = -1e-06
 ibrion = 2
 isif = 3
 nsw = 10
-
 [vasp.relax.kpoints]
 mesh = [5, 5, 5]
 
@@ -252,6 +253,9 @@ points:
   coordinates: [  0.000000000000000,  0.500000000000000,  0.000000000000000 ]
   mass: 127.600000
 --------------------------------------------------------------------------------
+Supercell of [phelel]: 64 atoms, supercell matrix [[2, 0, 0], [0, 2, 0], [0, 0, 2]].
+Supercell of [phonopy]: 64 atoms, supercell matrix [[2, 0, 0], [0, 2, 0], [0, 0, 2]].
+Supercell of [phono3py]: 64 atoms, supercell matrix [[2, 0, 0], [0, 2, 0], [0, 0, 2]].
 Created new folder "calc".
 Initial settings were written to "calc/velph.toml".
 Found "POTCAR".
@@ -270,7 +274,6 @@ Change directory to `calc`.
 ```toml
 [vasp.nac]
 cell = "primitive"
-
 [vasp.nac.incar]
 ismear = 0
 sigma = 0.01
@@ -281,7 +284,6 @@ lreal = false
 lwave = false
 lcharg = false
 lepsilon = true
-
 [vasp.nac.kpoints]
 mesh = [9, 9, 9]
 
@@ -298,10 +300,8 @@ ncore = 4
 elph_prepare = true
 isym = 0
 kpar = 2
-
 [vasp.phelel.kpoints]
 mesh = [3, 3, 3]
-
 [vasp.phelel.scheduler]
 ntasks = 48
 
@@ -314,6 +314,8 @@ NAC and phelel calculations,
 VASP input files were written in "nac".
 % cd nac && sbatch _job.sh && cd ..
 % velph phelel init
+Displacement distance: 0.03
+Number of displacements: 4
 NAC parameters are read from "nac/vasprun.xml".
 "phelel/phelel_disp.yaml" was written.
 Run "velph phelel generate" to write the VASP input files.

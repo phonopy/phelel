@@ -88,7 +88,7 @@ def write_dVdu_hdf5(
 def read_phelel_params_hdf5(
     filename: str | os.PathLike = "phelel_params.hdf5",
     log_level: int = 0,
-) -> tuple[DLocalPotential, DDijQij, np.ndarray, np.ndarray]:
+) -> tuple[DLocalPotential, DDijQij, np.ndarray, np.ndarray | None]:
     """Read dV/du and dDij/du from phelel_params.hdf5.
 
     Parameteters
@@ -171,8 +171,15 @@ def write_dDijdu_hdf5(dDijdu, filename="dDijdu.hdf5"):
         _add_datasets(w, dDijdu=dDijdu)
 
 
-def read_force_constants_hdf5(f):
-    """Read force_constants from hdf5 file object."""
+def read_force_constants_hdf5(f: h5py.File) -> NDArray[np.double] | None:
+    """Read force_constants from hdf5 file object.
+
+    None is returned when the file has no force constants, which
+    write_phelel_params_hdf5 does not write when they are None.
+
+    """
+    if "force_constants" not in f:
+        return None
     return f["force_constants"][:]
 
 

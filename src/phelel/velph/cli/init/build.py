@@ -44,9 +44,11 @@ merge, because _init_layer gives the settings to the sections of the codes.
 from __future__ import annotations
 
 import dataclasses
+import textwrap
 from typing import Any, TypeVar
 
 import click
+import numpy as np
 from phonopy.structure.atoms import PhonopyAtoms, get_cell_dict
 from phonopy.structure.cells import get_supercell
 
@@ -217,6 +219,9 @@ def _resolve_code_section(
     error.  site_mixture_scheme is written only for a unit cell with weighted
     species.
 
+    The number of atoms and the matrix of the supercell are shown, so that the
+    user sees the supercell before running the calculations.
+
     """
     if code not in codes:
         return None
@@ -237,6 +242,11 @@ def _resolve_code_section(
         symmetrize_cell=_required(init.symmetrize_cell),
         tolerance=_required(init.tolerance),
     )
+    smat = get_supercell_matrix(supercell)
+    natom = len(cells.unitcell) * abs(round(np.linalg.det(smat)))
+    click.echo(
+        f"Supercell of [{code}]: {natom} atoms, supercell matrix {smat.tolist()}."
+    )
     site_mixture_scheme = section.site_mixture_scheme
     if not cells.unitcell.has_weighted_species:
         site_mixture_scheme = None
@@ -253,11 +263,15 @@ def _resolve_vasp(
     An input set is written when the code that it needs is written (INPUT_SETS).
     The input sets are in the order of INPUT_SETS.
 
+    The k-point blocks that became generalized regular grids without use_grg
+    are shown in one message for each cell (see _resolve_kpoints).
+
     """
     if config.vasp is None:
         return None
     given = config.vasp.input_sets or {}
     input_sets: dict[InputSetName, InputSetSection] = {}
+    grg_blocks: dict[str, list[str]] = {}
     for set_name, entry in INPUT_SETS.items():
         if set_name not in given:
             continue
@@ -265,7 +279,23 @@ def _resolve_vasp(
             if getattr(config, entry.required_code) is None:
                 continue
         input_sets[set_name] = _resolve_kpoints(
-            set_name, given[set_name], config, cells, init
+            set_name, given[set_name], config, cells, init, grg_blocks
+        )
+    for cell_name, blocks in grg_blocks.items():
+        if len(blocks) == 1:
+            subject = f"The k-point mesh of {blocks[0]} is a generalized regular grid"
+        else:
+            subject = (
+                f"The k-point meshes of {', '.join(blocks)} are generalized regular "
+                "grids"
+            )
+        click.echo(
+            textwrap.fill(
+                f"{subject}, because a regular mesh breaks the symmetry of the "
+                f"{cell_name}.",
+                width=80,
+                break_on_hyphens=False,
+            )
         )
     return dataclasses.replace(config.vasp, input_sets=input_sets or None)
 
@@ -276,6 +306,7 @@ def _resolve_kpoints(
     config: VelphConfig,
     cells: InitCells,
     init: InitSection,
+    grg_blocks: dict[str, list[str]],
 ) -> InputSetSection:
     """Return input_set with the meshes of its k-point blocks.
 
@@ -283,6 +314,15 @@ def _resolve_kpoints(
     kspacing given in the block, else the mesh of kspacing (kpoints) or
     kspacing_dense (kpoints_dense) of [init].  It is computed on the cell of the
     input set (INPUT_SETS), with use_grg of [init] except on the supercells.
+
+    Without use_grg, the mesh of a block is a regular mesh.  When the regular
+    mesh breaks the symmetry of the cell, as in a primitive cell of a
+    body-centred lattice, kspacing_to_mesh returns a generalized regular grid
+    instead, and the user is told about it.  This function does not show that
+    message.  It appends the name of the block, such as [vasp.nac.kpoints], to
+    grg_blocks under the name of the cell, such as "primitive cell".
+    _resolve_vasp shows one message for each cell, and the message lists all
+    the blocks of that cell.
 
     """
     entry = INPUT_SETS[set_name]
@@ -310,10 +350,7 @@ def _resolve_kpoints(
                 f"symmetry of the {cell_name} ({e})"
             ) from e
         if not use_grg and isinstance(mesh[0], list):
-            click.echo(
-                f"The k-point mesh of {where} is a generalized regular grid, "
-                f"because a regular mesh breaks the symmetry of the {cell_name}."
-            )
+            grg_blocks.setdefault(cell_name, []).append(where)
         meshes[block] = KpointsMesh(mesh=_tuple_mesh(mesh), shift=shift)
     return dataclasses.replace(input_set, **meshes)
 

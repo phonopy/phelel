@@ -10,8 +10,10 @@ from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture, get_primitive
 
-from phelel.file_IO import write_phelel_params_hdf5
+import phelel
+from phelel.file_IO import read_phelel_params_hdf5, write_phelel_params_hdf5
 
+cwd = pathlib.Path(__file__).parent
 cwd_called = pathlib.Path.cwd()
 
 
@@ -132,3 +134,28 @@ def test_write_phelel_params_hdf5_spacegroup_number():
             assert "spacegroup_number" in f
             assert "magnetic_spacegroup_uni_number" not in f
         file_path.unlink()
+
+
+def test_read_phelel_params_hdf5_without_force_constants(tmp_path):
+    """A file without force constants is read, and None is returned for them.
+
+    write_phelel_params_hdf5 does not write force constants when they are None.
+    Such a file is made by removing them from a file written by save_hdf5.
+
+    """
+    dirname = cwd / "interface" / "vasp"
+    phe = phelel.load(
+        dirname / "phelel_disp_C111.yaml",
+        dir_names=[dirname / "C111_disp-000", dirname / "C111_disp-001"],
+        fft_mesh=[1, 1, 1],
+        is_nac=False,
+    )
+    filename = tmp_path / "phelel_params.hdf5"
+    phe.save_hdf5(filename=filename)
+    with h5py.File(filename, "r+") as f:
+        del f["force_constants"]
+
+    dVdu, _, fft_mesh, fc = read_phelel_params_hdf5(filename)
+    assert fc is None
+    np.testing.assert_array_equal(fft_mesh, [1, 1, 1])
+    assert dVdu.dVdu is not None

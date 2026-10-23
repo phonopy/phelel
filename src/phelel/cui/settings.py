@@ -18,7 +18,6 @@ class PhelelSettings(Settings):
         self.create_derivatives = None
         self.fft_mesh_numbers = None
         self.finufft_eps = None
-        self.grid_points = None
         self.phonon_supercell_matrix = None
         self.subtract_rfs = False
 
@@ -100,7 +99,7 @@ class PhelelConfParser(ConfParser):
                     )
 
             if conf_key == "finufft_eps":
-                self._set_parameter("finufft_eps", confs["finufft_eps"])
+                self._set_parameter("finufft_eps", float(confs["finufft_eps"]))
 
             if conf_key == "subtract_rfs":
                 if confs["subtract_rfs"] == ".true.":

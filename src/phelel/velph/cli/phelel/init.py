@@ -53,6 +53,9 @@ def run_init(
         is_plusminus=section.plusminus,
         is_diagonal=section.diagonal,
     )
+    assert phe.supercells_with_displacements is not None
+    click.echo(f"Displacement distance: {section.amplitude}")
+    click.echo(f"Number of displacements: {len(phe.supercells_with_displacements)}")
     if ph_phonon is not None:
         # generate_phelel_supercells also generates phonon displacements, which
         # are replaced by those of phonopy.

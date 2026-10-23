@@ -21,6 +21,7 @@ from phelel.velph.config.schema import (
     LinePath,
     MaxNumAtoms,
     SupercellDimension,
+    SupercellMatrix,
     VelphConfig,
 )
 from phelel.velph.config.toml_writer import write_velph_toml
@@ -46,6 +47,21 @@ def _input_set_names(config: VelphConfig) -> list[str]:
 def _kpoints(config: VelphConfig, set_name: str, block: str = "kpoints") -> Any:
     assert config.vasp is not None and config.vasp.input_sets is not None
     return getattr(config.vasp.input_sets[set_name], block)
+
+
+def test_build_shows_supercell(nacl_cell: PhonopyAtoms, capsys: pytest.CaptureFixture):
+    """The number of atoms and the supercell matrix of each code are shown.
+
+    The unit cell has 8 atoms, and the determinant of the matrix is 16.
+
+    """
+    _build(nacl_cell, supercell=SupercellMatrix(((0, 2, 2), (2, 0, 2), (2, 2, 0))))
+    out = capsys.readouterr().out
+    for code in ("phelel", "phonopy", "phono3py"):
+        assert (
+            f"Supercell of [{code}]: 128 atoms, supercell matrix "
+            "[[0, 2, 2], [2, 0, 2], [2, 2, 0]]."
+        ) in out
 
 
 def test_build_without_supercell(
@@ -395,11 +411,19 @@ def test_build_grg_of_body_centred_lattice(
     grg = KpointsMesh(mesh=((0, 4, 4), (4, 0, 4), (2, 2, 0)))
     assert _kpoints(config, "relax") == grg
     assert _kpoints(config, "nac") == grg
-    out = capsys.readouterr().out
+    # The messages are wrapped, and the blocks of a cell are in one message.
+    out = " ".join(capsys.readouterr().out.split())
     assert (
         "The k-point mesh of [vasp.relax.kpoints] is a generalized regular grid, "
         "because a regular mesh breaks the symmetry of the unit cell."
     ) in out
+    assert (
+        "The k-point meshes of [vasp.nac.kpoints], [vasp.el_bands.kpoints], "
+        "[vasp.el_dos.kpoints], [vasp.el_dos.kpoints_dense] are generalized "
+        "regular grids, because a regular mesh breaks the symmetry of the "
+        "primitive cell."
+    ) in out
+    assert out.count("breaks the symmetry of the primitive cell.") == 1
 
 
 def test_build_broken_grid_symmetry(tio2_prim_cell: PhonopyAtoms):
