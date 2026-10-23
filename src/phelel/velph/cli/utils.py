@@ -39,7 +39,10 @@ def write_jobs(jobs: Sequence[VaspJob]) -> None:
 
     """
     if "POTCAR" not in jobs[0].copied_files:
-        click.echo('"POTCAR" not found in current directory.')
+        click.echo(
+            '"POTCAR" was not found in the current directory, so the VASP input '
+            "files are written without POTCAR."
+        )
     for job in jobs:
         write_vasp_job(job)
         if job.poscar_source is not None:

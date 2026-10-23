@@ -269,6 +269,35 @@ def test_dumps_format(nacl_cell: PhonopyAtoms):
     assert max(len(line) for line in text.split("\n") if "temps" not in line) <= 88
 
 
+def test_dumps_blocks(nacl_cell: PhonopyAtoms):
+    """A blank line is written only before a block.
+
+    [vasp.relax] with its incar and kpoints is one block.  [vasp.phelel.incar]
+    and [vasp.phelel.kpoints] are one block, although [vasp.phelel] has no
+    header.  [unitcell] with its points is one block.
+
+    """
+    text = _velph_toml_text(nacl_cell)
+    for header in ("[vasp.relax]", "[vasp.phelel.incar]", "[unitcell]"):
+        assert f"\n\n{header}\n" in text
+    for header in (
+        "[vasp.relax.incar]",
+        "[vasp.phelel.kpoints]",
+        "[[unitcell.points]]",
+    ):
+        assert f"\n{header}" in text
+        assert f"\n\n{header}" not in text
+
+
+def test_dumps_negative_zero(nacl_cell: PhonopyAtoms):
+    """-0.0 in the basis vectors is written as 0.0."""
+    cell = nacl_cell.copy()
+    cell.cell = [[5.69, -0.0, -0.0], [0.0, 5.69, -0.0], [0.0, 0.0, 5.69]]
+    text = _velph_toml_text(cell)
+    assert "[5.69, 0.0, 0.0]," in text
+    assert "-0.0" not in text
+
+
 def test_dumps_long_element(nacl_cell: PhonopyAtoms):
     """A list with an element longer than the line width is written per line.
 

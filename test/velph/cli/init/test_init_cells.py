@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import pathlib
+from fractions import Fraction
 from typing import Any
 
 import click
@@ -99,7 +100,8 @@ def test_make_cells(
     if find_primitive:
         helper_methods.compare_cells(cells.primitive, get_primitive(nacl_cell, "F"))
         assert cells.symmetry.primitive_matrix is not None
-        np.testing.assert_allclose(cells.symmetry.primitive_matrix, _F_MATRIX)
+        pmat = np.array(cells.symmetry.primitive_matrix)
+        np.testing.assert_array_equal(pmat, _F_MATRIX)
     else:
         helper_methods.compare_cells(cells.primitive, nacl_cell)
         assert cells.symmetry.primitive_matrix is None
@@ -213,6 +215,11 @@ def test_make_cells_primitive_matrix(
     assert cells.symmetry.primitive_matrix is not None
     pmat = np.array(cells.symmetry.primitive_matrix)
     assert not np.allclose(pmat, pmat.T)
+    # Each element is the float nearest to a fraction such as 1/3, without the
+    # rounding errors of the inverse of the lattice vectors.
+    for x in cells.symmetry.primitive_matrix:
+        for y in x:
+            assert y == float(Fraction(y).limit_denominator(12))
     primitive = get_primitive(cells.unitcell, pmat)
     np.testing.assert_allclose(primitive.cell, cells.primitive.cell, atol=1e-8)
 

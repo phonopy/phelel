@@ -145,7 +145,12 @@ _BARE_KEY = re.compile(r"^[A-Za-z0-9_-]+$")
 _LINE_WIDTH = 80
 
 
-def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> None:
+def _emit_table(
+    lines: list[str],
+    path: list[str],
+    table: Mapping[str, Any],
+    block_depth: int = 1,
+) -> None:
     """Append the TOML lines of table to lines.
 
     In TOML, a table is a set of key = value lines under a header, such as
@@ -158,12 +163,15 @@ def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> 
         [phelel]
         supercell_dimension = [2, 2, 2]
 
+        [vasp.relax]
+        cell = "unitcell"
         [vasp.relax.incar]
         encut = 500
 
+        [unitcell]
+        lattice = [...]
         [[unitcell.points]]
         symbol = "Na"
-
         [[unitcell.points]]
         symbol = "Cl"
 
@@ -222,6 +230,12 @@ def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> 
         Table to write.  A value that is a Mapping is written as a table,
         and a non-empty list or tuple of Mappings is written as an array of
         tables.  Any other value is written as a key = value line.
+    block_depth : int
+        Length of the path of the table that starts a block (see Notes).  It
+        is 1 when the block starts at a table in root, such as [phelel], and
+        2 when it starts at a table in [vasp], such as [vasp.relax].  The call
+        for root decides it for each table in root, and the calls for the
+        tables inside receive the same value.
 
     Notes
     -----
@@ -248,6 +262,18 @@ def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> 
     without its own header.  TOML makes the table [vasp] from the header
     [vasp.relax] of the table inside it.
 
+    The lines are grouped in blocks, and a blank line is written only before
+    a block.  Most blocks are a table in root with the tables inside it.  For
+    example, [unitcell] and its [[unitcell.points]] are one block.  [vasp]
+    holds only tables, so each table in it starts a block instead.  For
+    example, [vasp.relax], [vasp.relax.incar] and [vasp.relax.kpoints] are
+    one block.
+
+    The blocks cannot be found from the headers.  [vasp.phelel] holds only
+    tables, so its header is not written, but [vasp.phelel.incar] and
+    [vasp.phelel.kpoints] still have to be one block.  So the block is decided
+    by the length of the path, which block_depth gives.
+
     The elements of an array of tables are written by _key_value_lines.
     A table inside an element is written as an invalid line such as
     "extra = a = 1", and write_velph_toml stops with TOMLDecodeError when it
@@ -259,16 +285,18 @@ def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> 
     values = {k: v for k, v in table.items() if not _is_table(v) and not _is_tables(v)}
     tables = {k: v for k, v in table.items() if _is_table(v)}
     arrays = {k: v for k, v in table.items() if _is_tables(v)}
-    if path and (values or not (tables or arrays)):
+    if len(path) == block_depth:
         _blank_line(lines)
+    if path and (values or not (tables or arrays)):
         lines.append(f"[{_dotted(path)}]")
     for key, value in values.items():
         lines += _key_value_lines(key, value)
     for key, sub_table in tables.items():
-        _emit_table(lines, path + [key], sub_table)
+        if not path:
+            block_depth = 2 if _holds_only_tables(sub_table) else 1
+        _emit_table(lines, path + [key], sub_table, block_depth)
     for key, items in arrays.items():
         for i, item in enumerate(items):
-            _blank_line(lines)
             lines.append(f"[[{_dotted(path + [key])}]]  # {i + 1}")
             for item_key, item_value in item.items():
                 lines += _key_value_lines(item_key, item_value)
@@ -277,6 +305,10 @@ def _emit_table(lines: list[str], path: list[str], table: Mapping[str, Any]) -> 
 def _blank_line(lines: list[str]) -> None:
     if lines and lines[-1] != "":
         lines.append("")
+
+
+def _holds_only_tables(table: Mapping[str, Any]) -> bool:
+    return bool(table) and all(_is_table(v) for v in table.values())
 
 
 def _is_table(value: Any) -> bool:
@@ -403,7 +435,15 @@ def _inline(value: Any) -> str:
 
 
 def _scalar(value: Any) -> str:
-    """Return the TOML text of a scalar, using tomli_w."""
+    """Return the TOML text of a scalar, using tomli_w.
+
+    -0.0 is written as 0.0.  It equals 0.0, and it comes, for example, from a
+    POSCAR whose basis vectors have -0.0000000000000000 or from a rounded
+    element of a matrix.
+
+    """
+    if isinstance(value, float) and value == 0.0:
+        value = 0.0
     text = tomli_w.dumps({"x": value}, multiline_strings=True)
     return text[len("x = ") :].rstrip("\n")
 
