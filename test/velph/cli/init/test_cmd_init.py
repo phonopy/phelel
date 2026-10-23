@@ -248,6 +248,17 @@ def test_init_potcar(in_tmp_path: pathlib.Path):
     assert (in_tmp_path / "proj" / "POTCAR").read_text() == potcar
 
 
+def test_init_without_potcar(in_tmp_path: pathlib.Path):
+    """Without POTCAR in the current directory, it is told that none is copied."""
+    result = _velph_init("POSCAR_NaCl", "proj")
+    assert result.exit_code == 0, result.output
+    assert (
+        '"POTCAR" was not found in the current directory, so it was not copied to '
+        '"proj".'
+    ) in result.output
+    assert not (in_tmp_path / "proj" / "POTCAR").exists()
+
+
 def test_init_help_keys():
     """The help of each option gives its key of [init].
 

@@ -24,6 +24,10 @@
 - With `--dim-phonon` and without `--amplitude`, the phonon supercells are
   displaced by the same default distance as the supercells, 0.03 Angstrom for
   VASP. Before, they were displaced by 0.01 Angstrom.
+- `velph init` shows the number of atoms and the matrix of the supercell of
+  each code, and `velph phelel init` shows the number of displacements.
+  velph.toml is written without blank lines inside an input set or a cell,
+  and without -0.0.
 
 ## Oct-21-2026: Version 0.15.0
 

@@ -277,7 +277,7 @@ def _get_symmetry_section(
         spacegroup_type, uni_number = None, int(sym_dataset.uni_number)
     primitive_matrix = None
     if len(unitcell) != len(primitive):
-        pmat = (primitive.cell @ np.linalg.inv(unitcell.cell)).T
+        pmat = _get_primitive_matrix(unitcell, primitive)
         primitive_matrix = tuple(tuple(float(x) for x in row) for row in pmat)
     return SymmetrySection(
         tolerance=tolerance,
@@ -285,6 +285,33 @@ def _get_symmetry_section(
         uni_number=uni_number,
         primitive_matrix=primitive_matrix,  # type: ignore[arg-type]
     )
+
+
+def _get_primitive_matrix(unitcell: PhonopyAtoms, primitive: PhonopyAtoms) -> NDArray:
+    """Return the transformation matrix from unitcell to primitive.
+
+    The matrix computed from the lattice vectors has rounding errors, such as
+    0.49999999999999994 for 1/2.  This function removes them.
+
+    The lattice of unitcell is a superlattice of that of primitive, so the
+    inverse of the matrix is an integer matrix.  The function rounds that
+    inverse to integers.  It then inverts the integer matrix as its adjugate
+    divided by its determinant.  Both are integers, so each element of the
+    result is the float nearest to a fraction, such as 0.5 or
+    0.3333333333333333.
+
+    When the inverse is not close to an integer matrix, the matrix computed
+    from the lattice vectors is returned.
+
+    """
+    pmat = (primitive.cell @ np.linalg.inv(unitcell.cell)).T
+    inv_pmat = np.linalg.inv(pmat)
+    int_inv_pmat = np.rint(inv_pmat)
+    if not np.allclose(inv_pmat, int_inv_pmat, atol=1e-5):
+        return pmat
+    det = np.rint(np.linalg.det(int_inv_pmat))
+    adjugate = np.rint(np.linalg.inv(int_inv_pmat) * det)
+    return adjugate / det
 
 
 def _echo_if_point_group_lowered(

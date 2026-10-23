@@ -443,6 +443,11 @@ def cmd_init(
         if not (project_folder_path / "POTCAR").exists():
             shutil.copy2(pathlib.Path("POTCAR"), project_folder_path / "POTCAR")
             click.echo(f'"POTCAR" was copied to "{project_folder}/POTCAR".')
+    elif not (project_folder_path / "POTCAR").exists():
+        click.echo(
+            '"POTCAR" was not found in the current directory, so it was not copied '
+            f'to "{project_folder}".'
+        )
 
 
 def _init_section(options: dict[str, Any]) -> InitSection:

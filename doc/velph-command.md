@@ -97,6 +97,8 @@ POTCAR  nac/  velph.toml
 # Run NAC calculation
 ...
 % velph phelel init
+Displacement distance: 0.03
+Number of displacements: 4
 NAC parameters are read from "nac/vasprun.xml".
 "phelel/phelel_disp.yaml" was written.
 Run "velph phelel generate" to write the VASP input files.

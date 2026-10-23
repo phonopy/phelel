@@ -25,12 +25,10 @@ lattice = [
   [2.8451507380878356, 0.0, 2.8451507380878356],
   [2.8451507380878356, 2.8451507380878356, 0.0],
 ]
-
 [[primitive_cell.points]]  # 1
 symbol = "Na"
 coordinates = [0.0, 0.0, 0.0]
 mass = 22.98976928
-
 [[primitive_cell.points]]  # 2
 symbol = "Cl"
 coordinates = [0.5, 0.5, 0.5]
