@@ -99,7 +99,7 @@ If `velph.toml` has one of them, the `velph` subcommands stop with an error.
 
 ```toml
 [velph]
-version = "0.15.0"
+version = "0.16.0"
 ```
 
 `version` is the version of phelel that wrote the file. A `velph.toml` without

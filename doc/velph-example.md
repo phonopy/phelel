@@ -133,7 +133,7 @@ A directory `relax` is created and `velph.toml` is stored in it.
 `relax/velph.toml`,
 ```toml
 [velph]
-version = "0.15.0"
+version = "0.16.0"
 
 [phelel]
 supercell_dimension = [2, 2, 2]
