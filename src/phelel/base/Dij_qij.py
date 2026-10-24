@@ -10,17 +10,16 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import compute_all_sg_permutations
 from phonopy.structure.symmetry import Symmetry
 
-from phelel.base.local_potential import (
+from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.symmetrization import (
     collect_site_symmetry_operations,
     get_displacements_with_rotations,
-    rotate_delta_vals_in_spin_space,
-)
-from phelel.base.magnetic_symmetry import (
-    apply_time_reversal_in_spin_space,
-    check_magnetic_moments,
-    get_time_reversals,
 )
 from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
+from phelel.utils.spinor import (
+    apply_time_reversal_in_spin_space,
+    rotate_delta_vals_in_spin_space,
+)
 
 
 class DeltaDijQij:

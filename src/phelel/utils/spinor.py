@@ -1,10 +1,11 @@
-"""Routines to handle spinor rotation."""
+"""Routines to handle spinors: rotation and time reversal in spin space."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 
 from phelel.utils.spherical_harmonics import get_n_and_rotation_order
 
@@ -167,3 +168,83 @@ class SpinorRotationMatrices:
         sn = n[0] * self._sx + n[1] * self._sy + n[2] * self._sz
         w, U = np.linalg.eigh(sn)
         self._d = (U * np.exp(-1j * w * self._alpha)) @ U.T.conj()
+
+
+def rotate_delta_vals_in_spin_space(
+    delta_vals_rotated: list[NDArray], r: NDArray, lattice: NDArray
+) -> list[NDArray]:
+    r"""Take linear combination of delta vals with spin rotation matrix.
+
+    In this method A B A^+ is computed, where A is the 2x2 rotation matrix of
+    spin space and B is ``delta_vals_rotated``. What is computed is more
+    precisely,
+
+    \sum_{i_s1, i_s2} A_{i_sp, i_s1} B_{i_s1, i_s2} (A^+)_{i_s2, i_s}
+
+    The data order of ``delta_vals_rotated`` is as follows. This method is
+    performed on when ncdij=4. This 4 corresponds to 2x2 matrix in spinor
+    representation. In VASP covention, the data order is defined as
+
+    cdij=[1, 2, 3, 4] -> [11, 12, 21, 22].
+
+    SpinorRotationMatrices.Delta is a 2x2 numpy array.
+
+    Parameters
+    ----------
+    delta_vals_rotated : list[NDArray]
+        Rotated delta local potential or delta-Dijqij.
+    lattice : ndarray.
+        Basis vectors of supercell in column vectors.
+        shape=(3, 3)
+    r : ndarray
+        Rotation matrix wrt basis vectors (not Cartesian).
+        shape=(3, 3).
+
+    """
+    srm = SpinorRotationMatrices(r, lattice).run()
+    assert srm.Delta.shape == (2, 2)
+
+    delta_vals_spinor_rotated = [np.zeros_like(delta_vals_rotated[0]) for _ in range(4)]
+    for i_sp in (0, 1):
+        for i_s in (0, 1):
+            for i_s1 in (0, 1):
+                for i_s2 in (0, 1):
+                    d_d = srm.Delta[i_sp, i_s1] * srm.Delta.T.conj()[i_s2, i_s]
+                    delta_vals_spinor_rotated[i_sp * 2 + i_s] += (
+                        d_d * delta_vals_rotated[i_s1 * 2 + i_s2]
+                    )
+    return delta_vals_spinor_rotated
+
+
+def apply_time_reversal_in_spin_space(delta_vals: list[NDArray]) -> list[NDArray]:
+    r"""Apply time reversal to delta vals.
+
+    Time reversal is :math:`\Theta = i\sigma_y K`. For ncdij=4, the 2x2 matrix
+    in spinor representation transforms as
+    :math:`B \rightarrow \sigma_y B^* \sigma_y`, i.e., with the data order
+    [11, 12, 21, 22],
+
+    [B11, B12, B21, B22] -> [B22^*, -B21^*, -B12^*, B11^*].
+
+    This keeps the scalar part and flips the sign of the magnetic part. For
+    ncdij=2, spin up and down are exchanged. For ncdij=1, only the complex
+    conjugate is taken.
+
+    Parameters
+    ----------
+    delta_vals : list[NDArray]
+        Delta local potential or delta-Dijqij, in real space and in a real
+        basis, after spatial and spin rotations.
+
+    """
+    ncdij = len(delta_vals)
+    if ncdij == 4:
+        return [
+            delta_vals[3].conj(),
+            -delta_vals[2].conj(),
+            -delta_vals[1].conj(),
+            delta_vals[0].conj(),
+        ]
+    if ncdij == 2:
+        return [delta_vals[1].conj(), delta_vals[0].conj()]
+    return [delta_vals[0].conj()]

@@ -12,14 +12,13 @@ from phelel.base.Dij_qij import DDijQijFit, DeltaDijQij
 from phelel.base.local_potential import (
     DeltaLocalPotential,
     LocalPotentialInterpolationNUFFT,
+)
+from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
+from phelel.utils.spinor import (
+    apply_time_reversal_in_spin_space,
     rotate_delta_vals_in_spin_space,
 )
-from phelel.base.magnetic_symmetry import (
-    apply_time_reversal_in_spin_space,
-    check_magnetic_moments,
-    get_time_reversals,
-)
-from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 
 pauli = np.array(
     [[[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]], dtype=complex

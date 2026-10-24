@@ -5,10 +5,6 @@ from __future__ import annotations
 import os
 import textwrap
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from phelel.base.Dij_qij import DeltaDijQij
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,17 +12,19 @@ from phonopy.interface.vasp import get_vasp_structure_lines
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import SNF3x3, determinant, get_supercell
 from phonopy.structure.symmetry import Symmetry
-from phonopy.utils import similarity_transformation
 
-from phelel.base.magnetic_symmetry import (
-    apply_time_reversal_in_spin_space,
-    check_magnetic_moments,
-    get_time_reversals,
+from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.symmetrization import (
+    collect_site_symmetry_operations,
+    get_displacements_with_rotations,
 )
 from phelel.interface.vasp.file_IO import get_CHGCAR
 from phelel.utils.data import real2cmplx
 from phelel.utils.lattice_points import get_lattice_points
-from phelel.utils.spinor import SpinorRotationMatrices
+from phelel.utils.spinor import (
+    apply_time_reversal_in_spin_space,
+    rotate_delta_vals_in_spin_space,
+)
 
 
 class DeltaLocalPotential:
@@ -867,130 +865,6 @@ def visualize_distribution(
         w.write(locpot)
 
     return multiplicity
-
-
-def collect_site_symmetry_operations(
-    disp_atom: int, symmetry: Symmetry
-) -> tuple[NDArray, NDArray]:
-    """Collect site symmetry operations.
-
-    Collect symmetry operations from a diplaced atom to symmetrically
-    equivalent atoms. When the symmetrically equivalent atom is the
-    displaced atom, those operations are the site-symmetry
-    operations. In the other cases, those operations are bound for
-    each symmetrically equivalent atom.
-
-    Returns
-    -------
-    sitesym_sets : ndarray
-        Sets of indices of symmetry operations. Each set contains symmetry
-        operations that send the displaced atom to specific one of equivalent
-        atoms.
-        dtype='int64'
-        shape=(equiv_atoms, site_syms)
-    equiv_atoms : ndarray
-        Indices of symmetrically equivalent atoms
-        dtype='int64'
-        shape=(equiv_atoms,)
-
-    """
-    perms = symmetry.atomic_permutations[:, disp_atom]
-
-    # This gives something like [0, 0, 0, 0, 4, 4, 4, 4, ...].
-    map_to_indep_atoms = symmetry.get_map_atoms()
-    # This gives something like [0, 1, 2, 3] for disp_atom=0.
-    equiv_atoms = np.array(
-        [
-            i
-            for i, x in enumerate(map_to_indep_atoms)
-            if map_to_indep_atoms[disp_atom] == x
-        ],
-        dtype="int64",
-    )
-    ops_sets = []
-    for i_atom in equiv_atoms:
-        isyms = np.where(perms == i_atom)[0]
-        if len(isyms) > 0:
-            ops_sets.append(isyms)
-
-    return np.array(ops_sets, dtype="int64", order="C"), equiv_atoms
-
-
-def get_displacements_with_rotations(
-    rotations: NDArray,
-    lattice: NDArray,
-    delta_vals: list[DeltaLocalPotential] | list[DeltaDijQij],
-) -> NDArray:
-    """Rotate displacements by site-symmetry actively.
-
-    Displacements are stored in the following order:
-
-        disps = []
-        for calc_disp_dir in disps_of_one_atoms:
-            for r in sitesym:
-                disps.append(dot(r, calc_disp_dir))
-
-    Returns
-    -------
-    disps : ndarray
-        shape=(calc_disp_dir * sitesyms, 3)
-
-    """
-    disps = np.zeros((len(rotations) * len(delta_vals), 3), dtype="double", order="C")
-    count = 0
-    for delta_V in delta_vals:
-        disp = delta_V.displacement["displacement"]
-        for r in rotations:
-            r_cart = similarity_transformation(lattice, r)
-            disps[count] = np.dot(r_cart, disp)
-            count += 1
-    return disps
-
-
-def rotate_delta_vals_in_spin_space(
-    delta_vals_rotated: list[NDArray], r: NDArray, lattice: NDArray
-) -> list[NDArray]:
-    r"""Take linear combination of delta vals with spin rotation matrix.
-
-    In this method A B A^+ is computed, where A is the 2x2 rotation matrix of
-    spin space and B is ``delta_vals_rotated``. What is computed is more
-    precisely,
-
-    \sum_{i_s1, i_s2} A_{i_sp, i_s1} B_{i_s1, i_s2} (A^+)_{i_s2, i_s}
-
-    The data order of ``delta_vals_rotated`` is as follows. This method is
-    performed on when ncdij=4. This 4 corresponds to 2x2 matrix in spinor
-    representation. In VASP covention, the data order is defined as
-
-    cdij=[1, 2, 3, 4] -> [11, 12, 21, 22].
-
-    SpinorRotationMatrices.Delta is a 2x2 numpy array.
-
-    Parameters
-    ----------
-    delta_vals_rotated : list[NDArray]
-        Rotated delta local potential or delta-Dijqij.
-    lattice : ndarray.
-        Basis vectors of supercell in column vectors.
-        shape=(3, 3)
-    r : ndarray
-        Rotation matrix wrt basis vectors (not Cartesian).
-        shape=(3, 3).
-
-    """
-    srm = SpinorRotationMatrices(r, lattice).run()
-    assert srm.Delta.shape == (2, 2)
-
-    delta_vals_spinor_rotated = [np.zeros_like(delta_vals_rotated[0]) for _ in range(4)]
-    for i_sp in (0, 1):
-        for i_s in (0, 1):
-            for i_s1 in (0, 1):
-                for i_s2 in (0, 1):
-                    d_d = srm.Delta[i_sp, i_s1] * srm.Delta.T.conj()[i_s2, i_s]
-                    delta_vals_spinor_rotated[i_sp * 2 + i_s] += (
-                        d_d * delta_vals_rotated[i_s1 * 2 + i_s2]
-                    )
-    return delta_vals_spinor_rotated
 
 
 def get_grid_points(
