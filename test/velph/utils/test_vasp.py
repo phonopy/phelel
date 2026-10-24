@@ -14,7 +14,6 @@ from phelel.velph.config.schema import KpointsMesh, LinePath
 from phelel.velph.utils.fft_mesh import _cutoff_factor, _is_factorized_by_2357
 from phelel.velph.utils.vasp_input import (
     VaspPotcar,
-    expand_incar_value,
     write_incar,
     write_kpoints_line,
     write_kpoints_mesh,
@@ -327,16 +326,6 @@ def _get_str_of_write_incar(toml_str: str) -> str:
         filename = pathlib.Path(d) / "INCAR"
         write_incar(filename, tomllib.loads(toml_str))
         return filename.read_text()
-
-
-def test_expand_incar_value():
-    """Test to handle asterisk in INCAR value.
-
-    "3*1 0 0 0 3*2" -> [1., 1., 1., 0., 0., 0., 2., 2., 2.]
-
-    """
-    vals = expand_incar_value("3*1 0 0 0 3*2")
-    np.testing.assert_allclose(vals, [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0])
 
 
 def test_NGX_calculator():

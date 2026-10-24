@@ -2,6 +2,36 @@
 
 # Change Log
 
+## Unreleased
+
+- Bug fix: with magnetic moments in `phelel_disp.yaml`, the derivatives of the
+  local potential and of the PAW strengths were wrong. The symmetry operations
+  then act on the atomic positions and the magnetic moments, and some of them
+  are combined with time reversal. These operations were applied without time
+  reversal. In a ferromagnet with non-collinear magnetic moments, the magnetic
+  part of dV/du and dDij/du was averaged to zero. In a collinear
+  antiferromagnet, the spin up and spin down parts were exchanged in the
+  derivatives obtained by an operation that moves an up-spin atom onto a
+  down-spin atom. Without magnetic moments, the results are unchanged.
+  ([#288](https://github.com/phonopy/phelel/pull/288))
+- `phelel-init --magmom` is added. The magnetic moments are given as one value
+  per atom (collinear) or three values per atom (non-collinear), and they are
+  stored in `phelel_disp.yaml`. The form `n*value` of the MAGMOM tag of VASP
+  can be used, such as `"4*1 4*-1"`. See {ref}`phelel_command`.
+- Bug fix: `velph init --magmom` did not check its values. `2*` stopped with a
+  Python traceback, and `0*1` was read as no value. An invalid value now stops
+  `velph init` with an error.
+- `phelel --cd` stops with an error when the magnetic moments are not of the
+  same kind as the VASP calculation, for example one value per atom for a
+  non-collinear calculation. Before, the derivatives were computed with a
+  magnetic space group that did not fit the calculation.
+- `phelel --cd` shows a warning when no magnetic moments are given and the VASP
+  calculation is spin-polarized or non-collinear. Without magnetic moments, the
+  symmetry operations act on the atomic positions only, and the magnetic
+  moments are not included in them. When the magnetic moments are zero in the
+  VASP calculation, zeros are given by `phelel-init --magmom`, because the
+  default MAGMOM of VASP is not zero.
+
 ## Oct-23-2026: Version 0.16.0
 
 - phonopy 4.8.4 or later is required.

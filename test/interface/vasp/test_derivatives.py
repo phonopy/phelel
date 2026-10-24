@@ -13,6 +13,7 @@ from phonopy import Phonopy
 
 import phelel.interface.vasp.derivatives as derivatives
 from phelel import Phelel
+from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.interface.vasp.derivatives import (
     create_derivatives,
@@ -285,14 +286,33 @@ def test_read_files_C111_ncl():
 def test_create_derivatives_C111_ncl():
     """Test creating derivatives with non-collinear case of C-1x1x1.
 
-    Check force constants have the full matrix shape.
+    Check force constants have the full matrix shape. phelel_disp_C111.yaml
+    has no magnetic moments, so the non-collinear calculation gives a warning.
 
     """
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
     dir_names = [cwd / "C111-ncl_disp-000", cwd / "C111-ncl_disp-001"]
-    create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
+    with pytest.warns(MagneticMomentsWarning, match="ncdij=4"):
+        create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
     fc = phelel.force_constants
     assert fc.shape[0] == fc.shape[1]
+
+
+def test_create_derivatives_C111_ncl_with_collinear_magmoms():
+    """Collinear magnetic moments are rejected for the non-collinear case."""
+    phe_yml = PhelelYaml().read(cwd / "phelel_disp_C111.yaml")
+    unitcell = phe_yml.unitcell.copy()
+    unitcell.magnetic_moments = [1.0] * len(unitcell)
+    phelel = Phelel(
+        unitcell,
+        supercell_matrix=phe_yml.supercell_matrix,
+        primitive_matrix=phe_yml.primitive_matrix,
+        fft_mesh=[18, 18, 18],
+    )
+    phelel.dataset = phe_yml.dataset
+    dir_names = [cwd / "C111-ncl_disp-000", cwd / "C111-ncl_disp-001"]
+    with pytest.raises(MagneticMomentsError, match="ncdij=4"):
+        create_derivatives(phelel, dir_names, subtract_rfs=True)
 
 
 def test_run_derivatives_without_phonon_dataset_in_input():
