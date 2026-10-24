@@ -138,6 +138,16 @@ def _add_init_options(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--magmom",
+        nargs="+",
+        dest="magmoms",
+        default=None,
+        help=(
+            "Magnetic moments of atoms in unit cell, N values (collinear) or "
+            "3N values (non-collinear). Same as MAGMOM tag."
+        ),
+    )
+    parser.add_argument(
         "--nodiag",
         dest="is_nodiag",
         action="store_true",
@@ -225,6 +235,7 @@ def _reject_init_options(parser: argparse.ArgumentParser) -> None:
         (("-d", "--disp"), 0),
         (("--dim",), "+"),
         (("--dim-phonon",), "+"),
+        (("--magmom",), "+"),
         (("--nodiag",), 0),
         (("--pm",), 0),
     ]
