@@ -21,6 +21,12 @@
 - Bug fix: `velph init --magmom` did not check its values. `2*` stopped with a
   Python traceback, and `0*1` was read as no value. An invalid value now stops
   `velph init` with an error.
+- Bug fix: with zero magnetic moments, `velph init` and `velph convert` took a
+  primitive cell as a cell of several lattice points. The GR-grid was not used
+  for the k-point mesh, and for a primitive cell of a body-centred lattice,
+  `velph init` stopped with the error "Grid symmetry is broken." The operations
+  combined with time reversal, which zero magnetic moments add to the symmetry
+  operations, are no longer counted as lattice translations.
 - `phelel --cd` stops with an error when the magnetic moments are not of the
   same kind as the VASP calculation, for example one value per atom for a
   non-collinear calculation. Before, the derivatives were computed with a
