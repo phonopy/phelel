@@ -11,8 +11,10 @@ from phonopy.structure.cells import compute_all_sg_permutations
 from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.local_potential import (
+    apply_time_reversal_in_spin_space,
     collect_site_symmetry_operations,
     get_displacements_with_rotations,
+    get_time_reversals,
     rotate_delta_vals_in_spin_space,
 )
 from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
@@ -317,6 +319,7 @@ class DDijQijFit:
         lattice = self._supercell.cell.T
         rotations = self._symmetry.symmetry_operations["rotations"][sitesyms]
         translations = self._symmetry.symmetry_operations["translations"][sitesyms]
+        time_reversals = get_time_reversals(self._symmetry)[sitesyms]
         atomic_permutations = compute_all_sg_permutations(
             self._supercell.scaled_positions,
             rotations,
@@ -339,7 +342,9 @@ class DDijQijFit:
 
         count = 0
         for delta_Dij_qij in self._delta_Dij_qijs:
-            for r, perm in zip(rotations, atomic_permutations, strict=True):
+            for r, perm, tr in zip(
+                rotations, atomic_permutations, time_reversals, strict=True
+            ):
                 dDij_rotated, dqij_rotated = self._rotate_Dij_qij(
                     ncdij, delta_Dij_qij, perm, r
                 )
@@ -352,6 +357,9 @@ class DDijQijFit:
                     )
                     dDij_rotated = dDij_spinor_rotated
                     dqij_rotated = dqij_spinor_rotated
+                if tr:
+                    dDij_rotated = apply_time_reversal_in_spin_space(dDij_rotated)
+                    dqij_rotated = apply_time_reversal_in_spin_space(dqij_rotated)
                 for i_cdij in range(ncdij):
                     dDij_rotated_all[i_cdij, count] = dDij_rotated[i_cdij]
                     dqij_rotated_all[i_cdij, count] = dqij_rotated[i_cdij]
