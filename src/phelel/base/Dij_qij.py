@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import compute_all_sg_permutations
 from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
@@ -15,6 +15,7 @@ from phelel.base.symmetrization import (
     collect_site_symmetry_operations,
     get_displacements_with_rotations,
 )
+from phelel.exception import MagneticMomentsWarning
 from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
 from phelel.utils.spinor import (
     apply_time_reversal_in_spin_space,
@@ -321,16 +322,8 @@ class DDijQijFit:
 
         lattice = self._supercell.cell.T
         rotations = self._symmetry.symmetry_operations["rotations"][sitesyms]
-        translations = self._symmetry.symmetry_operations["translations"][sitesyms]
         time_reversals = get_time_reversals(self._symmetry)[sitesyms]
-        atomic_permutations = compute_all_sg_permutations(
-            self._supercell.scaled_positions,
-            rotations,
-            translations,
-            np.array(lattice, dtype="double", order="C"),
-            self._symmetry.tolerance,
-            self._supercell.permutation_types,
-        )
+        atomic_permutations = self._symmetry.atomic_permutations[sitesyms]
 
         disps = get_displacements_with_rotations(
             rotations, lattice, self._delta_Dij_qijs
@@ -377,69 +370,34 @@ class DDijQijFit:
     def _rotate_Dij_qij(
         self, ncdij: int, delta_Dij_qij: DeltaDijQij, perm: NDArray, r: NDArray
     ) -> tuple[list[NDArray], list[NDArray]]:
-        """Rotate Dij and qij.
+        """Rotate dDij and dqij by the symmetry operation g with rotation r.
 
-        This rotation is the direct product of rotations of atomic permutation
-        and atomic-like orbitals on atomic points. The displacements are rotated
-        actively (R), and atomic permutation and atomic-like orbitals are
-        rotated passively (R^-1).
+        dDij and dqij of each spin component are transformed by g in the space
+        of the atomic-like orbitals, g dDij g^-1, as written in
+        _rotate_Dij_in_orbital_space. The spin rotation for ncdij=4 and time
+        reversal are applied by the caller. The displacement u is rotated to
+        R u in get_displacements_with_rotations, so the result is dDij and dqij
+        of the displacement R u.
 
         """
-        rot_dDij = []
-        rot_dqij = []
-        for i_cdij in range(ncdij):
-            perm_inv = np.zeros_like(perm)
-            for j, k in enumerate(perm):
-                perm_inv[k] = j
-            _rot_dDij, _rot_dqij = self._get_inv_rotated_dDij_qij(
-                delta_Dij_qij, r, i_cdij
-            )
-            rot_dDij.append(_rot_dDij[perm_inv].ravel())
-            rot_dqij.append(_rot_dqij[perm_inv].ravel())
-        return rot_dDij, rot_dqij
-
-    def _get_inv_rotated_dDij_qij(
-        self, delta_Dij_qij: DeltaDijQij, r, i_spinor
-    ) -> tuple[NDArray, NDArray]:
-        """Inverse-rotate dDij and dqij."""
-        lattice = self._supercell.cell.T
-        shr = SHRotationMatrices(r, lattice, LxLyLzMatrices().run())
+        shr = SHRotationMatrices(r, self._supercell.cell.T, LxLyLzMatrices().run())
         shr.run()
-
-        rot_dDij = np.zeros_like(delta_Dij_qij.dDij[0])
-        rot_dqij = np.zeros_like(delta_Dij_qij.dqij[0])
-
-        # loop over atoms
-        for i, (dDij, dqij, lm_channels) in enumerate(
-            zip(
-                delta_Dij_qij.dDij[i_spinor],
-                delta_Dij_qij.dqij[i_spinor],
-                delta_Dij_qij.lm_channels,
-                strict=True,
+        assert shr.Delta is not None
+        lm_channels = delta_Dij_qij.lm_channels
+        rot_dDij: list[NDArray] = []
+        rot_dqij: list[NDArray] = []
+        for i_cdij in range(ncdij):
+            rot_dDij.append(
+                _rotate_Dij_in_orbital_space(
+                    delta_Dij_qij.dDij[i_cdij], lm_channels, shr.Delta, perm
+                ).ravel()
             )
-        ):
-            bigDelta = self._get_big_Delta(shr.Delta, lm_channels, dDij)
-            rot_dDij[i] = bigDelta @ dDij @ bigDelta.T.conj()
-            rot_dqij[i] = bigDelta @ dqij @ bigDelta.T.conj()
-
+            rot_dqij.append(
+                _rotate_Dij_in_orbital_space(
+                    delta_Dij_qij.dqij[i_cdij], lm_channels, shr.Delta, perm
+                ).ravel()
+            )
         return rot_dDij, rot_dqij
-
-    def _get_big_Delta(self, Delta, lm_channels, dDij) -> NDArray:
-        """Return orbital rotation matrix.
-
-        This matrix combines rotation matrices of different orbitals, and
-        is a unitary matrix.
-
-        """
-        bigDelta = np.zeros_like(dDij)
-        row = 0
-        if lm_channels["channels"] is None:
-            return bigDelta
-        for ll in lm_channels["channels"]:
-            n = ll["l"] * 2 + 1
-            bigDelta[row : (row + n), row : (row + n)] = Delta[ll["l"]]
-            row += n
-        return bigDelta
 
 
 class DDijQij:
@@ -624,6 +582,7 @@ class DDijQij:
                 'l', 'm' in each channel : l and list of m
 
         """
+        _check_Dij_symmetry(Dij_per, lm_channels, self._supercell, self.symmetry)
         if self.dDijdu is None:
             self._allocate_arrays(Dij_per.shape[0], Dij_per.shape[2])
 
@@ -669,3 +628,151 @@ class DDijQij:
         shape = (ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim)
         self._dDijdu = np.zeros(shape, dtype=dtype, order="C")
         self._dqijdu = np.zeros(shape, dtype=dtype, order="C")
+
+
+def _get_orbital_rotation_matrix(
+    Delta: list[NDArray], lm_channels: dict, lmdim: int
+) -> NDArray:
+    """Return the rotation matrix of the atomic-like orbitals of an atom.
+
+    This matrix combines the rotation matrices of the l channels of the atom,
+    and is a unitary matrix.
+
+    Parameters
+    ----------
+    Delta : list[NDArray]
+        Rotation matrices of real spherical harmonics for l = 0, 1, ...,
+        SHRotationMatrices.Delta.
+    lm_channels : dict
+        lm channels of the atom.
+    lmdim : int
+        Size of the matrix.
+
+    """
+    bigDelta = np.zeros((lmdim, lmdim), dtype="complex128")
+    row = 0
+    if lm_channels["channels"] is None:
+        return bigDelta
+    for ll in lm_channels["channels"]:
+        n = ll["l"] * 2 + 1
+        bigDelta[row : (row + n), row : (row + n)] = Delta[ll["l"]]
+        row += n
+    return bigDelta
+
+
+def _rotate_Dij_in_orbital_space(
+    Dij: NDArray, lm_channels: list[dict], Delta: list[NDArray], perm: NDArray
+) -> NDArray:
+    """Rotate Dij of all atoms of one spin component by a symmetry operation.
+
+    For the operation g = {R|t}, which moves atom i to atom perm[i], the result
+    is
+
+        Dij'[perm[i]] = Delta(R) Dij[i] Delta(R)^+,
+
+    where Delta(R) = <lm'|R|lm> is the matrix of the rotation R in the real
+    spherical harmonics of the atomic-like orbitals. This is Dij transformed by
+    g, g Dij g^-1, so Dij of a crystal that is invariant under g is unchanged.
+
+    Parameters
+    ----------
+    Dij : NDArray
+        Dij (or qij) of one spin component, shape=(natom, lmdim, lmdim).
+    lm_channels : list[dict]
+        lm channels of the atoms.
+    Delta : list[NDArray]
+        SHRotationMatrices.Delta of the rotation R of the operation, Delta(R)
+        for each l.
+    perm : NDArray
+        Atomic permutation of the operation. Atom i is moved to atom perm[i].
+
+    Returns
+    -------
+    NDArray
+        Rotated Dij, shape=(natom, lmdim, lmdim).
+
+    """
+    lmdim = Dij.shape[-1]
+    rot_Dij = np.zeros_like(Dij)
+    for i, (Dij_atom, lm_atom) in enumerate(zip(Dij, lm_channels, strict=True)):
+        bigDelta = _get_orbital_rotation_matrix(Delta, lm_atom, lmdim)
+        rot_Dij[i] = bigDelta @ Dij_atom @ bigDelta.T.conj()
+    perm_inv = np.zeros_like(perm)
+    perm_inv[perm] = np.arange(len(perm))
+    return rot_Dij[perm_inv]
+
+
+def _check_Dij_symmetry(
+    Dij: NDArray,
+    lm_channels: list[dict],
+    supercell: PhonopyAtoms,
+    symmetry: Symmetry,
+    tolerance: float = 1e-2,
+) -> None:
+    """Warn when a symmetry operation changes Dij of the perfect supercell.
+
+    Every symmetry operation, with its spin rotation for ncdij=4 and with time
+    reversal where the operation has it, should leave Dij of the perfect
+    supercell unchanged. When an operation changes Dij by more than tolerance
+    (in eV), the magnetic moments included in the symmetry operations do not
+    describe the magnetic state of the VASP calculation, and
+    MagneticMomentsWarning is issued. Nothing is checked for ncdij=1.
+
+    Parameters
+    ----------
+    Dij : NDArray
+        Dij of the perfect supercell, shape=(ncdij, natom, lmdim, lmdim).
+    lm_channels : list[dict]
+        lm channels of the atoms.
+    supercell : PhonopyAtoms
+        Perfect supercell.
+    symmetry : Symmetry
+        Symmetry of the supercell.
+    tolerance : float, optional
+        Largest change of Dij in eV that is accepted. Default is 1e-2.
+
+    """
+    ncdij = Dij.shape[0]
+    if ncdij == 1:
+        return
+    rotations = symmetry.symmetry_operations["rotations"]
+    lattice = np.array(supercell.cell.T, dtype="double", order="C")
+    perms = symmetry.atomic_permutations
+    lxlylz = LxLyLzMatrices().run()
+    Deltas: dict[bytes, list[NDArray]] = {}
+    deviations = []
+    for r, perm, tr in zip(rotations, perms, get_time_reversals(symmetry), strict=True):
+        key = r.tobytes()
+        if key not in Deltas:
+            shr = SHRotationMatrices(r, lattice, lxlylz)
+            shr.run()
+            assert shr.Delta is not None
+            Deltas[key] = shr.Delta
+        vals = [
+            _rotate_Dij_in_orbital_space(Dij[i], lm_channels, Deltas[key], perm)
+            for i in range(ncdij)
+        ]
+        if ncdij == 4:
+            vals = rotate_delta_vals_in_spin_space(vals, r, lattice)
+        if tr:
+            vals = apply_time_reversal_in_spin_space(vals)
+        deviations.append(
+            max(np.abs(v - Dij_s).max() for v, Dij_s in zip(vals, Dij, strict=True))
+        )
+    deviations_array = np.array(deviations)
+    n_changed = int((deviations_array > tolerance).sum())
+    if n_changed == 0:
+        return
+    warnings.warn(
+        "Every symmetry operation should leave the PAW strengths Dij of the "
+        f"perfect supercell unchanged, but {n_changed} of the {len(rotations)} "
+        f"operations change them by up to {deviations_array.max():.2g} eV "
+        f"(tolerance {tolerance:g} eV). The magnetic moments included in the "
+        "symmetry operations do not describe the magnetic state of the VASP "
+        f"calculation (ncdij={ncdij}), and the derivatives obtained with these "
+        "operations are wrong. The magnetic moments given by phelel-init "
+        "--magmom have to describe the magnetic state of the VASP calculation, "
+        "and the supercells have to be generated again with them.",
+        MagneticMomentsWarning,
+        stacklevel=1,
+    )
