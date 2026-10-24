@@ -31,6 +31,10 @@
   moments are not included in them. When the magnetic moments are zero in the
   VASP calculation, zeros are given by `phelel-init --magmom`, because the
   default MAGMOM of VASP is not zero.
+- `phelel --cd` applies every symmetry operation to the PAW strengths Dij of the
+  perfect supercell, and shows a warning when an operation changes Dij by more
+  than 0.01 eV. The magnetic moments included in the symmetry operations then
+  do not describe the magnetic state of the VASP calculation.
 
 ## Oct-23-2026: Version 0.16.0
 

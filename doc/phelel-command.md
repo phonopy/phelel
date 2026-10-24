@@ -142,6 +142,14 @@ also when all the values are zero. Otherwise `phelel --cd` stops with an
 error. When `--magmom` is not used and the VASP calculation is spin-polarized
 or non-collinear, `phelel --cd` shows a warning.
 
+`phelel --cd` also applies every symmetry operation to the PAW strengths Dij
+of the perfect supercell. Dij should be unchanged by every operation, and a
+warning is shown when an operation changes it by more than 0.01 eV. This
+happens when the magnetic moments included in the symmetry operations do not
+describe the magnetic state of the VASP calculation, for example when the sign
+or the direction of a magnetic moment differs from that in the VASP
+calculation, or when the VASP calculation converged to another magnetic state.
+
 ## Calculation of derivatives of potentials by `phelel`
 
 After running VASP calculations to calculate local potentials and PAW strengths
