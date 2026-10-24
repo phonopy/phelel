@@ -390,6 +390,7 @@ class LocalPotentialInterpolationNUFFT:
         sitesyms = self._sitesym_sets[self._i_atom]
         rotations = self._symmetry.symmetry_operations["rotations"][sitesyms]
         translations = self._symmetry.symmetry_operations["translations"][sitesyms]
+        time_reversals = get_time_reversals(self._symmetry)[sitesyms]
         lattice = self._supercell.cell.T
         disps = get_displacements_with_rotations(rotations, lattice, self._delta_Vs)
         disps_inv = np.linalg.pinv(disps)
@@ -403,7 +404,7 @@ class LocalPotentialInterpolationNUFFT:
         count = 0
         for delta_V in self._delta_Vs:
             dVs_iFT = [self._get_iFFT_of_dV(dV) for dV in delta_V.dV]
-            for r, t in zip(rotations, translations, strict=True):
+            for r, t, tr in zip(rotations, translations, time_reversals, strict=True):
                 dVs_rotated = self._rotate_dV(dVs_iFT, r, t)
                 if ncdij == 4:  # Need to rotate in spin space, too.
                     dVs_spinor_rotated = rotate_delta_vals_in_spin_space(
@@ -411,6 +412,8 @@ class LocalPotentialInterpolationNUFFT:
                     )
                     dVs_rotated.clear()
                     dVs_rotated = dVs_spinor_rotated
+                if tr:
+                    dVs_rotated = apply_time_reversal_in_spin_space(dVs_rotated)
                 for i_cdij in range(ncdij):
                     self._dVdu[i_cdij, self._i_atom] += np.outer(
                         disps_inv[:, count], dVs_rotated[i_cdij]
@@ -982,6 +985,57 @@ def rotate_delta_vals_in_spin_space(
                         d_d * delta_vals_rotated[i_s1 * 2 + i_s2]
                     )
     return delta_vals_spinor_rotated
+
+
+def get_time_reversals(symmetry: Symmetry) -> NDArray:
+    """Return time-reversal flags of symmetry operations.
+
+    With magnetic moments, phonopy's ``Symmetry`` holds the operations of the
+    magnetic space group, and some of them are combined with time reversal.
+    Without magnetic moments, no operation has time reversal.
+
+    """
+    n_ops = len(symmetry.symmetry_operations["rotations"])
+    time_reversals = getattr(symmetry.dataset, "time_reversals", None)
+    if time_reversals is None:
+        return np.zeros(n_ops, dtype=bool)
+    time_reversals = np.array(time_reversals, dtype=bool)
+    assert len(time_reversals) == n_ops
+    return time_reversals
+
+
+def apply_time_reversal_in_spin_space(delta_vals: list[NDArray]) -> list[NDArray]:
+    r"""Apply time reversal to delta vals.
+
+    Time reversal is :math:`\Theta = i\sigma_y K`. For ncdij=4, the 2x2 matrix
+    in spinor representation transforms as
+    :math:`B \rightarrow \sigma_y B^* \sigma_y`, i.e., with the data order
+    [11, 12, 21, 22],
+
+    [B11, B12, B21, B22] -> [B22^*, -B21^*, -B12^*, B11^*].
+
+    This keeps the scalar part and flips the sign of the magnetic part. For
+    ncdij=2, spin up and down are exchanged. For ncdij=1, only the complex
+    conjugate is taken.
+
+    Parameters
+    ----------
+    delta_vals : list[NDArray]
+        Delta local potential or delta-Dijqij, in real space and in a real
+        basis, after spatial and spin rotations.
+
+    """
+    ncdij = len(delta_vals)
+    if ncdij == 4:
+        return [
+            delta_vals[3].conj(),
+            -delta_vals[2].conj(),
+            -delta_vals[1].conj(),
+            delta_vals[0].conj(),
+        ]
+    if ncdij == 2:
+        return [delta_vals[1].conj(), delta_vals[0].conj()]
+    return [delta_vals[0].conj()]
 
 
 def get_grid_points(

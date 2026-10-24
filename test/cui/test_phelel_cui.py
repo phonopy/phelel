@@ -13,6 +13,7 @@ import pytest
 
 import phelel.cui.phelel_script as phelel_script
 from phelel import load
+from phelel.base.local_potential import get_time_reversals
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.phelel_script import main
 from phelel.interface.phelel_yaml import PhelelYaml
@@ -34,6 +35,7 @@ class MockArgs:
     is_displacement: bool = False
     is_plusminus_displacements: bool = False
     fft_mesh_numbers: str | None = None
+    magmoms: Sequence[str] | None = None
 
     def __iter__(self):
         """Make self iterable to support in."""
@@ -236,6 +238,53 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
             os.chdir(original_cwd)
 
 
+def test_phelel_script_create_displacements_with_magmom():
+    """Test phelel-init command for creating displacements with --magmom.
+
+    Magnetic moments are stored in phelel_disp.yaml, and the symmetry is
+    that of the magnetic space group, part of whose operations are combined
+    with time reversal.
+
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            cell_filename = str(dirname / "POSCAR-unitcell_C111")
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=cell_filename,
+                supercell_dimenstion="1 1 1",
+                is_displacement=True,
+                magmoms=["0", "0", "1"] * 8,
+            )
+
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 0
+
+            phe = load("phelel_disp.yaml")
+            assert phe.unitcell.magnetic_moments is not None
+            assert phe.unitcell.magnetic_moments.shape == (8, 3)
+            time_reversals = get_time_reversals(phe.symmetry)
+            assert time_reversals.any()
+            assert not time_reversals.all()
+
+            for created_filename in (
+                "phelel_disp.yaml",
+                "SPOSCAR",
+                "POSCAR-001",
+                "MAGMOM",
+            ):
+                pathlib.Path(created_filename).unlink()
+            _check_no_files()
+
+        finally:
+            os.chdir(original_cwd)
+
+
 @pytest.mark.parametrize("mode", ["init", "run"])
 def test_phelel_script_parser(mode: str, monkeypatch: pytest.MonkeyPatch):
     """Each command builds the parser of its mode."""
@@ -266,6 +315,7 @@ def test_phelel_script_parser(mode: str, monkeypatch: pytest.MonkeyPatch):
         ["--amplitude", "0.03"],
         ["--pm"],
         ["--nodiag"],
+        ["--magmom", "1", "-1"],
     ],
 )
 def test_phelel_parser_rejects_init_options(options: list[str], capsys):
@@ -601,6 +651,7 @@ def _get_argparse_control(
     fft_mesh_numbers: str | None = None,
     filename: Sequence[str] = (),
     conf_filename: str | None = None,
+    magmoms: Sequence[str] | None = None,
 ):
     # Mock of ArgumentParser.args.
     mockargs = MockArgs(
@@ -613,6 +664,7 @@ def _get_argparse_control(
         is_displacement=is_displacement,
         is_plusminus_displacements=is_plusminus_displacements,
         fft_mesh_numbers=fft_mesh_numbers,
+        magmoms=magmoms,
     )
     return {"args": mockargs, "mode": mode}
 

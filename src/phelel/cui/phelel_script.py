@@ -19,7 +19,11 @@ from phonopy.cui.phonopy_script import (
     print_version,
     store_nac_params,
 )
-from phonopy.exception import CellNotFoundError, NotPhonopyYamlError
+from phonopy.exception import (
+    CellNotFoundError,
+    MagmomValueError,
+    NotPhonopyYamlError,
+)
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import print_cell
 
@@ -174,6 +178,11 @@ def main(**argparse_control):
             print(
                 f'If "{args.filename[0]}" is a configuration file, give it by --config.'
             )
+        if log_level > 0:
+            print_error()
+        sys.exit(1)
+    except MagmomValueError as e:
+        print_error_message(str(e))
         if log_level > 0:
             print_error()
         sys.exit(1)
