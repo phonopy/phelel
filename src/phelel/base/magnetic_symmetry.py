@@ -87,37 +87,3 @@ def check_magnetic_moments(cell: PhonopyAtoms, ncdij: int) -> None:
             "calculation, give three values per atom by phelel-init --magmom, "
             "and generate the supercells again."
         )
-
-
-def apply_time_reversal_in_spin_space(delta_vals: list[NDArray]) -> list[NDArray]:
-    r"""Apply time reversal to delta vals.
-
-    Time reversal is :math:`\Theta = i\sigma_y K`. For ncdij=4, the 2x2 matrix
-    in spinor representation transforms as
-    :math:`B \rightarrow \sigma_y B^* \sigma_y`, i.e., with the data order
-    [11, 12, 21, 22],
-
-    [B11, B12, B21, B22] -> [B22^*, -B21^*, -B12^*, B11^*].
-
-    This keeps the scalar part and flips the sign of the magnetic part. For
-    ncdij=2, spin up and down are exchanged. For ncdij=1, only the complex
-    conjugate is taken.
-
-    Parameters
-    ----------
-    delta_vals : list[NDArray]
-        Delta local potential or delta-Dijqij, in real space and in a real
-        basis, after spatial and spin rotations.
-
-    """
-    ncdij = len(delta_vals)
-    if ncdij == 4:
-        return [
-            delta_vals[3].conj(),
-            -delta_vals[2].conj(),
-            -delta_vals[1].conj(),
-            delta_vals[0].conj(),
-        ]
-    if ncdij == 2:
-        return [delta_vals[1].conj(), delta_vals[0].conj()]
-    return [delta_vals[0].conj()]
