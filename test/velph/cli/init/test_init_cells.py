@@ -236,6 +236,13 @@ def test_make_cells_magmom(nacl_cell: PhonopyAtoms):
     assert cells.symmetry.uni_number is not None
 
 
+@pytest.mark.parametrize("magmom", ["2* 6*1", "a*1 7*1", "0*1 8*1"])
+def test_make_cells_invalid_magmom(nacl_cell: PhonopyAtoms, magmom: str):
+    """An invalid value of MAGMOM is an error."""
+    with pytest.raises(click.ClickException, match="Invalid MAGMOM value"):
+        _make_cells(nacl_cell, magmom=magmom)
+
+
 def _site_mixture_cell() -> PhonopyAtoms:
     """Return a CsCl-like cell with a co-located Ge/Sn site and a Te site."""
     return PhonopyAtoms(

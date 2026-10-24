@@ -11,11 +11,14 @@ from phonopy.structure.cells import compute_all_sg_permutations
 from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.local_potential import (
-    apply_time_reversal_in_spin_space,
     collect_site_symmetry_operations,
     get_displacements_with_rotations,
-    get_time_reversals,
     rotate_delta_vals_in_spin_space,
+)
+from phelel.base.magnetic_symmetry import (
+    apply_time_reversal_in_spin_space,
+    check_magnetic_moments,
+    get_time_reversals,
 )
 from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
 
@@ -273,6 +276,7 @@ class DDijQijFit:
         return text
 
     def _setup(self):
+        check_magnetic_moments(self._supercell, self._delta_Dij_qijs[0].dDij.shape[0])
         self._i_atom = 0
         disp_atom = self._delta_Dij_qijs[0].displacement["number"]
         sitesym_sets, equiv_atoms = collect_site_symmetry_operations(

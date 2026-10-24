@@ -5,17 +5,20 @@ from __future__ import annotations
 import os
 import pathlib
 import tempfile
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
 
 import h5py
+import numpy as np
 import pytest
 
 import phelel.cui.phelel_script as phelel_script
 from phelel import load
-from phelel.base.local_potential import get_time_reversals
+from phelel.base.magnetic_symmetry import get_time_reversals
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.phelel_script import main
+from phelel.exception import MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
 
 cwd = pathlib.Path(__file__).parent
@@ -283,6 +286,88 @@ def test_phelel_script_create_displacements_with_magmom():
 
         finally:
             os.chdir(original_cwd)
+
+
+def test_phelel_script_create_displacements_with_magmom_repeat():
+    """Test phelel-init with --magmom given in the n*value form."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=str(dirname / "POSCAR-unitcell_C111"),
+                supercell_dimenstion="1 1 1",
+                is_displacement=True,
+                magmoms=["4*1", "4*-1"],
+            )
+
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 0
+
+            phe = load("phelel_disp.yaml")
+            assert phe.unitcell.magnetic_moments is not None
+            np.testing.assert_allclose(
+                phe.unitcell.magnetic_moments, [1, 1, 1, 1, -1, -1, -1, -1]
+            )
+
+            for created_filename in (
+                "phelel_disp.yaml",
+                "SPOSCAR",
+                "MAGMOM",
+            ):
+                pathlib.Path(created_filename).unlink()
+            for created_path in pathlib.Path(".").glob("POSCAR-*"):
+                created_path.unlink()
+            _check_no_files()
+
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_phelel_script_rejects_invalid_magmom(capsys):
+    """An invalid --magmom value is an error, not a traceback."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=str(dirname / "POSCAR-unitcell_C111"),
+                supercell_dimenstion="1 1 1",
+                is_displacement=True,
+                magmoms=["2*", "6*1"],
+            )
+
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 1
+            assert 'Invalid MAGMOM value "2*"' in capsys.readouterr().out
+            _check_no_files()
+
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_phelel_script_shows_magnetic_moments_warning(
+    monkeypatch: pytest.MonkeyPatch, capsys
+):
+    """MagneticMomentsWarning is shown without the source file and line."""
+    monkeypatch.setattr(warnings, "showwarning", warnings.showwarning)
+    phelel_script._install_warning_formatter()
+    with warnings.catch_warnings():
+        warnings.simplefilter("always")
+        warnings.warn(
+            "Magnetic moments are not given.", MagneticMomentsWarning, stacklevel=1
+        )
+    out = capsys.readouterr().out
+    assert "WARNING: Magnetic moments are not given." in out
+    assert "test_phelel_cui.py" not in out
 
 
 @pytest.mark.parametrize("mode", ["init", "run"])

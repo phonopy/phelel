@@ -18,6 +18,11 @@ from phonopy.structure.cells import SNF3x3, determinant, get_supercell
 from phonopy.structure.symmetry import Symmetry
 from phonopy.utils import similarity_transformation
 
+from phelel.base.magnetic_symmetry import (
+    apply_time_reversal_in_spin_space,
+    check_magnetic_moments,
+    get_time_reversals,
+)
 from phelel.interface.vasp.file_IO import get_CHGCAR
 from phelel.utils.data import real2cmplx
 from phelel.utils.lattice_points import get_lattice_points
@@ -314,6 +319,7 @@ class LocalPotentialInterpolationNUFFT:
             can be set later.
 
         """
+        check_magnetic_moments(self._supercell, delta_Vs[0].dV.shape[0])
         self._delta_Vs = delta_Vs
         self._i_atom = 0
         disp_atom = self._delta_Vs[0].displacement["number"]
@@ -985,57 +991,6 @@ def rotate_delta_vals_in_spin_space(
                         d_d * delta_vals_rotated[i_s1 * 2 + i_s2]
                     )
     return delta_vals_spinor_rotated
-
-
-def get_time_reversals(symmetry: Symmetry) -> NDArray:
-    """Return time-reversal flags of symmetry operations.
-
-    With magnetic moments, phonopy's ``Symmetry`` holds the operations of the
-    magnetic space group, and some of them are combined with time reversal.
-    Without magnetic moments, no operation has time reversal.
-
-    """
-    n_ops = len(symmetry.symmetry_operations["rotations"])
-    time_reversals = getattr(symmetry.dataset, "time_reversals", None)
-    if time_reversals is None:
-        return np.zeros(n_ops, dtype=bool)
-    time_reversals = np.array(time_reversals, dtype=bool)
-    assert len(time_reversals) == n_ops
-    return time_reversals
-
-
-def apply_time_reversal_in_spin_space(delta_vals: list[NDArray]) -> list[NDArray]:
-    r"""Apply time reversal to delta vals.
-
-    Time reversal is :math:`\Theta = i\sigma_y K`. For ncdij=4, the 2x2 matrix
-    in spinor representation transforms as
-    :math:`B \rightarrow \sigma_y B^* \sigma_y`, i.e., with the data order
-    [11, 12, 21, 22],
-
-    [B11, B12, B21, B22] -> [B22^*, -B21^*, -B12^*, B11^*].
-
-    This keeps the scalar part and flips the sign of the magnetic part. For
-    ncdij=2, spin up and down are exchanged. For ncdij=1, only the complex
-    conjugate is taken.
-
-    Parameters
-    ----------
-    delta_vals : list[NDArray]
-        Delta local potential or delta-Dijqij, in real space and in a real
-        basis, after spatial and spin rotations.
-
-    """
-    ncdij = len(delta_vals)
-    if ncdij == 4:
-        return [
-            delta_vals[3].conj(),
-            -delta_vals[2].conj(),
-            -delta_vals[1].conj(),
-            delta_vals[0].conj(),
-        ]
-    if ncdij == 2:
-        return [delta_vals[1].conj(), delta_vals[0].conj()]
-    return [delta_vals[0].conj()]
 
 
 def get_grid_points(
