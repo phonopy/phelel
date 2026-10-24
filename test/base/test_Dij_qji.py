@@ -122,6 +122,10 @@ def _load_Dij_perfect(
         ("Fe", None, False),
         ("Fe", [3, -3], True),
         ("Fe", [0, 0], True),
+        ("Cr", "vasp", False),
+        ("Cr", None, True),
+        ("Cr", [2, 2], True),
+        ("Cr", [0, 0], True),
         ("Fe-ncl", "vasp", False),
         ("Fe-ncl", None, True),
         ("Fe-ncl", [[0, 0, 3], [0, 0, 3]], True),
@@ -138,8 +142,9 @@ def test_check_Dij_symmetry(
     """Dij of the perfect supercell is unchanged by fitting symmetry operations.
 
     Fe is ferromagnetic and collinear, so the symmetry operations without
-    magnetic moments also fit it. Fe-ncl has the magnetic moments along
-    (1, 1, 1). C-ncl is non-magnetic.
+    magnetic moments also fit it. Cr is antiferromagnetic and collinear, and
+    half of its symmetry operations are combined with time reversal. Fe-ncl
+    has the magnetic moments along (1, 1, 1). C-ncl is non-magnetic.
 
     """
     Dij, lm_channels, cell = _load_Dij_perfect(name, magmoms)
@@ -151,6 +156,25 @@ def test_check_Dij_symmetry(
         with warnings.catch_warnings():
             warnings.simplefilter("error", MagneticMomentsWarning)
             _check_Dij_symmetry(Dij, lm_channels, cell, symmetry)
+
+
+def test_check_Dij_symmetry_without_time_reversal(monkeypatch: pytest.MonkeyPatch):
+    """Dij of antiferromagnetic Cr is changed without time reversal.
+
+    The operations that move an atom onto the other atom are combined with
+    time reversal, which exchanges spin up and spin down. Without it, these
+    operations change Dij.
+
+    """
+    Dij, lm_channels, cell = _load_Dij_perfect("Cr", "vasp")
+    symmetry = Symmetry(cell)
+    n_ops = len(symmetry.symmetry_operations["rotations"])
+    monkeypatch.setattr(
+        "phelel.base.Dij_qij.get_time_reversals",
+        lambda symmetry: np.zeros(n_ops, dtype=bool),
+    )
+    with pytest.warns(MagneticMomentsWarning, match="PAW strengths Dij"):
+        _check_Dij_symmetry(Dij, lm_channels, cell, symmetry)
 
 
 def test_DDijQij_checks_Dij_symmetry():
