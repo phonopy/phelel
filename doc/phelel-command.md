@@ -179,6 +179,15 @@ options. Next, using these collected data, the derivatives of local potentials
 and PAW strengths with respect to displacement are calculated and stored in
 `phelel_params.hdf5`. `--cd` needs `--fft-mesh`.
 
+When every directory has `LOCAL-POTENTIAL.bin`, which VASP writes with
+`LWAP = .TRUE.`, the local potentials and the PAW strengths are read from
+`LOCAL-POTENTIAL.bin`, `PAW-STRENGTH.bin` and `PAW-OVERLAP.bin`, with
+`inwap.yaml`. Otherwise they are read from `vaspout.h5`. VASP 6.6.1 and older
+do not write the local potential correctly in `vaspout.h5` for ISPIN = 2 or
+LNONCOLLINEAR = .TRUE., and `phelel --cd` stops with an error when it would read
+such a local potential. Run VASP with `LWAP = .TRUE.` for these calculations.
+`velph init` writes `lwap = true` for the phelel calculations of these kinds.
+
 (phelel_fft_mesh_option)=
 ### `--fft-mesh`
 

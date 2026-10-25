@@ -266,18 +266,17 @@ def _get_number_of_displacements(dataset: dict) -> int:
     return len(dataset["displacements"])
 
 
-def _find_vaspout_h5(
-    dir_names: Sequence[str | os.PathLike],
+def _find_files(
+    dir_names: Sequence[str | os.PathLike], filename: str
 ) -> list[pathlib.Path] | None:
-    """Return the vaspout.h5 file of every directory.
+    """Return the file of filename, also compressed, of every directory.
 
-    None is returned when no directory has vaspout.h5, in which case the
-    files of the old format are read.  When only some of the directories have
-    vaspout.h5, the two formats are not mixed, because the data of a
+    None is returned when no directory has the file.  When only some of the
+    directories have it, the two formats are not mixed, because the data of a
     directory would then be paired with the displacement of another one.
 
     """
-    paths = [next(pathlib.Path(d).glob("vaspout.h5*"), None) for d in dir_names]
+    paths = [next(pathlib.Path(d).glob(f"{filename}*"), None) for d in dir_names]
     if all(path is not None for path in paths):
         return cast(list[pathlib.Path], paths)
     if all(path is None for path in paths):
@@ -286,10 +285,10 @@ def _find_vaspout_h5(
         f'"{d}"' for d, path in zip(dir_names, paths, strict=True) if path is None
     )
     raise RuntimeError(
-        "vaspout.h5 was found in some of the directories but not in "
+        f"{filename} was found in some of the directories but not in "
         f"{missing}.  All directories have to contain the results in the same "
-        "format: vaspout.h5, or LOCAL-POTENTIAL.bin, PAW-STRENGTH.bin and "
-        "PAW-OVERLAP.bin."
+        "format: LOCAL-POTENTIAL.bin, PAW-STRENGTH.bin and PAW-OVERLAP.bin, or "
+        "vaspout.h5."
     )
 
 
@@ -299,65 +298,84 @@ def _read_local_potentials(
     key: Literal["total", "xcmu"] = "total",
     log_level: int = 0,
 ) -> list[NDArray] | None:
+    """Read the local potentials.
+
+    LOCAL-POTENTIAL.bin, which VASP writes with LWAP = .TRUE. together with
+    vaspout.h5, is read in place of vaspout.h5, because VASP 6.6.1 and older do
+    not write the local potential correctly in vaspout.h5 for ISPIN = 2 or
+    LNONCOLLINEAR = .TRUE.
+
+    """
     loc_pots = []
-    vaspout_paths = _find_vaspout_h5(dir_names)
-    if vaspout_paths is not None:
-        for locpot_path in vaspout_paths:
-            try:
-                loc_pots.append(
-                    read_local_potential_vaspouth5(filename=locpot_path, key=key)
-                )
-            except KeyError:
-                return None
+    bin_paths = _find_files(dir_names, "LOCAL-POTENTIAL.bin")
+    if bin_paths is not None:
+        # Meta-GGA kinetic potential is not available.
+        if key == "xcmu":
+            return None
+        for locpot_path in bin_paths:
+            loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
             if log_level:
                 print(f'Local potential was read from "{locpot_path}".')
         return loc_pots
 
-    # Old way for LOCAL-POTENTIAL.bin.
-    # Meta-GGA kinetic potential is not available.
-    if key == "xcmu":
-        return None
-
-    for dir_name in dir_names:
+    vaspout_paths = _find_files(dir_names, "vaspout.h5")
+    if vaspout_paths is None:
+        raise RuntimeError(
+            f'Neither "LOCAL-POTENTIAL.bin" nor "vaspout.h5" was found in '
+            f'"{dir_names[0]}".'
+        )
+    for locpot_path in vaspout_paths:
         try:
-            locpot_path = next(pathlib.Path(dir_name).glob("LOCAL-POTENTIAL.bin*"))
-            loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
-        except StopIteration as e:
-            raise RuntimeError(
-                f'"LOCAL-POTENTIAL.bin" not found in "{dir_name}".'
-            ) from e
+            loc_pots.append(
+                read_local_potential_vaspouth5(filename=locpot_path, key=key)
+            )
+        except KeyError:
+            return None
+        if log_level:
+            print(f'Local potential was read from "{locpot_path}".')
     return loc_pots
 
 
 def _read_PAW_strength_and_overlap(
     dir_names, inwap_per, log_level=0
 ) -> tuple[list[NDArray], list[NDArray]]:
+    """Read the PAW strengths Dij and overlaps qij.
+
+    PAW-STRENGTH.bin and PAW-OVERLAP.bin are read in place of vaspout.h5, as
+    LOCAL-POTENTIAL.bin is in _read_local_potentials.
+
+    """
     Dijs = []
     qijs = []
-    vaspout_paths = _find_vaspout_h5(dir_names)
-    if vaspout_paths is not None:
-        for Dij_qij_path in vaspout_paths:
-            dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
-            Dijs.append(dij)
-            qijs.append(qij)
-            if log_level:
-                print(f'Dijs and qjis were read from "{Dij_qij_path}".')
-        return Dijs, qijs
-
-    # Old way for PAW-*.bin.
-    for dir_name in dir_names:
-        possible_Dij_path = list(pathlib.Path(dir_name).glob("PAW-STRENGTH.bin*"))
-        possible_qij_path = list(pathlib.Path(dir_name).glob("PAW-OVERLAP.bin*"))
-        if possible_Dij_path and possible_qij_path:
-            Dij_path = possible_Dij_path[0]
-            qij_path = possible_qij_path[0]
+    Dij_paths = _find_files(dir_names, "PAW-STRENGTH.bin")
+    qij_paths = _find_files(dir_names, "PAW-OVERLAP.bin")
+    if Dij_paths is not None and qij_paths is not None:
+        for Dij_path, qij_path in zip(Dij_paths, qij_paths, strict=True):
             Dijs.append(read_PAW_Dij_qij(inwap_per, Dij_path))
             qijs.append(read_PAW_Dij_qij(inwap_per, qij_path))
             if log_level:
                 print(f'"{Dij_path}" and "{qij_path}" were read.')
-        else:
-            raise RuntimeError(
-                f'"PAW-STRENGTH.bin" or "PAW-OVERLAP.bin" not found in "{dir_name}".'
-            )
+        return Dijs, qijs
+    if Dij_paths is not None or qij_paths is not None:
+        found, missing = (
+            ("PAW-STRENGTH.bin", "PAW-OVERLAP.bin")
+            if qij_paths is None
+            else ("PAW-OVERLAP.bin", "PAW-STRENGTH.bin")
+        )
+        raise RuntimeError(
+            f'"{found}" was found but "{missing}" was not found in "{dir_names[0]}".'
+        )
 
+    vaspout_paths = _find_files(dir_names, "vaspout.h5")
+    if vaspout_paths is None:
+        raise RuntimeError(
+            f'Neither "PAW-STRENGTH.bin" nor "vaspout.h5" was found in '
+            f'"{dir_names[0]}".'
+        )
+    for Dij_qij_path in vaspout_paths:
+        dij, qij = read_PAW_Dij_qij_vaspouth5(Dij_qij_path)
+        Dijs.append(dij)
+        qijs.append(qij)
+        if log_level:
+            print(f'Dijs and qjis were read from "{Dij_qij_path}".')
     return Dijs, qijs

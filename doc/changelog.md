@@ -41,6 +41,17 @@
   perfect supercell, and shows a warning when an operation changes Dij by more
   than 0.01 eV. The magnetic moments included in the symmetry operations then
   do not describe the magnetic state of the VASP calculation.
+- `phelel --cd` reads `LOCAL-POTENTIAL.bin`, `PAW-STRENGTH.bin`,
+  `PAW-OVERLAP.bin` and `inwap.yaml`, which VASP writes with `LWAP = .TRUE.`,
+  in place of `vaspout.h5` when every directory has `LOCAL-POTENTIAL.bin`.
+  Before, `vaspout.h5` was read when every directory had it.
+- `phelel --cd` stops with an error when it would read the local potential of a
+  spin-polarized or non-collinear calculation from `vaspout.h5` of VASP 6.6.1 or
+  older. These versions write part of the points of the local potential in
+  `vaspout.h5` in another form, and the derivatives computed from it are wrong.
+  Run VASP with `LWAP = .TRUE.`. See {ref}`phelel_command`.
+- `velph init` writes `lwap = true` in `[vasp.phelel.incar]` when its tags have
+  `ispin = 2`, `lnoncollinear = true` or `lsorbit = true`, and no `lwap`.
 
 ## Oct-23-2026: Version 0.16.0
 

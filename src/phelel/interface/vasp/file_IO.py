@@ -163,9 +163,17 @@ def read_local_potential_vaspouth5(
 
     For spin unpolarized calculations the potential is real but we convert it to
     complex.
-    For collinear calculations the potential is written as up and down.
-    For non-collinear calculations the potential is written as scalar potential
-    + magnetic field potential
+    For collinear calculations the potential is written as (v, v_z), and it is
+    returned as (v + v_z, v - v_z), i.e., spin up and spin down.
+    For non-collinear calculations the potential is written as (v, v_x, v_y,
+    v_z), and it is returned as the 2x2 matrix (v + v_z, v_x - i v_y,
+    v_x + i v_y, v - v_z).
+
+    VASP 6.6.1 and older write part of the points of a collinear or
+    non-collinear potential converted to spin up and spin down or to the 2x2
+    matrix, where v_y is lost.  For these, RuntimeError is raised, and the
+    potential has to be read from LOCAL-POTENTIAL.bin written with
+    LWAP = .TRUE.
 
     Kinetic energy density (xcmu) is also read by this function in the same way.
 
@@ -174,6 +182,21 @@ def read_local_potential_vaspouth5(
         # dimensions of the potential
         pot_real: NDArray = h5[f"/results/potential/{key}"][:]  # type: ignore
         ncdij = pot_real.shape[0]
+        if ncdij > 1:
+            version = _get_vasp_version_vaspouth5(h5)
+            if version is None or version <= (6, 6, 1):
+                written_by = (
+                    "VASP of unknown version"
+                    if version is None
+                    else "VASP " + ".".join(str(v) for v in version)
+                )
+                raise RuntimeError(
+                    f'The local potential in "{filename}" was written by '
+                    f"{written_by}. VASP 6.6.1 and older do not write it "
+                    "correctly for ISPIN = 2 or LNONCOLLINEAR = .TRUE. Run "
+                    "VASP with LWAP = .TRUE., then LOCAL-POTENTIAL.bin is read "
+                    "in place of vaspout.h5."
+                )
         pot = np.zeros_like(pot_real, dtype=complex)
 
         if ncdij == 1:
@@ -195,6 +218,15 @@ def read_local_potential_vaspouth5(
             pot[2, :, :, :] = vx + 1j * vy
             pot[3, :, :, :] = v - vz
         return pot
+
+
+def _get_vasp_version_vaspouth5(h5: h5py.File) -> tuple[int, int, int] | None:
+    """Return the VASP version (major, minor, patch) in vaspout.h5, or None."""
+    if "version" not in h5:
+        return None
+    group = h5["version"]
+    major, minor, patch = (int(group[key][()]) for key in ("major", "minor", "patch"))  # type: ignore
+    return major, minor, patch
 
 
 def read_local_potential(
