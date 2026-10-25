@@ -176,7 +176,7 @@ and the following tags in each input set:
 | Input set          | Default INCAR tags                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------- |
 | `relax`            | `ediffg = -1e-6`, `ibrion = 2`, `isif = 3`, `nsw = 10`                                               |
-| `nac`              | `lepsilon = true` (and `incar_unset = ["npar", "ncore", "kpar"]`)                                   |
+| `nac`              | `lepsilon = true` (and `incar_unset = ["npar", "ncore"]`)                                           |
 | `phelel`           | `elph_prepare = true`, `isym = 0`                                                                    |
 | `phonopy`          | `addgrid = true`, `isym = 0`                                                                          |
 | `phono3py`         | `addgrid = true`, `isym = 0`                                                                          |
