@@ -450,7 +450,33 @@ def test_create_derivatives_vaspout_h5(name: str):
     are equal, so dqijdu is zero.
 
     """
-    data_dir = cwd / "derivatives_vaspout" / name
+    _assert_derivatives_equal_to_reference(cwd / "derivatives_vaspout" / name)
+
+
+@pytest.mark.parametrize("name", ["Cr", "Fe-ncl"])
+def test_create_derivatives_lwap_files(name: str):
+    """Derivatives from the files written with LWAP = .TRUE. are equal to the reference.
+
+    The data are bcc Cr, collinear and antiferromagnetic (ncdij=2), and bcc Fe,
+    non-collinear with the magnetic moments along (1, 1, 1) (ncdij=4), both of
+    the conventional cell with 2 atoms (see derivatives_lwap/README.md).  The
+    local potential, Dij and qij are read from LOCAL-POTENTIAL.bin,
+    PAW-STRENGTH.bin and PAW-OVERLAP.bin, and the forces from vaspout.h5.  In
+    both, some of the symmetry operations used in the symmetrization are
+    combined with time reversal.  dqijdu is zero for the same reason as in
+    test_create_derivatives_vaspout_h5.
+
+    """
+    _assert_derivatives_equal_to_reference(cwd / "derivatives_lwap" / name)
+
+
+def _assert_derivatives_equal_to_reference(data_dir: Path):
+    """Assert dVdu, dDijdu and dqijdu computed from the files of data_dir.
+
+    dVdu and dDijdu are compared with those in reference.hdf5, computed with
+    fft_mesh stored there.  dqijdu has to be zero.
+
+    """
     with h5py.File(data_dir / "reference.hdf5") as f:
         fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
         ref = {key: f[key][()] for key in ("dVdu", "dDijdu")}
