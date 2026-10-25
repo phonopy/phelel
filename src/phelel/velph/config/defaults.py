@@ -67,7 +67,7 @@ nsw = 10
 
 [vasp.nac]
 cell = "primitive"
-incar_unset = ["npar", "ncore", "kpar"]
+incar_unset = ["npar", "ncore"]
 [vasp.nac.incar]
 lepsilon = true
 

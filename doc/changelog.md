@@ -52,6 +52,9 @@
   Run VASP with `LWAP = .TRUE.`. See {ref}`phelel_command`.
 - `velph init` writes `lwap = true` in `[vasp.phelel.incar]` when its tags have
   `ispin = 2`, `lnoncollinear = true` or `lsorbit = true`, and no `lwap`.
+- `velph init` adds `kpar` of `[vasp.incar]` to `nac` too. Before, `kpar` was
+  listed in `incar_unset` of `nac` in the default settings with `npar` and
+  `ncore`, although VASP uses `KPAR` with `LEPSILON = .TRUE.`.
 
 ## Oct-23-2026: Version 0.16.0
 
