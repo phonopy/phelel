@@ -192,6 +192,12 @@ and the following tags in each input set:
 A tag of an input set has priority over the same tag of `[vasp.incar]`, as
 `ismear = -5` of `el_dos` does.
 
+When the tags of the `phelel` input set have `ispin = 2`,
+`lnoncollinear = true` or `lsorbit = true`, and no `lwap`, `velph init` adds
+`lwap = true` to them with a message. VASP 6.6.1 and older do not write the
+local potential correctly in `vaspout.h5` for these calculations, and phelel
+reads `LOCAL-POTENTIAL.bin` written with `LWAP = .TRUE.` instead.
+
 ```{note}
 These tags are starting points. Review the generated `INCAR` files and adjust
 them for the target material, in particular `encut`, the smearing tags, and the

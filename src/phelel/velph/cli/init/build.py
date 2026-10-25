@@ -161,7 +161,44 @@ def build_velph_config(
         unitcell=get_cell_dict(cells.unitcell),
         primitive_cell=get_cell_dict(cells.primitive),
     )
-    return resolve_incar(config)
+    return _set_lwap(resolve_incar(config))
+
+
+def _set_lwap(config: VelphConfig) -> VelphConfig:
+    """Return config with lwap = true in [vasp.phelel.incar] when it is needed.
+
+    VASP 6.6.1 and older do not write the local potential correctly in
+    vaspout.h5 for ISPIN = 2 or LNONCOLLINEAR = .TRUE., and phelel reads
+    LOCAL-POTENTIAL.bin written with LWAP = .TRUE. instead.  lwap = true is
+    added, with a message, when the INCAR tags of the phelel input set have
+    ispin = 2, lnoncollinear = true or lsorbit = true, and lwap is not given.
+
+    """
+    if config.vasp is None or config.vasp.input_sets is None:
+        return config
+    phelel_set = config.vasp.input_sets.get("phelel")
+    if phelel_set is None or phelel_set.incar is None:
+        return config
+    incar = phelel_set.incar
+    if "lwap" in incar or not (
+        incar.get("ispin") == 2
+        or incar.get("lnoncollinear") is True
+        or incar.get("lsorbit") is True
+    ):
+        return config
+    click.echo(
+        '"lwap = true" is written in [vasp.phelel.incar], because VASP 6.6.1 and\n'
+        "older do not write the local potential correctly in vaspout.h5 for\n"
+        "ISPIN = 2 or LNONCOLLINEAR = .TRUE.  phelel reads LOCAL-POTENTIAL.bin\n"
+        "written with LWAP = .TRUE. instead."
+    )
+    input_sets = {
+        **config.vasp.input_sets,
+        "phelel": dataclasses.replace(phelel_set, incar={**incar, "lwap": True}),
+    }
+    return dataclasses.replace(
+        config, vasp=dataclasses.replace(config.vasp, input_sets=input_sets)
+    )
 
 
 def _init_layer(
