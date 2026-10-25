@@ -6,11 +6,13 @@ import copy
 import lzma
 from pathlib import Path
 
+import h5py
 import numpy as np
 import pytest
 from numpy.typing import NDArray
 from phonopy import Phonopy
 
+import phelel
 import phelel.interface.vasp.derivatives as derivatives
 from phelel import Phelel
 from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
@@ -434,6 +436,31 @@ def test_run_derivatives_without_any_phonon_dataset():
     phelel.phonon_dataset = None
     with pytest.raises(RuntimeError, match="Phelel.phonon_dataset"):
         phelel.run_derivatives(phe_input)
+
+
+@pytest.mark.parametrize("name", ["C", "Mg"])
+def test_create_derivatives_vaspout_h5(name: str):
+    """Derivatives from vaspout.h5 are equal to the reference values.
+
+    The data are diamond (conventional cell, 8 atoms) and hcp Mg (2 atoms), with
+    vaspout.h5 reduced to the data that phelel reads (see
+    derivatives_vaspout/README.md).  The reference dVdu and dDijdu were computed
+    by phelel from the same files with fft_mesh stored in reference.hdf5.  qij
+    of PAW depends only on the species, and qij of all supercells of these data
+    are equal, so dqijdu is zero.
+
+    """
+    data_dir = cwd / "derivatives_vaspout" / name
+    with h5py.File(data_dir / "reference.hdf5") as f:
+        fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
+        ref = {key: f[key][()] for key in ("dVdu", "dDijdu")}
+    phe = phelel.load(data_dir / "phelel_disp.yaml", fft_mesh=fft_mesh, is_nac=False)
+    create_derivatives(phe, sorted(data_dir.glob("disp-*")))
+    assert phe.dVdu is not None
+    for key, value in (("dVdu", phe.dVdu.dVdu), ("dDijdu", phe.dDijdu.dDijdu)):
+        atol = 1e-6 * np.abs(ref[key]).max()
+        np.testing.assert_allclose(value, ref[key], rtol=0, atol=atol)
+    np.testing.assert_array_equal(phe.dDijdu.dqijdu, 0)
 
 
 def _get_phelel_C111(
