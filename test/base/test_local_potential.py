@@ -227,9 +227,11 @@ def test_run_with_symmetry():
     The model potential of diamond is the sum of phi(r - R) of the atoms, with
     phi of _model_potential_gradient.  The displacement u of atom 1 along x
     changes it by -u d phi(r - R_1) / d x exactly, because the change is given
-    linear in u.  From this one displacement, the symmetrization has to give
-    dV/du_alpha of every atom b as -d phi(r - R_b) / d r_alpha, for the three
-    directions.  The space group of diamond has operations with fractional
+    linear in u.  Only the change of the potential is used, so the potential of
+    the perfect supercell is given as zero and that of the displaced supercell
+    as the change alone.  From this one displacement, the symmetrization has to
+    give dV/du_alpha of every atom b as -d phi(r - R_b) / d r_alpha, for the
+    three directions.  The space group of diamond has operations with fractional
     translations, and the site symmetry of atom 1 maps x to y and z.
 
     """
