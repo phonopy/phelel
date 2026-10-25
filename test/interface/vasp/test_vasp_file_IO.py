@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -25,9 +26,10 @@ def test_read_PAW_Dij_qij_two_formats(name: str):
 
     Both are written by one VASP calculation with LWAP = .TRUE.  Dij of Cr
     differs between the spin components and between the atoms, and Dij of
-    Fe-ncl has imaginary parts, so mixing up these axes or the real and
-    imaginary parts in one of the readers changes Dij.  The order of the two lm
-    indices is not tested, because Dij and qij are symmetric in them.
+    Fe-ncl has imaginary parts and four spin components that differ from each
+    other, so mixing up these axes or the real and imaginary parts in one of
+    the readers changes Dij.  The order of the two lm indices is not tested,
+    because Dij and qij are symmetric in them.
 
     """
     data_dir = cwd / "Dij_qij_two_formats" / name
@@ -38,6 +40,8 @@ def test_read_PAW_Dij_qij_two_formats(name: str):
         assert np.abs(dij[:, 0] - dij[:, 1]).max() > 0.1
     else:
         assert np.abs(dij.imag).max() > 0.1
+        for s, t in itertools.combinations(range(4), 2):
+            assert np.abs(dij[s] - dij[t]).max() > 0.1, (s, t)
 
     shape = (inwap["ncdij"], inwap["nions"], inwap["lmdim"], inwap["lmdim"])
     assert dij.shape == shape

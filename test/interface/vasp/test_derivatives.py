@@ -233,10 +233,12 @@ def no_vaspout_h5_reader(monkeypatch: pytest.MonkeyPatch):
 def test_read_old_format_in_place_of_vaspout_h5(
     reader: str, tmp_path: Path, no_vaspout_h5_reader
 ):
-    """The old format is read when every directory has LOCAL-POTENTIAL.bin.
+    """The old format is read when every directory has its files.
 
-    Every directory also has vaspout.h5, which is an empty file, and reading it
-    is an error.  The data have to be those of the old format.
+    The files are LOCAL-POTENTIAL.bin for the local potential, and
+    PAW-STRENGTH.bin and PAW-OVERLAP.bin for Dij and qij.  Every directory
+    also has vaspout.h5, which is an empty file, and reading it is an error.
+    The data have to be those of the old format.
 
     """
     old_format_dirs = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
@@ -278,6 +280,35 @@ def test_read_with_old_format_in_some_directories(
     ]
     with pytest.raises(RuntimeError, match=f"{filename}.*disp-001"):
         _read(reader, dir_names)
+
+
+@pytest.mark.parametrize(
+    "found,missing",
+    [
+        ("PAW-STRENGTH.bin", "PAW-OVERLAP.bin"),
+        ("PAW-OVERLAP.bin", "PAW-STRENGTH.bin"),
+    ],
+)
+def test_read_PAW_strength_and_overlap_with_one_of_them(
+    found: str, missing: str, tmp_path: Path, no_vaspout_h5_reader
+):
+    """One of PAW-STRENGTH.bin and PAW-OVERLAP.bin without the other is an error.
+
+    Every directory has vaspout.h5 and only one of the two files.  Reading the
+    other one from vaspout.h5 would mix the two formats, so the file found, the
+    file missing and the directory have to be named in the error.
+
+    """
+    dir_names = []
+    for d in (cwd / "C111_disp-000", cwd / "C111_disp-001"):
+        dir_name = _make_dir(tmp_path / d.name, old_format_dir=d, has_vaspout_h5=True)
+        (dir_name / missing).unlink()
+        dir_names.append(dir_name)
+    with pytest.raises(
+        RuntimeError,
+        match=f'"{found}" was found but "{missing}" was not found in .*C111_disp-000',
+    ):
+        _read("PAW_strength_and_overlap", dir_names)
 
 
 @pytest.mark.parametrize("reader", ["local_potentials", "PAW_strength_and_overlap"])
