@@ -14,11 +14,11 @@ which writes them both in `vaspout.h5` and in the old format:
 
 Both are perfect supercells with ENCUT = 300, PREC = Accurate, EDIFF = 1e-8,
 ISYM = 0, ISMEAR = 1 and SIGMA = 0.2.  Cr uses ISPIN = 2 and is
-antiferromagnetic.  Fe-ncl uses LNONCOLLINEAR = .TRUE. without LSORBIT, LDA,
-IALGO = 58 and ISEARCH = 1, and is the calculation of
-`test/base/Dij_perfect/Fe-ncl.npz`.  Only the agreement of the two formats of
-the same calculation is tested with these data.  These data and the test that
-uses them are for the readers of the old format, and are removed with them.
+antiferromagnetic.  Fe-ncl uses LNONCOLLINEAR = .TRUE. without LSORBIT, LDA and
+IALGO = 48, and is the calculation of `test/base/Dij_perfect/Fe-ncl.npz`.  Only
+the agreement of the two formats of the same calculation is tested with these
+data.  These data and the test that uses them are for the readers of the old
+format, and are removed with them.
 
 In Cr, the two spin components and the two atoms of Dij differ, and in
 Fe-ncl, Dij has imaginary parts and its four spin components differ.  In both,
