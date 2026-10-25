@@ -2,15 +2,27 @@
 
 from __future__ import annotations
 
+import itertools
 import pathlib
 
 import numpy as np
 import pytest
+from phonopy.structure.symmetry import Symmetry
 
 import phelel
 from phelel.base.local_potential import DLocalPotential, get_grid_points
 
 cwd = pathlib.Path(__file__).parent
+
+# Reciprocal lattice vectors (h, k, l) with 0 < h^2 + k^2 + l^2 <= 4.  The set
+# is closed under the point group of a cubic lattice.
+_HKL = np.array(
+    [
+        hkl
+        for hkl in itertools.product(range(-2, 3), repeat=3)
+        if 0 < sum(n * n for n in hkl) <= 4
+    ]
+)
 
 
 def _periodic_function(frac: np.ndarray, i_dir: int) -> np.ndarray:
@@ -84,3 +96,167 @@ def test_visualize(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, caps
         frac = (np.linalg.inv(phe.supercell.cell.T) @ lattice_viz @ (index / mesh).T).T
         expected = _periodic_function(frac, i_dir).reshape(mesh[::-1])
         np.testing.assert_allclose(values, expected, atol=1e-10)
+
+
+def test_get_grid_points():
+    """Grid points are the FFT mesh of the primitive cell at each lattice point.
+
+    The order of the points is that of phelel_params.hdf5: x runs fastest, then
+    y and z, and the points of one lattice point come together, in the order of
+    the lattice points.  C-1x1x1 has a non-diagonal matrix from the primitive
+    cell to the supercell, and the mesh differs along the three axes.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    p2s_matrix = phe.p2s_matrix
+    fft_mesh = [2, 3, 4]
+    grid_points, lattice_points = get_grid_points(fft_mesh, p2s_matrix)
+
+    np.testing.assert_array_equal(
+        lattice_points, [[0, 0, 0], [-1, 0, 0], [1, -1, 0], [0, -1, 0]]
+    )
+    n_mesh = np.prod(fft_mesh)
+    assert grid_points.shape == (len(lattice_points) * n_mesh, 3)
+    mesh_points = np.array(
+        [
+            [i / fft_mesh[0], j / fft_mesh[1], k / fft_mesh[2]]
+            for k in range(fft_mesh[2])
+            for j in range(fft_mesh[1])
+            for i in range(fft_mesh[0])
+        ]
+    )
+    # Grid points in the primitive cell basis vectors.
+    points_prim = grid_points @ p2s_matrix.T
+    for i, lattice_point in enumerate(lattice_points):
+        np.testing.assert_allclose(
+            points_prim[i * n_mesh : (i + 1) * n_mesh],
+            mesh_points + lattice_point,
+            atol=1e-12,
+        )
+    # No two grid points are the same point of the supercell.
+    diff = grid_points[:, None, :] - grid_points[None, :, :]
+    is_same = np.all(np.abs(diff - np.rint(diff)) < 1e-8, axis=-1)
+    np.testing.assert_array_equal(is_same, np.eye(len(grid_points), dtype=bool))
+
+
+def _mesh_fractions(mesh: tuple[int, int, int]) -> np.ndarray:
+    """Return the points of a VASP mesh in the supercell basis vectors.
+
+    ``mesh`` is (n_z, n_y, n_x), the shape of a local potential read from
+    VASP.  The returned array has the shape (n_z, n_y, n_x, 3), and the point
+    [k, j, i] is (i / n_x, j / n_y, k / n_z).
+
+    """
+    n_z, n_y, n_x = mesh
+    k, j, i = np.meshgrid(range(n_z), range(n_y), range(n_x), indexing="ij")
+    return np.stack([i / n_x, j / n_y, k / n_z], axis=-1)
+
+
+def _anisotropic_function(frac: np.ndarray) -> np.ndarray:
+    """Return a periodic function that differs along the three axes.
+
+    It has sine terms, so it changes when the argument changes its sign.
+
+    """
+    x, y, z = frac[..., 0], frac[..., 1], frac[..., 2]
+    return (
+        np.cos(2 * np.pi * x)
+        + 0.5 * np.sin(2 * np.pi * (2 * y - z))
+        + 0.25 * np.sin(2 * np.pi * (x + 3 * z))
+    )
+
+
+def test_run_without_symmetry():
+    """dV/du is the change of the potential divided by the displacement.
+
+    With the identity as the only symmetry operation, the displacement of atom
+    1 along x gives dV/du_x of atom 1, and dV/du_y and dV/du_z are zero.  The
+    change of the potential is given on a VASP mesh with different numbers of
+    points along the three axes, and dV/du_x is evaluated at the grid points by
+    NUFFT.  The function differs along the axes and has sine terms, so mixing
+    up the axes or the sign of the Fourier transform changes the result.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    supercell = phe.supercell
+    u = 0.01
+    mesh = (10, 8, 6)
+    V_loc_per = np.zeros((1,) + mesh, dtype="complex128")
+    V_loc_disp = (u * _anisotropic_function(_mesh_fractions(mesh)))[None].astype(
+        "complex128"
+    )
+    dlp = DLocalPotential(
+        [4, 4, 4],
+        phe.p2s_matrix,
+        supercell,
+        symmetry=Symmetry(supercell, is_symmetry=False),
+        atom_indices=np.array([0]),
+        verbose=False,
+    )
+    dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
+
+    assert dlp.dVdu is not None
+    expected = _anisotropic_function(dlp.grid_points)
+    atol = 1e-5 * np.abs(expected).max()
+    np.testing.assert_allclose(dlp.dVdu[0, 0, 0], expected, atol=atol)
+    np.testing.assert_allclose(dlp.dVdu[0, 0, 1:], 0, atol=atol)
+
+
+def _model_potential_gradient(
+    frac: np.ndarray, position: np.ndarray, lattice: np.ndarray, i_dir: int
+) -> np.ndarray:
+    """Return -d phi(r - R) / d r_alpha of a model atomic potential phi.
+
+    phi(r) = sum_G exp(-|G|^2 sigma^2 / 2) cos(G . r) over the reciprocal
+    lattice vectors of _HKL, with sigma = 0.5 Angstrom.  The coefficient depends
+    only on |G|, and the set of G is closed under the point group of the cubic
+    supercell, so phi is unchanged by the rotations of the point group about
+    the atom.  ``frac`` and ``position`` are in the supercell basis vectors, and
+    ``lattice`` has the basis vectors as rows.
+
+    """
+    G = 2 * np.pi * _HKL @ np.linalg.inv(lattice).T
+    coef = np.exp(-(G**2).sum(axis=1) * 0.5**2 / 2)
+    phase = 2 * np.pi * (frac - position) @ _HKL.T
+    return np.sin(phase) @ (coef * G[:, i_dir])
+
+
+def test_run_with_symmetry():
+    """dV/du of all atoms and directions are obtained from one displacement.
+
+    The model potential of diamond is the sum of phi(r - R) of the atoms, with
+    phi of _model_potential_gradient.  The displacement u of atom 1 along x
+    changes it by -u d phi(r - R_1) / d x exactly, because the change is given
+    linear in u.  From this one displacement, the symmetrization has to give
+    dV/du_alpha of every atom b as -d phi(r - R_b) / d r_alpha, for the three
+    directions.  The space group of diamond has operations with fractional
+    translations, and the site symmetry of atom 1 maps x to y and z.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    supercell = phe.supercell
+    lattice = supercell.cell
+    positions = supercell.scaled_positions
+    u = 0.01
+    mesh = (18, 16, 14)
+    frac = _mesh_fractions(mesh)
+    V_loc_per = np.zeros((1,) + mesh, dtype="complex128")
+    V_loc_disp = (u * _model_potential_gradient(frac, positions[0], lattice, 0))[
+        None
+    ].astype("complex128")
+    dlp = DLocalPotential([6, 6, 6], phe.p2s_matrix, supercell, verbose=False)
+    dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
+
+    assert dlp.dVdu is not None
+    np.testing.assert_array_equal(dlp.atom_indices, np.arange(len(supercell)))
+    expected = np.array(
+        [
+            [
+                _model_potential_gradient(dlp.grid_points, position, lattice, i_dir)
+                for i_dir in range(3)
+            ]
+            for position in positions
+        ]
+    )
+    atol = 1e-5 * np.abs(expected).max()
+    np.testing.assert_allclose(dlp.dVdu[0], expected, atol=atol)
