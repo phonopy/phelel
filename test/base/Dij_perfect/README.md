@@ -24,13 +24,14 @@ LNONCOLLINEAR = .TRUE. without LSORBIT.  Cr is antiferromagnetic: the
 converged moments of the two atoms are +1.243 and -1.243 mu_B, read from
 "magnetization (x)" of OUTCAR of the same calculation with LORBIT = 11.
 
-Fe-ncl uses LDA, IALGO = 58 and ISEARCH = 1, and its electronic
-self-consistency reached EDIFF.  Its magnetization in OSZICAR,
-(2.4388, 2.4387, 2.4387) mu_B, is along the direction (1, 1, 1) of MAGMOM to
-the four digits written.  With GGA (PAW_PBE Fe 06Sep2000), the magnetic part
-of the local potential of the non-collinear calculation differed from that of
-the same calculation with ISPIN = 2 by more than 20 eV at points between the
-atoms where the magnetization is small, also with GGA_COMPAT = .FALSE. and with
-ENCUT = 500 (up to 50 eV).  With LDA, the two agree to 4e-4 eV at all points.
+Fe-ncl uses LDA and IALGO = 48, and its electronic self-consistency reached
+EDIFF.  With IALGO = 58, Dij was not converged when the energy reached EDIFF.
+Its magnetization in OSZICAR, (2.4389, 2.4388, 2.4387) mu_B, is along the
+direction (1, 1, 1) of MAGMOM to the four digits written.  With GGA (PAW_PBE Fe
+06Sep2000), the magnetic part of the local potential of the non-collinear
+calculation differed from that of the same calculation with ISPIN = 2 by more
+than 20 eV at points between the atoms where the magnetization is small, also
+with GGA_COMPAT = .FALSE. and with ENCUT = 500 (up to 50 eV).  With LDA, the
+two agree to 4e-4 eV at all points.
 
 Only Dij is stored.
