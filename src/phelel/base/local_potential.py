@@ -15,6 +15,7 @@ from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.symmetrization import (
+    check_displaced_atoms,
     collect_site_symmetry_operations,
     get_displacements_with_rotations,
 )
@@ -332,12 +333,12 @@ class LocalPotentialInterpolationNUFFT:
         self._atom_indices_returned = np.array(
             [i for i in atoms if i in equiv_atoms], dtype="int64"
         )
-        sitesym_selected_indices = [
-            i
-            for i, eq_atom in enumerate(equiv_atoms)
-            if eq_atom in self._atom_indices_returned
+        # The rows of sitesym_sets follow equiv_atoms.  They are picked in the
+        # order of the returned atoms.
+        i_equiv_atom = {int(atom): i for i, atom in enumerate(equiv_atoms)}
+        self._sitesym_sets = sitesym_sets[
+            [i_equiv_atom[int(atom)] for atom in self._atom_indices_returned]
         ]
-        self._sitesym_sets = sitesym_sets[sitesym_selected_indices]
 
         dtype = f"c{np.dtype('double').itemsize * 2}"
         ncdij = self._delta_Vs[0].dV.shape[0]
@@ -712,6 +713,7 @@ class DLocalPotential:
                 'number' : Index of displaced atom
 
         """
+        check_displaced_atoms(self._atom_indices, displacements, self._symmetry)
         lpi = LocalPotentialInterpolationNUFFT(
             self._fft_mesh,
             self._p2s_matrix,
@@ -720,6 +722,7 @@ class DLocalPotential:
             atom_indices=self._atom_indices,
             nufft=self._nufft,
             finufft_eps=self._finufft_eps,
+            verbose=self._verbose,
         )
         self._lattice_points = lpi.lattice_points.copy(order="C")
         self._grid_points = lpi.grid_points.copy(order="C")

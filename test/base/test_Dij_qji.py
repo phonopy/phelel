@@ -97,6 +97,77 @@ def test_DDijQij(phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelD
     )
 
 
+def test_DDijQijFit_with_atom_indices_in_any_order(
+    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset
+):
+    """dDij/du of each atom does not depend on the order of atom_indices.
+
+    The site-symmetry operations are collected for the equivalent atoms in
+    ascending order, and they have to be matched to atom_indices given in
+    another order.  Atoms 1 and 2 of CdAs2 are equivalent to the displaced
+    atom 1.
+
+    """
+    phe = phelel_empty_CdAs2_111
+    phe_in = phelel_input_CdAs2_111
+    assert phe.dataset is not None
+    displacements = phe.dataset["first_atoms"]
+    delta_Dij_qijs = [
+        DeltaDijQij(
+            phe_in.Dijs[0],
+            phe_in.Dijs[i + 1],
+            phe_in.qijs[0],
+            phe_in.qijs[i + 1],
+            disp,
+            phe_in.lm_channels,
+        )
+        for i, disp in enumerate(displacements)
+        if disp["number"] == 0
+    ]
+    dDijdu = {}
+    for atom_indices in ([0, 1], [1, 0]):
+        ddijqij = DDijQijFit(
+            delta_Dij_qijs,
+            phe.supercell,
+            phe.symmetry,
+            atom_indices=atom_indices,
+            verbose=False,
+        )
+        ddijqij.run()
+        np.testing.assert_array_equal(ddijqij.atom_indices, atom_indices)
+        dDijdu[tuple(atom_indices)] = ddijqij.dDijdu
+    assert np.abs(dDijdu[(0, 1)]).max() > 0.1
+    np.testing.assert_allclose(dDijdu[(1, 0)], dDijdu[(0, 1)][:, ::-1], atol=1e-12)
+
+
+def test_DDijQij_with_undisplaced_atoms(
+    phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset
+):
+    """Atoms not equivalent to any displaced atom are an error.
+
+    In CdAs2, the displacements of Cd atom 1 give no dDij/du of the As atoms,
+    which would be left zero.  The atoms of the derivatives are those of the
+    primitive cell, 1, 3, 5, 7, 9 and 11, of which 5, 7, 9 and 11 are As.
+
+    """
+    phe = phelel_empty_CdAs2_111
+    phe_in = phelel_input_CdAs2_111
+    assert phe.dataset is not None
+    displacements = phe.dataset["first_atoms"][:2]
+    assert [disp["number"] for disp in displacements] == [0, 0]
+    np.testing.assert_array_equal(phe.atom_indices_in_derivatives, [0, 2, 4, 6, 8, 10])
+    dDijdu = DDijQij(phe.supercell, phe.symmetry, phe.atom_indices_in_derivatives)
+    with pytest.raises(ValueError, match="atoms 5, 7, 9, 11 of the supercell"):
+        dDijdu.run(
+            phe_in.Dijs[0],
+            phe_in.Dijs[1:3],
+            phe_in.qijs[0],
+            phe_in.qijs[1:3],
+            displacements,
+            phe_in.lm_channels,
+        )
+
+
 def _load_Dij_perfect(
     name: str, magmoms: str | Sequence[float] | Sequence[Sequence[float]] | None
 ) -> tuple[NDArray, list[dict], PhonopyAtoms]:

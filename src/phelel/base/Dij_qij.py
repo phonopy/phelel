@@ -12,6 +12,7 @@ from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.symmetrization import (
+    check_displaced_atoms,
     collect_site_symmetry_operations,
     get_displacements_with_rotations,
 )
@@ -290,10 +291,12 @@ class DDijQijFit:
         self._atom_indices = np.array(
             [i for i in atoms if i in equiv_atoms], dtype="int64"
         )
-        sitesym_selected_indices = [
-            i for i, eq_atom in enumerate(equiv_atoms) if eq_atom in self._atom_indices
+        # The rows of sitesym_sets follow equiv_atoms.  They are picked in the
+        # order of the returned atoms.
+        i_equiv_atom = {int(atom): i for i, atom in enumerate(equiv_atoms)}
+        self._sitesym_sets = sitesym_sets[
+            [i_equiv_atom[int(atom)] for atom in self._atom_indices]
         ]
-        self._sitesym_sets = sitesym_sets[sitesym_selected_indices]
 
         dtype = "c%d" % (np.dtype("double").itemsize * 2)
         natom = len(self._supercell)
@@ -582,6 +585,7 @@ class DDijQij:
                 'l', 'm' in each channel : l and list of m
 
         """
+        check_displaced_atoms(self._atom_indices, displacements, self.symmetry)
         _check_Dij_symmetry(Dij_per, lm_channels, self._supercell, self.symmetry)
         if self.dDijdu is None:
             self._allocate_arrays(Dij_per.shape[0], Dij_per.shape[2])
