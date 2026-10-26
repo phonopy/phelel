@@ -14,7 +14,6 @@ from phonopy.harmonic.displacement import DisplacementDataset
 from phonopy.harmonic.dynamical_matrix import NacParams
 from phonopy.physical_units import get_calculator_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import get_primitive_matrix
 
 from phelel import Phelel
 from phelel.file_IO import read_phelel_params_hdf5
@@ -113,7 +112,12 @@ def load(
 
     """
     smat: Sequence[int] | Sequence[Sequence[int]] | NDArray | None
-    pmat: Literal["auto"] | NDArray | None
+    pmat: (
+        Literal["P", "F", "I", "A", "C", "R", "auto"]
+        | Sequence[Sequence[float]]
+        | NDArray
+        | None
+    )
     ph_smat: Sequence[Sequence[int]] | NDArray | None
     if phonopy_yaml is not None:
         (
@@ -127,9 +131,7 @@ def load(
             _nac_params,
             calculator,
             site_mixture_scheme,
-        ) = _read_phelel_yaml(
-            phonopy_yaml, primitive_matrix, None, is_nac, calculator, symprec
-        )
+        ) = _read_phelel_yaml(phonopy_yaml, primitive_matrix, None, is_nac, calculator)
     else:
         cell, smat, pmat = phonopy_load_helper.get_cell_settings(
             supercell_matrix=supercell_matrix,
@@ -228,11 +230,13 @@ def _read_phelel_yaml(
     nac_params: NacParams | None,
     is_nac: bool,
     calculator: str | None,
-    symprec: float,
 ) -> tuple[
     PhonopyAtoms | None,
     NDArray[np.int64] | None,
-    NDArray[np.double] | None,
+    Literal["P", "F", "I", "A", "C", "R", "auto"]
+    | Sequence[Sequence[float]]
+    | NDArray
+    | None,
     NDArray | None,
     DisplacementDataset | None,
     dict | None,
@@ -246,10 +250,14 @@ def _read_phelel_yaml(
     cell = phe_yml.unitcell
     smat = phe_yml.supercell_matrix
     ph_smat = phe_yml.phonon_supercell_matrix
-    if primitive_matrix is not None:
-        pmat = get_primitive_matrix(primitive_matrix, symprec=symprec)
-    else:
+    # As in phonopy.load(), None and "auto" mean the primitive matrix in the
+    # file.  Without it, the primitive matrix is guessed by Phonopy.
+    if primitive_matrix is None or (
+        isinstance(primitive_matrix, str) and primitive_matrix == "auto"
+    ):
         pmat = phe_yml.primitive_matrix
+    else:
+        pmat = primitive_matrix
     if nac_params is not None:
         _nac_params = nac_params
     elif is_nac:
