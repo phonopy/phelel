@@ -139,16 +139,6 @@ class PhelelYamlDumper(PhonopyYamlDumper):
         lines += self._phonon_supercell_yaml_lines()
         return lines
 
-    def _phonon_supercell_matrix_yaml_lines(self):
-        lines = []
-        if self._data.phonon_supercell_matrix is not None:
-            lines.append("phonon_supercell_matrix:")
-            assert self._data.supercell_matrix is not None
-            for v in self._data.supercell_matrix:
-                lines.append("- [ %3d, %3d, %3d ]" % tuple(v))
-            lines.append("")
-        return lines
-
     def _phonon_supercell_yaml_lines(self):
         lines = []
         if self._data.phonon_supercell is not None:

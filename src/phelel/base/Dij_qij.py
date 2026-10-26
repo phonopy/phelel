@@ -64,9 +64,13 @@ class DeltaDijQij:
 
         Note
         ----
-        The order of lm is like
-            (l=0,m=0), (l=1,m=-1), (l=1,m=0), (l=1,m=1), (l=2,m=-2),
-            (l=2,m=-1), (l=2,m=0), ...
+        The lm index runs over the channels of ``lm_channels`` of the atom in
+        their order, and over m = -l, ..., l in each channel.  An l can have
+        more than one channel.  For example, with the channels s, s, p, p of
+        carbon, the order is
+            (l=0,m=0), (l=0,m=0), (l=1,m=-1), (l=1,m=0), (l=1,m=1),
+            (l=1,m=-1), (l=1,m=0), (l=1,m=1).
+        The two lm indices of Dij and qij are in the same order.
 
         Parameters
         ----------
