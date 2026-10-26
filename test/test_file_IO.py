@@ -195,3 +195,57 @@ def test_read_phelel_params_hdf5_with_atom_indices_in_derivatives(
     else:
         with pytest.raises(ValueError, match="differs from"):
             read_phelel_params_hdf5(filename)
+
+
+def _load_C111(**kwargs) -> phelel.Phelel:
+    dirname = cwd / "interface" / "vasp"
+    return phelel.load(
+        dirname / "phelel_disp_C111.yaml",
+        dir_names=[dirname / "C111_disp-000", dirname / "C111_disp-001"],
+        fft_mesh=[4, 4, 4],
+        is_nac=False,
+        **kwargs,
+    )
+
+
+_DATASETS = ("dVdu", "dDijdu", "dqijdu", "Dij", "qij")
+
+
+def test_phelel_params_hdf5_saved_again(tmp_path, monkeypatch):
+    """phelel_params.hdf5 read by load and saved again has the same arrays.
+
+    load reads phelel_params.hdf5 in the current directory.  The arrays have to
+    be read as complex numbers, otherwise they are written with another axis.
+
+    """
+    monkeypatch.chdir(tmp_path)
+    _load_C111().save_hdf5(filename="phelel_params.hdf5")
+    phe = phelel.load(cwd / "interface" / "vasp" / "phelel_disp_C111.yaml")
+    phe.save_hdf5(filename="saved_again.hdf5")
+    with (
+        h5py.File("phelel_params.hdf5") as f,
+        h5py.File("saved_again.hdf5") as g,
+    ):
+        for key in _DATASETS:
+            np.testing.assert_array_equal(g[key][:], f[key][:], err_msg=key)
+
+
+def test_load_with_phelel_params_hdf5(tmp_path, monkeypatch, capsys):
+    """The derivatives are computed again with phelel_params.hdf5 present.
+
+    load reads phelel_params.hdf5 in the current directory before computing
+    the derivatives from dir_names.  The results are those computed without
+    the file, and with log_level=0 nothing is printed.
+
+    """
+    monkeypatch.chdir(tmp_path)
+    phe_ref = _load_C111()
+    phe_ref.save_hdf5(filename="phelel_params.hdf5")
+    capsys.readouterr()
+    phe = _load_C111()
+    assert capsys.readouterr().out == ""
+    np.testing.assert_array_equal(phe.dVdu.dVdu, phe_ref.dVdu.dVdu)
+    for key in ("dDijdu", "dqijdu", "Dij", "qij"):
+        np.testing.assert_array_equal(
+            getattr(phe.dDijdu, key), getattr(phe_ref.dDijdu, key), err_msg=key
+        )

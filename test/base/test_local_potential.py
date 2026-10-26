@@ -76,16 +76,20 @@ def test_visualize(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, caps
     phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
     fft_mesh = np.array([4, 4, 4])
     atom_indices = phe.primitive.p2s_map
-    dlp = DLocalPotential(
-        fft_mesh, phe.p2s_matrix, phe.supercell, atom_indices=atom_indices
-    )
-    grid_points, _ = get_grid_points(fft_mesh, phe.p2s_matrix)
-    dlp.grid_points = grid_points
+    grid_points, lattice_points = get_grid_points(fft_mesh, phe.p2s_matrix)
     dVdu = np.zeros((1, len(atom_indices), 3, len(grid_points)), dtype="complex128")
     i_atom = 1
     for i_dir in range(3):
         dVdu[0, i_atom, i_dir] = _periodic_function(grid_points, i_dir)
-    dlp.dVdu = dVdu
+    dlp = DLocalPotential.from_arrays(
+        fft_mesh,
+        phe.p2s_matrix,
+        phe.supercell,
+        dVdu,
+        grid_points,
+        lattice_points,
+        atom_indices=atom_indices,
+    )
 
     dlp.visualize(phe.primitive, i_atom)
 
