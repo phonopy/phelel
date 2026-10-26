@@ -1,5 +1,6 @@
 """Test for PhelelYaml class."""
 
+import os
 from io import StringIO
 from pathlib import Path
 
@@ -32,3 +33,25 @@ def test_PhelelYaml_get_yaml_lines():
     np.testing.assert_allclose(
         phe_yml.primitive_matrix, phe_yml_test.primitive_matrix, atol=1e-8
     )
+
+
+def test_PhelelYaml_does_not_write_forces_by_default(tmp_path: Path):
+    """Forces are written only when force_sets is given as True.
+
+    The forces of the supercells are read from the VASP calculations, and
+    phelel_disp.yaml and phelel.yaml have none.
+
+    """
+    original_cwd = Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    finally:
+        os.chdir(original_cwd)
+    num_disps = len(phe.dataset["first_atoms"])
+    phe.forces = np.ones((num_disps, len(phe.supercell), 3))
+
+    for settings, has_forces in ((None, False), ({"force_sets": True}, True)):
+        yaml_data = yaml.safe_load(str(phe.to_phelel_yaml(settings=settings)))
+        for disp in yaml_data["displacements"]:
+            assert ("forces" in disp) is has_forces
