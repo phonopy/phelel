@@ -20,16 +20,21 @@ from phelel.interface.vasp.file_IO import (
 cwd = Path(__file__).parent
 
 
-@pytest.mark.parametrize("name", ["Cr", "Fe-ncl"])
+@pytest.mark.parametrize("name", ["Cr", "Fe-ncl", "Fe-lsorbit"])
 def test_read_PAW_Dij_qij_two_formats(name: str):
     """Dij and qij of the old format are equal to those of vaspout.h5.
 
     Both are written by one VASP calculation with LWAP = .TRUE.  Dij of Cr
     differs between the spin components and between the atoms, and Dij of
-    Fe-ncl has imaginary parts and four spin components that differ from each
-    other, so mixing up these axes or the real and imaginary parts in one of
-    the readers changes Dij.  The order of the two lm indices is not tested,
-    because Dij and qij are symmetric in them.
+    Fe-ncl and Fe-lsorbit has imaginary parts and four spin components that
+    differ from each other, so mixing up these axes or the real and imaginary
+    parts in one of the readers changes Dij.
+
+    Without spin-orbit coupling (Cr and Fe-ncl), Dij and qij are symmetric in
+    the two lm indices to rounding errors, so mixing them up changes Dij by no
+    more than the rounding errors.  With spin-orbit coupling (Fe-lsorbit), Dij
+    is not symmetric in them, so mixing up the two lm indices in one of the
+    readers changes Dij by 0.28 eV.  qij is symmetric in all of the data.
 
     """
     data_dir = cwd / "Dij_qij_two_formats" / name
@@ -42,6 +47,12 @@ def test_read_PAW_Dij_qij_two_formats(name: str):
         assert np.abs(dij.imag).max() > 0.1
         for s, t in itertools.combinations(range(4), 2):
             assert np.abs(dij[s] - dij[t]).max() > 0.1, (s, t)
+    dij_T = np.swapaxes(dij, -1, -2)
+    if name == "Fe-lsorbit":
+        assert np.abs(dij - dij_T).max() > 0.1
+    else:
+        np.testing.assert_allclose(dij, dij_T, rtol=0, atol=1e-12)
+    np.testing.assert_array_equal(qij, np.swapaxes(qij, -1, -2))
 
     shape = (inwap["ncdij"], inwap["nions"], inwap["lmdim"], inwap["lmdim"])
     assert dij.shape == shape
