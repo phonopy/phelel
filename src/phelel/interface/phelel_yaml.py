@@ -187,19 +187,15 @@ class PhelelYaml(PhonopyYaml):
     Details are found in the docstring of PhonopyYaml.
     The common usages are as follows:
 
-    1. Set phelel instance.
-        phe_yml = PhelelYaml()
-        phe_yml.set_phelel_info(phelel_instance)
+    1. Make it from a Phelel instance.
+        phe_yml = phelel_instance.to_phelel_yaml()
     2. Read phelel.yaml file.
-        phe_yml = PhelelYaml()
-        phe_yml.read(filename)
-    3. Parse yaml dict of phelel.yaml.
-        with open("phelel.yaml", 'r') as f:
-            phe_yml.yaml_data = yaml.load(f, Loader=yaml.CLoader)
-            phe_yml.parse()
-    4. Save stored data in PhelelYaml instance into a text file in yaml.
-        with open(filename, 'w') as w:
+        phe_yml = PhelelYaml().read(filename)
+    3. Save stored data in PhelelYaml instance into a text file in yaml.
+        with open(filename, "w") as w:
             w.write(str(phe_yml))
+
+    A dict of yaml data is read by load_phelel_yaml.
 
     """
 

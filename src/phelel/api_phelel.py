@@ -122,8 +122,11 @@ class Phelel:
             is 1e-5.
         is_symmetry : bool, optional
             Use crystal symmetry or not. Default is True.
-        calculator :
-            A dummy parameter.
+        calculator : str or None, optional
+            Name of the calculator interface, "vasp" or None. It is passed to
+            Phonopy and gives the physical units, also those written by
+            to_phelel_yaml. None gives the same units as "vasp". Default is
+            None.
         nufft : str or None, optional
             'finufft' only, which is used also for None.  Other values are an
             error.  Default is None.
@@ -188,8 +191,10 @@ class Phelel:
     def calculator(self) -> str | None:
         """Return calculator interface name.
 
-        str
-            Calculator name such as 'vasp', 'qe', etc.
+        Returns
+        -------
+        str or None
+            "vasp" or None, which gives the same physical units as "vasp".
 
         """
         return self._calculator

@@ -203,13 +203,12 @@ class DDijQijFit:
             disp_atom, self._symmetry, self._atom_indices_in
         )
 
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
         natom = len(self._supercell)
         ncdij = delta_Dij_qijs[0].dDij.shape[0]
         lmdim = delta_Dij_qijs[0].dDij.shape[-2]
         shape = (ncdij, len(atoms), 3, natom, lmdim, lmdim)
-        dDijdu = np.zeros(shape, dtype=dtype, order="C")
-        dqijdu = np.zeros(shape, dtype=dtype, order="C")
+        dDijdu = np.zeros(shape, dtype="complex128", order="C")
+        dqijdu = np.zeros(shape, dtype="complex128", order="C")
         for i_atom, sitesyms in enumerate(sitesym_sets):
             if self._verbose:
                 print(
@@ -350,7 +349,6 @@ class DDijQijFit:
         """
         natom = len(self._supercell)
         lmdim = delta_Dij_qijs[0].dDij.shape[-2]
-        dtype = f"c{np.dtype('double').itemsize * 2}"
         ncdij = delta_Dij_qijs[0].dDij.shape[0]
 
         lattice = self._supercell.cell.T
@@ -361,10 +359,10 @@ class DDijQijFit:
         disps = get_displacements_with_rotations(rotations, lattice, delta_Dij_qijs)
         disps_inv = np.linalg.pinv(disps)
         dDij_rotated_all = np.zeros(
-            (ncdij, len(disps), natom * lmdim**2), dtype=dtype, order="C"
+            (ncdij, len(disps), natom * lmdim**2), dtype="complex128", order="C"
         )
         dqij_rotated_all = np.zeros(
-            (ncdij, len(disps), natom * lmdim**2), dtype=dtype, order="C"
+            (ncdij, len(disps), natom * lmdim**2), dtype="complex128", order="C"
         )
 
         count = 0
@@ -679,11 +677,10 @@ class DDijQij:
         self._qij = qij_per[:, self._atom_indices]
 
     def _allocate_arrays(self, ncdij, lmdim):
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
         natom = len(self._supercell)
         shape = (ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim)
-        self._dDijdu = np.zeros(shape, dtype=dtype, order="C")
-        self._dqijdu = np.zeros(shape, dtype=dtype, order="C")
+        self._dDijdu = np.zeros(shape, dtype="complex128", order="C")
+        self._dqijdu = np.zeros(shape, dtype="complex128", order="C")
 
 
 def _get_orbital_rotation_matrix(

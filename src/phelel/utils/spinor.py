@@ -157,8 +157,7 @@ class SpinorRotationMatrices:
     def run(self):
         """Rotate spinor matrix."""
         self._compute_d()
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
-        self._Delta = np.array(self._d, dtype=dtype, order="C")
+        self._Delta = np.array(self._d, dtype="complex128", order="C")
         return self
 
     def _compute_d(self):
