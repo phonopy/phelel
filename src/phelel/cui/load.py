@@ -114,7 +114,7 @@ def load(
             phonon_dataset,
             _,
             _nac_params,
-            _,
+            calculator,
             site_mixture_scheme,
         ) = _read_phelel_yaml(
             phonopy_yaml, primitive_matrix, None, is_nac, None, symprec
@@ -133,6 +133,7 @@ def load(
         dataset = None
         phonon_dataset = None
         _nac_params = None
+        calculator = None
         site_mixture_scheme = None
 
     assert cell is not None
@@ -143,6 +144,7 @@ def load(
         phonon_supercell_matrix=ph_smat,
         fft_mesh=fft_mesh,
         symprec=symprec,
+        calculator=calculator,
         is_symmetry=is_symmetry,
         log_level=log_level,
         site_mixture_scheme=site_mixture_scheme or "merge",
