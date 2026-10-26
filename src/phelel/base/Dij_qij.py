@@ -168,6 +168,7 @@ class DDijQijFit:
         self._dDijdu: NDArray | None = None
         self._dqijdu: NDArray | None = None
         self._atom_indices: NDArray | None = None
+        self._lxlylz = LxLyLzMatrices().run()
 
     @property
     def dDijdu(self):
@@ -358,6 +359,12 @@ class DDijQijFit:
 
         disps = get_displacements_with_rotations(rotations, lattice, delta_Dij_qijs)
         disps_inv = np.linalg.pinv(disps)
+        Deltas = []
+        for r in rotations:
+            shr = SHRotationMatrices(r, lattice, self._lxlylz)
+            shr.run()
+            assert shr.Delta is not None
+            Deltas.append(shr.Delta)
         dDij_rotated_all = np.zeros(
             (ncdij, len(disps), natom * lmdim**2), dtype="complex128", order="C"
         )
@@ -367,11 +374,11 @@ class DDijQijFit:
 
         count = 0
         for delta_Dij_qij in delta_Dij_qijs:
-            for r, perm, tr in zip(
-                rotations, atomic_permutations, time_reversals, strict=True
+            for r, Delta, perm, tr in zip(
+                rotations, Deltas, atomic_permutations, time_reversals, strict=True
             ):
                 dDij_rotated, dqij_rotated = self._rotate_Dij_qij(
-                    ncdij, delta_Dij_qij, perm, r
+                    ncdij, delta_Dij_qij, perm, Delta
                 )
                 if ncdij == 4:  # Need to rotate in spin space, too.
                     dDij_spinor_rotated = rotate_delta_vals_in_spin_space(
@@ -397,9 +404,13 @@ class DDijQijFit:
         )
 
     def _rotate_Dij_qij(
-        self, ncdij: int, delta_Dij_qij: DeltaDijQij, perm: NDArray, r: NDArray
+        self,
+        ncdij: int,
+        delta_Dij_qij: DeltaDijQij,
+        perm: NDArray,
+        Delta: list[NDArray],
     ) -> tuple[list[NDArray], list[NDArray]]:
-        """Rotate dDij and dqij by the symmetry operation g with rotation r.
+        """Rotate dDij and dqij by the symmetry operation g with rotation R.
 
         dDij and dqij of each spin component are transformed by g in the space
         of the atomic-like orbitals, g dDij g^-1, as written in
@@ -417,9 +428,9 @@ class DDijQijFit:
         perm : ndarray
             Atomic permutation of g.  Atom i is moved to atom perm[i].
             dtype='int64', shape=(natom,)
-        r : ndarray
-            Rotation of g in the supercell basis vectors.
-            dtype='int64', shape=(3, 3)
+        Delta : list of ndarray
+            SHRotationMatrices.Delta of the rotation R of g, Delta(R) for each
+            l.
 
         Returns
         -------
@@ -429,21 +440,18 @@ class DDijQijFit:
             dtype='complex128', shape=(natom * lmdim * lmdim,) each
 
         """
-        shr = SHRotationMatrices(r, self._supercell.cell.T, LxLyLzMatrices().run())
-        shr.run()
-        assert shr.Delta is not None
         lm_channels = delta_Dij_qij.lm_channels
         rot_dDij: list[NDArray] = []
         rot_dqij: list[NDArray] = []
         for i_cdij in range(ncdij):
             rot_dDij.append(
                 _rotate_Dij_in_orbital_space(
-                    delta_Dij_qij.dDij[i_cdij], lm_channels, shr.Delta, perm
+                    delta_Dij_qij.dDij[i_cdij], lm_channels, Delta, perm
                 ).ravel()
             )
             rot_dqij.append(
                 _rotate_Dij_in_orbital_space(
-                    delta_Dij_qij.dqij[i_cdij], lm_channels, shr.Delta, perm
+                    delta_Dij_qij.dqij[i_cdij], lm_channels, Delta, perm
                 ).ravel()
             )
         return rot_dDij, rot_dqij
@@ -756,10 +764,8 @@ def _rotate_Dij_in_orbital_space(
     rot_Dij = np.zeros_like(Dij)
     for i, (Dij_atom, lm_atom) in enumerate(zip(Dij, lm_channels, strict=True)):
         bigDelta = _get_orbital_rotation_matrix(Delta, lm_atom, lmdim)
-        rot_Dij[i] = bigDelta @ Dij_atom @ bigDelta.T.conj()
-    perm_inv = np.zeros_like(perm)
-    perm_inv[perm] = np.arange(len(perm))
-    return rot_Dij[perm_inv]
+        rot_Dij[perm[i]] = bigDelta @ Dij_atom @ bigDelta.T.conj()
+    return rot_Dij
 
 
 def _check_Dij_symmetry(
