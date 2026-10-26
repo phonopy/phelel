@@ -16,8 +16,8 @@ from phonopy.structure.symmetry import Symmetry
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.symmetrization import (
     check_displaced_atoms,
-    collect_site_symmetry_operations,
     get_displacements_with_rotations,
+    select_equivalent_atoms,
 )
 from phelel.interface.vasp.file_IO import get_CHGCAR
 from phelel.utils.data import real2cmplx
@@ -133,8 +133,6 @@ class LocalPotentialInterpolationNUFFT:
         Atom indices in supercell where dV will be computed. If those indices
         don't belong to symmetrically equivalent atoms to the dispalced atom.
         dtype='int64', shape=(atom_indices,)
-    dVs : list of DeltaLocalPotential
-        This is given from DLocalPotential.run().
 
     """
 
@@ -202,37 +200,7 @@ class LocalPotentialInterpolationNUFFT:
         ###########
         # Private #
         ###########
-        # Delta local potentials before interpolation
-        self._delta_Vs: list[DeltaLocalPotential] | None = None
-
-        # counter of equivalent atoms calculations
-        self._i_atom = 0
-        # Sets of symmetry operations to send
-        # displaced atom to ones of
-        # symmetrically equivalent atoms.
-        # The set is the same as
-        # site-symmetry when displaced atom
-        # and the one is identical.
-        self._sitesym_sets = None
-
         self._finufft_plan = None
-
-    def __iter__(self):
-        """Enable iterator."""
-        return self
-
-    def __next__(self):
-        """Enable iterator."""
-        assert self._atom_indices_returned is not None
-        if len(self._atom_indices_returned) == self._i_atom:
-            raise StopIteration
-
-        self._run_at_atom()
-        self._i_atom += 1
-
-    def next(self):
-        """Enable iterator."""
-        return self.__next__()
 
     @property
     def p2s_matrix(self):
@@ -259,113 +227,96 @@ class LocalPotentialInterpolationNUFFT:
         """Return atom indices."""
         return self._atom_indices_returned
 
-    @property
-    def delta_Vs(self) -> list[DeltaLocalPotential] | None:
-        """Return dVs."""
-        return self._delta_Vs
+    def run(self, delta_Vs: list[DeltaLocalPotential]):
+        """Compute dV/du of the atoms equivalent to the displaced atom.
 
-    @delta_Vs.setter
-    def delta_Vs(self, delta_Vs: list[DeltaLocalPotential]):
-        """Prepare dV interpolation calculation.
-
-        Note
-        ----
-        Atom index list (atom_indices_returned) is created as a union of
-        atom_indices_in and symmetrically equivalent atoms of the displaced atom.
+        The atoms are those of atom_indices given at __init__ that are
+        equivalent to the displaced atom by symmetry.  They are stored in
+        atom_indices_returned, and dV/du of them in dVdu.
 
         Parameters
         ----------
-        dVs : list of DeltaLocalPotentials
-            Changes in local potentials by atomic displacements. This
-            can be set later.
+        delta_Vs : list of DeltaLocalPotential
+            Changes in local potentials by the displacements of one atom.
 
         """
         check_magnetic_moments(self._supercell, delta_Vs[0].dV.shape[0])
-        self._delta_Vs = delta_Vs
-        self._i_atom = 0
-        disp_atom = self._delta_Vs[0].displacement["number"]
-        sitesym_sets, equiv_atoms = collect_site_symmetry_operations(
-            disp_atom, self._symmetry
+        disp_atom = delta_Vs[0].displacement["number"]
+        atoms, sitesym_sets = select_equivalent_atoms(
+            disp_atom, self._symmetry, self._atom_indices_in
         )
-
-        if self._atom_indices_in is None:
-            atoms = np.arange(len(self._supercell))
-        else:
-            atoms = self._atom_indices_in
-        self._atom_indices_returned = np.array(
-            [i for i in atoms if i in equiv_atoms], dtype="int64"
-        )
-        # The rows of sitesym_sets follow equiv_atoms.  They are picked in the
-        # order of the returned atoms.
-        i_equiv_atom = {int(atom): i for i, atom in enumerate(equiv_atoms)}
-        self._sitesym_sets = sitesym_sets[
-            [i_equiv_atom[int(atom)] for atom in self._atom_indices_returned]
-        ]
 
         dtype = f"c{np.dtype('double').itemsize * 2}"
-        ncdij = self._delta_Vs[0].dV.shape[0]
-        self._dVdu = np.zeros(
-            (ncdij, len(self._atom_indices_returned), 3, len(self._grid_points)),
-            dtype=dtype,
-            order="C",
+        ncdij = delta_Vs[0].dV.shape[0]
+        dVdu = np.zeros(
+            (ncdij, len(atoms), 3, len(self._grid_points)), dtype=dtype, order="C"
         )
+        for i_atom, sitesyms in enumerate(sitesym_sets):
+            dVdu[:, i_atom] = self._run_at_atom(delta_Vs, sitesyms)
+            if self._verbose:
+                print("Computed dV/du by displaced atom %d" % (atoms[i_atom] + 1))
+        self._atom_indices_returned = atoms
+        self._dVdu = dVdu
 
-    def run(self):
-        """Possibly iterate over selected symmetrically equivalent atoms."""
-        for _ in self:
-            pass
+    def _run_at_atom(
+        self, delta_Vs: list[DeltaLocalPotential], sitesyms: NDArray
+    ) -> NDArray:
+        """Return dV/du of one of the atoms equivalent to the displaced atom.
 
-    def _run_at_atom(self):
-        """Calculate at an atom in selected symmetrically equivalent atoms.
+        Let a be the displaced atom and b this atom.  Each operation g = {R|t}
+        of sitesyms sends a to b.  Applied to the change dV_k by the k-th
+        displacement u_k of a, g gives the change by the displacement R u_k of
+        b,
 
-        Called by iterator method __next__.
+            dV_kg(r) = dV_k(g^-1 r),
 
-        np.dot(disps_inv, full_dV_itpl) is stored in self.dVdu. But full_dV_tpl
-        requires large memory space, it is divided into those at site-symmetry
-        operations and multiplied with disps_inv piece by piece.
+        which is evaluated at the grid points by NUFFT (_rotate_dV).  For
+        ncdij=4, dV_kg is also rotated in spin space by R, and for the
+        operations combined with time reversal, time reversal is applied in
+        spin space.
 
-        disps:
-            Stacked atomic displacements. Site-symmetry runs fastest.
-            shape = (n_sitesyms * n_disps, 3)
-        disps_inv:
-            shape = (3, n_sitesyms * n_disps)
-        dVs_*:
-            shape = (ncdij, n_grid_points)
-        self._dVdu:
-            shape = (ncdij, natom, 3, n_grid_points)
+        dV/du of b is the least-squares solution of
 
-        ``dVs_iFT``, ``dVs_rotated``, and ``self._finufft_plan`` are the list of
-        size ``ncdij``, where ``ncdij`` is 1 (non-magnetic), 2 (collinear
-        magnetic), or 4 (non-collinear).
+            dV_kg = (R u_k) . dV/du  for all k and g,
 
-        Spinor rotation
-        ---------------
-        When non-collinear case, dV is considered as 2x2 matrix of scalar fields
-        of delta V in real space with respect to each atomic displacement. This
-        dV is rotated to expand symemtrized information to non-symmetrized
-        information by leveraging site symmetry information for computing the
-        derivative.
+        that is, dV/du = pinv(U) dV, where the rows of U are R u_k with g
+        running fastest (get_displacements_with_rotations).  The products of
+        the columns of pinv(U) and dV_kg are summed one (k, g) at a time, so
+        that dV_kg of all (k, g) are not stored at once.
+
+        Parameters
+        ----------
+        delta_Vs : list of DeltaLocalPotential
+            Changes in local potentials by the displacements u_k of the
+            displaced atom a.
+        sitesyms : ndarray
+            Indices of the symmetry operations that send a to b.
+            dtype='int64', shape=(n_site_syms,)
+
+        Returns
+        -------
+        ndarray
+            dV/du of b.
+            dtype='complex128', shape=(ncdij, 3, n_grid_points)
 
         """
-        assert self._sitesym_sets is not None
-        assert self._delta_Vs is not None
-        assert self._dVdu is not None
-        sitesyms = self._sitesym_sets[self._i_atom]
         rotations = self._symmetry.symmetry_operations["rotations"][sitesyms]
         translations = self._symmetry.symmetry_operations["translations"][sitesyms]
         time_reversals = get_time_reversals(self._symmetry)[sitesyms]
         lattice = self._supercell.cell.T
-        disps = get_displacements_with_rotations(rotations, lattice, self._delta_Vs)
+        disps = get_displacements_with_rotations(rotations, lattice, delta_Vs)
         disps_inv = np.linalg.pinv(disps)
 
         if self._verbose:
             print("Running finufft (eps=%.3e)..." % self._finufft_eps)
 
-        ncdij = self._dVdu.shape[0]
-        self._init_finufft(ncdij)
+        ncdij = delta_Vs[0].dV.shape[0]
+        dtype = f"c{np.dtype('double').itemsize * 2}"
+        dVdu = np.zeros((ncdij, 3, len(self._grid_points)), dtype=dtype, order="C")
+        self._init_finufft([dV.shape for dV in delta_Vs[0].dV])
 
         count = 0
-        for delta_V in self._delta_Vs:
+        for delta_V in delta_Vs:
             dVs_iFT = [self._get_iFFT_of_dV(dV) for dV in delta_V.dV]
             for r, t, tr in zip(rotations, translations, time_reversals, strict=True):
                 dVs_rotated = self._rotate_dV(dVs_iFT, r, t)
@@ -378,14 +329,13 @@ class LocalPotentialInterpolationNUFFT:
                 if tr:
                     dVs_rotated = apply_time_reversal_in_spin_space(dVs_rotated)
                 for i_cdij in range(ncdij):
-                    self._dVdu[i_cdij, self._i_atom] += np.outer(
-                        disps_inv[:, count], dVs_rotated[i_cdij]
-                    )
+                    dVdu[i_cdij] += np.outer(disps_inv[:, count], dVs_rotated[i_cdij])
                 count += 1
                 dVs_rotated.clear()
             dVs_iFT.clear()
 
         self._finalize_finufft()
+        return dVdu
 
     def _rotate_dV(
         self, dV_iFTs: list[NDArray], r: NDArray, t: NDArray
@@ -393,6 +343,25 @@ class LocalPotentialInterpolationNUFFT:
         """Rotate dV by rotating coordinates of delta potential passively.
 
         Instead of rotating delta potential, grid points are rotated.
+
+        Parameters
+        ----------
+        dV_iFTs : list of ndarray
+            Results of _get_iFFT_of_dV for each spin component.
+            dtype='complex128', shape=(nz, ny, nx) each
+        r : ndarray
+            Rotation of the operation g in the supercell basis vectors.
+            dtype='int64', shape=(3, 3)
+        t : ndarray
+            Translation of g in the supercell basis vectors.
+            dtype='double', shape=(3,)
+
+        Returns
+        -------
+        list of ndarray
+            dV(g^-1 x) at the grid points x for g = {r|t}, for each spin
+            component.
+            dtype='complex128', shape=(n_grid_points,) each
 
         """
         r_inv = np.linalg.inv(r)
@@ -402,7 +371,23 @@ class LocalPotentialInterpolationNUFFT:
         return self._run_finufft(grid_points, dV_iFTs)
 
     def _get_iFFT_of_dV(self, dV: NDArray) -> NDArray:
-        """Inverse FFT."""
+        """Inverse FFT.
+
+        Parameters
+        ----------
+        dV : ndarray
+            Change in the local potential of one spin component on the mesh of
+            VASP.
+            dtype='complex128', shape=(nz, ny, nx)
+
+        Returns
+        -------
+        ndarray
+            Inverse FFT of dV, shifted by fftshift so that the zero frequency is
+            at the center, as finufft takes the Fourier coefficients.
+            dtype='complex128', shape=dV.shape
+
+        """
         dims = dV.shape
         assert 3 == len(dims)
         dV_iFT = np.fft.fftshift(np.fft.ifftn(dV))
@@ -420,6 +405,23 @@ class LocalPotentialInterpolationNUFFT:
         dV_iFT is FFT of dV whwere dV values are stored in Fortran order.
         So x, y, z are alined as (z, y, x) in nufft3d2.
 
+        Parameters
+        ----------
+        grid_points : ndarray
+            Points in the supercell basis vectors at which the Fourier series
+            are evaluated.
+            dtype='double', shape=(n_points, 3)
+        dV_iFTs : list of ndarray
+            Fourier coefficients from _get_iFFT_of_dV for each spin
+            component, with a plan of _init_finufft for each.
+            dtype='complex128', shape=(nz, ny, nx) each
+
+        Returns
+        -------
+        list of ndarray
+            Values at grid_points of the Fourier series of each of dV_iFTs.
+            dtype='complex128', shape=(len(grid_points),) each
+
         """
         assert self._finufft_plan is not None
         retval = []
@@ -432,17 +434,22 @@ class LocalPotentialInterpolationNUFFT:
             retval.append(self._finufft_plan[i].execute(dV_iFT))
         return retval
 
-    def _init_finufft(self, ncdij: int):
-        import finufft
+    def _init_finufft(self, mesh_shapes: list[tuple[int, ...]]):
+        """Make a type-2 plan of finufft for each spin component.
 
-        assert self._delta_Vs is not None
+        Parameters
+        ----------
+        mesh_shapes : list of tuple of int
+            Shapes (nz, ny, nx) of the Fourier coefficients of the spin
+            components.
+
+        """
+        import finufft
 
         dtype = f"c{np.dtype('double').itemsize * 2}"
         self._finufft_plan = [
-            finufft.Plan(
-                2, self._delta_Vs[0].dV[i].shape, eps=self._finufft_eps, dtype=dtype
-            )
-            for i in range(ncdij)
+            finufft.Plan(2, shape, eps=self._finufft_eps, dtype=dtype)
+            for shape in mesh_shapes
         ]
 
     def _finalize_finufft(self):
@@ -692,15 +699,8 @@ class DLocalPotential:
                     dVs.append(
                         DeltaLocalPotential(V_loc_per, V_loc_disps[i], displacements[i])
                     )
-            lpi.delta_Vs = dVs
+            lpi.run(dVs)
             assert lpi.atom_indices_returned is not None
-            for i_atom, _ in enumerate(lpi):  # Run lpi by iterator.next()
-                if self._verbose:
-                    print(
-                        "Computed dV/du by displaced atom %d"
-                        % (lpi.atom_indices_returned[i_atom] + 1)
-                    )
-
             indices = []
             for ai in lpi.atom_indices_returned:
                 indices.append(np.where(self.atom_indices == ai)[0][0])
@@ -737,6 +737,14 @@ class DLocalPotential:
             )
 
     def _get_dVdu_shape(self) -> tuple[int, int, int]:
+        """Return the shape of dVdu without the spin index.
+
+        Returns
+        -------
+        tuple of int
+            (len(atom_indices), 3, number of grid points)
+
+        """
         num_gp = int(
             self._fft_mesh[0]
             * self._fft_mesh[1]
@@ -767,6 +775,13 @@ def visualize_distribution(
     extended cell includes the supercell. See more detail in
     _get_multipliticy_for_visualization. This is because the grid is defined
     along primitive cell basis vectors.
+
+    Returns
+    -------
+    ndarray
+        Multiplicity of the primitive cell along its basis vectors, which gives
+        the cell written in the file.
+        dtype=int, shape=(3,)
 
     """
     plat = pcell.cell.T

@@ -283,9 +283,7 @@ def test_interpolation_with_atom_indices_in_any_order():
         atom_indices=np.array([1, 0]),
         verbose=False,
     )
-    lpi.delta_Vs = [DeltaLocalPotential(V_loc_per, V_loc_disp, displacement)]
-    for _ in lpi:
-        pass
+    lpi.run([DeltaLocalPotential(V_loc_per, V_loc_disp, displacement)])
 
     np.testing.assert_array_equal(lpi.atom_indices_returned, [1, 0])
     assert lpi.dVdu is not None
