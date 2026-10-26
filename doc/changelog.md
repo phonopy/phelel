@@ -84,10 +84,16 @@
 - `phelel` and `phelel.load()` keep the calculator written in
   `phelel_disp.yaml`. Before, `Phelel.calculator` was None, and `phelel.yaml`
   written by `phelel` had no `calculator`. The results are unchanged.
+  `phelel.load()` takes `calculator`, as `phonopy.load()` does.
 - Bug fix: `Phelel.to_phelel_yaml()` without `settings` wrote the forces of the
   supercells. The default settings of `PhelelYaml` were not used. `phelel` and
   `velph` give the settings, so `phelel_disp.yaml` and `phelel.yaml` written by
   them are not affected.
+- `phelel.load()` reads `BORN` in the current directory also without
+  `dir_names`, as `phonopy.load()` does, unless `is_nac=False` or the NAC
+  parameters are in the yaml file. Before, `BORN` was read only with
+  `dir_names`. `phelel --cd` and `velph phelel differentiate` read the same
+  NAC parameters as before.
 - phonors 0.6.0 or later is required. phonopy 4.8.4 already depends on it,
   and phelel uses its `snf3x3` directly.
 

@@ -76,7 +76,10 @@ class Phelel:
     def __init__(
         self,
         unitcell: PhonopyAtoms,
-        supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        supercell_matrix: Sequence[int]
+        | Sequence[Sequence[int]]
+        | NDArray
+        | None = None,
         primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
         | Sequence[Sequence[float]]
         | NDArray
@@ -704,7 +707,10 @@ class Phelel:
 
     def _get_phonopy(
         self,
-        supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+        supercell_matrix: Sequence[int]
+        | Sequence[Sequence[int]]
+        | NDArray
+        | None = None,
         primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
         | Sequence[Sequence[float]]
         | NDArray
