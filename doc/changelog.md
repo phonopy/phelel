@@ -55,6 +55,12 @@
 - `velph init` adds `kpar` of `[vasp.incar]` to `nac` too. Before, `kpar` was
   listed in `incar_unset` of `nac` in the default settings with `npar` and
   `ncore`, although VASP uses `KPAR` with `LEPSILON = .TRUE.`.
+- `atom_indices_in_derivatives` is no longer written in `phelel_params.hdf5`,
+  and `Phelel.atom_indices_in_derivatives` is removed. The derivatives are
+  those of the atoms of the primitive cell, as before, given by `p2s_map` in
+  `phelel_params.hdf5` and by `Phelel.primitive.p2s_map`. A
+  `phelel_params.hdf5` of an older version is read when its
+  `atom_indices_in_derivatives` is equal to `p2s_map`.
 
 ## Oct-23-2026: Version 0.16.0
 

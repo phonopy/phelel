@@ -6,6 +6,7 @@ import pathlib
 import h5py
 import numpy as np
 import phonopy
+import pytest
 from phonopy.interface.phonopy_yaml import read_cell_yaml
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture, get_primitive
@@ -159,3 +160,38 @@ def test_read_phelel_params_hdf5_without_force_constants(tmp_path):
     assert fc is None
     np.testing.assert_array_equal(fft_mesh, [1, 1, 1])
     assert dVdu.dVdu is not None
+
+
+@pytest.mark.parametrize("is_equal", [True, False])
+def test_read_phelel_params_hdf5_with_atom_indices_in_derivatives(
+    tmp_path, is_equal: bool
+):
+    """Files with atom_indices_in_derivatives are read only if it is p2s_map.
+
+    Files of older versions have this key, and save_hdf5 no longer writes it.
+    The derivatives are those of the atoms of p2s_map.
+
+    """
+    dirname = cwd / "interface" / "vasp"
+    phe = phelel.load(
+        dirname / "phelel_disp_C111.yaml",
+        dir_names=[dirname / "C111_disp-000", dirname / "C111_disp-001"],
+        fft_mesh=[1, 1, 1],
+        is_nac=False,
+    )
+    filename = tmp_path / "phelel_params.hdf5"
+    phe.save_hdf5(filename=filename)
+    p2s_map = phe.primitive.p2s_map
+    assert len(p2s_map) > 1
+    with h5py.File(filename, "r+") as f:
+        assert "atom_indices_in_derivatives" not in f
+        atom_indices = p2s_map if is_equal else p2s_map[::-1]
+        f.create_dataset("atom_indices_in_derivatives", data=atom_indices)
+
+    if is_equal:
+        dVdu, dDijdu, _, _ = read_phelel_params_hdf5(filename)
+        np.testing.assert_array_equal(dVdu.atom_indices, p2s_map)
+        np.testing.assert_array_equal(dDijdu.atom_indices, p2s_map)
+    else:
+        with pytest.raises(ValueError, match="differs from"):
+            read_phelel_params_hdf5(filename)

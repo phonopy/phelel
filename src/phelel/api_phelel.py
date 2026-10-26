@@ -61,9 +61,6 @@ class Phelel:
     primitive_matrix : ndarray
         Primitive matrix relative to unit cell. Default is None.
         dtype='double', shape=(3,3)
-    atom_indices_in_derivatives : ndarray
-        Atom indices in supercell used for computing derivatives.
-        dtype='int64', shape=(atom_indices_in_derivatives,)
     fft_mesh : ndarray
         FFT mesh numbers for primitive cell used for generating local potential
         derivative interpolation grid.
@@ -150,7 +147,6 @@ class Phelel:
         self._log_level = log_level
 
         self._phelel_phonon = self._get_phonopy(supercell_matrix, primitive_matrix)
-        self._atom_indices_in_derivatives = self._phelel_phonon.primitive.p2s_map
 
         self._phonon: Phonopy | None = None
         if phonon_supercell_matrix is not None:
@@ -172,7 +168,7 @@ class Phelel:
         self._dDijdu = DDijQij(
             self._phelel_phonon.supercell,
             symmetry=self._phelel_phonon.symmetry,
-            atom_indices=self._atom_indices_in_derivatives,
+            atom_indices=self._phelel_phonon.primitive.p2s_map,
             verbose=self._log_level > 0,
         )
 
@@ -262,11 +258,6 @@ class Phelel:
     @dataset.setter
     def dataset(self, dataset: dict):
         self._phelel_phonon.dataset = dataset
-
-    @property
-    def atom_indices_in_derivatives(self) -> NDArray:
-        """Return atom indices used for calculation of derivatives."""
-        return self._atom_indices_in_derivatives
 
     @property
     def symmetry(self) -> Symmetry:
@@ -549,7 +540,7 @@ class Phelel:
             self._p2s_matrix,
             self._phelel_phonon.supercell,
             symmetry=self.symmetry,
-            atom_indices=self.atom_indices_in_derivatives,
+            atom_indices=self._phelel_phonon.primitive.p2s_map,
             nufft=self._nufft,
             finufft_eps=self._finufft_eps,
             verbose=self._log_level > 0,
@@ -566,7 +557,7 @@ class Phelel:
                 self._p2s_matrix,
                 self._phelel_phonon.supercell,
                 symmetry=self.symmetry,
-                atom_indices=self.atom_indices_in_derivatives,
+                atom_indices=self._phelel_phonon.primitive.p2s_map,
                 nufft=self._nufft,
                 finufft_eps=self._finufft_eps,
                 verbose=self._log_level > 0,
@@ -599,7 +590,6 @@ class Phelel:
             "primitive": self.primitive,
             "unitcell": self.unitcell,
             "supercell": self.supercell,
-            "atom_indices_in_derivatives": self._atom_indices_in_derivatives,
             "disp_dataset": self.dataset,
             "nac_params": self.nac_params,
             "force_constants": self.force_constants,
