@@ -6,6 +6,7 @@ import os
 import pathlib
 import sys
 import textwrap
+import warnings
 from typing import Literal, cast
 
 import numpy as np
@@ -19,7 +20,11 @@ from phonopy.cui.phonopy_script import (
     print_version,
     store_nac_params,
 )
-from phonopy.exception import CellNotFoundError, NotPhonopyYamlError
+from phonopy.exception import (
+    CellNotFoundError,
+    MagmomValueError,
+    NotPhonopyYamlError,
+)
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import print_cell
 
@@ -27,6 +32,7 @@ from phelel import Phelel, __version__
 from phelel.cui.create_supercells import create_phelel_supercells, get_cell_info
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.settings import PhelelConfParser, PhelelSettings
+from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.interface.vasp.derivatives import create_derivatives
 
 
@@ -104,6 +110,7 @@ def main(**argparse_control):
 
     """
     mode: Literal["init", "run"] = argparse_control["mode"]
+    _install_warning_formatter()
     deprecated_command = argparse_control.get("deprecated_command")
     if deprecated_command is not None:
         print("")
@@ -142,7 +149,13 @@ def main(**argparse_control):
         conf_filename = None
     if conf_filename is not None:
         file_exists(conf_filename, log_level=log_level)
-    phelel_conf = PhelelConfParser(filename=conf_filename, args=args)
+    try:
+        phelel_conf = PhelelConfParser(filename=conf_filename, args=args)
+    except MagmomValueError as e:
+        print_error_message(_wrap(str(e)))
+        if log_level > 0:
+            print_error()
+        sys.exit(1)
     if log_level > 0 and conf_filename is not None:
         print(f'"{conf_filename}" was read as phelel configuration file.')
     settings = phelel_conf.settings
@@ -174,6 +187,11 @@ def main(**argparse_control):
             print(
                 f'If "{args.filename[0]}" is a configuration file, give it by --config.'
             )
+        if log_level > 0:
+            print_error()
+        sys.exit(1)
+    except MagmomValueError as e:
+        print_error_message(_wrap(str(e)))
         if log_level > 0:
             print_error()
         sys.exit(1)
@@ -211,6 +229,7 @@ def main(**argparse_control):
         fft_mesh=fft_mesh,
         symprec=symprec,
         is_symmetry=settings.is_symmetry,
+        calculator=phe_yml.calculator,
         finufft_eps=settings.finufft_eps,
     )
     if phonon_supercell_matrix is not None:
@@ -255,12 +274,18 @@ def main(**argparse_control):
             if log_level:
                 print_error()
             sys.exit(1)
-        create_derivatives(
-            phelel,
-            settings.create_derivatives,
-            subtract_rfs=settings.subtract_rfs,
-            log_level=log_level,
-        )
+        try:
+            create_derivatives(
+                phelel,
+                settings.create_derivatives,
+                subtract_rfs=settings.subtract_rfs,
+                log_level=log_level,
+            )
+        except MagneticMomentsError as e:
+            print_error_message(_wrap(str(e)))
+            if log_level:
+                print_error()
+            sys.exit(1)
         phelel.save_hdf5(filename="phelel_params.hdf5")
         if log_level > 0:
             print('"phelel_params.hdf5" has been created.')
@@ -310,6 +335,27 @@ def _check_operation(
         if log_level:
             print_error()
         sys.exit(1)
+
+
+def _install_warning_formatter() -> None:
+    """Show MagneticMomentsWarning as a message of the command.
+
+    The default format of Python warnings shows the source file and the line
+    number, which mean nothing to the user of the command. Other warnings keep
+    the default format.
+
+    """
+    default_showwarning = warnings.showwarning
+
+    def showwarning(message, category, filename, lineno, file=None, line=None):
+        if issubclass(category, MagneticMomentsWarning):
+            print("")
+            print(_wrap(f"WARNING: {message}"))
+            print("")
+            return
+        default_showwarning(message, category, filename, lineno, file, line)
+
+    warnings.showwarning = showwarning
 
 
 def _wrap(*paragraphs: str) -> str:

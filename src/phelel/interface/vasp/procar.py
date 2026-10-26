@@ -1,6 +1,62 @@
-"""Generate VASP PROCAR equivalent information."""
+"""Generate VASP PROCAR equivalent information.
+
+This module is not used by phelel.  It is kept as a reference of conventions
+of VASP that are not documented elsewhere: the projections <p_i|psi> of the
+wave functions written in DPROJECTORS.bin, the l-resolved overlaps written in
+QTOT.bin, and how PROCAR and the charges in the PAW spheres are made from
+them.  It has not been checked against the current version of VASP.
+
+Dij and qij (PAW-STRENGTH.bin and PAW-OVERLAP.bin, read by
+``phelel.interface.vasp.file_IO.read_PAW_Dij_qij``) have the shape
+(ncdij, nions, lmdim, lmdim), where qij = <phi_i|phi_j> - <phi~_i|phi~_j>.
+The order of the lm index is described in
+``phelel.base.Dij_qij.DeltaDijQij``.
+
+"""
+
+from __future__ import annotations
+
+import os
 
 import numpy as np
+from numpy.typing import NDArray
+
+from phelel.interface.vasp.file_IO import read_bin_stream
+
+
+def read_dprojectors(
+    inwap: dict, filename: str | os.PathLike = "DPROJECTORS.bin"
+) -> NDArray:
+    """Read DPROJECTORS.bin."""
+    nbtot = inwap["nbtot"]
+    nrspinors = inwap["nrspinors"]
+    ispin = inwap["ispin"]
+    nkpts = inwap["nkpts"]
+    lmdim = inwap["lmdim"]
+    nions = inwap["nions"]
+    # The last index corresponds to usual projector and its derivatives along
+    # x, y, z.
+    shape = (nkpts, nbtot, ispin, nrspinors, nions, lmdim, 4)
+    data = read_bin_stream(filename)
+    data_complex = data.view("complex128")
+    if len(data_complex) != np.prod(shape):
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
+    return data_complex.reshape(shape)
+
+
+def read_qtot(inwap: dict, filename: str | os.PathLike = "QTOT.bin") -> NDArray:
+    """Read QTOT.bin."""
+    ldim = inwap["ldim"]
+    nions = inwap["nions"]
+    shape = (nions, ldim, ldim)
+    data = read_bin_stream(filename)
+    if len(data) != np.prod(shape):
+        raise ValueError(
+            f"{filename}: data size is inconsistent with values in inwap.yaml."
+        )
+    return data.reshape(shape)
 
 
 class Projector:

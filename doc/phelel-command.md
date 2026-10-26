@@ -94,6 +94,62 @@ displacements. Use of this option is recommended.
 % phelel-init --pm [OPTIONS]
 ```
 
+### `--magmom`
+
+Magnetic moments of the atoms in the unit cell are specified in the order of
+the atoms. One value per atom is given for a collinear calculation
+(`ISPIN = 2`), and three values, the x, y and z components, per atom for a
+non-collinear calculation (`LNONCOLLINEAR = .TRUE.`). As in the MAGMOM tag of
+VASP, `4*1` means `1 1 1 1`. Such values are enclosed in quotes, because the
+shell may expand `*`.
+
+```bash
+% phelel-init --magmom 2 -2 [OPTIONS]
+% phelel-init --magmom "4*1 4*-1" [OPTIONS]
+% phelel-init --magmom 0 0 2 0 0 2 [OPTIONS]
+```
+
+The magnetic moments are stored in `phelel_disp.yaml`. The MAGMOM line for the
+supercell is written in the file `MAGMOM`, which is used in the INCAR of the
+VASP calculations of the supercells.
+
+Without `--magmom`, the symmetry operations are found from the positions and
+the species of the atoms, and they act on the atomic positions. With
+`--magmom`, the magnetic moments are also included in what the symmetry
+operations act on. Each operation then maps the atomic positions and the
+magnetic moments together, and it may be combined with time reversal, which
+reverses the magnetic moments. These operations form the magnetic space group.
+The displacements and the symmetrization of the derivatives use the same
+operations.
+
+In a spin-polarized or non-collinear VASP calculation, the local potential and
+the PAW strengths have spin parts, and the symmetry operations are applied also
+to these spin parts in the symmetrization. When the magnetic moments are not
+included in the symmetry operations, an operation that maps the atomic
+positions but not the magnetic moments may be used. An example is an operation
+that moves an atom with an up spin onto an atom with a down spin. The
+derivatives obtained with such an operation are wrong.
+
+When the magnetic moments are zero in the VASP calculation, zeros are given by
+`--magmom`. The default value of MAGMOM in VASP is not zero in a
+spin-polarized or non-collinear calculation, so the file `MAGMOM` with zeros
+makes the VASP calculation start from zero magnetic moments. With zeros, every
+operation found from the atomic positions is used both without and with time
+reversal.
+
+The number of values has to fit the VASP calculation, one or three per atom,
+also when all the values are zero. Otherwise `phelel --cd` stops with an
+error. When `--magmom` is not used and the VASP calculation is spin-polarized
+or non-collinear, `phelel --cd` shows a warning.
+
+`phelel --cd` also applies every symmetry operation to the PAW strengths Dij
+of the perfect supercell. Dij should be unchanged by every operation, and a
+warning is shown when an operation changes it by more than 0.01 eV. This
+happens when the magnetic moments included in the symmetry operations do not
+describe the magnetic state of the VASP calculation, for example when the sign
+or the direction of a magnetic moment differs from that in the VASP
+calculation, or when the VASP calculation converged to another magnetic state.
+
 ## Calculation of derivatives of potentials by `phelel`
 
 After running VASP calculations to calculate local potentials and PAW strengths
@@ -122,6 +178,15 @@ collected from the specified directories in the order given by the command
 options. Next, using these collected data, the derivatives of local potentials
 and PAW strengths with respect to displacement are calculated and stored in
 `phelel_params.hdf5`. `--cd` needs `--fft-mesh`.
+
+When every directory has `LOCAL-POTENTIAL.bin`, which VASP writes with
+`LWAP = .TRUE.`, the local potentials and the PAW strengths are read from
+`LOCAL-POTENTIAL.bin`, `PAW-STRENGTH.bin` and `PAW-OVERLAP.bin`, with
+`inwap.yaml`. Otherwise they are read from `vaspout.h5`. VASP 6.6.1 and older
+do not write the local potential correctly in `vaspout.h5` for ISPIN = 2 or
+LNONCOLLINEAR = .TRUE., and `phelel --cd` stops with an error when it would read
+such a local potential. Run VASP with `LWAP = .TRUE.` for these calculations.
+`velph init` writes `lwap = true` for the phelel calculations of these kinds.
 
 (phelel_fft_mesh_option)=
 ### `--fft-mesh`

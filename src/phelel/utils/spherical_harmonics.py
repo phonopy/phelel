@@ -1,15 +1,15 @@
 """Routines to handle spherical harmonics rotation.
 
-Old implementation`SHRotationMatricesEularAngle` relies on `EulerAngles`,
-`LyMatrices`, `WignerMatricesEularAngle`. These are currently unused.
+The implementation used in phelel is `SHRotationMatrices`, which depends on
+`LxLyLzMatrices` and `get_n_and_rotation_order`.
 
-The current implementation `SHRotationMatrice`s depends on `LxLyLzMatrices` and
-get_n_and_rotation_order.
+The old implementation `SHRotationMatricesEularAngle`, which relies on
+`EulerAngles`, `LyMatrices` and `WignerMatricesEularAngle`, is kept as a
+reference implementation and is used only in the tests, which check that the
+two implementations agree.  The new implementation is expected to be
+numerically more robust.
 
 Both implementations call `make_C`.
-
-Agreement of these two implementations are checked in the test. The new
-implementation is expected to be numerically more robust.
 
 """
 
@@ -23,6 +23,9 @@ class EulerAngles:
     """Calculate Euler angles.
 
     Implements Z1Y2Z3 given in Euler angles page of wikipedia.
+
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
 
     """
 
@@ -67,17 +70,21 @@ class EulerAngles:
                 cb2 = 1
             else:
                 raise RuntimeError("Rotation matrix is largely distorted.")
-        # sqrt may not be very numerically accurate if cb**2 is close to 1.
         sb = np.sqrt(1 - cb2)
 
+        # For beta ~ 0 and pi, beta is taken as 0 and pi, so sin(beta) is 0.
+        # sqrt(1 - cb**2) would be sqrt(eps) ~ 1.5e-8 for cb off from 1 by one
+        # ulp.
         if 1 - cb < 1e-10:  # beta ~ 0
             # A choice with gamma=0
+            sb = 0
             cg = 1
             sg = 0
             ca = R[0, 0]
             sa = R[1, 0]
         elif cb + 1 < 1e-10:  # beta ~ pi
             # A choice with gamma=0
+            sb = 0
             cg = 1
             sg = 0
             ca = -R[0, 0]
@@ -116,6 +123,9 @@ class LyMatrices:
 
     ihbar/2 is not multiplied.
 
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
+
     """
 
     def __init__(self, l_max: int = 3):
@@ -151,7 +161,12 @@ class LyMatrices:
 
 
 class WignerMatricesEularAngle:
-    """Wigner matrices dm'm^l = <lm'|e^ibLy|lm>  is calcualted."""
+    """Wigner matrices dm'm^l = <lm'|e^ibLy|lm>  is calcualted.
+
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
+
+    """
 
     def __init__(self, l_max: int = 6):
         """Init method."""
@@ -175,6 +190,9 @@ class WignerMatricesEularAngle:
 
 class SHRotationMatricesEularAngle:
     """Rotation matrix for spherical harmonics, Dm'm^l.
+
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
 
     Dm'm = e^-iam' dm'm(b) e^-igm (a: alpha, b: beta, g: gamma)
     for usual spherical harmonics and
@@ -212,10 +230,9 @@ class SHRotationMatricesEularAngle:
         ca, sa, cb, sb, cg, sg = ea.angles
         wm = WignerMatricesEularAngle(l_max=l_max)
         wm.run(cb, sb)
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
         delta = []
         for ll, d_l in enumerate(wm.d):
-            D = np.array(d_l, dtype=dtype, order="C")
+            D = np.array(d_l, dtype="complex128", order="C")
             for mp in range(-ll, ll + 1):
                 D[mp + ll, :] *= (ca - 1j * sa) ** mp
             for m in range(-ll, ll + 1):
@@ -334,10 +351,9 @@ class SHRotationMatrices:
     def run(self):
         """Rotate spherical harmonics matrices."""
         self._compute_d()
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
         delta = []
         for ll, d_l in enumerate(self._d):
-            D = np.array(d_l, dtype=dtype, order="C")
+            D = np.array(d_l, dtype="complex128", order="C")
             D *= self._detR**ll
             C = make_C(ll, D)
             delta.append(C.conj() @ D @ C.T)
@@ -363,8 +379,8 @@ def get_n_and_rotation_order(
     r_order = 1 :
         n = (0, 0, 1), alpha = 0.
     r_order = 2 :
-        n is taken as one of eigvecs of proper rotation in Cartesian
-        coordinates whose eigenvalue = -1. alpha = pi.
+        n is the eigenvector of the proper rotation in Cartesian coordinates
+        whose eigenvalue is 1, i.e., the rotation axis. alpha = pi.
     r_order in (3, 4, 6) :
         Given e_1=(1, 0, 0), e_2=(0, 1, 0), e_3=(0, 0, 1),
             v = R.e - e

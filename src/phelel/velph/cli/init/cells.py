@@ -14,6 +14,8 @@ import click
 import numpy as np
 import spglib
 from numpy.typing import NDArray
+from phonopy.cui.settings import parse_magmom
+from phonopy.exception import MagmomValueError
 from phonopy.interface.vasp import get_vasp_structure_lines
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import (
@@ -40,7 +42,6 @@ from phelel.velph.utils.structure import (
     get_reduced_cell,
     get_symmetry_dataset,
 )
-from phelel.velph.utils.vasp_input import expand_incar_value
 
 
 @dataclasses.dataclass(frozen=True)
@@ -93,14 +94,18 @@ def make_cells(
     primitive cell is then reduced.
 
     click.ClickException is raised when magmom and site_mixture are given
-    together or when site_mixture does not fit input_cell.
+    together, when magmom has an invalid value, or when site_mixture does not
+    fit input_cell.
 
     """
     cell = input_cell.copy()
     if magmom is not None and site_mixture is not None:
         raise click.ClickException("--site-mixture cannot be combined with --magmom.")
     if magmom is not None:
-        cell.magnetic_moments = expand_incar_value(magmom.strip())
+        try:
+            cell.magnetic_moments = parse_magmom(magmom)
+        except MagmomValueError as e:
+            raise click.ClickException(str(e)) from e
     if site_mixture is not None:
         # The co-located atoms are kept as the atoms of the input cell.  With
         # the merge scheme, phonopy merges them into sites.

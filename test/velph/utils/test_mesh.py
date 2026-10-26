@@ -81,3 +81,68 @@ def test_kspacing_to_mesh_broken_symmetry(tio2_prim_cell: PhonopyAtoms, use_grg:
     supercell = get_supercell(tio2_prim_cell, np.diag([2, 2, 2]))
     with pytest.raises(RuntimeError, match="Grid symmetry is broken."):
         kspacing_to_mesh(0.5, supercell, use_grg)
+
+
+@pytest.mark.parametrize(
+    "magmoms",
+    [[0.0, 0.0], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [1.0, 1.0]],
+)
+def test_kspacing_to_mesh_fcc_prim_with_magmoms(
+    si_prim_cell: PhonopyAtoms, magmoms: list
+):
+    """Test the GR-grid of a primitive cell of FCC with magnetic moments.
+
+    With zero magnetic moments, the magnetic space group is a grey group, in
+    which every operation appears twice, without and with time reversal.  The
+    identity combined with time reversal is not a lattice translation, and the
+    cell is still a primitive cell.
+
+    """
+    cell = si_prim_cell.copy()
+    cell.magnetic_moments = magmoms
+    assert kspacing_to_mesh(0.5, cell, True) == [[-3, 3, 3], [3, -3, 3], [3, 3, -3]]
+
+
+def test_kspacing_to_mesh_bct_prim_with_zero_magmoms(tio2_prim_cell: PhonopyAtoms):
+    """Test the GR-grid of a primitive cell of BCT with zero magnetic moments.
+
+    The regular mesh breaks the symmetry of this cell, so the GR-grid is
+    returned with use_grg=False, as without magnetic moments.
+
+    """
+    cell = tio2_prim_cell.copy()
+    cell.magnetic_moments = [0.0] * len(cell)
+    assert kspacing_to_mesh(0.5, cell, False) == [[0, 4, 4], [4, 0, 4], [2, 2, 0]]
+
+
+@pytest.mark.filterwarnings("error")
+def test_kspacing_to_mesh_nacl_with_zero_magmoms(nacl_cell: PhonopyAtoms):
+    """Test that a cell of several lattice points is not taken as primitive.
+
+    The pure translations of the conventional unit cell of NaCl appear without
+    time reversal also with zero magnetic moments, so the GR-grid is not used.
+
+    """
+    cell = nacl_cell.copy()
+    cell.magnetic_moments = [0.0] * len(cell)
+    assert kspacing_to_mesh(0.25, cell, True) == [5, 5, 5]
+
+
+@pytest.mark.filterwarnings("error")
+@pytest.mark.parametrize("magmoms", [[1.0, -1.0], [[0, 0, 1.0], [0, 0, -1.0]]])
+def test_kspacing_to_mesh_type4_magnetic_space_group(magmoms: list):
+    """Test that the GR-grid is not used for a type-4 magnetic space group.
+
+    In the conventional cell of bcc with antiparallel moments, the
+    translation to the body centre is combined with time reversal.  As in
+    GridMatrix of phonopy, the cell is not taken as a primitive cell, so the
+    regular mesh is returned with use_grg=True without the warning of phonopy.
+
+    """
+    cell = PhonopyAtoms(
+        cell=np.eye(3) * 2.87,
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+        symbols=["Cr", "Cr"],
+        magnetic_moments=magmoms,
+    )
+    assert kspacing_to_mesh(0.5, cell, True) == [5, 5, 5]

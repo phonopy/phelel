@@ -176,7 +176,7 @@ and the following tags in each input set:
 | Input set          | Default INCAR tags                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------- |
 | `relax`            | `ediffg = -1e-6`, `ibrion = 2`, `isif = 3`, `nsw = 10`                                               |
-| `nac`              | `lepsilon = true` (and `incar_unset = ["npar", "ncore", "kpar"]`)                                   |
+| `nac`              | `lepsilon = true` (and `incar_unset = ["npar", "ncore"]`)                                           |
 | `phelel`           | `elph_prepare = true`, `isym = 0`                                                                    |
 | `phonopy`          | `addgrid = true`, `isym = 0`                                                                          |
 | `phono3py`         | `addgrid = true`, `isym = 0`                                                                          |
@@ -191,6 +191,12 @@ and the following tags in each input set:
 
 A tag of an input set has priority over the same tag of `[vasp.incar]`, as
 `ismear = -5` of `el_dos` does.
+
+When the tags of the `phelel` input set have `ispin = 2`,
+`lnoncollinear = true` or `lsorbit = true`, and no `lwap`, `velph init` adds
+`lwap = true` to them with a message. VASP 6.6.1 and older do not write the
+local potential correctly in `vaspout.h5` for these calculations, and phelel
+reads `LOCAL-POTENTIAL.bin` written with `LWAP = .TRUE.` instead.
 
 ```{note}
 These tags are starting points. Review the generated `INCAR` files and adjust

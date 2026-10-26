@@ -5,16 +5,20 @@ from __future__ import annotations
 import os
 import pathlib
 import tempfile
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, fields
 
 import h5py
+import numpy as np
 import pytest
 
 import phelel.cui.phelel_script as phelel_script
 from phelel import load
+from phelel.base.magnetic_symmetry import get_time_reversals
 from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.phelel_script import main
+from phelel.exception import MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
 
 cwd = pathlib.Path(__file__).parent
@@ -34,6 +38,7 @@ class MockArgs:
     is_displacement: bool = False
     is_plusminus_displacements: bool = False
     fft_mesh_numbers: str | None = None
+    magmoms: Sequence[str] | None = None
 
     def __iter__(self):
         """Make self iterable to support in."""
@@ -83,6 +88,9 @@ def test_phelel_script(filename: pathlib.Path, with_BORN_file: bool):
                 born_file.unlink()
             else:
                 born_dir.rmdir()
+
+            # The calculator of the input is kept.
+            assert PhelelYaml().read("phelel.yaml").calculator == "vasp"
 
             # Clean files created by phelel script.
             for created_filename in ("phelel.yaml",):
@@ -236,6 +244,135 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
             os.chdir(original_cwd)
 
 
+def test_phelel_script_create_displacements_with_magmom():
+    """Test phelel-init command for creating displacements with --magmom.
+
+    Magnetic moments are stored in phelel_disp.yaml, and the symmetry is
+    that of the magnetic space group, part of whose operations are combined
+    with time reversal.
+
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            cell_filename = str(dirname / "POSCAR-unitcell_C111")
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=cell_filename,
+                supercell_dimenstion="1 1 1",
+                is_displacement=True,
+                magmoms=["0", "0", "1"] * 8,
+            )
+
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 0
+
+            phe = load("phelel_disp.yaml")
+            assert phe.unitcell.magnetic_moments is not None
+            assert phe.unitcell.magnetic_moments.shape == (8, 3)
+            time_reversals = get_time_reversals(phe.symmetry)
+            assert time_reversals.any()
+            assert not time_reversals.all()
+
+            for created_filename in (
+                "phelel_disp.yaml",
+                "SPOSCAR",
+                "POSCAR-001",
+                "MAGMOM",
+            ):
+                pathlib.Path(created_filename).unlink()
+            _check_no_files()
+
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_phelel_script_create_displacements_with_magmom_repeat():
+    """Test phelel-init with --magmom given in the n*value form."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=str(dirname / "POSCAR-unitcell_C111"),
+                supercell_dimenstion="1 1 1",
+                is_displacement=True,
+                magmoms=["4*1", "4*-1"],
+            )
+
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 0
+
+            phe = load("phelel_disp.yaml")
+            assert phe.unitcell.magnetic_moments is not None
+            np.testing.assert_allclose(
+                phe.unitcell.magnetic_moments, [1, 1, 1, 1, -1, -1, -1, -1]
+            )
+
+            for created_filename in (
+                "phelel_disp.yaml",
+                "SPOSCAR",
+                "MAGMOM",
+            ):
+                pathlib.Path(created_filename).unlink()
+            for created_path in pathlib.Path(".").glob("POSCAR-*"):
+                created_path.unlink()
+            _check_no_files()
+
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_phelel_script_rejects_invalid_magmom(capsys):
+    """An invalid --magmom value is an error, not a traceback."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=str(dirname / "POSCAR-unitcell_C111"),
+                supercell_dimenstion="1 1 1",
+                is_displacement=True,
+                magmoms=["2*", "6*1"],
+            )
+
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 1
+            assert 'Invalid MAGMOM value "2*"' in capsys.readouterr().out
+            _check_no_files()
+
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_phelel_script_shows_magnetic_moments_warning(
+    monkeypatch: pytest.MonkeyPatch, capsys
+):
+    """MagneticMomentsWarning is shown without the source file and line."""
+    monkeypatch.setattr(warnings, "showwarning", warnings.showwarning)
+    phelel_script._install_warning_formatter()
+    with warnings.catch_warnings():
+        warnings.simplefilter("always")
+        warnings.warn(
+            "Magnetic moments are not given.", MagneticMomentsWarning, stacklevel=1
+        )
+    out = capsys.readouterr().out
+    assert "WARNING: Magnetic moments are not given." in out
+    assert "test_phelel_cui.py" not in out
+
+
 @pytest.mark.parametrize("mode", ["init", "run"])
 def test_phelel_script_parser(mode: str, monkeypatch: pytest.MonkeyPatch):
     """Each command builds the parser of its mode."""
@@ -266,6 +403,7 @@ def test_phelel_script_parser(mode: str, monkeypatch: pytest.MonkeyPatch):
         ["--amplitude", "0.03"],
         ["--pm"],
         ["--nodiag"],
+        ["--magmom", "1", "-1"],
     ],
 )
 def test_phelel_parser_rejects_init_options(options: list[str], capsys):
@@ -444,6 +582,57 @@ def test_phelel_load_is_deprecated(tmp_path: pathlib.Path, capsys):
         os.chdir(original_cwd)
 
 
+def test_phelel_loader_keeps_calculator(tmp_path: pathlib.Path):
+    """The calculator in phelel_disp.yaml is given to Phelel."""
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        phe = load(cwd / ".." / "phelel_disp_C111.yaml")
+        assert phe.calculator == "vasp"
+        phe = load(unitcell=phe.unitcell, primitive_matrix="F")
+        assert phe.calculator is None
+        phe = load(unitcell=phe.unitcell, primitive_matrix="F", calculator="vasp")
+        assert phe.calculator == "vasp"
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_phelel_loader_primitive_matrix_with_yaml(tmp_path: pathlib.Path):
+    """primitive_matrix="auto" uses that of phelel_disp.yaml, as None does."""
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        filename = cwd / ".." / "phelel_disp_C111.yaml"
+        pmat_yaml = PhelelYaml().read(filename).primitive_matrix
+        assert pmat_yaml is not None
+        assert not np.allclose(pmat_yaml, np.eye(3))
+        for pmat in (None, "auto"):
+            phe = load(filename, primitive_matrix=pmat)
+            np.testing.assert_allclose(phe.primitive_matrix, pmat_yaml)
+        phe = load(filename, primitive_matrix="P")
+        np.testing.assert_allclose(phe.primitive_matrix, np.eye(3))
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_phelel_loader_reads_BORN_without_dir_names(tmp_path: pathlib.Path):
+    """BORN in the current directory is read also without dir_names."""
+    born_str = """4.399652
+5.7 0 0 0 5.7 0 0 0 5.7
+0 0 0 0 0 0 0 0 0"""
+
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        pathlib.Path("BORN").write_text(born_str, encoding="utf-8")
+        phe = load(cwd / ".." / "phelel_disp_C111.yaml")
+        assert phe.nac_params is not None
+        np.testing.assert_allclose(phe.nac_params["dielectric"], np.eye(3) * 5.7)
+        assert phe.nac_params["factor"] == pytest.approx(4.399652)
+    finally:
+        os.chdir(original_cwd)
+
+
 def test_phelel_loader_is_nac_false(tmp_path: pathlib.Path):
     """With is_nac=False, BORN in the current directory is not read."""
     born_str = """4.399652
@@ -513,7 +702,6 @@ def _check_create_params_file(with_BORN_file: bool):
             [
                 "Dij",
                 "FFT_mesh",
-                "atom_indices_in_derivatives",
                 "born_effective_charges",
                 "dDijdu",
                 "dVdu",
@@ -553,7 +741,6 @@ def _check_create_params_file(with_BORN_file: bool):
             [
                 "Dij",
                 "FFT_mesh",
-                "atom_indices_in_derivatives",
                 "dDijdu",
                 "dVdu",
                 "direct_rotations",
@@ -601,6 +788,7 @@ def _get_argparse_control(
     fft_mesh_numbers: str | None = None,
     filename: Sequence[str] = (),
     conf_filename: str | None = None,
+    magmoms: Sequence[str] | None = None,
 ):
     # Mock of ArgumentParser.args.
     mockargs = MockArgs(
@@ -613,6 +801,7 @@ def _get_argparse_control(
         is_displacement=is_displacement,
         is_plusminus_displacements=is_plusminus_displacements,
         fft_mesh_numbers=fft_mesh_numbers,
+        magmoms=magmoms,
     )
     return {"args": mockargs, "mode": mode}
 

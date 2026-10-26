@@ -36,15 +36,22 @@ def test_api_phelel_CdAs2_111(phelel_CdAs2_111: Phelel):
 
 
 def test_read_phelel_params_hdf5(phelel_CdAs2_111: Phelel):
-    """Test reading phelel_params using CdAs2."""
+    """The arrays read from phelel_params.hdf5 are those computed, as complex.
+
+    The arrays are written as pairs of real numbers, which have to be read back
+    as complex numbers of the shapes of the computed arrays.
+
+    """
     filename = cwd / "phelel_params_CdAs2_111.hdf5"
     dVdu, dDijdu, _, _ = read_phelel_params_hdf5(filename=filename)
     phe_ref = phelel_CdAs2_111
 
     np.testing.assert_allclose(dVdu.dVdu, phe_ref.dVdu.dVdu, rtol=1e-5, atol=1e-5)
-    np.testing.assert_allclose(
-        dDijdu.dDijdu, cmplx2real(phe_ref.dDijdu.dDijdu), rtol=1e-5, atol=1e-5
-    )
+    for name in ("dDijdu", "dqijdu", "Dij", "qij"):
+        value, ref = getattr(dDijdu, name), getattr(phe_ref.dDijdu, name)
+        assert value.dtype == np.complex128
+        assert value.shape == ref.shape, name
+        np.testing.assert_allclose(value, ref, rtol=1e-5, atol=1e-5)
 
 
 def _compare(filename: pathlib.Path, phe: Phelel):
@@ -180,3 +187,25 @@ def test_phelel_unit_conversion_factor_and_dynamical_matrix(
     phe.force_constants = np.zeros((natom, natom, 3, 3))
     assert phe.dynamical_matrix is not None
     assert len(phe.dynamical_matrix.supercell) == natom
+
+
+@pytest.mark.parametrize(
+    "nufft,is_error", [(None, False), ("finufft", False), ("nfft", True)]
+)
+def test_phelel_nufft(nufft: str | None, is_error: bool):
+    """Only "finufft" and None are accepted for nufft."""
+    unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
+
+    def _phelel():
+        return Phelel(
+            unitcell,
+            supercell_matrix=np.eye(3, dtype=int),
+            primitive_matrix="P",
+            nufft=nufft,
+        )
+
+    if is_error:
+        with pytest.raises(ValueError, match='not "nfft"'):
+            _phelel()
+    else:
+        _phelel()

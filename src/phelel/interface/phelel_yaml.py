@@ -7,6 +7,7 @@ import dataclasses
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
+from phonopy.harmonic.displacement import DisplacementDataset
 from phonopy.interface.phonopy_yaml import (
     PhonopyYaml,
     PhonopyYamlData,
@@ -30,7 +31,7 @@ class PhelelYamlData(PhonopyYamlData):
 
     command_name: str = "phelel"
     phonon_supercell_matrix: NDArray | None = None
-    phonon_dataset: dict | None = None
+    phonon_dataset: DisplacementDataset | None = None
     phonon_supercell: Supercell | PhonopyAtoms | None = None
     phonon_primitive: Primitive | PhonopyAtoms | None = None
 
@@ -110,7 +111,7 @@ class PhelelYamlLoader(PhonopyYamlLoader):
 class PhelelYamlDumper(PhonopyYamlDumper):
     """PhelelYaml dumper."""
 
-    default_settings = {
+    _default_dumper_settings = {
         "force_sets": False,
         "displacements": True,
         "force_constants": False,
@@ -137,16 +138,6 @@ class PhelelYamlDumper(PhonopyYamlDumper):
             self._data.phonon_primitive, "phonon_primitive_cell"
         )
         lines += self._phonon_supercell_yaml_lines()
-        return lines
-
-    def _phonon_supercell_matrix_yaml_lines(self):
-        lines = []
-        if self._data.phonon_supercell_matrix is not None:
-            lines.append("phonon_supercell_matrix:")
-            assert self._data.supercell_matrix is not None
-            for v in self._data.supercell_matrix:
-                lines.append("- [ %3d, %3d, %3d ]" % tuple(v))
-            lines.append("")
         return lines
 
     def _phonon_supercell_yaml_lines(self):
@@ -197,19 +188,15 @@ class PhelelYaml(PhonopyYaml):
     Details are found in the docstring of PhonopyYaml.
     The common usages are as follows:
 
-    1. Set phelel instance.
-        phe_yml = PhelelYaml()
-        phe_yml.set_phelel_info(phelel_instance)
+    1. Make it from a Phelel instance.
+        phe_yml = phelel_instance.to_phelel_yaml()
     2. Read phelel.yaml file.
-        phe_yml = PhelelYaml()
-        phe_yml.read(filename)
-    3. Parse yaml dict of phelel.yaml.
-        with open("phelel.yaml", 'r') as f:
-            phe_yml.yaml_data = yaml.load(f, Loader=yaml.CLoader)
-            phe_yml.parse()
-    4. Save stored data in PhelelYaml instance into a text file in yaml.
-        with open(filename, 'w') as w:
+        phe_yml = PhelelYaml().read(filename)
+    3. Save stored data in PhelelYaml instance into a text file in yaml.
+        with open(filename, "w") as w:
             w.write(str(phe_yml))
+
+    A dict of yaml data is read by load_phelel_yaml.
 
     """
 
@@ -252,12 +239,12 @@ class PhelelYaml(PhonopyYaml):
         self._data.phonon_supercell = value
 
     @property
-    def phonon_dataset(self) -> dict | None:
+    def phonon_dataset(self) -> DisplacementDataset | None:
         """Return phonon dataset of phonopy calculation."""
         return self._data.phonon_dataset
 
     @phonon_dataset.setter
-    def phonon_dataset(self, value: dict):
+    def phonon_dataset(self, value: DisplacementDataset | None):
         """Set phonon dataset of phonopy calculation."""
         self._data.phonon_dataset = value
 

@@ -474,6 +474,47 @@ def test_build_incar(nacl_cell: PhonopyAtoms):
     assert config.vasp.input_sets["relax"].incar["nsw"] == 3
 
 
+@pytest.mark.parametrize(
+    "template_lines,lwap,is_added",
+    [
+        ([], None, False),
+        (["[vasp.phelel.incar]", "ispin = 1"], None, False),
+        (["[vasp.phelel.incar]", "lnoncollinear = false"], None, False),
+        (["[vasp.phelel.incar]", "ispin = 2"], True, True),
+        (["[vasp.phelel.incar]", "lnoncollinear = true"], True, True),
+        (["[vasp.phelel.incar]", "lsorbit = true"], True, True),
+        (["[vasp.incar]", "ispin = 2"], True, True),
+        (["[vasp.phelel.incar]", "ispin = 2", "lwap = true"], True, False),
+        (["[vasp.phelel.incar]", "ispin = 2", "lwap = false"], False, False),
+    ],
+)
+def test_build_lwap(
+    nacl_cell: PhonopyAtoms,
+    capsys: pytest.CaptureFixture[str],
+    template_lines: list[str],
+    lwap: bool | None,
+    is_added: bool,
+):
+    """The tag lwap = true is added to the phelel input set of a magnetic case.
+
+    It is added with a message when the tags of the phelel input set, also
+    those from [vasp.incar], have ispin = 2, lnoncollinear = true or
+    lsorbit = true, and lwap is not given.  The other input sets are not
+    changed.
+
+    """
+    config = _build(nacl_cell, template_lines, supercell=_DIM222)
+    out = capsys.readouterr().out
+    assert config.vasp is not None and config.vasp.input_sets is not None
+    for set_name, input_set in config.vasp.input_sets.items():
+        incar = input_set.incar or {}
+        if set_name == "phelel":
+            assert incar.get("lwap") == lwap
+        else:
+            assert "lwap" not in incar, set_name
+    assert ('"lwap = true" is written in [vasp.phelel.incar]' in out) is is_added
+
+
 def test_build_max_num_atoms_without_symmetrize_cell(nacl_cell: PhonopyAtoms):
     """max_num_atoms without symmetrize_cell is an error."""
     with pytest.raises(click.ClickException, match="symmetrize_cell"):

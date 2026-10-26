@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import pathlib
-import warnings
 
 import h5py
 import numpy as np
@@ -16,21 +15,19 @@ from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
-from phelel.utils.data import cmplx2real
-from phelel.utils.lattice_points import get_lattice_points
+from phelel.utils.data import cmplx2real, real2cmplx
+from phelel.utils.lattice_points import get_lattice_points, get_p2s_matrix
 
 
 def write_phelel_params_hdf5(
     dVdu: DLocalPotential | None = None,
     dDijdu: DDijQij | None = None,
     dmudu: DLocalPotential | None = None,
-    # Rij=None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
     primitive: Primitive | None = None,
     unitcell: PhonopyAtoms | None = None,
     supercell: PhonopyAtoms | None = None,
-    atom_indices_in_derivatives: NDArray | None = None,
     disp_dataset: dict | None = None,
     force_constants: NDArray | None = None,
     phonon_supercell_matrix: NDArray | None = None,
@@ -52,7 +49,6 @@ def write_phelel_params_hdf5(
             primitive=primitive,
             unitcell=unitcell,
             supercell=supercell,
-            atom_indices_in_derivatives=atom_indices_in_derivatives,
             disp_dataset=disp_dataset,
             force_constants=force_constants,
             phonon_supercell_matrix=phonon_supercell_matrix,
@@ -63,36 +59,14 @@ def write_phelel_params_hdf5(
         )
 
 
-def write_dVdu_hdf5(
-    dVdu,
-    supercell_matrix,
-    primitive_matrix,
-    primitive,
-    unitcell,
-    supercell,
-    filename="dVdu.hdf5",
-):
-    """Write dVdu.hdf5."""
-    with h5py.File(filename, "w") as w:
-        _add_datasets(
-            w,
-            dVdu=dVdu,
-            supercell_matrix=supercell_matrix,
-            primitive_matrix=primitive_matrix,
-            primitive=primitive,
-            unitcell=unitcell,
-            supercell=supercell,
-        )
-
-
 def read_phelel_params_hdf5(
     filename: str | os.PathLike = "phelel_params.hdf5",
     log_level: int = 0,
 ) -> tuple[DLocalPotential, DDijQij, np.ndarray, np.ndarray | None]:
     """Read dV/du and dDij/du from phelel_params.hdf5.
 
-    Parameteters
-    ------------
+    Parameters
+    ----------
     filename :
         File name of phelel_params.hdf5.
     log_level : int
@@ -121,19 +95,27 @@ def read_phelel_params_hdf5(
                 masses=f["supercell_masses"][:],
             )
             symmetry = Symmetry(supercell)
-            if "atom_indices_in_derivatives" in f:
-                atom_indices = f["atom_indices_in_derivatives"][:]
-            else:
-                atom_indices = f["p2s_map"][:]
-            if "primitive_matrix" in f:
-                pmat = f["primitive_matrix"][:]
-            else:
-                pmat = (
-                    np.linalg.inv(f["supercell_lattice"][:]) @ f["primitive_lattice"][:]
+            atom_indices = f["p2s_map"][:]
+            # Files of older versions have this key.  They are read only when it
+            # is equal to p2s_map.
+            if "atom_indices_in_derivatives" in f and not np.array_equal(
+                f["atom_indices_in_derivatives"][:], atom_indices
+            ):
+                raise ValueError(
+                    f'"atom_indices_in_derivatives" in "{filename}" differs from '
+                    '"p2s_map".  Files of such an old format are not supported.'
                 )
-            p2s_mat_float = np.linalg.inv(pmat)
-            p2s_matrix = np.rint(p2s_mat_float).astype("int64")
-            assert (abs(p2s_matrix - p2s_mat_float) < 1e-5).all()
+            # "primitive_matrix" in the file is relative to the unit cell, so it
+            # is made relative to the supercell with "supercell_matrix".  Files
+            # of older versions do not have it when the primitive cell is the
+            # unit cell.
+            if "primitive_matrix" in f:
+                primitive_matrix = f["primitive_matrix"][:]
+            else:
+                primitive_matrix = np.eye(3)
+            p2s_matrix = get_p2s_matrix(
+                np.linalg.inv(f["supercell_matrix"][:]) @ primitive_matrix
+            )
 
         if log_level:
             print(f'dV/du was read from "{filename}".')
@@ -141,34 +123,29 @@ def read_phelel_params_hdf5(
     else:
         raise FileNotFoundError(f'"{filename}" was not found.')
 
-    dDVdu_obj = DLocalPotential(
+    dDVdu_obj = DLocalPotential.from_arrays(
         fft_mesh,
         p2s_matrix,
         supercell,
+        dVdu,
+        grid_points,
+        lattice_points,
         symmetry=symmetry,
         atom_indices=atom_indices,
+        verbose=log_level > 0,
     )
-    dDVdu_obj.dVdu = dVdu
-    dDVdu_obj.grid_points = grid_points
-    dDVdu_obj.lattice_points = lattice_points
-
-    dDijdu_obj = DDijQij(
+    dDijdu_obj = DDijQij.from_arrays(
         supercell,
+        dDijdu,
+        dqijdu,
+        Dij,
+        qij,
         symmetry=symmetry,
         atom_indices=atom_indices,
+        verbose=log_level > 0,
     )
-    dDijdu_obj.dDijdu = dDijdu
-    dDijdu_obj.dqijdu = dqijdu
-    dDijdu_obj.Dij = Dij
-    dDijdu_obj.qij = qij
 
     return dDVdu_obj, dDijdu_obj, fft_mesh, fc
-
-
-def write_dDijdu_hdf5(dDijdu, filename="dDijdu.hdf5"):
-    """Write dDijdu.hdf5."""
-    with h5py.File(filename, "w") as w:
-        _add_datasets(w, dDijdu=dDijdu)
 
 
 def read_force_constants_hdf5(f: h5py.File) -> NDArray[np.double] | None:
@@ -184,20 +161,30 @@ def read_force_constants_hdf5(f: h5py.File) -> NDArray[np.double] | None:
 
 
 def read_dVdu_hdf5(f):
-    """Read dVdu from hdf5 file object."""
+    """Read dVdu from hdf5 file object.
+
+    dVdu is written as pairs of real numbers by cmplx2real, and is returned as
+    complex numbers.
+
+    """
     fft_mesh = f["FFT_mesh"][:]
-    dVdu = f["dVdu"][:]
+    dVdu = real2cmplx(f["dVdu"][:])
     grid_points = f["grid_point"][:]
     lattice_points = f["lattice_point"][:]
     return fft_mesh, dVdu, grid_points, lattice_points
 
 
 def read_dDijdu_hdf5(f):
-    """Read dDijdu from hdf5 file object."""
-    dDijdu = f["dDijdu"][:]
-    dqijdu = f["dqijdu"][:]
-    Dij = f["Dij"][:]
-    qij = f["qij"][:]
+    """Read dDijdu, dqijdu, Dij and qij from hdf5 file object.
+
+    They are written as pairs of real numbers by cmplx2real, and are returned
+    as complex numbers.
+
+    """
+    dDijdu = real2cmplx(f["dDijdu"][:])
+    dqijdu = real2cmplx(f["dqijdu"][:])
+    Dij = real2cmplx(f["Dij"][:])
+    qij = real2cmplx(f["qij"][:])
     return dDijdu, dqijdu, Dij, qij
 
 
@@ -206,13 +193,11 @@ def _add_datasets(
     dVdu: DLocalPotential | None = None,
     dmudu: DLocalPotential | None = None,
     dDijdu: DDijQij | None = None,
-    Rij: NDArray | None = None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
     primitive: Primitive | None = None,
     unitcell: PhonopyAtoms | None = None,
     supercell: PhonopyAtoms | None = None,
-    atom_indices_in_derivatives: NDArray | None = None,
     disp_dataset: dict | None = None,
     force_constants: NDArray | None = None,
     phonon_supercell_matrix: NDArray | None = None,
@@ -239,8 +224,6 @@ def _add_datasets(
         w.create_dataset("Dij", data=cmplx2real(dDijdu.Dij))
         assert dDijdu.qij is not None
         w.create_dataset("qij", data=cmplx2real(dDijdu.qij))
-    if Rij is not None:
-        w.create_dataset("Rij", data=cmplx2real(Rij))
     if supercell_matrix is not None:
         w.create_dataset(
             "supercell_matrix",
@@ -279,26 +262,6 @@ def _add_datasets(
                 "primitive_mixture_weights",
                 data=np.array(primitive.mixture_weights, dtype="double", order="C"),
             )
-        if atom_indices_in_derivatives is not None:
-            if True:
-                warnings.warn(
-                    (
-                        '"atom_indices_in_derivatives" '
-                        'will not be stored in "phelel_params.hdf5"'
-                    ),
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                w.create_dataset(
-                    "atom_indices_in_derivatives",
-                    data=np.array(atom_indices_in_derivatives, dtype="int64"),
-                )
-            else:
-                if not np.array_equal(atom_indices_in_derivatives, primitive.p2s_map):
-                    w.create_dataset(
-                        "atom_indices_in_derivatives",
-                        data=np.array(atom_indices_in_derivatives, dtype="int64"),
-                    )
     if unitcell is not None:
         w.create_dataset(
             "unitcell_lattice",
@@ -373,9 +336,7 @@ def _add_datasets(
             "phonon_shortest_vector_multiplicities",
             data=np.array(p2s_multiplicities, dtype="int64"),
         )
-        p2s_mat_float = np.linalg.inv(phonon_primitive.primitive_matrix)
-        p2s_matrix = np.rint(p2s_mat_float).astype("int64")
-        assert (abs(p2s_matrix - p2s_mat_float) < 1e-5).all()
+        p2s_matrix = get_p2s_matrix(phonon_primitive.primitive_matrix)
         lattice_points, _ = get_lattice_points(p2s_matrix)
         w.create_dataset("phonon_lattice_point", data=lattice_points)
     if phonon_supercell is not None:

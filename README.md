@@ -17,6 +17,7 @@ https://phonopy.github.io/phelel/
 ### Requirement
 
 * phonopy
+* phonors
 * phono3py
 * spglib
 * finufft

@@ -2,6 +2,33 @@
 
 # Change Log
 
+## Oct-26-2026: Version 0.17.0
+
+- phonopy 4.8.6 or later is required, for the magnetic moments in the form
+  `n*value` and for the GR-grid with zero magnetic moments. phonors 0.6.0 or
+  later is required. phonopy 4.8.6 already depends on it, and phelel uses its
+  `snf3x3` directly.
+- Bug fix: time reversal in the symmetry operations was not applied to dV/du
+  and dDij/du of collinear and non-collinear magnetic calculations with
+  magnetic moments in `phelel_disp.yaml`. Without magnetic moments, the
+  results are unchanged.
+  ([#288](https://github.com/phonopy/phelel/pull/288))
+- `phelel-init --magmom` is added. The magnetic moments are given as one value
+  per atom (collinear) or three values per atom (non-collinear), and they are
+  stored in `phelel_disp.yaml`. The form `n*value` of the MAGMOM tag of VASP
+  can be used, such as `"4*1 4*-1"`. See {ref}`phelel_command`.
+- `phelel --cd` reads `LOCAL-POTENTIAL.bin`, `PAW-STRENGTH.bin`,
+  `PAW-OVERLAP.bin` and `inwap.yaml`, which VASP writes with `LWAP = .TRUE.`,
+  in place of `vaspout.h5` when every directory has `LOCAL-POTENTIAL.bin`.
+  Before, `vaspout.h5` was read when every directory had it. `LWAP = .TRUE.`
+  is for collinear and non-collinear magnetic calculations by VASP 6.6.1 or
+  older, whose local potential in `vaspout.h5` gives wrong derivatives.
+  Otherwise, `vaspout.h5` is recommended.
+- `velph init` writes `lwap = true` in `[vasp.phelel.incar]` when its tags have
+  `ispin = 2`, `lnoncollinear = true` or `lsorbit = true`, and no `lwap`.
+- `Phelel.atom_indices_in_derivatives` is removed. Use
+  `Phelel.primitive.p2s_map`.
+
 ## Oct-23-2026: Version 0.16.0
 
 - phonopy 4.8.4 or later is required.

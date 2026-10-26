@@ -10,8 +10,10 @@ import numpy as np
 import phonopy.cui.load_helper as phonopy_load_helper
 from numpy.typing import NDArray
 from phonopy import Phonopy
+from phonopy.harmonic.displacement import DisplacementDataset
+from phonopy.harmonic.dynamical_matrix import NacParams
+from phonopy.physical_units import get_calculator_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import get_primitive_matrix
 
 from phelel import Phelel
 from phelel.file_IO import read_phelel_params_hdf5
@@ -21,13 +23,14 @@ from phelel.interface.vasp.derivatives import read_files
 
 def load(
     phonopy_yaml: str | os.PathLike | None = None,
-    supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
+    supercell_matrix: Sequence[int] | Sequence[Sequence[int]] | NDArray | None = None,
     primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
     | Sequence[Sequence[float]]
     | NDArray
     | None = None,
     phonon_supercell_matrix: Sequence[Sequence[int]] | NDArray | None = None,
     is_nac: bool = True,
+    calculator: str | None = None,
     fft_mesh: Sequence[int] | NDArray | None = None,
     unitcell: PhonopyAtoms | None = None,
     supercell: PhonopyAtoms | None = None,
@@ -66,8 +69,12 @@ def load(
         different. Unless setting this, supercell_matrix is used as
         phonon_supercell_matrix. Default is None.
     is_nac : bool, optional
-        If True, look for 'BORN' file. If False, NAS is turned off.
-        Default is True.
+        If True, the NAC parameters are those in phonopy_yaml, or else those
+        in "BORN" in the current directory if it exists. If False, NAC is
+        turned off. Default is True.
+    calculator : str, optional
+        Name of the calculator interface, "vasp" or None. With phonopy_yaml,
+        None means the calculator in the file. Default is None.
     fft_mesh : array_like, optional
         FFT mesh numbers for primitive cell used for generating local potential
         derivative interpolation grid. This has to be set to run displacement
@@ -104,6 +111,14 @@ def load(
         Log level. 0 is most quiet. Default is 0.
 
     """
+    smat: Sequence[int] | Sequence[Sequence[int]] | NDArray | None
+    pmat: (
+        Literal["P", "F", "I", "A", "C", "R", "auto"]
+        | Sequence[Sequence[float]]
+        | NDArray
+        | None
+    )
+    ph_smat: Sequence[Sequence[int]] | NDArray | None
     if phonopy_yaml is not None:
         (
             cell,
@@ -114,11 +129,9 @@ def load(
             phonon_dataset,
             _,
             _nac_params,
-            _,
+            calculator,
             site_mixture_scheme,
-        ) = _read_phelel_yaml(
-            phonopy_yaml, primitive_matrix, None, is_nac, None, symprec
-        )
+        ) = _read_phelel_yaml(phonopy_yaml, primitive_matrix, None, is_nac, calculator)
     else:
         cell, smat, pmat = phonopy_load_helper.get_cell_settings(
             supercell_matrix=supercell_matrix,
@@ -127,6 +140,7 @@ def load(
             supercell=supercell,
             unitcell_filename=unitcell_filename,
             supercell_filename=supercell_filename,
+            calculator=calculator,
             symprec=symprec,
         )
         ph_smat = phonon_supercell_matrix
@@ -143,6 +157,7 @@ def load(
         phonon_supercell_matrix=ph_smat,
         fft_mesh=fft_mesh,
         symprec=symprec,
+        calculator=calculator,
         is_symmetry=is_symmetry,
         log_level=log_level,
         site_mixture_scheme=site_mixture_scheme or "merge",
@@ -151,10 +166,15 @@ def load(
         phelel.dataset = dataset
     if phonon_dataset:
         phelel.phonon_dataset = phonon_dataset
-    elif dataset:
-        phelel.dataset = {k: v for k, v in dataset.items()}
-    if _nac_params:
-        phelel.nac_params = _nac_params
+    nac_params = phonopy_load_helper.get_nac_params(
+        primitive=phelel.primitive,
+        nac_params=_nac_params,
+        is_nac=is_nac,
+        nac_factor=get_calculator_physical_units(calculator).nac_factor,
+        log_level=log_level,
+    )
+    if nac_params is not None:
+        phelel.nac_params = nac_params
 
     try:
         dDVdu, dDijdu, _fft_mesh, fc = read_phelel_params_hdf5(log_level=log_level)
@@ -175,7 +195,6 @@ def load(
             dir_names,
             phonon_dir_names=phonon_dir_names,
             subtract_rfs=subtract_rfs,
-            is_nac=is_nac,
             log_level=log_level,
         )
         if phelel.fft_mesh is not None:
@@ -201,17 +220,42 @@ def load(
 
 
 def _read_phelel_yaml(
-    filename, primitive_matrix, nac_params, is_nac, calculator, symprec
-):
+    filename: str | os.PathLike,
+    primitive_matrix: Literal["P", "F", "I", "A", "C", "R", "auto"]
+    | Sequence[Sequence[float]]
+    | NDArray
+    | None,
+    nac_params: NacParams | None,
+    is_nac: bool,
+    calculator: str | None,
+) -> tuple[
+    PhonopyAtoms | None,
+    NDArray[np.int64] | None,
+    Literal["P", "F", "I", "A", "C", "R", "auto"]
+    | Sequence[Sequence[float]]
+    | NDArray
+    | None,
+    NDArray | None,
+    DisplacementDataset | None,
+    DisplacementDataset | None,
+    NDArray[np.double] | None,
+    NacParams | None,
+    str | None,
+    Literal["merge", "split"] | None,
+]:
     """Read properties from phelel.yaml."""
     phe_yml = PhelelYaml().read(filename)
     cell = phe_yml.unitcell
     smat = phe_yml.supercell_matrix
     ph_smat = phe_yml.phonon_supercell_matrix
-    if primitive_matrix is not None:
-        pmat = get_primitive_matrix(primitive_matrix, symprec=symprec)
-    else:
+    # As in phonopy.load(), None and "auto" mean the primitive matrix in the
+    # file.  Without it, the primitive matrix is guessed by Phonopy.
+    if primitive_matrix is None or (
+        isinstance(primitive_matrix, str) and primitive_matrix == "auto"
+    ):
         pmat = phe_yml.primitive_matrix
+    else:
+        pmat = primitive_matrix
     if nac_params is not None:
         _nac_params = nac_params
     elif is_nac:

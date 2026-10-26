@@ -6,13 +6,16 @@ import copy
 import lzma
 from pathlib import Path
 
+import h5py
 import numpy as np
 import pytest
 from numpy.typing import NDArray
 from phonopy import Phonopy
 
+import phelel
 import phelel.interface.vasp.derivatives as derivatives
 from phelel import Phelel
+from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.interface.vasp.derivatives import (
     create_derivatives,
@@ -81,6 +84,23 @@ def test_read_files_C111():
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
     dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
     _ = read_files(phelel, dir_names, subtract_rfs=True, log_level=1)
+
+
+def test_read_files_does_not_read_BORN(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """BORN in the current directory is not read with the VASP calculations.
+
+    The NAC parameters are read by phelel.load() and by the phelel command
+    before the derivatives are computed.
+
+    """
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "BORN").write_text(
+        "4.399652\n5.7 0 0 0 5.7 0 0 0 5.7\n0 0 0 0 0 0 0 0 0\n"
+    )
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    read_files(phelel, dir_names)
+    assert phelel.nac_params is None
 
 
 def test_create_derivatives_C111():
@@ -188,43 +208,150 @@ def test_read_files_without_force_files(tmp_path: Path):
         )
 
 
+def _make_dir(
+    dir_name: Path, old_format_dir: Path | None = None, has_vaspout_h5: bool = False
+) -> Path:
+    """Make a directory with the files of the old format and an empty vaspout.h5.
+
+    The files of the old format are links to those in old_format_dir.
+
+    """
+    dir_name.mkdir()
+    if old_format_dir is not None:
+        for path in old_format_dir.iterdir():
+            (dir_name / path.name).symlink_to(path)
+    if has_vaspout_h5:
+        (dir_name / "vaspout.h5").touch()
+    return dir_name
+
+
+def _read(reader: str, dir_names: list[Path]) -> list:
+    inwap_per = derivatives.read_inwap_yaml(cwd / "C111_disp-000" / "inwap.yaml")
+    if reader == "local_potentials":
+        loc_pots = derivatives._read_local_potentials(dir_names, inwap_per)
+        assert loc_pots is not None
+        return loc_pots
+    Dijs, qijs = derivatives._read_PAW_strength_and_overlap(dir_names, inwap_per)
+    return Dijs + qijs
+
+
+@pytest.fixture
+def no_vaspout_h5_reader(monkeypatch: pytest.MonkeyPatch):
+    """Make reading vaspout.h5 an error."""
+
+    def reader(*args, **kwargs):
+        raise AssertionError("vaspout.h5 is read.")
+
+    monkeypatch.setattr(derivatives, "read_local_potential_vaspouth5", reader)
+    monkeypatch.setattr(derivatives, "read_PAW_Dij_qij_vaspouth5", reader)
+
+
+@pytest.mark.parametrize("reader", ["local_potentials", "PAW_strength_and_overlap"])
+def test_read_old_format_in_place_of_vaspout_h5(
+    reader: str, tmp_path: Path, no_vaspout_h5_reader
+):
+    """The old format is read when every directory has its files.
+
+    The files are LOCAL-POTENTIAL.bin for the local potential, and
+    PAW-STRENGTH.bin and PAW-OVERLAP.bin for Dij and qij.  Every directory
+    also has vaspout.h5, which is an empty file, and reading it is an error.
+    The data have to be those of the old format.
+
+    """
+    old_format_dirs = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    dir_names = [
+        _make_dir(tmp_path / d.name, old_format_dir=d, has_vaspout_h5=True)
+        for d in old_format_dirs
+    ]
+    for data, ref in zip(
+        _read(reader, dir_names), _read(reader, old_format_dirs), strict=True
+    ):
+        np.testing.assert_array_equal(data, ref)
+
+
+@pytest.mark.parametrize(
+    "reader,filename",
+    [
+        ("local_potentials", "LOCAL-POTENTIAL.bin"),
+        ("PAW_strength_and_overlap", "PAW-STRENGTH.bin"),
+    ],
+)
+def test_read_with_old_format_in_some_directories(
+    reader: str, filename: str, tmp_path: Path, no_vaspout_h5_reader
+):
+    """The old format found in only some of the directories is an error.
+
+    Every directory has vaspout.h5, and only the first one has the files of the
+    old format.  Reading the old format of the first directory and vaspout.h5
+    of the others would mix the two formats, so the file read by the reader and
+    the directory without it have to be named in the error.
+
+    """
+    dir_names = [
+        _make_dir(
+            tmp_path / "disp-000",
+            old_format_dir=cwd / "C111_disp-000",
+            has_vaspout_h5=True,
+        ),
+        _make_dir(tmp_path / "disp-001", has_vaspout_h5=True),
+    ]
+    with pytest.raises(RuntimeError, match=f"{filename}.*disp-001"):
+        _read(reader, dir_names)
+
+
+@pytest.mark.parametrize(
+    "found,missing",
+    [
+        ("PAW-STRENGTH.bin", "PAW-OVERLAP.bin"),
+        ("PAW-OVERLAP.bin", "PAW-STRENGTH.bin"),
+    ],
+)
+def test_read_PAW_strength_and_overlap_with_one_of_them(
+    found: str, missing: str, tmp_path: Path, no_vaspout_h5_reader
+):
+    """One of PAW-STRENGTH.bin and PAW-OVERLAP.bin without the other is an error.
+
+    Every directory has vaspout.h5 and only one of the two files.  Reading the
+    other one from vaspout.h5 would mix the two formats, so the file found, the
+    file missing and the directory have to be named in the error.
+
+    """
+    dir_names = []
+    for d in (cwd / "C111_disp-000", cwd / "C111_disp-001"):
+        dir_name = _make_dir(tmp_path / d.name, old_format_dir=d, has_vaspout_h5=True)
+        (dir_name / missing).unlink()
+        dir_names.append(dir_name)
+    with pytest.raises(
+        RuntimeError,
+        match=f'"{found}" was found but "{missing}" was not found in .*C111_disp-000',
+    ):
+        _read("PAW_strength_and_overlap", dir_names)
+
+
+@pytest.mark.parametrize("reader", ["local_potentials", "PAW_strength_and_overlap"])
+def test_read_without_files(reader: str, tmp_path: Path):
+    """Neither the old format nor vaspout.h5 is an error."""
+    dir_names = [_make_dir(tmp_path / "disp-000"), _make_dir(tmp_path / "disp-001")]
+    with pytest.raises(RuntimeError, match="Neither.*disp-000"):
+        _read(reader, dir_names)
+
+
 @pytest.mark.parametrize("reader", ["local_potentials", "PAW_strength_and_overlap"])
 def test_read_with_vaspout_h5_in_some_directories(
-    reader: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    reader: str, tmp_path: Path, no_vaspout_h5_reader
 ):
     """vaspout.h5 found in only some of the directories is an error.
 
-    The first directory has both vaspout.h5 and the files of the old format,
-    and the second one has only the files of the old format.  Reading
-    vaspout.h5 of the first directory and then the old format of all
-    directories would pair the data with wrong displacements, so the
-    directory without vaspout.h5 has to be named in the error.  vaspout.h5 is
-    an empty file, and the functions reading it are replaced.
+    No directory has the files of the old format, and only the first one has
+    vaspout.h5.  The directory without vaspout.h5 has to be named in the error.
 
     """
-    monkeypatch.setattr(
-        derivatives,
-        "read_local_potential_vaspouth5",
-        lambda filename, key: np.zeros(1),
-    )
-    monkeypatch.setattr(
-        derivatives,
-        "read_PAW_Dij_qij_vaspouth5",
-        lambda filename: (np.zeros(1), np.zeros(1)),
-    )
-    first_dir = tmp_path / "disp-000"
-    first_dir.mkdir()
-    for path in (cwd / "C111_disp-000").iterdir():
-        (first_dir / path.name).symlink_to(path)
-    (first_dir / "vaspout.h5").touch()
-    dir_names = [first_dir, cwd / "C111_disp-001"]
-    inwap_per = derivatives.read_inwap_yaml(cwd / "C111_disp-000" / "inwap.yaml")
-
-    with pytest.raises(RuntimeError, match="C111_disp-001"):
-        if reader == "local_potentials":
-            derivatives._read_local_potentials(dir_names, inwap_per)
-        else:
-            derivatives._read_PAW_strength_and_overlap(dir_names, inwap_per)
+    dir_names = [
+        _make_dir(tmp_path / "disp-000", has_vaspout_h5=True),
+        _make_dir(tmp_path / "disp-001"),
+    ]
+    with pytest.raises(RuntimeError, match="vaspout.h5.*disp-001"):
+        _read(reader, dir_names)
 
 
 @pytest.mark.parametrize("subtract_rfs", [True, False])
@@ -285,14 +412,33 @@ def test_read_files_C111_ncl():
 def test_create_derivatives_C111_ncl():
     """Test creating derivatives with non-collinear case of C-1x1x1.
 
-    Check force constants have the full matrix shape.
+    Check force constants have the full matrix shape. phelel_disp_C111.yaml
+    has no magnetic moments, so the non-collinear calculation gives a warning.
 
     """
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
     dir_names = [cwd / "C111-ncl_disp-000", cwd / "C111-ncl_disp-001"]
-    create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
+    with pytest.warns(MagneticMomentsWarning, match="ncdij=4"):
+        create_derivatives(phelel, dir_names, subtract_rfs=True, log_level=1)
     fc = phelel.force_constants
     assert fc.shape[0] == fc.shape[1]
+
+
+def test_create_derivatives_C111_ncl_with_collinear_magmoms():
+    """Collinear magnetic moments are rejected for the non-collinear case."""
+    phe_yml = PhelelYaml().read(cwd / "phelel_disp_C111.yaml")
+    unitcell = phe_yml.unitcell.copy()
+    unitcell.magnetic_moments = [1.0] * len(unitcell)
+    phelel = Phelel(
+        unitcell,
+        supercell_matrix=phe_yml.supercell_matrix,
+        primitive_matrix=phe_yml.primitive_matrix,
+        fft_mesh=[18, 18, 18],
+    )
+    phelel.dataset = phe_yml.dataset
+    dir_names = [cwd / "C111-ncl_disp-000", cwd / "C111-ncl_disp-001"]
+    with pytest.raises(MagneticMomentsError, match="ncdij=4"):
+        create_derivatives(phelel, dir_names, subtract_rfs=True)
 
 
 def test_run_derivatives_without_phonon_dataset_in_input():
@@ -338,6 +484,57 @@ def test_run_derivatives_without_any_phonon_dataset():
     phelel.phonon_dataset = None
     with pytest.raises(RuntimeError, match="Phelel.phonon_dataset"):
         phelel.run_derivatives(phe_input)
+
+
+@pytest.mark.parametrize("name", ["C", "Mg"])
+def test_create_derivatives_vaspout_h5(name: str):
+    """Derivatives from vaspout.h5 are equal to the reference values.
+
+    The data are diamond (conventional cell, 8 atoms) and hcp Mg (2 atoms), with
+    vaspout.h5 reduced to the data that phelel reads (see
+    derivatives_vaspout/README.md).  The reference dVdu and dDijdu were computed
+    by phelel from the same files with fft_mesh stored in reference.hdf5.  qij
+    of PAW depends only on the species, and qij of all supercells of these data
+    are equal, so dqijdu is zero.
+
+    """
+    _assert_derivatives_equal_to_reference(cwd / "derivatives_vaspout" / name)
+
+
+@pytest.mark.parametrize("name", ["Cr", "Fe-ncl"])
+def test_create_derivatives_lwap_files(name: str):
+    """Derivatives from the files written with LWAP = .TRUE. are equal to the reference.
+
+    The data are bcc Cr, collinear and antiferromagnetic (ncdij=2), and bcc Fe,
+    non-collinear with the magnetic moments along (1, 1, 1) (ncdij=4), both of
+    the conventional cell with 2 atoms (see derivatives_lwap/README.md).  The
+    local potential, Dij and qij are read from LOCAL-POTENTIAL.bin,
+    PAW-STRENGTH.bin and PAW-OVERLAP.bin, and the forces from vaspout.h5.  In
+    both, some of the symmetry operations used in the symmetrization are
+    combined with time reversal.  dqijdu is zero for the same reason as in
+    test_create_derivatives_vaspout_h5.
+
+    """
+    _assert_derivatives_equal_to_reference(cwd / "derivatives_lwap" / name)
+
+
+def _assert_derivatives_equal_to_reference(data_dir: Path):
+    """Assert dVdu, dDijdu and dqijdu computed from the files of data_dir.
+
+    dVdu and dDijdu are compared with those in reference.hdf5, computed with
+    fft_mesh stored there.  dqijdu has to be zero.
+
+    """
+    with h5py.File(data_dir / "reference.hdf5") as f:
+        fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
+        ref = {key: f[key][()] for key in ("dVdu", "dDijdu")}
+    phe = phelel.load(data_dir / "phelel_disp.yaml", fft_mesh=fft_mesh, is_nac=False)
+    create_derivatives(phe, sorted(data_dir.glob("disp-*")))
+    assert phe.dVdu is not None
+    for key, value in (("dVdu", phe.dVdu.dVdu), ("dDijdu", phe.dDijdu.dDijdu)):
+        atol = 1e-6 * np.abs(ref[key]).max()
+        np.testing.assert_allclose(value, ref[key], rtol=0, atol=atol)
+    np.testing.assert_array_equal(phe.dDijdu.dqijdu, 0)
 
 
 def _get_phelel_C111(

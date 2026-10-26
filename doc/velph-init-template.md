@@ -192,7 +192,7 @@ A tag listed in `incar_unset` of an input set is not added to that input set:
 
 ```toml
 [vasp.nac]
-incar_unset = ["npar", "ncore", "kpar"]
+incar_unset = ["npar", "ncore"]
 ```
 
 The default settings of `velph init` list tags in `incar_unset` of `nac` and

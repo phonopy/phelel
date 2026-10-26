@@ -3,6 +3,7 @@
 ## Requirement
 
 * phonopy
+* phonors
 * phono3py
 * spglib
 * {ref}`reference_finufft`

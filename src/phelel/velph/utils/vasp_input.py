@@ -25,23 +25,6 @@ def write_incar(filename: str | os.PathLike, incar: Mapping[str, Any]) -> None:
     _write_lines(filename, _incar_lines(incar))
 
 
-def expand_incar_value(text: str) -> list[float]:
-    """Return the values of the right-hand side of an INCAR tag.
-
-    n*value is expanded to n values, so "3*1 0 0 0 3*2" gives
-    [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0].
-
-    """
-    values = []
-    for chunk in text.split():
-        if "*" in chunk:
-            n, value = chunk.split("*")
-            values += [float(value)] * int(n)
-        else:
-            values.append(float(chunk))
-    return values
-
-
 def write_kpoints_mesh(filename: str | os.PathLike, kpoints: KpointsMesh) -> None:
     """Write KPOINTS of a mesh.
 
