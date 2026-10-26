@@ -70,17 +70,21 @@ class EulerAngles:
                 cb2 = 1
             else:
                 raise RuntimeError("Rotation matrix is largely distorted.")
-        # sqrt may not be very numerically accurate if cb**2 is close to 1.
         sb = np.sqrt(1 - cb2)
 
+        # For beta ~ 0 and pi, beta is taken as 0 and pi, so sin(beta) is 0.
+        # sqrt(1 - cb**2) would be sqrt(eps) ~ 1.5e-8 for cb off from 1 by one
+        # ulp.
         if 1 - cb < 1e-10:  # beta ~ 0
             # A choice with gamma=0
+            sb = 0
             cg = 1
             sg = 0
             ca = R[0, 0]
             sa = R[1, 0]
         elif cb + 1 < 1e-10:  # beta ~ pi
             # A choice with gamma=0
+            sb = 0
             cg = 1
             sg = 0
             ca = -R[0, 0]

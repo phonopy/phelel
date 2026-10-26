@@ -3,8 +3,10 @@
 import pathlib
 
 import numpy as np
+import pytest
 
 from phelel.utils.spherical_harmonics import (
+    EulerAngles,
     LxLyLzMatrices,
     SHRotationMatrices,
     SHRotationMatricesEularAngle,
@@ -51,6 +53,29 @@ def test_get_n_and_rotation_order():
         np.testing.assert_array_almost_equal(n, ref[0])
         assert r_order == ref[1]
         assert detR == ref[2]
+
+
+@pytest.mark.parametrize("r22", [1, -1])
+def test_EulerAngles_beta_near_0_and_pi(r22: int):
+    """sin(beta) is 0 when R[2, 2] is 1 or -1 up to one ulp.
+
+    The rotation is the 4-fold one about z for r22=1 (beta=0) and the 2-fold
+    one about x for r22=-1 (beta=pi).  R[2, 2] off from 1 or -1 by one ulp,
+    as rounding errors give for the rotations of a non-orthogonal lattice, has
+    to give sin(beta) = 0, not sqrt(eps).
+
+    """
+    if r22 == 1:
+        R = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype="double")
+    else:
+        R = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]], dtype="double")
+    R_exact = R.copy()
+    R[2, 2] = np.nextafter(R[2, 2], 0)
+    ea = EulerAngles(R)
+    ea.run()
+    assert ea.angles is not None
+    assert ea.angles[3] == 0
+    np.testing.assert_allclose(ea.recover_R(), R_exact, atol=1e-15)
 
 
 def test_SHRotationMatrices(rotations_and_lattice: tuple[np.ndarray, np.ndarray]):
