@@ -9,11 +9,8 @@ from typing import Literal, cast
 
 import numpy as np
 from numpy.typing import NDArray
-from phonopy.file_IO import get_born_parameters
 from phonopy.interface.vasp import parse_set_of_forces
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import Primitive
-from phonopy.structure.symmetry import Symmetry
 
 from phelel import Phelel
 from phelel.api_phelel import PhelelDataset
@@ -32,15 +29,9 @@ def read_files(
     dir_names: Sequence[str | os.PathLike],
     phonon_dir_names: Sequence[str | os.PathLike] | None = None,
     subtract_rfs: bool = False,
-    is_nac: bool = True,
     log_level: int = 0,
 ) -> PhelelDataset:
-    """Load files needed to create derivatives.
-
-    When ``is_nac`` is True and the NAC parameters are not yet stored in
-    ``phelel``, they are read from BORN in the current directory if it exists.
-
-    """
+    """Load files needed to create derivatives."""
     inwap_path = pathlib.Path(dir_names[0]) / "inwap.yaml"
     if inwap_path.exists():
         inwap_per = read_inwap_yaml(inwap_path)
@@ -89,14 +80,6 @@ def read_files(
         log_level=log_level,
     )
     phelel.forces = forces
-
-    if is_nac and phelel.nac_params is None:
-        # This situation is possible when this function is called from cui/load.
-        nac_params = _read_born(
-            phelel.primitive, phelel.primitive_symmetry, log_level=log_level
-        )
-        if nac_params:
-            phelel.nac_params = nac_params
 
     return PhelelDataset(
         local_potentials=loc_pots,
@@ -213,19 +196,6 @@ def get_vasp_force_filenames(
             )
         filenames.append(vasprun_filenames[0])
     return filenames
-
-
-def _read_born(
-    primitive: Primitive, primitive_symmetry: Symmetry, log_level: int = 0
-) -> dict | None:
-    if pathlib.Path("BORN").is_file():
-        with open("BORN") as f:
-            nac_params = get_born_parameters(f, primitive, primitive_symmetry)
-            if log_level:
-                print('"BORN" was read.')
-        return nac_params
-    else:
-        return None
 
 
 def _get_datasets(phelel: Phelel) -> tuple[dict, dict]:

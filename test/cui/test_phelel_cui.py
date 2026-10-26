@@ -589,6 +589,28 @@ def test_phelel_loader_keeps_calculator(tmp_path: pathlib.Path):
     try:
         phe = load(cwd / ".." / "phelel_disp_C111.yaml")
         assert phe.calculator == "vasp"
+        phe = load(unitcell=phe.unitcell, primitive_matrix="F")
+        assert phe.calculator is None
+        phe = load(unitcell=phe.unitcell, primitive_matrix="F", calculator="vasp")
+        assert phe.calculator == "vasp"
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_phelel_loader_reads_BORN_without_dir_names(tmp_path: pathlib.Path):
+    """BORN in the current directory is read also without dir_names."""
+    born_str = """4.399652
+5.7 0 0 0 5.7 0 0 0 5.7
+0 0 0 0 0 0 0 0 0"""
+
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        pathlib.Path("BORN").write_text(born_str, encoding="utf-8")
+        phe = load(cwd / ".." / "phelel_disp_C111.yaml")
+        assert phe.nac_params is not None
+        np.testing.assert_allclose(phe.nac_params["dielectric"], np.eye(3) * 5.7)
+        assert phe.nac_params["factor"] == pytest.approx(4.399652)
     finally:
         os.chdir(original_cwd)
 

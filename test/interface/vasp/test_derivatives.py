@@ -86,6 +86,23 @@ def test_read_files_C111():
     _ = read_files(phelel, dir_names, subtract_rfs=True, log_level=1)
 
 
+def test_read_files_does_not_read_BORN(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """BORN in the current directory is not read with the VASP calculations.
+
+    The NAC parameters are read by phelel.load() and by the phelel command
+    before the derivatives are computed.
+
+    """
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "BORN").write_text(
+        "4.399652\n5.7 0 0 0 5.7 0 0 0 5.7\n0 0 0 0 0 0 0 0 0\n"
+    )
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    read_files(phelel, dir_names)
+    assert phelel.nac_params is None
+
+
 def test_create_derivatives_C111():
     """Test creating derivatives with C-1x1x1.
 
