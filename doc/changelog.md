@@ -76,6 +76,13 @@
   stopped with an error when the derivatives were computed again with
   `dir_names`. `phelel_params.hdf5` written by `phelel --cd` and
   `velph phelel differentiate` is not affected.
+- Bug fix: `phelel_params.hdf5` of a supercell larger than the unit cell could
+  not be read. The matrix from the primitive cell to the supercell was made
+  from `primitive_matrix` in the file, which is relative to the unit cell, and
+  reading stopped with an error on the shape of dV/du. It is made from
+  `primitive_matrix` and `supercell_matrix` in the file.
+- phonors 0.6.0 or later is required. phonopy 4.8.4 already depends on it,
+  and phelel uses its `snf3x3` directly.
 
 ## Oct-23-2026: Version 0.16.0
 

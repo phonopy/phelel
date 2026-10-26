@@ -16,7 +16,7 @@ from spglib import SpglibDataset, SpglibMagneticDataset
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
 from phelel.utils.data import cmplx2real, real2cmplx
-from phelel.utils.lattice_points import get_lattice_points
+from phelel.utils.lattice_points import get_lattice_points, get_p2s_matrix
 
 
 def write_phelel_params_hdf5(
@@ -105,15 +105,17 @@ def read_phelel_params_hdf5(
                     f'"atom_indices_in_derivatives" in "{filename}" differs from '
                     '"p2s_map".  Files of such an old format are not supported.'
                 )
+            # "primitive_matrix" in the file is relative to the unit cell, so it
+            # is made relative to the supercell with "supercell_matrix".  Files
+            # of older versions do not have it when the primitive cell is the
+            # unit cell.
             if "primitive_matrix" in f:
-                pmat = f["primitive_matrix"][:]
+                primitive_matrix = f["primitive_matrix"][:]
             else:
-                pmat = (
-                    np.linalg.inv(f["supercell_lattice"][:]) @ f["primitive_lattice"][:]
-                )
-            p2s_mat_float = np.linalg.inv(pmat)
-            p2s_matrix = np.rint(p2s_mat_float).astype("int64")
-            assert (abs(p2s_matrix - p2s_mat_float) < 1e-5).all()
+                primitive_matrix = np.eye(3)
+            p2s_matrix = get_p2s_matrix(
+                np.linalg.inv(f["supercell_matrix"][:]) @ primitive_matrix
+            )
 
         if log_level:
             print(f'dV/du was read from "{filename}".')
@@ -334,9 +336,7 @@ def _add_datasets(
             "phonon_shortest_vector_multiplicities",
             data=np.array(p2s_multiplicities, dtype="int64"),
         )
-        p2s_mat_float = np.linalg.inv(phonon_primitive.primitive_matrix)
-        p2s_matrix = np.rint(p2s_mat_float).astype("int64")
-        assert (abs(p2s_matrix - p2s_mat_float) < 1e-5).all()
+        p2s_matrix = get_p2s_matrix(phonon_primitive.primitive_matrix)
         lattice_points, _ = get_lattice_points(p2s_matrix)
         w.create_dataset("phonon_lattice_point", data=lattice_points)
     if phonon_supercell is not None:

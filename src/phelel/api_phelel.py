@@ -24,6 +24,7 @@ from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
 from phelel.file_IO import write_phelel_params_hdf5
 from phelel.interface.phelel_yaml import PhelelYaml
+from phelel.utils.lattice_points import get_p2s_matrix
 
 
 @dataclass
@@ -158,9 +159,7 @@ class Phelel:
             self._phonon = self._get_phonopy(phonon_supercell_matrix, primitive_matrix)
             assert isclose(self._phelel_phonon.primitive, self._phonon.primitive)
 
-        p2s_mat_float = np.linalg.inv(self.primitive.primitive_matrix)
-        self._p2s_matrix = np.rint(p2s_mat_float).astype("int64")
-        assert (abs(self._p2s_matrix - p2s_mat_float) < 1e-5).all()
+        self._p2s_matrix = get_p2s_matrix(self.primitive.primitive_matrix)
 
         self._dVdu = None
         self._dmudu = None
@@ -542,35 +541,10 @@ class Phelel:
         )
         assert self._phelel_phonon.dataset is not None
 
-        self._dVdu = DLocalPotential(
-            self._fft_mesh,
-            self._p2s_matrix,
-            self._phelel_phonon.supercell,
-            symmetry=self.symmetry,
-            atom_indices=self._phelel_phonon.primitive.p2s_map,
-            finufft_eps=self._finufft_eps,
-            verbose=self._log_level > 0,
-        )
-        loc_pots = phe_input.local_potentials
-        self._dVdu.run(
-            loc_pots[0], loc_pots[1:], self._phelel_phonon.dataset["first_atoms"]
-        )
-
+        self._dVdu = self._get_derivatives_of_potential(phe_input.local_potentials)
         if phe_input.kinetic_potentials is not None:
-            kin_pots = phe_input.kinetic_potentials
-            self._dmudu = DLocalPotential(
-                self._fft_mesh,
-                self._p2s_matrix,
-                self._phelel_phonon.supercell,
-                symmetry=self.symmetry,
-                atom_indices=self._phelel_phonon.primitive.p2s_map,
-                finufft_eps=self._finufft_eps,
-                verbose=self._log_level > 0,
-            )
-            self._dmudu.run(
-                kin_pots[0],
-                kin_pots[1:],
-                self._phelel_phonon.dataset["first_atoms"],
+            self._dmudu = self._get_derivatives_of_potential(
+                phe_input.kinetic_potentials
             )
 
         Dijs = phe_input.Dijs
@@ -661,6 +635,38 @@ class Phelel:
             elif self.phonon_supercell is not None:
                 phe_yaml.phonon_supercell = self.phonon_supercell
         return phe_yaml
+
+    def _get_derivatives_of_potential(
+        self, potentials: list[NDArray]
+    ) -> DLocalPotential:
+        """Return the derivatives of a potential on the grid points.
+
+        Parameters
+        ----------
+        potentials : list of ndarray
+            The potential of the perfect supercell followed by those of the
+            supercells with the displacements of the dataset, such as
+            PhelelDataset.local_potentials.
+
+        Returns
+        -------
+        DLocalPotential
+
+        """
+        assert self._phelel_phonon.dataset is not None
+        dlp = DLocalPotential(
+            self._fft_mesh,
+            self._p2s_matrix,
+            self._phelel_phonon.supercell,
+            symmetry=self.symmetry,
+            atom_indices=self._phelel_phonon.primitive.p2s_map,
+            finufft_eps=self._finufft_eps,
+            verbose=self._log_level > 0,
+        )
+        dlp.run(
+            potentials[0], potentials[1:], self._phelel_phonon.dataset["first_atoms"]
+        )
+        return dlp
 
     def _prepare_phonon(
         self,

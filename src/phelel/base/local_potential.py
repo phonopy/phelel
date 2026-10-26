@@ -10,8 +10,9 @@ import numpy as np
 from numpy.typing import NDArray
 from phonopy.interface.vasp import get_vasp_structure_lines
 from phonopy.structure.atoms import PhonopyAtoms
-from phonopy.structure.cells import SNF3x3, determinant, get_supercell
+from phonopy.structure.cells import determinant, get_supercell
 from phonopy.structure.symmetry import Symmetry
+from phonors import snf3x3
 
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.symmetrization import (
@@ -814,9 +815,9 @@ def visualize_distribution(
     # Copy grid point coordinates to fill the visualized cell with respect
     # to the basis vectors of local potential cell.
     gp_viz = np.zeros((d * n, 3), dtype="double", order="C")
-    snf = SNF3x3(M)
-    P_inv = np.linalg.inv(snf.P)
-    diag_A = tuple(np.diagonal(snf.D))
+    d_diag, P, _ = snf3x3(np.array(M, dtype="int64"))
+    P_inv = np.linalg.inv(P)
+    diag_A = tuple(d_diag)
 
     # Supercell lattice points inside visuzalization cell.
     # Grid points of supercell + the lattice point is concatenated.

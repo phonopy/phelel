@@ -12,6 +12,8 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture, get_primitive
 
 import phelel
+from phelel.base.Dij_qij import DDijQij
+from phelel.base.local_potential import DLocalPotential, get_grid_points
 from phelel.file_IO import read_phelel_params_hdf5, write_phelel_params_hdf5
 
 cwd = pathlib.Path(__file__).parent
@@ -249,3 +251,52 @@ def test_load_with_phelel_params_hdf5(tmp_path, monkeypatch, capsys):
         np.testing.assert_array_equal(
             getattr(phe.dDijdu, key), getattr(phe_ref.dDijdu, key), err_msg=key
         )
+
+
+def test_read_phelel_params_hdf5_of_supercell_larger_than_unit_cell(tmp_path):
+    """phelel_params.hdf5 of a 2x2x2 supercell is read back as it was saved.
+
+    "primitive_matrix" in the file is relative to the unit cell, and the matrix
+    from the primitive cell to the supercell has to be made from the lattices.
+    The two differ only when the supercell is larger than the unit cell.
+
+    """
+    phe = phelel.load(
+        cwd / "velph" / "cli" / "phelel" / "differentiate" / "phelel_disp_C222.yaml",
+        fft_mesh=[2, 2, 2],
+    )
+    assert not np.allclose(phe.primitive_matrix, phe.primitive.primitive_matrix)
+    rng = np.random.default_rng(0)
+    atom_indices = phe.primitive.p2s_map
+    n_atoms, natom = len(atom_indices), len(phe.supercell)
+    grid_points, lattice_points = get_grid_points(phe.fft_mesh, phe.p2s_matrix)
+
+    def _random(shape):
+        return rng.random(shape) + 1j * rng.random(shape)
+
+    phe.dVdu = DLocalPotential.from_arrays(
+        phe.fft_mesh,
+        phe.p2s_matrix,
+        phe.supercell,
+        _random((1, n_atoms, 3, len(grid_points))),
+        grid_points,
+        lattice_points,
+        atom_indices=atom_indices,
+    )
+    phe.dDijdu = DDijQij.from_arrays(
+        phe.supercell,
+        _random((1, n_atoms, 3, natom, 2, 2)),
+        _random((1, n_atoms, 3, natom, 2, 2)),
+        _random((1, n_atoms, 2, 2)),
+        _random((1, n_atoms, 2, 2)),
+        atom_indices=atom_indices,
+    )
+    filename = tmp_path / "phelel_params.hdf5"
+    phe.save_hdf5(filename=filename)
+
+    dVdu, dDijdu, _, _ = read_phelel_params_hdf5(filename)
+    np.testing.assert_array_equal(dVdu.p2s_matrix, phe.p2s_matrix)
+    np.testing.assert_array_equal(dVdu.dVdu, phe.dVdu.dVdu)
+    np.testing.assert_array_equal(dVdu.grid_points, phe.dVdu.grid_points)
+    np.testing.assert_array_equal(dVdu.lattice_points, phe.dVdu.lattice_points)
+    np.testing.assert_array_equal(dDijdu.dDijdu, phe.dDijdu.dDijdu)
