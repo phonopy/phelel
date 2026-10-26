@@ -9,6 +9,11 @@ from typing import Literal, cast
 
 import numpy as np
 from numpy.typing import NDArray
+from phonopy.harmonic.displacement import (
+    DisplacementDataset,
+    Type1DisplacementDataset,
+    Type2DisplacementDataset,
+)
 from phonopy.interface.vasp import parse_set_of_forces
 from phonopy.structure.atoms import PhonopyAtoms
 
@@ -198,7 +203,9 @@ def get_vasp_force_filenames(
     return filenames
 
 
-def _get_datasets(phelel: Phelel) -> tuple[dict, dict]:
+def _get_datasets(
+    phelel: Phelel,
+) -> tuple[Type1DisplacementDataset, DisplacementDataset]:
     """Return inwap dataset and phonopy dataset.
 
     Without the phonon supercell, the phonopy dataset is the inwap dataset.
@@ -207,17 +214,18 @@ def _get_datasets(phelel: Phelel) -> tuple[dict, dict]:
     assert phelel.dataset is not None
     if "first_atoms" not in phelel.dataset:
         raise RuntimeError("Displacement dataset has to be stored in Phelel instance.")
+    dataset = cast(Type1DisplacementDataset, phelel.dataset)
     if phelel.phonon_supercell_matrix is None:
-        return phelel.dataset, phelel.dataset
+        return dataset, dataset
     if phelel.phonon_dataset is None:
         raise RuntimeError(
             "The phonon dataset has to be stored in Phelel instance when the phonon "
             "supercell matrix is given."
         )
-    return phelel.dataset, phelel.phonon_dataset
+    return dataset, phelel.phonon_dataset
 
 
-def _get_number_of_displacements(dataset: dict) -> int:
+def _get_number_of_displacements(dataset: DisplacementDataset) -> int:
     """Return the number of supercells with displacements of a dataset.
 
     The dataset has "first_atoms" when one atom is displaced in each supercell,
@@ -225,8 +233,8 @@ def _get_number_of_displacements(dataset: dict) -> int:
 
     """
     if "first_atoms" in dataset:
-        return len(dataset["first_atoms"])
-    return len(dataset["displacements"])
+        return len(cast(Type1DisplacementDataset, dataset)["first_atoms"])
+    return len(cast(Type2DisplacementDataset, dataset)["displacements"])
 
 
 def _find_files(

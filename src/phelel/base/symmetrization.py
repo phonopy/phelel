@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
+from phonopy.harmonic.displacement import FirstAtomDisplacement
 from phonopy.structure.symmetry import Symmetry
 from phonopy.utils import similarity_transformation
 
@@ -100,7 +101,9 @@ def select_equivalent_atoms(
 
 
 def check_displaced_atoms(
-    atom_indices: NDArray, displacements: Sequence[dict], symmetry: Symmetry
+    atom_indices: NDArray,
+    displacements: Sequence[FirstAtomDisplacement],
+    symmetry: Symmetry,
 ) -> None:
     """Raise ValueError for atoms not equivalent to any displaced atom.
 

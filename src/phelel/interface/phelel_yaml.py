@@ -7,6 +7,7 @@ import dataclasses
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
+from phonopy.harmonic.displacement import DisplacementDataset
 from phonopy.interface.phonopy_yaml import (
     PhonopyYaml,
     PhonopyYamlData,
@@ -30,7 +31,7 @@ class PhelelYamlData(PhonopyYamlData):
 
     command_name: str = "phelel"
     phonon_supercell_matrix: NDArray | None = None
-    phonon_dataset: dict | None = None
+    phonon_dataset: DisplacementDataset | None = None
     phonon_supercell: Supercell | PhonopyAtoms | None = None
     phonon_primitive: Primitive | PhonopyAtoms | None = None
 
@@ -238,12 +239,12 @@ class PhelelYaml(PhonopyYaml):
         self._data.phonon_supercell = value
 
     @property
-    def phonon_dataset(self) -> dict | None:
+    def phonon_dataset(self) -> DisplacementDataset | None:
         """Return phonon dataset of phonopy calculation."""
         return self._data.phonon_dataset
 
     @phonon_dataset.setter
-    def phonon_dataset(self, value: dict):
+    def phonon_dataset(self, value: DisplacementDataset | None):
         """Set phonon dataset of phonopy calculation."""
         self._data.phonon_dataset = value
 
