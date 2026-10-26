@@ -89,6 +89,9 @@ def test_phelel_script(filename: pathlib.Path, with_BORN_file: bool):
             else:
                 born_dir.rmdir()
 
+            # The calculator of the input is kept.
+            assert PhelelYaml().read("phelel.yaml").calculator == "vasp"
+
             # Clean files created by phelel script.
             for created_filename in ("phelel.yaml",):
                 file_path = pathlib.Path(created_filename)
@@ -575,6 +578,17 @@ def test_phelel_load_is_deprecated(tmp_path: pathlib.Path, capsys):
         assert (tmp_path / "phelel.yaml").exists()
         out = capsys.readouterr().out
         assert "WARNING: 'phelel-load' is deprecated. Use 'phelel' instead." in out
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_phelel_loader_keeps_calculator(tmp_path: pathlib.Path):
+    """The calculator in phelel_disp.yaml is given to Phelel."""
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        phe = load(cwd / ".." / "phelel_disp_C111.yaml")
+        assert phe.calculator == "vasp"
     finally:
         os.chdir(original_cwd)
 

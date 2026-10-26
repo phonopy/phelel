@@ -229,6 +229,7 @@ def main(**argparse_control):
         fft_mesh=fft_mesh,
         symprec=symprec,
         is_symmetry=settings.is_symmetry,
+        calculator=phe_yml.calculator,
         finufft_eps=settings.finufft_eps,
     )
     if phonon_supercell_matrix is not None:

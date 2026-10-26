@@ -81,6 +81,9 @@
   from `primitive_matrix` in the file, which is relative to the unit cell, and
   reading stopped with an error on the shape of dV/du. It is made from
   `primitive_matrix` and `supercell_matrix` in the file.
+- `phelel` and `phelel.load()` keep the calculator written in
+  `phelel_disp.yaml`. Before, `Phelel.calculator` was None, and `phelel.yaml`
+  written by `phelel` had no `calculator`. The results are unchanged.
 - phonors 0.6.0 or later is required. phonopy 4.8.4 already depends on it,
   and phelel uses its `snf3x3` directly.
 
