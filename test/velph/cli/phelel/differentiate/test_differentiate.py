@@ -42,7 +42,6 @@ def test_run_derivatives(tmp_path: pathlib.Path):
     with h5py.File(hdf5_filename) as f:
         assert set(f) == set(
             (
-                "atom_indices_in_derivatives",  # This key is deprecated.
                 "Dij",
                 "FFT_mesh",
                 "dDijdu",

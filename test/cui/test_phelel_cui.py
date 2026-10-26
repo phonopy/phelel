@@ -648,7 +648,6 @@ def _check_create_params_file(with_BORN_file: bool):
             [
                 "Dij",
                 "FFT_mesh",
-                "atom_indices_in_derivatives",
                 "born_effective_charges",
                 "dDijdu",
                 "dVdu",
@@ -688,7 +687,6 @@ def _check_create_params_file(with_BORN_file: bool):
             [
                 "Dij",
                 "FFT_mesh",
-                "atom_indices_in_derivatives",
                 "dDijdu",
                 "dVdu",
                 "direct_rotations",

@@ -75,7 +75,7 @@ def test_visualize(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, caps
     monkeypatch.chdir(tmp_path)
     phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
     fft_mesh = np.array([4, 4, 4])
-    atom_indices = phe.atom_indices_in_derivatives
+    atom_indices = phe.primitive.p2s_map
     dlp = DLocalPotential(
         fft_mesh, phe.p2s_matrix, phe.supercell, atom_indices=atom_indices
     )

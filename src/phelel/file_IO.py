@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import pathlib
-import warnings
 
 import h5py
 import numpy as np
@@ -30,7 +29,6 @@ def write_phelel_params_hdf5(
     primitive: Primitive | None = None,
     unitcell: PhonopyAtoms | None = None,
     supercell: PhonopyAtoms | None = None,
-    atom_indices_in_derivatives: NDArray | None = None,
     disp_dataset: dict | None = None,
     force_constants: NDArray | None = None,
     phonon_supercell_matrix: NDArray | None = None,
@@ -52,7 +50,6 @@ def write_phelel_params_hdf5(
             primitive=primitive,
             unitcell=unitcell,
             supercell=supercell,
-            atom_indices_in_derivatives=atom_indices_in_derivatives,
             disp_dataset=disp_dataset,
             force_constants=force_constants,
             phonon_supercell_matrix=phonon_supercell_matrix,
@@ -121,10 +118,16 @@ def read_phelel_params_hdf5(
                 masses=f["supercell_masses"][:],
             )
             symmetry = Symmetry(supercell)
-            if "atom_indices_in_derivatives" in f:
-                atom_indices = f["atom_indices_in_derivatives"][:]
-            else:
-                atom_indices = f["p2s_map"][:]
+            atom_indices = f["p2s_map"][:]
+            # Files of older versions have this key.  They are read only when it
+            # is equal to p2s_map.
+            if "atom_indices_in_derivatives" in f and not np.array_equal(
+                f["atom_indices_in_derivatives"][:], atom_indices
+            ):
+                raise ValueError(
+                    f'"atom_indices_in_derivatives" in "{filename}" differs from '
+                    '"p2s_map".  Files of such an old format are not supported.'
+                )
             if "primitive_matrix" in f:
                 pmat = f["primitive_matrix"][:]
             else:
@@ -212,7 +215,6 @@ def _add_datasets(
     primitive: Primitive | None = None,
     unitcell: PhonopyAtoms | None = None,
     supercell: PhonopyAtoms | None = None,
-    atom_indices_in_derivatives: NDArray | None = None,
     disp_dataset: dict | None = None,
     force_constants: NDArray | None = None,
     phonon_supercell_matrix: NDArray | None = None,
@@ -279,26 +281,6 @@ def _add_datasets(
                 "primitive_mixture_weights",
                 data=np.array(primitive.mixture_weights, dtype="double", order="C"),
             )
-        if atom_indices_in_derivatives is not None:
-            if True:
-                warnings.warn(
-                    (
-                        '"atom_indices_in_derivatives" '
-                        'will not be stored in "phelel_params.hdf5"'
-                    ),
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                w.create_dataset(
-                    "atom_indices_in_derivatives",
-                    data=np.array(atom_indices_in_derivatives, dtype="int64"),
-                )
-            else:
-                if not np.array_equal(atom_indices_in_derivatives, primitive.p2s_map):
-                    w.create_dataset(
-                        "atom_indices_in_derivatives",
-                        data=np.array(atom_indices_in_derivatives, dtype="int64"),
-                    )
     if unitcell is not None:
         w.create_dataset(
             "unitcell_lattice",

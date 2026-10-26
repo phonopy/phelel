@@ -70,12 +70,11 @@ def test_DDijQijFit(
                 phe_in.lm_channels,
             )
         )
-    assert phe.atom_indices_in_derivatives is not None
     ddijqij = DDijQijFit(
         delta_Dij_qijs,
         phe.supercell,
         phe.symmetry,
-        atom_indices=phe.atom_indices_in_derivatives,
+        atom_indices=phe.primitive.p2s_map,
     )
     ddijqij.run()
 
@@ -86,7 +85,7 @@ def test_DDijQij(phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelD
     phe_in = phelel_input_CdAs2_111
     assert phe.dataset is not None
     displacements = phe.dataset["first_atoms"]
-    dDijdu = DDijQij(phe.supercell, phe.symmetry, phe.atom_indices_in_derivatives)
+    dDijdu = DDijQij(phe.supercell, phe.symmetry, phe.primitive.p2s_map)
     dDijdu.run(
         phe_in.Dijs[0],
         phe_in.Dijs[1:],
@@ -155,8 +154,8 @@ def test_DDijQij_with_undisplaced_atoms(
     assert phe.dataset is not None
     displacements = phe.dataset["first_atoms"][:2]
     assert [disp["number"] for disp in displacements] == [0, 0]
-    np.testing.assert_array_equal(phe.atom_indices_in_derivatives, [0, 2, 4, 6, 8, 10])
-    dDijdu = DDijQij(phe.supercell, phe.symmetry, phe.atom_indices_in_derivatives)
+    np.testing.assert_array_equal(phe.primitive.p2s_map, [0, 2, 4, 6, 8, 10])
+    dDijdu = DDijQij(phe.supercell, phe.symmetry, phe.primitive.p2s_map)
     with pytest.raises(ValueError, match="atoms 5, 7, 9, 11 of the supercell"):
         dDijdu.run(
             phe_in.Dijs[0],
