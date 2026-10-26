@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -59,6 +60,27 @@ def collect_site_symmetry_operations(
             ops_sets.append(isyms)
 
     return np.array(ops_sets, dtype="int64", order="C"), equiv_atoms
+
+
+def check_displaced_atoms(
+    atom_indices: NDArray, displacements: Sequence[dict], symmetry: Symmetry
+) -> None:
+    """Raise ValueError for atoms not equivalent to any displaced atom.
+
+    The derivatives of an atom are obtained from the displacements of the atoms
+    equivalent to it by symmetry.  Without them, the derivatives would be left
+    zero.
+
+    """
+    map_atoms = symmetry.get_map_atoms()
+    displaced = {map_atoms[d["number"]] for d in displacements}
+    missing = [int(i) + 1 for i in atom_indices if map_atoms[i] not in displaced]
+    if missing:
+        raise ValueError(
+            "No atom equivalent to atoms "
+            f"{', '.join(str(i) for i in missing)} of the supercell (counted "
+            "from 1) is displaced, so their derivatives are not obtained."
+        )
 
 
 def get_displacements_with_rotations(

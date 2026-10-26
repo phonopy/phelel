@@ -10,7 +10,13 @@ import pytest
 from phonopy.structure.symmetry import Symmetry
 
 import phelel
-from phelel.base.local_potential import DLocalPotential, get_grid_points
+from phelel.api_phelel import Phelel
+from phelel.base.local_potential import (
+    DeltaLocalPotential,
+    DLocalPotential,
+    LocalPotentialInterpolationNUFFT,
+    get_grid_points,
+)
 
 cwd = pathlib.Path(__file__).parent
 
@@ -166,7 +172,7 @@ def _anisotropic_function(frac: np.ndarray) -> np.ndarray:
     )
 
 
-def test_run_without_symmetry():
+def test_run_without_symmetry(capsys: pytest.CaptureFixture):
     """dV/du is the change of the potential divided by the displacement.
 
     With the identity as the only symmetry operation, the displacement of atom
@@ -174,7 +180,8 @@ def test_run_without_symmetry():
     change of the potential is given on a VASP mesh with different numbers of
     points along the three axes, and dV/du_x is evaluated at the grid points by
     NUFFT.  The function differs along the axes and has sine terms, so mixing
-    up the axes or the sign of the Fourier transform changes the result.
+    up the axes or the sign of the Fourier transform changes the result.  With
+    verbose=False, nothing is printed.
 
     """
     phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
@@ -200,6 +207,7 @@ def test_run_without_symmetry():
     atol = 1e-5 * np.abs(expected).max()
     np.testing.assert_allclose(dlp.dVdu[0, 0, 0], expected, atol=atol)
     np.testing.assert_allclose(dlp.dVdu[0, 0, 1:], 0, atol=atol)
+    assert capsys.readouterr().out == ""
 
 
 def _model_potential_gradient(
@@ -235,19 +243,12 @@ def test_run_with_symmetry():
     translations, and the site symmetry of atom 1 maps x to y and z.
 
     """
-    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    phe, V_loc_per, V_loc_disp, displacement = _diamond_model_input()
     supercell = phe.supercell
     lattice = supercell.cell
     positions = supercell.scaled_positions
-    u = 0.01
-    mesh = (18, 16, 14)
-    frac = _mesh_fractions(mesh)
-    V_loc_per = np.zeros((1,) + mesh, dtype="complex128")
-    V_loc_disp = (u * _model_potential_gradient(frac, positions[0], lattice, 0))[
-        None
-    ].astype("complex128")
     dlp = DLocalPotential([6, 6, 6], phe.p2s_matrix, supercell, verbose=False)
-    dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
+    dlp.run(V_loc_per, [V_loc_disp], [displacement])
 
     assert dlp.dVdu is not None
     np.testing.assert_array_equal(dlp.atom_indices, np.arange(len(supercell)))
@@ -262,3 +263,79 @@ def test_run_with_symmetry():
     )
     atol = 1e-5 * np.abs(expected).max()
     np.testing.assert_allclose(dlp.dVdu[0], expected, atol=atol)
+
+
+def test_interpolation_with_atom_indices_in_any_order():
+    """dV/du of each atom is that of the atom, in the order of atom_indices.
+
+    The site-symmetry operations are collected for the equivalent atoms in
+    ascending order, and they have to be matched to atom_indices given in
+    another order.
+
+    """
+    phe, V_loc_per, V_loc_disp, displacement = _diamond_model_input()
+    supercell = phe.supercell
+    lpi = LocalPotentialInterpolationNUFFT(
+        [6, 6, 6],
+        phe.p2s_matrix,
+        supercell,
+        phe.symmetry,
+        atom_indices=np.array([1, 0]),
+        verbose=False,
+    )
+    lpi.delta_Vs = [DeltaLocalPotential(V_loc_per, V_loc_disp, displacement)]
+    for _ in lpi:
+        pass
+
+    np.testing.assert_array_equal(lpi.atom_indices_returned, [1, 0])
+    assert lpi.dVdu is not None
+    for dVdu, i_atom in zip(lpi.dVdu[0], lpi.atom_indices_returned, strict=True):
+        expected = np.array(
+            [
+                _model_potential_gradient(
+                    lpi.grid_points,
+                    supercell.scaled_positions[i_atom],
+                    supercell.cell,
+                    i_dir,
+                )
+                for i_dir in range(3)
+            ]
+        )
+        atol = 1e-5 * np.abs(expected).max()
+        np.testing.assert_allclose(dVdu, expected, atol=atol)
+
+
+def test_run_with_undisplaced_atoms():
+    """Atoms not equivalent to any displaced atom are an error.
+
+    In NaCl, the displacement of a Na atom gives no dV/du of the Cl atoms,
+    which would be left zero.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_NaCl111.yaml")
+    supercell = phe.supercell
+    assert supercell.symbols == ["Na"] * 4 + ["Cl"] * 4
+    V_loc = np.zeros((1, 12, 12, 12), dtype="complex128")
+    dlp = DLocalPotential([4, 4, 4], phe.p2s_matrix, supercell, verbose=False)
+    with pytest.raises(ValueError, match="atoms 5, 6, 7, 8 of the supercell"):
+        dlp.run(V_loc, [V_loc], [{"number": 0, "displacement": [0.01, 0, 0]}])
+
+
+def _diamond_model_input() -> tuple[Phelel, np.ndarray, np.ndarray, dict]:
+    """Return the input of the model potential of diamond.
+
+    The potential of the perfect supercell is zero, and that of the supercell
+    with atom 1 displaced along x by u is -u d phi(r - R_1) / d x, given on a
+    VASP mesh.  See test_run_with_symmetry.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    supercell = phe.supercell
+    u = 0.01
+    mesh = (18, 16, 14)
+    frac = _mesh_fractions(mesh)
+    position = supercell.scaled_positions[0]
+    gradient = _model_potential_gradient(frac, position, supercell.cell, 0)
+    V_loc_per = np.zeros((1,) + mesh, dtype="complex128")
+    V_loc_disp = (u * gradient)[None].astype("complex128")
+    return phe, V_loc_per, V_loc_disp, {"number": 0, "displacement": [u, 0, 0]}
