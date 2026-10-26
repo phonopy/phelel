@@ -110,7 +110,7 @@ class PhelelYamlLoader(PhonopyYamlLoader):
 class PhelelYamlDumper(PhonopyYamlDumper):
     """PhelelYaml dumper."""
 
-    default_settings = {
+    _default_dumper_settings = {
         "force_sets": False,
         "displacements": True,
         "force_constants": False,

@@ -84,6 +84,10 @@
 - `phelel` and `phelel.load()` keep the calculator written in
   `phelel_disp.yaml`. Before, `Phelel.calculator` was None, and `phelel.yaml`
   written by `phelel` had no `calculator`. The results are unchanged.
+- Bug fix: `Phelel.to_phelel_yaml()` without `settings` wrote the forces of the
+  supercells. The default settings of `PhelelYaml` were not used. `phelel` and
+  `velph` give the settings, so `phelel_disp.yaml` and `phelel.yaml` written by
+  them are not affected.
 - phonors 0.6.0 or later is required. phonopy 4.8.4 already depends on it,
   and phelel uses its `snf3x3` directly.
 
