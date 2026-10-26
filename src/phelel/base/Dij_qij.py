@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
+from phonopy.harmonic.displacement import FirstAtomDisplacement
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import Symmetry
 
@@ -57,7 +58,7 @@ class DeltaDijQij:
         Dij_disp: NDArray,
         qij_per: NDArray,
         qij_disp: NDArray,
-        displacement: dict,
+        displacement: FirstAtomDisplacement,
         lm_channels: list[dict],
     ):
         """Init method.

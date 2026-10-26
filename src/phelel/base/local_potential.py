@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
+from phonopy.harmonic.displacement import FirstAtomDisplacement
 from phonopy.interface.vasp import get_vasp_structure_lines
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import determinant, get_supercell
@@ -48,7 +49,12 @@ class DeltaLocalPotential:
 
     """
 
-    def __init__(self, V_loc_per: NDArray, V_loc_disp: NDArray, displacement: dict):
+    def __init__(
+        self,
+        V_loc_per: NDArray,
+        V_loc_disp: NDArray,
+        displacement: FirstAtomDisplacement,
+    ):
         """Init method.
 
         Parameters
@@ -672,7 +678,7 @@ class DLocalPotential:
         self,
         V_loc_per: NDArray,
         V_loc_disps: list[NDArray],
-        displacements: list[dict],
+        displacements: Sequence[FirstAtomDisplacement],
     ):
         """Calculate dV/du.
 

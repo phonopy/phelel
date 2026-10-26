@@ -60,7 +60,7 @@ def run_init(
         # generate_phelel_supercells also generates phonon displacements, which
         # are replaced by those of phonopy.
         assert ph_phonon.dataset is not None
-        phe.phonon_dataset = dict(ph_phonon.dataset)
+        phe.phonon_dataset = ph_phonon.dataset
         assert phe.phonon_supercells_with_displacements is not None
         click.echo(
             "Number of phonon displacements: "

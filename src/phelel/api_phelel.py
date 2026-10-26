@@ -12,7 +12,12 @@ from numpy.typing import ArrayLike, NDArray
 from phonopy import Phonopy
 from phonopy.api_phonopy import set_data_to_phonopy_yaml
 from phonopy.exception import ForcesetsNotFoundError
-from phonopy.harmonic.dynamical_matrix import DynamicalMatrix
+from phonopy.harmonic.displacement import (
+    DisplacementDataset,
+    FirstAtomDisplacementWithForces,
+    Type1DisplacementDataset,
+)
+from phonopy.harmonic.dynamical_matrix import DynamicalMatrix, NacParams
 from phonopy.interface.phonopy_yaml import PhonopyYaml
 from phonopy.physical_units import get_calculator_physical_units
 from phonopy.structure.atoms import PhonopyAtoms
@@ -36,8 +41,8 @@ class PhelelDataset:
     qijs: list[NDArray]
     lm_channels: list[dict]
     kinetic_potentials: list[NDArray] | None = None
-    dataset: dict | None = None
-    phonon_dataset: dict | None = None
+    dataset: DisplacementDataset | None = None
+    phonon_dataset: DisplacementDataset | None = None
     forces: NDArray | None = None
 
 
@@ -260,12 +265,12 @@ class Phelel:
         return self._p2s_matrix
 
     @property
-    def dataset(self) -> dict | None:
+    def dataset(self) -> DisplacementDataset | None:
         """Setter and getter of potential dataset."""
         return self._phelel_phonon.dataset
 
     @dataset.setter
-    def dataset(self, dataset: dict):
+    def dataset(self, dataset: DisplacementDataset | None) -> None:
         self._phelel_phonon.dataset = dataset
 
     @property
@@ -318,7 +323,7 @@ class Phelel:
             return self._phonon.primitive
 
     @property
-    def phonon_dataset(self) -> dict | None:
+    def phonon_dataset(self) -> DisplacementDataset | None:
         """Setter and getter of phonon dataset."""
         if self._phonon is None:
             return None
@@ -326,13 +331,13 @@ class Phelel:
             return self._phonon.dataset
 
     @phonon_dataset.setter
-    def phonon_dataset(self, phonon_dataset: dict | None):
+    def phonon_dataset(self, phonon_dataset: DisplacementDataset | None) -> None:
         if self._phonon is None:
             raise RuntimeError("Phonon instance is not initialized.")
         self._phonon.dataset = phonon_dataset
 
     @property
-    def nac_params(self) -> dict | None:
+    def nac_params(self) -> NacParams | None:
         """Setter and getter of parameters for non-analytical term correction.
 
         dict
@@ -350,7 +355,7 @@ class Phelel:
         return self._phelel_phonon.nac_params
 
     @nac_params.setter
-    def nac_params(self, nac_params: dict):
+    def nac_params(self, nac_params: NacParams | None) -> None:
         self._phelel_phonon.nac_params = nac_params
         if self._phonon is not None:
             self._phonon.nac_params = nac_params
@@ -542,8 +547,6 @@ class Phelel:
             forces=phe_input.forces,
             calculate_full_force_constants=True,
         )
-        assert self._phelel_phonon.dataset is not None
-
         self._dVdu = self._get_derivatives_of_potential(phe_input.local_potentials)
         if phe_input.kinetic_potentials is not None:
             self._dmudu = self._get_derivatives_of_potential(
@@ -557,7 +560,7 @@ class Phelel:
             Dijs[1:],
             qijs[0],
             qijs[1:],
-            self._phelel_phonon.dataset["first_atoms"],
+            self._get_first_atoms(),
             phe_input.lm_channels,
         )
 
@@ -656,7 +659,6 @@ class Phelel:
         DLocalPotential
 
         """
-        assert self._phelel_phonon.dataset is not None
         dlp = DLocalPotential(
             self._fft_mesh,
             self._p2s_matrix,
@@ -666,14 +668,18 @@ class Phelel:
             finufft_eps=self._finufft_eps,
             verbose=self._log_level > 0,
         )
-        dlp.run(
-            potentials[0], potentials[1:], self._phelel_phonon.dataset["first_atoms"]
-        )
+        dlp.run(potentials[0], potentials[1:], self._get_first_atoms())
         return dlp
+
+    def _get_first_atoms(self) -> list[FirstAtomDisplacementWithForces]:
+        """Return the displacements of the dataset of type 1."""
+        dataset = self._phelel_phonon.dataset
+        assert dataset is not None and "first_atoms" in dataset
+        return cast(Type1DisplacementDataset, dataset)["first_atoms"]
 
     def _prepare_phonon(
         self,
-        dataset: dict | None = None,
+        dataset: DisplacementDataset | None = None,
         forces: ArrayLike | None = None,
         force_constants: ArrayLike | None = None,
         calculate_full_force_constants: bool = True,

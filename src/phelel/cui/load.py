@@ -166,8 +166,6 @@ def load(
         phelel.dataset = dataset
     if phonon_dataset:
         phelel.phonon_dataset = phonon_dataset
-    elif dataset:
-        phelel.dataset = {k: v for k, v in dataset.items()}
     nac_params = phonopy_load_helper.get_nac_params(
         primitive=phelel.primitive,
         nac_params=_nac_params,
@@ -239,7 +237,7 @@ def _read_phelel_yaml(
     | None,
     NDArray | None,
     DisplacementDataset | None,
-    dict | None,
+    DisplacementDataset | None,
     NDArray[np.double] | None,
     NacParams | None,
     str | None,
