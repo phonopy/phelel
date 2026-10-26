@@ -245,10 +245,11 @@ class LocalPotentialInterpolationNUFFT:
             disp_atom, self._symmetry, self._atom_indices_in
         )
 
-        dtype = f"c{np.dtype('double').itemsize * 2}"
         ncdij = delta_Vs[0].dV.shape[0]
         dVdu = np.zeros(
-            (ncdij, len(atoms), 3, len(self._grid_points)), dtype=dtype, order="C"
+            (ncdij, len(atoms), 3, len(self._grid_points)),
+            dtype="complex128",
+            order="C",
         )
         for i_atom, sitesyms in enumerate(sitesym_sets):
             dVdu[:, i_atom] = self._run_at_atom(delta_Vs, sitesyms)
@@ -310,8 +311,9 @@ class LocalPotentialInterpolationNUFFT:
             print("Running finufft (eps=%.3e)..." % self._finufft_eps)
 
         ncdij = delta_Vs[0].dV.shape[0]
-        dtype = f"c{np.dtype('double').itemsize * 2}"
-        dVdu = np.zeros((ncdij, 3, len(self._grid_points)), dtype=dtype, order="C")
+        dVdu = np.zeros(
+            (ncdij, 3, len(self._grid_points)), dtype="complex128", order="C"
+        )
         self._init_finufft([dV.shape for dV in delta_Vs[0].dV])
 
         count = 0
@@ -445,9 +447,8 @@ class LocalPotentialInterpolationNUFFT:
         """
         import finufft
 
-        dtype = f"c{np.dtype('double').itemsize * 2}"
         self._finufft_plan = [
-            finufft.Plan(2, shape, eps=self._finufft_eps, dtype=dtype)
+            finufft.Plan(2, shape, eps=self._finufft_eps, dtype="complex128")
             for shape in mesh_shapes
         ]
 
@@ -773,9 +774,8 @@ class DLocalPotential:
         return (len(self._atom_indices), 3, num_gp)
 
     def _allocate_arrays(self, ncdij: int):
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
         shape = (ncdij, *self._get_dVdu_shape())
-        self._dVdu = np.zeros(shape, dtype=dtype, order="C")
+        self._dVdu = np.zeros(shape, dtype="complex128", order="C")
 
 
 def visualize_distribution(

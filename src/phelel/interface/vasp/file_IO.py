@@ -139,8 +139,7 @@ def read_PAW_Dij_qij(inwap: dict, filename: str | os.PathLike) -> NDArray:
     lmdim = inwap["lmdim"]
     shape = (ncdij, nions, lmdim, lmdim)
     data = read_bin_stream(filename)
-    dt = "c%d" % (data.itemsize * 2)
-    data_complex = data.view(dtype=dt)
+    data_complex = data.view("complex128")
     if len(data_complex) != np.prod(shape):
         raise ValueError(
             f"{filename}: data size is inconsistent with values in inwap.yaml."
@@ -235,8 +234,7 @@ def read_local_potential(
     nx, ny, nz = inwap["fft_fine"]
     shape = (ncdij, nz, ny, nx)
     data = read_bin_stream(filename)
-    dt = "c%d" % (data.itemsize * 2)
-    data_complex = data.view(dtype=dt)
+    data_complex = data.view("complex128")
     if len(data_complex) != np.prod(shape):
         raise ValueError(
             f"{filename}: data size is inconsistent with values in inwap.yaml."

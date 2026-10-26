@@ -24,5 +24,4 @@ def real2cmplx(array: np.ndarray) -> np.ndarray:
         a + 1j * b <- (a, b)
 
     """
-    dtype = "c%d" % (np.dtype("double").itemsize * 2)
-    return array.view(dtype).reshape(array.shape[:-1])
+    return array.view("complex128").reshape(array.shape[:-1])

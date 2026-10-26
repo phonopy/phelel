@@ -38,8 +38,7 @@ def read_dprojectors(
     # x, y, z.
     shape = (nkpts, nbtot, ispin, nrspinors, nions, lmdim, 4)
     data = read_bin_stream(filename)
-    dt = "c%d" % (data.itemsize * 2)
-    data_complex = data.view(dtype=dt)
+    data_complex = data.view("complex128")
     if len(data_complex) != np.prod(shape):
         raise ValueError(
             f"{filename}: data size is inconsistent with values in inwap.yaml."
