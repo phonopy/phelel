@@ -18,6 +18,9 @@ class SxSySzMatrices:
     The matrix convention is different from that of Pauli matrices.
     m=-1/2 and 1/2 correspond to 0 and 1 indices of arrays here, respectively.
 
+    This is a reference implementation for testing SpinorRotationMatrices,
+    which uses PauliMatrices, and is used only in the tests.
+
     """
 
     def __init__(self):
@@ -106,18 +109,12 @@ class SpinorRotationMatrices:
     D^{\sigma',\sigma(\mathbf{n}, \alpha) =
         <\sigma'|e^{-i/\hbar \mathbf{L}\cdot\mathbf{n}\alpha}|\sigma>.
 
-    By default, the 2x2 matrix is arranged with spin-up at index-0 and spin-down at
-    index-1. With `sxsysz`, it is arranged with spin-up at index-1 and spin-down at
-    index-0.
+    The 2x2 matrix is arranged with spin-up at index-0 and spin-down at index-1,
+    as PauliMatrices.
 
     """
 
-    def __init__(
-        self,
-        R: np.ndarray,
-        lattice: np.ndarray,
-        sxsysz: SxSySzMatrices | None = None,
-    ):
+    def __init__(self, R: np.ndarray, lattice: np.ndarray):
         """Init method.
 
         Parameters
@@ -128,20 +125,12 @@ class SpinorRotationMatrices:
         lattice : ndarray.
             Basis vectors in column vectors.
             shape=(3, 3)
-        sxsysz : SxSySzMatrices, optional
-            Generators of spin rotation. If this is not given, PauliMatrices is used.
 
         """
-        if sxsysz is None:
-            self._sxsysz = PauliMatrices()
-            self._sx = np.array(self._sxsysz.Sgx) / 2
-            self._sy = np.array(self._sxsysz.Sgy) / 2
-            self._sz = np.array(self._sxsysz.Sgz) / 2
-        else:
-            self._sxsysz = sxsysz
-            self._sx = self._sxsysz.Sx
-            self._sy = self._sxsysz.Sy
-            self._sz = self._sxsysz.Sz
+        pauli = PauliMatrices()
+        self._sx = np.array(pauli.Sgx) / 2
+        self._sy = np.array(pauli.Sgy) / 2
+        self._sz = np.array(pauli.Sgz) / 2
         self._d = None
         self._n_vec, self._r_order, self._detR = get_n_and_rotation_order(R, lattice)
         if self._r_order == 1:
