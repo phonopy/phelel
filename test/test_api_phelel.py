@@ -180,3 +180,25 @@ def test_phelel_unit_conversion_factor_and_dynamical_matrix(
     phe.force_constants = np.zeros((natom, natom, 3, 3))
     assert phe.dynamical_matrix is not None
     assert len(phe.dynamical_matrix.supercell) == natom
+
+
+@pytest.mark.parametrize(
+    "nufft,is_error", [(None, False), ("finufft", False), ("nfft", True)]
+)
+def test_phelel_nufft(nufft: str | None, is_error: bool):
+    """Only "finufft" and None are accepted for nufft."""
+    unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
+
+    def _phelel():
+        return Phelel(
+            unitcell,
+            supercell_matrix=np.eye(3, dtype=int),
+            primitive_matrix="P",
+            nufft=nufft,
+        )
+
+    if is_error:
+        with pytest.raises(ValueError, match='not "nfft"'):
+            _phelel()
+    else:
+        _phelel()

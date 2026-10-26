@@ -23,7 +23,6 @@ def write_phelel_params_hdf5(
     dVdu: DLocalPotential | None = None,
     dDijdu: DDijQij | None = None,
     dmudu: DLocalPotential | None = None,
-    # Rij=None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
     primitive: Primitive | None = None,
@@ -57,28 +56,6 @@ def write_phelel_params_hdf5(
             phonon_supercell=phonon_supercell,
             nac_params=nac_params,
             symmetry_dataset=symmetry_dataset,
-        )
-
-
-def write_dVdu_hdf5(
-    dVdu,
-    supercell_matrix,
-    primitive_matrix,
-    primitive,
-    unitcell,
-    supercell,
-    filename="dVdu.hdf5",
-):
-    """Write dVdu.hdf5."""
-    with h5py.File(filename, "w") as w:
-        _add_datasets(
-            w,
-            dVdu=dVdu,
-            supercell_matrix=supercell_matrix,
-            primitive_matrix=primitive_matrix,
-            primitive=primitive,
-            unitcell=unitcell,
-            supercell=supercell,
         )
 
 
@@ -168,12 +145,6 @@ def read_phelel_params_hdf5(
     return dDVdu_obj, dDijdu_obj, fft_mesh, fc
 
 
-def write_dDijdu_hdf5(dDijdu, filename="dDijdu.hdf5"):
-    """Write dDijdu.hdf5."""
-    with h5py.File(filename, "w") as w:
-        _add_datasets(w, dDijdu=dDijdu)
-
-
 def read_force_constants_hdf5(f: h5py.File) -> NDArray[np.double] | None:
     """Read force_constants from hdf5 file object.
 
@@ -209,7 +180,6 @@ def _add_datasets(
     dVdu: DLocalPotential | None = None,
     dmudu: DLocalPotential | None = None,
     dDijdu: DDijQij | None = None,
-    Rij: NDArray | None = None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
     primitive: Primitive | None = None,
@@ -241,8 +211,6 @@ def _add_datasets(
         w.create_dataset("Dij", data=cmplx2real(dDijdu.Dij))
         assert dDijdu.qij is not None
         w.create_dataset("qij", data=cmplx2real(dDijdu.qij))
-    if Rij is not None:
-        w.create_dataset("Rij", data=cmplx2real(Rij))
     if supercell_matrix is not None:
         w.create_dataset(
             "supercell_matrix",

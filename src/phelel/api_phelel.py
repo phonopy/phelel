@@ -125,7 +125,8 @@ class Phelel:
         calculator :
             A dummy parameter.
         nufft : str or None, optional
-            'finufft' only. Default is None, which corresponds to 'finufft'.
+            'finufft' only, which is used also for None.  Other values are an
+            error.  Default is None.
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
             corresponds to 1e-6.
@@ -142,7 +143,8 @@ class Phelel:
         self._symprec = symprec
         self._is_symmetry = is_symmetry
         self._calculator = calculator
-        self._nufft = nufft
+        if nufft not in (None, "finufft"):
+            raise ValueError(f'nufft has to be "finufft" or None, not "{nufft}".')
         self._finufft_eps = finufft_eps
         self._log_level = log_level
 
@@ -541,7 +543,6 @@ class Phelel:
             self._phelel_phonon.supercell,
             symmetry=self.symmetry,
             atom_indices=self._phelel_phonon.primitive.p2s_map,
-            nufft=self._nufft,
             finufft_eps=self._finufft_eps,
             verbose=self._log_level > 0,
         )
@@ -558,7 +559,6 @@ class Phelel:
                 self._phelel_phonon.supercell,
                 symmetry=self.symmetry,
                 atom_indices=self._phelel_phonon.primitive.p2s_map,
-                nufft=self._nufft,
                 finufft_eps=self._finufft_eps,
                 verbose=self._log_level > 0,
             )

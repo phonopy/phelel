@@ -151,13 +151,6 @@ def create_derivatives(
     if phelel.fft_mesh is not None:
         phelel.run_derivatives(phe_input)
 
-    # phelel.Rij = read_Rij(dir_names[0], inwap_per)
-
-
-def read_Rij(dir_name: str | os.PathLike, inwap_per: dict) -> NDArray:
-    """Read Rij."""
-    return read_PAW_Dij_qij(inwap_per, "%s/PAW-Rnij.bin" % dir_name, is_Rij=True)
-
 
 def read_vasp_forces(
     filenames: Sequence[str | os.PathLike],

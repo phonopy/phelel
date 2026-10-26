@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
 from typing import Literal
 
 import h5py
 import numpy as np
 import yaml
 from numpy.typing import NDArray
-from phono3py.file_IO import get_filename_suffix
 from phonopy.file_IO import get_io_module_to_decompress
 
 
@@ -127,14 +125,11 @@ def read_PAW_Dij_qij_vaspouth5(
     return dij, qij
 
 
-def read_PAW_Dij_qij(
-    inwap: dict, filename: str | os.PathLike, is_Rij: bool = False
-) -> NDArray:
-    """Read Dij, qij, and Rij.
+def read_PAW_Dij_qij(inwap: dict, filename: str | os.PathLike) -> NDArray:
+    """Read Dij or qij.
 
     Dij(ncdij, nions, lmdim, lmdim')
     qij(ncdij, nions, lmdim, lmdim')
-    Rij(2, ncdij, nions, lmdim, lmdim')
 
     Used such as <psi|p><lm|A|lm'><p|psi'>
 
@@ -142,10 +137,7 @@ def read_PAW_Dij_qij(
     ncdij = inwap["ncdij"]
     nions = inwap["nions"]
     lmdim = inwap["lmdim"]
-    if is_Rij:
-        shape = (2, ncdij, nions, lmdim, lmdim)
-    else:
-        shape = (ncdij, nions, lmdim, lmdim)
+    shape = (ncdij, nions, lmdim, lmdim)
     data = read_bin_stream(filename)
     dt = "c%d" % (data.itemsize * 2)
     data_complex = data.view(dtype=dt)
@@ -252,78 +244,6 @@ def read_local_potential(
     return data_complex.reshape(shape)
 
 
-def read_dprojectors(
-    inwap: dict, filename: str | os.PathLike = "DPROJECTORS.bin"
-) -> NDArray:
-    """Read DPROJECTORS.bin."""
-    nbtot = inwap["nbtot"]
-    nrspinors = inwap["nrspinors"]
-    ispin = inwap["ispin"]
-    nkpts = inwap["nkpts"]
-    lmdim = inwap["lmdim"]
-    nions = inwap["nions"]
-    # The last index corresponds to usual projector and its derivatives along
-    # x, y, z.
-    shape = (nkpts, nbtot, ispin, nrspinors, nions, lmdim, 4)
-    data = read_bin_stream(filename)
-    dt = "c%d" % (data.itemsize * 2)
-    data_complex = data.view(dtype=dt)
-    if len(data_complex) != np.prod(shape):
-        raise ValueError(
-            f"{filename}: data size is inconsistent with values in inwap.yaml."
-        )
-    return data_complex.reshape(shape)
-
-
-def read_waves(inwap: dict, filename: str | os.PathLike = "WAVES.bin") -> NDArray:
-    """Read WAVES.bin."""
-    ispin = inwap["ispin"]
-    nkpts = inwap["nkpts"]
-    nbtot = inwap["nbtot"]
-    nrspinors = inwap["nrspinors"]
-    nx, ny, nz = inwap["fft_coarse"]
-    shape = (nkpts, nbtot, ispin, nrspinors, nz, ny, nx)
-    data = read_bin_stream(filename)
-    dt = "c%d" % (data.itemsize * 2)
-    data_complex = data.view(dtype=dt)
-    if len(data_complex) != np.prod(shape):
-        raise ValueError(
-            f"{filename}: data size is inconsistent with values in inwap.yaml."
-        )
-    return data_complex.reshape(shape)
-
-
-def read_eigenvalues(
-    inwap: dict, filename: str | os.PathLike = "EIGENVALUE.bin"
-) -> NDArray:
-    """Read EIGENVALUE.bin."""
-    ispin = inwap["ispin"]
-    nkpts = inwap["nkpts"]
-    nbtot = inwap["nbtot"]
-    shape = (nbtot, nkpts, ispin)
-    data = read_bin_stream(filename)
-    if len(data) != np.prod(shape):
-        raise ValueError(
-            f"{filename}: data size is inconsistent with values in inwap.yaml."
-        )
-    # change shape (nbtot, nkpts, ispin) --> (nkpts, nbtot, ispin)
-    ret_data = np.array(data.reshape(shape).swapaxes(0, 1), dtype=data.dtype, order="C")
-    return ret_data
-
-
-def read_qtot(inwap: dict, filename: str | os.PathLike = "QTOT.bin") -> NDArray:
-    """Read QTOT.bin."""
-    ldim = inwap["ldim"]
-    nions = inwap["nions"]
-    shape = (nions, ldim, ldim)
-    data = read_bin_stream(filename)
-    if len(data) != np.prod(shape):
-        raise ValueError(
-            f"{filename}: data size is inconsistent with values in inwap.yaml."
-        )
-    return data.reshape(shape)
-
-
 def get_CHGCAR(charge: NDArray, header: str) -> str:
     """Return CHGCAR style text from ndarray.
 
@@ -342,65 +262,3 @@ def get_CHGCAR(charge: NDArray, header: str) -> str:
                     count = 0
                     text += "\n"
     return text
-
-
-###########
-# Writers #
-###########
-def write_mesh_electron_hdf5(dirnames: Sequence, mesh: Sequence | NDArray):
-    """Read .bin files and write to hdf5 file.
-
-    Note
-    ----
-    No spin and spinor are considered.
-
-    """
-    inwaps = []
-    for dname in dirnames:
-        inwaps.append(read_inwap_yaml("%s/%s" % (dname, "inwap.yaml")))
-
-    # check all have the same data sizes except for nkpts.
-    assert len(np.unique([iwp["nbtot"] for iwp in inwaps])) == 1
-    assert len(np.unique([iwp["nions"] for iwp in inwaps])) == 1
-    assert len(np.unique([iwp["lmdim"] for iwp in inwaps])) == 1
-    fft_meshes = np.array([iwp["fft_coarse"] for iwp in inwaps])
-    assert (fft_meshes[1:] - fft_meshes[0] == 0).all()
-
-    nkpts = np.array([iwp["nkpts"] for iwp in inwaps], dtype=int)
-    nbtot = inwaps[0]["nbtot"]
-    lmdim = inwaps[0]["lmdim"]
-    nions = inwaps[0]["nions"]
-    fft_mesh = tuple(fft_meshes[0])
-    dtype = "c%d" % (np.dtype("double").itemsize * 2)
-    # waves = np.empty((np.sum(nkpts), nbtot, 1, 1) + fft_mesh,
-    #                  dtype=dtype)
-    waves_shape = (np.sum(nkpts), nbtot, 1, 1) + fft_mesh
-    dprojs = np.empty((np.sum(nkpts), nbtot, 1, 1, nions, lmdim, 4), dtype=dtype)
-    eigenvalues = np.empty((np.sum(nkpts), nbtot, 1), dtype="double")
-    idx = 0
-    for dname, iwp, nk in zip(dirnames, inwaps, nkpts, strict=True):
-        # waves[idx:(idx + nk)] = read_waves(
-        #     iwp, "%s/%s" % (dname, "WAVES.bin"))
-        dprojs[idx : (idx + nk)] = read_dprojectors(
-            iwp, "%s/%s" % (dname, "DPROJECTORS.bin")
-        )
-        eigvals = read_eigenvalues(iwp, "%s/%s" % (dname, "EIGENVALUE.bin"))
-        eigenvalues[idx : (idx + nk)] = eigvals
-        idx += nk
-
-    suffix = get_filename_suffix(mesh)
-    with h5py.File("electron%s.hdf5" % suffix, "w") as w:
-        # compression doesn't help much.
-        w.create_dataset("mesh", data=mesh)
-        # w.create_dataset('waves', data=waves, compression=None)
-        w.create_dataset("dprojectors", data=dprojs, compression=None)
-        w.create_dataset("eigenvalues", data=eigenvalues, compression=None)
-
-    # This is to avoid using memory space by directly writing to the file
-    # object piece by piece.
-    with h5py.File("electron%s.hdf5" % suffix, "a") as w:
-        waves = w.create_dataset("waves", waves_shape, dtype=dtype)
-        idx = 0
-        for dname, iwp, nk in zip(dirnames, inwaps, nkpts, strict=True):
-            waves[idx : (idx + nk)] = read_waves(iwp, "%s/%s" % (dname, "WAVES.bin"))
-            idx += nk

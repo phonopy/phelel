@@ -145,7 +145,6 @@ class LocalPotentialInterpolationNUFFT:
         supercell: PhonopyAtoms,
         symmetry: Symmetry,
         atom_indices: NDArray | None = None,
-        nufft: str | None = None,
         finufft_eps: float | None = None,
         verbose: bool = True,
     ):
@@ -169,8 +168,6 @@ class LocalPotentialInterpolationNUFFT:
             Atom indices in supercell where dV will be expected to be computed.
             If None, supposed to be all atoms. Internally only symmetrically
             equivalent atoms to the dispalced atom are selected to compute.
-        nufft : str or None, optional
-            'finufft' only. Default is None, which corresponds to 'finufft'.
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
             corresponds to 1e-6.
@@ -181,15 +178,10 @@ class LocalPotentialInterpolationNUFFT:
         ##########
         # Inputs #
         ##########
-        self._fft_mesh = np.array(fft_mesh, dtype="int64")
         self._verbose = verbose
         self._supercell = supercell
         self._symmetry = symmetry
         self._atom_indices_in = atom_indices
-        if nufft is None:
-            self._nufft = "finufft"
-        else:
-            self._nufft = nufft
         if finufft_eps is None:
             self._finufft_eps = 1e-6
         else:
@@ -223,34 +215,6 @@ class LocalPotentialInterpolationNUFFT:
         # and the one is identical.
         self._sitesym_sets = None
 
-        # Used in the first loop for each one of symmetrically equivalent atoms
-        self._dV_itpl = None
-        # Interpolated dV for different displacements
-        # [[dV(0,0,0), dV(0,0,1), dV(0,0,2), ..., dV(0,0,N_g)],
-        #  [dV(0,1,0), dV(0,1,1), dV(0,1,2), ..., dV(0,1,N_g)],
-        #  ...
-        #  [dV(1,0,0), dV(1,0,1), dV(1,0,2), ..., dV(1,0,N_g)],
-        #  [dV(1,1,0), dV(1,1,1), dV(1,1,2), ..., dV(1,1,N_g)],
-        #  ...
-        #  [dV(n,N,0), dV(n,N,1), dV(n,N,2), ..., dV(n,N,N_g)]]
-        # n:   number of displacements,
-        # N:   number of symmetry operations
-        # N_g: number of interpolated grid points
-
-        # Inverse Fourier transformed original dV
-        self._dV_iFT = None
-
-        # [[d_x(0,0), d_y(0,0), d_z(0,0)],
-        #  [d_x(0,1), d_y(0,1), d_z(0,1)],
-        #  ...
-        #  [d_x(1,0), d_y(1,0), d_z(1,0)],
-        #  [d_x(1,1), d_y(1,1), d_z(1,1)],
-        #  ...
-        #  [d_x(n,N), d_y(n,N), d_z(n,N)]]
-        # n: number of displacements,
-        # N: number of symmetry operations
-        self._disps = None
-
         self._finufft_plan = None
 
     def __iter__(self):
@@ -261,8 +225,6 @@ class LocalPotentialInterpolationNUFFT:
         """Enable iterator."""
         assert self._atom_indices_returned is not None
         if len(self._atom_indices_returned) == self._i_atom:
-            self._dV_itpl = None
-            self._disps = None
             raise StopIteration
 
         self._run_at_atom()
@@ -347,10 +309,6 @@ class LocalPotentialInterpolationNUFFT:
             dtype=dtype,
             order="C",
         )
-
-    def delete_dVdu(self):
-        """Delete large object dVdu."""
-        self._dVdu = None
 
     def run(self):
         """Possibly iterate over selected symmetrically equivalent atoms."""
@@ -545,7 +503,6 @@ class DLocalPotential:
         supercell: PhonopyAtoms,
         symmetry: Symmetry | None = None,
         atom_indices: NDArray | None = None,
-        nufft: str | None = None,
         finufft_eps: float | None = None,
         verbose: bool = True,
     ):
@@ -568,8 +525,6 @@ class DLocalPotential:
             Atom indices in supercell where dV will be expected to be computed.
             If None, supposed to be all atoms. Internally only symmetrically
             equivalent atoms to the dispalced atom are selected to compute.
-        nufft : str or None
-            'finufft' only. Default is None, which corresponds to 'finufft'.
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
             corresponds to 1e-6.
@@ -590,7 +545,6 @@ class DLocalPotential:
             self._symmetry = Symmetry(self._supercell)
         else:
             self._symmetry = symmetry
-        self._nufft: str | None = nufft
         self._finufft_eps: float | None = finufft_eps
         self._lattice_points: NDArray | None = None
         self._grid_points: NDArray | None = None
@@ -720,7 +674,6 @@ class DLocalPotential:
             self._supercell,
             self._symmetry,
             atom_indices=self._atom_indices,
-            nufft=self._nufft,
             finufft_eps=self._finufft_eps,
             verbose=self._verbose,
         )
