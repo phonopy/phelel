@@ -53,36 +53,21 @@ def test_get_n_and_rotation_order():
         assert detR == ref[2]
 
 
-def test_SHRotationMatrices():
-    """Test SHRotationMatrices."""
-    rots = np.array(
-        [
-            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-            [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
-            [[-1, 0, 0], [0, -1, 0], [0, 0, 1]],
-            [[0, 1, 0], [-1, 0, 0], [0, 0, 1]],
-            [[1, 0, 0], [0, -1, 0], [0, 0, -1]],
-            [[0, -1, 0], [-1, 0, 0], [0, 0, -1]],
-            [[-1, 0, 0], [0, 1, 0], [0, 0, -1]],
-            [[0, 1, 0], [1, 0, 0], [0, 0, -1]],
-        ]
-    )
-    L = np.array(
-        [
-            [8.156585120174, 0.0, 0.0],
-            [0.0, 8.156585120174, 0.0],
-            [0.0, 0.0, 4.767746862166],
-        ]
-    )
+def test_SHRotationMatrices(rotations_and_lattice: tuple[np.ndarray, np.ndarray]):
+    """SHRotationMatrices agrees with the reference SHRotationMatricesEularAngle.
 
+    The rotations of the point groups of the three lattices are of the orders 2,
+    3, 4 and 6, and half of them are improper.
+
+    """
+    rotations, lattice = rotations_and_lattice
+    orders = {get_n_and_rotation_order(r, lattice)[1] for r in rotations}
+    assert orders in ({1, 2, 4}, {1, 2, 3, 4}, {1, 2, 3, 6})
     lxlylz = LxLyLzMatrices().run()
-
-    for detR in (1, -1):
-        for r in rots * detR:
-            shr_ea = SHRotationMatricesEularAngle(r, L)
-            shr_ea.run()
-            shr = SHRotationMatrices(r, L, lxlylz)
-            shr.run()
-
-            for delta_ea, delta in zip(shr_ea.Delta, shr.Delta, strict=True):
-                np.testing.assert_array_almost_equal(delta_ea, delta)
+    for r in rotations:
+        shr_ea = SHRotationMatricesEularAngle(r, lattice)
+        shr_ea.run()
+        shr = SHRotationMatrices(r, lattice, lxlylz)
+        shr.run()
+        for delta_ea, delta in zip(shr_ea.Delta, shr.Delta, strict=True):
+            np.testing.assert_allclose(delta, delta_ea, atol=1e-10)

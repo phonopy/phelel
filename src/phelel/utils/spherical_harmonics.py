@@ -1,15 +1,15 @@
 """Routines to handle spherical harmonics rotation.
 
-Old implementation`SHRotationMatricesEularAngle` relies on `EulerAngles`,
-`LyMatrices`, `WignerMatricesEularAngle`. These are currently unused.
+The implementation used in phelel is `SHRotationMatrices`, which depends on
+`LxLyLzMatrices` and `get_n_and_rotation_order`.
 
-The current implementation `SHRotationMatrice`s depends on `LxLyLzMatrices` and
-get_n_and_rotation_order.
+The old implementation `SHRotationMatricesEularAngle`, which relies on
+`EulerAngles`, `LyMatrices` and `WignerMatricesEularAngle`, is kept as a
+reference implementation and is used only in the tests, which check that the
+two implementations agree.  The new implementation is expected to be
+numerically more robust.
 
 Both implementations call `make_C`.
-
-Agreement of these two implementations are checked in the test. The new
-implementation is expected to be numerically more robust.
 
 """
 
@@ -23,6 +23,9 @@ class EulerAngles:
     """Calculate Euler angles.
 
     Implements Z1Y2Z3 given in Euler angles page of wikipedia.
+
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
 
     """
 
@@ -116,6 +119,9 @@ class LyMatrices:
 
     ihbar/2 is not multiplied.
 
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
+
     """
 
     def __init__(self, l_max: int = 3):
@@ -151,7 +157,12 @@ class LyMatrices:
 
 
 class WignerMatricesEularAngle:
-    """Wigner matrices dm'm^l = <lm'|e^ibLy|lm>  is calcualted."""
+    """Wigner matrices dm'm^l = <lm'|e^ibLy|lm>  is calcualted.
+
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
+
+    """
 
     def __init__(self, l_max: int = 6):
         """Init method."""
@@ -175,6 +186,9 @@ class WignerMatricesEularAngle:
 
 class SHRotationMatricesEularAngle:
     """Rotation matrix for spherical harmonics, Dm'm^l.
+
+    This is a reference implementation for testing SHRotationMatrices,
+    and is used only in the tests.
 
     Dm'm = e^-iam' dm'm(b) e^-igm (a: alpha, b: beta, g: gamma)
     for usual spherical harmonics and
