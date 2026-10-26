@@ -125,7 +125,7 @@ def test_local_potential_rejects_mismatched_magmoms():
     V = np.zeros((4, 2, 2, 2), dtype=complex)
     disp = {"number": 0, "displacement": [0.01, 0, 0]}
     with pytest.raises(MagneticMomentsError, match="ncdij=4"):
-        lpi.delta_Vs = [DeltaLocalPotential(V, V, disp)]
+        lpi.run([DeltaLocalPotential(V, V, disp)])
 
 
 def test_Dij_qij_rejects_mismatched_magmoms():
@@ -136,7 +136,7 @@ def test_Dij_qij_rejects_mismatched_magmoms():
     lm_channels = [{"channels": [{"l": 0, "m": [0]}]}] * 2
     delta_Dij_qij = DeltaDijQij(Dij, Dij, Dij, Dij, disp, lm_channels)
     with pytest.raises(MagneticMomentsError, match="ncdij=2"):
-        DDijQijFit([delta_Dij_qij], cell, Symmetry(cell), verbose=False)
+        DDijQijFit(cell, Symmetry(cell), verbose=False).run([delta_Dij_qij])
 
 
 def test_magnetization_invariant_under_magnetic_operations():

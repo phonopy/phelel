@@ -62,6 +62,43 @@ def collect_site_symmetry_operations(
     return np.array(ops_sets, dtype="int64", order="C"), equiv_atoms
 
 
+def select_equivalent_atoms(
+    disp_atom: int, symmetry: Symmetry, atom_indices: Sequence[int] | NDArray | None
+) -> tuple[NDArray, NDArray]:
+    """Return the atoms equivalent to a displaced atom and their operations.
+
+    Parameters
+    ----------
+    disp_atom : int
+        Index of the displaced atom in the supercell.
+    symmetry : Symmetry
+        Symmetry of the supercell.
+    atom_indices : Sequence[int] | NDArray | None
+        Atoms among which the equivalent atoms are selected.  None means all
+        atoms of the supercell.
+
+    Returns
+    -------
+    atoms : ndarray
+        Atoms of atom_indices equivalent to disp_atom by symmetry, in the order
+        of atom_indices.
+        dtype='int64', shape=(n_atoms,)
+    sitesym_sets : ndarray
+        Indices of the symmetry operations that send disp_atom to each of the
+        atoms.  See collect_site_symmetry_operations.
+        dtype='int64', shape=(n_atoms, n_site_syms)
+
+    """
+    sitesym_sets, equiv_atoms = collect_site_symmetry_operations(disp_atom, symmetry)
+    if atom_indices is None:
+        atom_indices = np.arange(len(symmetry.get_map_atoms()))
+    atoms = np.array([i for i in atom_indices if i in equiv_atoms], dtype="int64")
+    # The rows of sitesym_sets follow equiv_atoms.  They are picked in the order
+    # of the selected atoms.
+    i_equiv_atom = {int(atom): i for i, atom in enumerate(equiv_atoms)}
+    return atoms, sitesym_sets[[i_equiv_atom[int(atom)] for atom in atoms]]
+
+
 def check_displaced_atoms(
     atom_indices: NDArray, displacements: Sequence[dict], symmetry: Symmetry
 ) -> None:

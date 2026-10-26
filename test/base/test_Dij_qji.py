@@ -71,12 +71,11 @@ def test_DDijQijFit(
             )
         )
     ddijqij = DDijQijFit(
-        delta_Dij_qijs,
         phe.supercell,
         phe.symmetry,
         atom_indices=phe.primitive.p2s_map,
     )
-    ddijqij.run()
+    ddijqij.run(delta_Dij_qijs)
 
 
 def test_DDijQij(phelel_empty_CdAs2_111: Phelel, phelel_input_CdAs2_111: PhelelDataset):
@@ -126,13 +125,12 @@ def test_DDijQijFit_with_atom_indices_in_any_order(
     dDijdu = {}
     for atom_indices in ([0, 1], [1, 0]):
         ddijqij = DDijQijFit(
-            delta_Dij_qijs,
             phe.supercell,
             phe.symmetry,
             atom_indices=atom_indices,
             verbose=False,
         )
-        ddijqij.run()
+        ddijqij.run(delta_Dij_qijs)
         np.testing.assert_array_equal(ddijqij.atom_indices, atom_indices)
         dDijdu[tuple(atom_indices)] = ddijqij.dDijdu
     assert np.abs(dDijdu[(0, 1)]).max() > 0.1

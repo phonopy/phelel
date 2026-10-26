@@ -13,8 +13,8 @@ from phonopy.structure.symmetry import Symmetry
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.symmetrization import (
     check_displaced_atoms,
-    collect_site_symmetry_operations,
     get_displacements_with_rotations,
+    select_equivalent_atoms,
 )
 from phelel.exception import MagneticMomentsWarning
 from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
@@ -109,11 +109,7 @@ class DeltaDijQij:
 
 
 class DDijQijFit:
-    """Compute dDij/du and dqij/du for one atom.
-
-    Note
-    ----
-    Currently ncdij=1.
+    """Compute dDij/du and dqij/du from the displacements of one atom.
 
     Attributes
     ----------
@@ -134,7 +130,6 @@ class DDijQijFit:
 
     def __init__(
         self,
-        delta_Dij_qijs: list[DeltaDijQij],
         supercell: PhonopyAtoms,
         symmetry: Symmetry,
         atom_indices: Sequence[int] | NDArray | None = None,
@@ -145,15 +140,13 @@ class DDijQijFit:
         Note
         ----
 
-        See array shape of Dij and qij at DeltaDijQij class. The private
-        vaiables and algorithm related to site symmetry (or site symmetry like)
-        are equivalent to those of LocalPotentialInterpolation. A bit more
-        detailed comments are written there.
+        See array shape of Dij and qij at DeltaDijQij class. The algorithm
+        related to site symmetry (or site symmetry like) is equivalent to that
+        of LocalPotentialInterpolationNUFFT. A bit more detailed comments are
+        written there.
 
         Parameters
         ----------
-        dDij_qijs : list of DeltaDijQij's
-            Changes of Dij's and qij's between displaced and perfect supercells
         supercell : PhonopyAtoms
             Perfect supercell
         symmetry : Symmetry
@@ -167,8 +160,6 @@ class DDijQijFit:
             To display log or not
 
         """
-        # Inputs
-        self._delta_Dij_qijs = delta_Dij_qijs
         self._supercell = supercell
         self._symmetry = symmetry
         self._verbose = verbose
@@ -177,12 +168,6 @@ class DDijQijFit:
         self._dDijdu: NDArray | None = None
         self._dqijdu: NDArray | None = None
         self._atom_indices: NDArray | None = None
-
-        # See comments in LocalPotentialInterpolation for these variables
-        self._i_atom: int | None = None
-        self._sitesym_sets: NDArray | None = None
-
-        self._setup()
 
     @property
     def dDijdu(self):
@@ -199,30 +184,44 @@ class DDijQijFit:
         """Return atom indices where dDijdu and dqijdu are stored."""
         return self._atom_indices
 
-    def __iter__(self):
-        """Activate iterator."""
-        return self
+    def run(self, delta_Dij_qijs: list[DeltaDijQij]):
+        """Compute dDij/du and dqij/du of the atoms equivalent to the displaced atom.
 
-    def __next__(self):
-        """Iterate over atom_indices."""
-        assert self._atom_indices is not None
-        assert self._i_atom is not None
-        if len(self._atom_indices) == self._i_atom:
-            raise StopIteration
+        The atoms are those of atom_indices given at __init__ that are
+        equivalent to the displaced atom by symmetry.  They are stored in
+        atom_indices, and the derivatives of them in dDijdu and dqijdu.
 
-        if self._verbose:
-            print(
-                "Computing dDij/du and dqij/du of displaced atom %d:"
-                % (self._atom_indices[self._i_atom] + 1)
+        Parameters
+        ----------
+        delta_Dij_qijs : list of DeltaDijQij
+            Changes of Dij's and qij's by the displacements of one atom.
+
+        """
+        check_magnetic_moments(self._supercell, delta_Dij_qijs[0].dDij.shape[0])
+        disp_atom = delta_Dij_qijs[0].displacement["number"]
+        atoms, sitesym_sets = select_equivalent_atoms(
+            disp_atom, self._symmetry, self._atom_indices_in
+        )
+
+        dtype = "c%d" % (np.dtype("double").itemsize * 2)
+        natom = len(self._supercell)
+        ncdij = delta_Dij_qijs[0].dDij.shape[0]
+        lmdim = delta_Dij_qijs[0].dDij.shape[-2]
+        shape = (ncdij, len(atoms), 3, natom, lmdim, lmdim)
+        dDijdu = np.zeros(shape, dtype=dtype, order="C")
+        dqijdu = np.zeros(shape, dtype=dtype, order="C")
+        for i_atom, sitesyms in enumerate(sitesym_sets):
+            if self._verbose:
+                print(
+                    "Computing dDij/du and dqij/du of displaced atom %d:"
+                    % (atoms[i_atom] + 1)
+                )
+            dDijdu[:, i_atom], dqijdu[:, i_atom] = self._run_at_atom(
+                delta_Dij_qijs, sitesyms
             )
-
-        self._run_at_atom()
-        self._i_atom += 1
-
-    def run(self):
-        """Calculate by iterating at atom_indices."""
-        for _ in self:
-            pass
+        self._atom_indices = atoms
+        self._dDijdu = dDijdu
+        self._dqijdu = dqijdu
 
     def __str__(self) -> str:
         """Return Dij and qij in str fashion."""
@@ -271,6 +270,36 @@ class DDijQijFit:
         str2: str,
         Dij_shape: tuple,
     ) -> str:
+        """Return one matrix of dDij/du or dqij/du as text.
+
+        Parameters
+        ----------
+        xij : ndarray
+            The matrix to be written.
+            shape=(lmdim, lmdim)
+        i_spinor : int
+            Index of the spin component.
+        i_eatom : int
+            Index in atom_indices of the atom whose displacement is
+            differentiated.
+        i : int
+            Index of the atom in the supercell whose Dij or qij it is.
+        j : int
+            Direction of the displacement, 0, 1 or 2 for x, y or z.
+        str1 : str
+            "D" or "q", written in the header.
+        str2 : str
+            Part of the complex numbers, such as "real", written in the
+            header.
+        Dij_shape : tuple
+            Shape of the matrix, written in the header.
+
+        Returns
+        -------
+        str
+            A header line and the real or imaginary parts of the matrix.
+
+        """
         text = (
             f"Spin {i_spinor + 1}, Disp-Atom {i_eatom + 1}, "
             f"Atom {i + 1} d{str1}ij/d{'xyz'[j]} {str2} part "
@@ -280,61 +309,56 @@ class DDijQijFit:
             text += " ".join(["%8.1e" % v for v in xij_l]) + "\n"
         return text
 
-    def _setup(self):
-        check_magnetic_moments(self._supercell, self._delta_Dij_qijs[0].dDij.shape[0])
-        self._i_atom = 0
-        disp_atom = self._delta_Dij_qijs[0].displacement["number"]
-        sitesym_sets, equiv_atoms = collect_site_symmetry_operations(
-            disp_atom, self._symmetry
-        )
+    def _run_at_atom(
+        self, delta_Dij_qijs: list[DeltaDijQij], sitesyms: NDArray
+    ) -> tuple[NDArray, NDArray]:
+        """Return dDij/du and dqij/du of one of the equivalent atoms.
 
-        if self._atom_indices_in is None:
-            atoms = np.arange(len(self._supercell))
-        else:
-            atoms = self._atom_indices_in
-        self._atom_indices = np.array(
-            [i for i in atoms if i in equiv_atoms], dtype="int64"
-        )
-        # The rows of sitesym_sets follow equiv_atoms.  They are picked in the
-        # order of the returned atoms.
-        i_equiv_atom = {int(atom): i for i, atom in enumerate(equiv_atoms)}
-        self._sitesym_sets = sitesym_sets[
-            [i_equiv_atom[int(atom)] for atom in self._atom_indices]
-        ]
+        Let a be the displaced atom and b this atom.  Each operation g of
+        sitesyms sends a to b.  Applied to the changes dDij_k and dqij_k of all
+        atoms by the k-th displacement u_k of a, g gives the changes by the
+        displacement R u_k of b (_rotate_Dij_qij): the atoms are permuted by g,
+        and Dij and qij of each atom are rotated in the space of the
+        atomic-like orbitals.  For ncdij=4, they are also rotated in spin space
+        by R, and for the operations combined with time reversal, time reversal
+        is applied in spin space.
 
-        dtype = "c%d" % (np.dtype("double").itemsize * 2)
+        dDij/du of b is the least-squares solution of
+
+            dDij_kg = (R u_k) . dDij/du  for all k and g,
+
+        and dqij/du likewise, where the rows of U are R u_k with g running
+        fastest (get_displacements_with_rotations).  Unlike in
+        LocalPotentialInterpolationNUFFT, the changes of all (k, g) are stored
+        and multiplied by pinv(U) at once.
+
+        Parameters
+        ----------
+        delta_Dij_qijs : list of DeltaDijQij
+            Changes of Dij and qij by the displacements u_k of the displaced
+            atom a.
+        sitesyms : ndarray
+            Indices of the symmetry operations that send a to b.
+            dtype='int64', shape=(n_site_syms,)
+
+        Returns
+        -------
+        tuple of ndarray
+            dDij/du and dqij/du of b.
+            dtype='complex128', shape=(ncdij, 3, natom, lmdim, lmdim)
+
+        """
         natom = len(self._supercell)
-        ncdij = self._delta_Dij_qijs[0].dDij.shape[0]
-        lmdim = self._delta_Dij_qijs[0].dDij.shape[-2]
-        self._dDijdu = np.zeros(
-            (ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim),
-            dtype=dtype,
-            order="C",
-        )
-        self._dqijdu = np.zeros(
-            (ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim),
-            dtype=dtype,
-            order="C",
-        )
-
-    def _run_at_atom(self):
-        assert self._dDijdu is not None
-        assert self._dqijdu is not None
-        assert self._sitesym_sets is not None
-        sitesyms = self._sitesym_sets[self._i_atom]
-        natom = len(self._supercell)
-        lmdim = self._delta_Dij_qijs[0].dDij.shape[-2]
+        lmdim = delta_Dij_qijs[0].dDij.shape[-2]
         dtype = f"c{np.dtype('double').itemsize * 2}"
-        ncdij = self._dDijdu.shape[0]
+        ncdij = delta_Dij_qijs[0].dDij.shape[0]
 
         lattice = self._supercell.cell.T
         rotations = self._symmetry.symmetry_operations["rotations"][sitesyms]
         time_reversals = get_time_reversals(self._symmetry)[sitesyms]
         atomic_permutations = self._symmetry.atomic_permutations[sitesyms]
 
-        disps = get_displacements_with_rotations(
-            rotations, lattice, self._delta_Dij_qijs
-        )
+        disps = get_displacements_with_rotations(rotations, lattice, delta_Dij_qijs)
         disps_inv = np.linalg.pinv(disps)
         dDij_rotated_all = np.zeros(
             (ncdij, len(disps), natom * lmdim**2), dtype=dtype, order="C"
@@ -344,7 +368,7 @@ class DDijQijFit:
         )
 
         count = 0
-        for delta_Dij_qij in self._delta_Dij_qijs:
+        for delta_Dij_qij in delta_Dij_qijs:
             for r, perm, tr in zip(
                 rotations, atomic_permutations, time_reversals, strict=True
             ):
@@ -368,11 +392,11 @@ class DDijQijFit:
                     dqij_rotated_all[i_cdij, count] = dqij_rotated[i_cdij]
                 count += 1
 
-        # Compute dDij/du and dqij/du
-        # shape=(ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim)
         shape = (ncdij, 3, natom, lmdim, lmdim)
-        self._dDijdu[:, self._i_atom] = (disps_inv @ dDij_rotated_all).reshape(shape)
-        self._dqijdu[:, self._i_atom] = (disps_inv @ dqij_rotated_all).reshape(shape)
+        return (
+            (disps_inv @ dDij_rotated_all).reshape(shape),
+            (disps_inv @ dqij_rotated_all).reshape(shape),
+        )
 
     def _rotate_Dij_qij(
         self, ncdij: int, delta_Dij_qij: DeltaDijQij, perm: NDArray, r: NDArray
@@ -385,6 +409,26 @@ class DDijQijFit:
         reversal are applied by the caller. The displacement u is rotated to
         R u in get_displacements_with_rotations, so the result is dDij and dqij
         of the displacement R u.
+
+        Parameters
+        ----------
+        ncdij : int
+            Number of spin components.
+        delta_Dij_qij : DeltaDijQij
+            Changes of Dij and qij by one displacement.
+        perm : ndarray
+            Atomic permutation of g.  Atom i is moved to atom perm[i].
+            dtype='int64', shape=(natom,)
+        r : ndarray
+            Rotation of g in the supercell basis vectors.
+            dtype='int64', shape=(3, 3)
+
+        Returns
+        -------
+        tuple of list of ndarray
+            Rotated dDij and dqij of each spin component, each flattened from
+            the shape (natom, lmdim, lmdim).
+            dtype='complex128', shape=(natom * lmdim * lmdim,) each
 
         """
         shr = SHRotationMatrices(r, self._supercell.cell.T, LxLyLzMatrices().run())
@@ -612,20 +656,19 @@ class DDijQij:
                         )
                     )
             ddijqij = DDijQijFit(
-                delta_Dij_qijs,
                 self._supercell,
                 self.symmetry,
                 atom_indices=self._atom_indices,
                 verbose=self._verbose,
             )
-            ddijqij.run()
+            ddijqij.run(delta_Dij_qijs)
             assert ddijqij.atom_indices is not None
 
             indices = []
             for ai in ddijqij.atom_indices:
                 indices.append(np.where(self._atom_indices == ai)[0][0])
-            self._dDijdu[:, indices] = ddijqij._dDijdu
-            self._dqijdu[:, indices] = ddijqij._dqijdu
+            self._dDijdu[:, indices] = ddijqij.dDijdu
+            self._dqijdu[:, indices] = ddijqij.dqijdu
 
         self.Dij = Dij_per[:, self._atom_indices, :, :]
         self.qij = qij_per[:, self._atom_indices, :, :]
@@ -655,6 +698,13 @@ def _get_orbital_rotation_matrix(
         lm channels of the atom.
     lmdim : int
         Size of the matrix.
+
+    Returns
+    -------
+    ndarray
+        Block-diagonal matrix of the rotation matrices of the channels, or the
+        zero matrix when the atom has no channels.
+        dtype='complex128', shape=(lmdim, lmdim)
 
     """
     bigDelta = np.zeros((lmdim, lmdim), dtype="complex128")
