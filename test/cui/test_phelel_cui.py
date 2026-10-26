@@ -597,6 +597,24 @@ def test_phelel_loader_keeps_calculator(tmp_path: pathlib.Path):
         os.chdir(original_cwd)
 
 
+def test_phelel_loader_primitive_matrix_with_yaml(tmp_path: pathlib.Path):
+    """primitive_matrix="auto" uses that of phelel_disp.yaml, as None does."""
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        filename = cwd / ".." / "phelel_disp_C111.yaml"
+        pmat_yaml = PhelelYaml().read(filename).primitive_matrix
+        assert pmat_yaml is not None
+        assert not np.allclose(pmat_yaml, np.eye(3))
+        for pmat in (None, "auto"):
+            phe = load(filename, primitive_matrix=pmat)
+            np.testing.assert_allclose(phe.primitive_matrix, pmat_yaml)
+        phe = load(filename, primitive_matrix="P")
+        np.testing.assert_allclose(phe.primitive_matrix, np.eye(3))
+    finally:
+        os.chdir(original_cwd)
+
+
 def test_phelel_loader_reads_BORN_without_dir_names(tmp_path: pathlib.Path):
     """BORN in the current directory is read also without dir_names."""
     born_str = """4.399652

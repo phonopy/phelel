@@ -94,6 +94,9 @@
   parameters are in the yaml file. Before, `BORN` was read only with
   `dir_names`. `phelel --cd` and `velph phelel differentiate` read the same
   NAC parameters as before.
+- Bug fix: `phelel.load()` with a yaml file and `primitive_matrix="auto"`
+  stopped with an error. `"auto"` now uses the primitive matrix in the yaml
+  file, as `None` does and as in `phonopy.load()`.
 - phonors 0.6.0 or later is required. phonopy 4.8.4 already depends on it,
   and phelel uses its `snf3x3` directly.
 
