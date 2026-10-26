@@ -2,103 +2,32 @@
 
 # Change Log
 
-## Unreleased
+## Oct-26-2026: Version 0.17.0
 
-- Bug fix: with magnetic moments in `phelel_disp.yaml`, the derivatives of the
-  local potential and of the PAW strengths were wrong. The symmetry operations
-  then act on the atomic positions and the magnetic moments, and some of them
-  are combined with time reversal. These operations were applied without time
-  reversal. In a ferromagnet with non-collinear magnetic moments, the magnetic
-  part of dV/du and dDij/du was averaged to zero. In a collinear
-  antiferromagnet, the spin up and spin down parts were exchanged in the
-  derivatives obtained by an operation that moves an up-spin atom onto a
-  down-spin atom. Without magnetic moments, the results are unchanged.
+- phonopy 4.8.6 or later is required, for the magnetic moments in the form
+  `n*value` and for the GR-grid with zero magnetic moments. phonors 0.6.0 or
+  later is required. phonopy 4.8.6 already depends on it, and phelel uses its
+  `snf3x3` directly.
+- Bug fix: time reversal in the symmetry operations was not applied to dV/du
+  and dDij/du of collinear and non-collinear magnetic calculations with
+  magnetic moments in `phelel_disp.yaml`. Without magnetic moments, the
+  results are unchanged.
   ([#288](https://github.com/phonopy/phelel/pull/288))
 - `phelel-init --magmom` is added. The magnetic moments are given as one value
   per atom (collinear) or three values per atom (non-collinear), and they are
   stored in `phelel_disp.yaml`. The form `n*value` of the MAGMOM tag of VASP
   can be used, such as `"4*1 4*-1"`. See {ref}`phelel_command`.
-- Bug fix: `velph init --magmom` did not check its values. `2*` stopped with a
-  Python traceback, and `0*1` was read as no value. An invalid value now stops
-  `velph init` with an error.
-- Bug fix: with zero magnetic moments, `velph init` and `velph convert` took a
-  primitive cell as a cell of several lattice points. The GR-grid was not used
-  for the k-point mesh, and for a primitive cell of a body-centred lattice,
-  `velph init` stopped with the error "Grid symmetry is broken." The operations
-  combined with time reversal, which zero magnetic moments add to the symmetry
-  operations, are no longer counted as lattice translations.
-- `phelel --cd` stops with an error when the magnetic moments are not of the
-  same kind as the VASP calculation, for example one value per atom for a
-  non-collinear calculation. Before, the derivatives were computed with a
-  magnetic space group that did not fit the calculation.
-- `phelel --cd` shows a warning when no magnetic moments are given and the VASP
-  calculation is spin-polarized or non-collinear. Without magnetic moments, the
-  symmetry operations act on the atomic positions only, and the magnetic
-  moments are not included in them. When the magnetic moments are zero in the
-  VASP calculation, zeros are given by `phelel-init --magmom`, because the
-  default MAGMOM of VASP is not zero.
-- `phelel --cd` applies every symmetry operation to the PAW strengths Dij of the
-  perfect supercell, and shows a warning when an operation changes Dij by more
-  than 0.01 eV. The magnetic moments included in the symmetry operations then
-  do not describe the magnetic state of the VASP calculation.
 - `phelel --cd` reads `LOCAL-POTENTIAL.bin`, `PAW-STRENGTH.bin`,
   `PAW-OVERLAP.bin` and `inwap.yaml`, which VASP writes with `LWAP = .TRUE.`,
   in place of `vaspout.h5` when every directory has `LOCAL-POTENTIAL.bin`.
-  Before, `vaspout.h5` was read when every directory had it.
-- `phelel --cd` stops with an error when it would read the local potential of a
-  spin-polarized or non-collinear calculation from `vaspout.h5` of VASP 6.6.1 or
-  older. These versions write part of the points of the local potential in
-  `vaspout.h5` in another form, and the derivatives computed from it are wrong.
-  Run VASP with `LWAP = .TRUE.`. See {ref}`phelel_command`.
+  Before, `vaspout.h5` was read when every directory had it. `LWAP = .TRUE.`
+  is for collinear and non-collinear magnetic calculations by VASP 6.6.1 or
+  older, whose local potential in `vaspout.h5` gives wrong derivatives.
+  Otherwise, `vaspout.h5` is recommended.
 - `velph init` writes `lwap = true` in `[vasp.phelel.incar]` when its tags have
   `ispin = 2`, `lnoncollinear = true` or `lsorbit = true`, and no `lwap`.
-- `velph init` adds `kpar` of `[vasp.incar]` to `nac` too. Before, `kpar` was
-  listed in `incar_unset` of `nac` in the default settings with `npar` and
-  `ncore`, although VASP uses `KPAR` with `LEPSILON = .TRUE.`.
-- `atom_indices_in_derivatives` is no longer written in `phelel_params.hdf5`,
-  and `Phelel.atom_indices_in_derivatives` is removed. The derivatives are
-  those of the atoms of the primitive cell, as before, given by `p2s_map` in
-  `phelel_params.hdf5` and by `Phelel.primitive.p2s_map`. A
-  `phelel_params.hdf5` of an older version is read when its
-  `atom_indices_in_derivatives` is equal to `p2s_map`.
-- `phelel --cd` stops with an error when an atom of the primitive cell is not
-  equivalent by symmetry to any displaced atom. Before, the derivatives of such
-  an atom were left zero in `phelel_params.hdf5` without a warning. The
-  supercells generated by `phelel-init` and `velph` have displacements of all
-  the symmetrically independent atoms, so they are not affected.
-  ([#304](https://github.com/phonopy/phelel/pull/304))
-- `Phelel(nufft=...)` stops with an error for a value other than `"finufft"`
-  and `None`. Before, any value was accepted and finufft was used.
-- Bug fix: dDij/du, dqij/du, Dij and qij read from `phelel_params.hdf5` were
-  not converted back to complex numbers, and kept the axis of the real and
-  imaginary parts. `phelel.load()`, which reads `phelel_params.hdf5` in the
-  current directory, then wrote them with another axis by `save_hdf5`, and
-  stopped with an error when the derivatives were computed again with
-  `dir_names`. `phelel_params.hdf5` written by `phelel --cd` and
-  `velph phelel differentiate` is not affected.
-- Bug fix: `phelel_params.hdf5` of a supercell larger than the unit cell could
-  not be read. The matrix from the primitive cell to the supercell was made
-  from `primitive_matrix` in the file, which is relative to the unit cell, and
-  reading stopped with an error on the shape of dV/du. It is made from
-  `primitive_matrix` and `supercell_matrix` in the file.
-- `phelel` and `phelel.load()` keep the calculator written in
-  `phelel_disp.yaml`. Before, `Phelel.calculator` was None, and `phelel.yaml`
-  written by `phelel` had no `calculator`. The results are unchanged.
-  `phelel.load()` takes `calculator`, as `phonopy.load()` does.
-- Bug fix: `Phelel.to_phelel_yaml()` without `settings` wrote the forces of the
-  supercells. The default settings of `PhelelYaml` were not used. `phelel` and
-  `velph` give the settings, so `phelel_disp.yaml` and `phelel.yaml` written by
-  them are not affected.
-- `phelel.load()` reads `BORN` in the current directory also without
-  `dir_names`, as `phonopy.load()` does, unless `is_nac=False` or the NAC
-  parameters are in the yaml file. Before, `BORN` was read only with
-  `dir_names`. `phelel --cd` and `velph phelel differentiate` read the same
-  NAC parameters as before.
-- Bug fix: `phelel.load()` with a yaml file and `primitive_matrix="auto"`
-  stopped with an error. `"auto"` now uses the primitive matrix in the yaml
-  file, as `None` does and as in `phonopy.load()`.
-- phonors 0.6.0 or later is required. phonopy 4.8.4 already depends on it,
-  and phelel uses its `snf3x3` directly.
+- `Phelel.atom_indices_in_derivatives` is removed. Use
+  `Phelel.primitive.p2s_map`.
 
 ## Oct-23-2026: Version 0.16.0
 
