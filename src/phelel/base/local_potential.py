@@ -20,7 +20,6 @@ from phelel.base.symmetrization import (
     select_equivalent_atoms,
 )
 from phelel.interface.vasp.file_IO import get_CHGCAR
-from phelel.utils.data import real2cmplx
 from phelel.utils.lattice_points import get_lattice_points
 from phelel.utils.spinor import (
     apply_time_reversal_in_spin_space,
@@ -557,6 +556,64 @@ class DLocalPotential:
         self._grid_points: NDArray | None = None
         self._dVdu: NDArray | None = None  # self.dVdu is provided by @property.
 
+    @classmethod
+    def from_arrays(
+        cls,
+        fft_mesh: Sequence[int] | NDArray,
+        p2s_matrix: NDArray,
+        supercell: PhonopyAtoms,
+        dVdu: NDArray,
+        grid_points: NDArray,
+        lattice_points: NDArray,
+        symmetry: Symmetry | None = None,
+        atom_indices: NDArray | None = None,
+        verbose: bool = True,
+    ) -> DLocalPotential:
+        """Return DLocalPotential that holds dV/du computed before.
+
+        This is used to read phelel_params.hdf5.  The parameters other than
+        dVdu, grid_points and lattice_points are those of __init__.
+
+        Parameters
+        ----------
+        dVdu : ndarray
+            dV/du on the grid points.
+            dtype='complex128', shape=(ncdij, atom_indices, 3, grid_points)
+        grid_points : ndarray
+            Grid points in the supercell basis vectors, as get_grid_points
+            returns.
+            dtype='double', shape=(prod(fft_mesh) * det(p2s_matrix), 3)
+        lattice_points : ndarray
+            Lattice points in the supercell, as get_grid_points returns.
+            dtype='int64', shape=(det(p2s_matrix), 3)
+
+        Returns
+        -------
+        DLocalPotential
+
+        """
+        dlp = cls(
+            fft_mesh,
+            p2s_matrix,
+            supercell,
+            symmetry=symmetry,
+            atom_indices=atom_indices,
+            verbose=verbose,
+        )
+        n_lattice_points = determinant(dlp.p2s_matrix)
+        n_grid_points = int(np.prod(dlp.fft_mesh)) * n_lattice_points
+        for name, value, shape in (
+            ("dVdu", dVdu, (dVdu.shape[0], *dlp._get_dVdu_shape())),
+            ("grid_points", grid_points, (n_grid_points, 3)),
+            ("lattice_points", lattice_points, (n_lattice_points, 3)),
+        ):
+            if value.shape != shape:
+                raise ValueError(f"Shape of {name} is {value.shape}, not {shape}.")
+        dlp._dVdu = np.array(dVdu, dtype="complex128", order="C")
+        dlp._grid_points = np.array(grid_points, dtype="double", order="C")
+        dlp._lattice_points = np.array(lattice_points, dtype="int64", order="C")
+        return dlp
+
     @property
     def p2s_matrix(self) -> NDArray:
         """Return supercell matrix."""
@@ -591,22 +648,6 @@ class DLocalPotential:
         """
         return self._dVdu
 
-    @dVdu.setter
-    def dVdu(self, dVdu: NDArray):
-        if dVdu.dtype == "double":
-            _dVdu = real2cmplx(dVdu)
-        else:
-            _dVdu = dVdu
-        if _dVdu.shape[1:] == self._get_dVdu_shape():
-            self._allocate_arrays(_dVdu.shape[0])
-            assert self._dVdu is not None
-            self._dVdu[:] = _dVdu
-        else:
-            raise RuntimeError(
-                "Array shape[1:] disagreement is found, %s!=%s."
-                % (self._get_dVdu_shape(), _dVdu.shape[1:])
-            )
-
     @property
     def lattice_points(self) -> NDArray | None:
         """Return lattice points.
@@ -616,17 +657,6 @@ class DLocalPotential:
         """
         return self._lattice_points
 
-    @lattice_points.setter
-    def lattice_points(self, lattice_points: NDArray):
-        multi = determinant(self.p2s_matrix)
-        if lattice_points.shape == (multi, 3):
-            self._lattice_points = np.array(lattice_points, dtype="int64", order="C")
-        else:
-            raise RuntimeError(
-                "Array shape disagreement is found, %s!=%s."
-                % ((multi, 3), lattice_points.shape)
-            )
-
     @property
     def grid_points(self):
         """Return grid_points.
@@ -635,17 +665,6 @@ class DLocalPotential:
 
         """
         return self._grid_points
-
-    @grid_points.setter
-    def grid_points(self, grid_points: NDArray):
-        N = np.prod(self.fft_mesh) * determinant(self.p2s_matrix)
-        if grid_points.shape == (N, 3):
-            self._grid_points = np.array(grid_points, dtype="double", order="C")
-        else:
-            raise RuntimeError(
-                "Array shape disagreement is found, %s!=%s."
-                % ((N, 3), grid_points.shape)
-            )
 
     def run(
         self,

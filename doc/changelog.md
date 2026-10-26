@@ -69,6 +69,13 @@
   ([#304](https://github.com/phonopy/phelel/pull/304))
 - `Phelel(nufft=...)` stops with an error for a value other than `"finufft"`
   and `None`. Before, any value was accepted and finufft was used.
+- Bug fix: dDij/du, dqij/du, Dij and qij read from `phelel_params.hdf5` were
+  not converted back to complex numbers, and kept the axis of the real and
+  imaginary parts. `phelel.load()`, which reads `phelel_params.hdf5` in the
+  current directory, then wrote them with another axis by `save_hdf5`, and
+  stopped with an error when the derivatives were computed again with
+  `dir_names`. `phelel_params.hdf5` written by `phelel --cd` and
+  `velph phelel differentiate` is not affected.
 
 ## Oct-23-2026: Version 0.16.0
 

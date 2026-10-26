@@ -15,7 +15,7 @@ from spglib import SpglibDataset, SpglibMagneticDataset
 
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential
-from phelel.utils.data import cmplx2real
+from phelel.utils.data import cmplx2real, real2cmplx
 from phelel.utils.lattice_points import get_lattice_points
 
 
@@ -65,8 +65,8 @@ def read_phelel_params_hdf5(
 ) -> tuple[DLocalPotential, DDijQij, np.ndarray, np.ndarray | None]:
     """Read dV/du and dDij/du from phelel_params.hdf5.
 
-    Parameteters
-    ------------
+    Parameters
+    ----------
     filename :
         File name of phelel_params.hdf5.
     log_level : int
@@ -121,26 +121,27 @@ def read_phelel_params_hdf5(
     else:
         raise FileNotFoundError(f'"{filename}" was not found.')
 
-    dDVdu_obj = DLocalPotential(
+    dDVdu_obj = DLocalPotential.from_arrays(
         fft_mesh,
         p2s_matrix,
         supercell,
+        dVdu,
+        grid_points,
+        lattice_points,
         symmetry=symmetry,
         atom_indices=atom_indices,
+        verbose=log_level > 0,
     )
-    dDVdu_obj.dVdu = dVdu
-    dDVdu_obj.grid_points = grid_points
-    dDVdu_obj.lattice_points = lattice_points
-
-    dDijdu_obj = DDijQij(
+    dDijdu_obj = DDijQij.from_arrays(
         supercell,
+        dDijdu,
+        dqijdu,
+        Dij,
+        qij,
         symmetry=symmetry,
         atom_indices=atom_indices,
+        verbose=log_level > 0,
     )
-    dDijdu_obj.dDijdu = dDijdu
-    dDijdu_obj.dqijdu = dqijdu
-    dDijdu_obj.Dij = Dij
-    dDijdu_obj.qij = qij
 
     return dDVdu_obj, dDijdu_obj, fft_mesh, fc
 
@@ -158,20 +159,30 @@ def read_force_constants_hdf5(f: h5py.File) -> NDArray[np.double] | None:
 
 
 def read_dVdu_hdf5(f):
-    """Read dVdu from hdf5 file object."""
+    """Read dVdu from hdf5 file object.
+
+    dVdu is written as pairs of real numbers by cmplx2real, and is returned as
+    complex numbers.
+
+    """
     fft_mesh = f["FFT_mesh"][:]
-    dVdu = f["dVdu"][:]
+    dVdu = real2cmplx(f["dVdu"][:])
     grid_points = f["grid_point"][:]
     lattice_points = f["lattice_point"][:]
     return fft_mesh, dVdu, grid_points, lattice_points
 
 
 def read_dDijdu_hdf5(f):
-    """Read dDijdu from hdf5 file object."""
-    dDijdu = f["dDijdu"][:]
-    dqijdu = f["dqijdu"][:]
-    Dij = f["Dij"][:]
-    qij = f["qij"][:]
+    """Read dDijdu, dqijdu, Dij and qij from hdf5 file object.
+
+    They are written as pairs of real numbers by cmplx2real, and are returned
+    as complex numbers.
+
+    """
+    dDijdu = real2cmplx(f["dDijdu"][:])
+    dqijdu = real2cmplx(f["dqijdu"][:])
+    Dij = real2cmplx(f["Dij"][:])
+    qij = real2cmplx(f["qij"][:])
     return dDijdu, dqijdu, Dij, qij
 
 

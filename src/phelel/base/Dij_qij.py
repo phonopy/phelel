@@ -527,73 +527,78 @@ class DDijQij:
         self._dDijdu: NDArray | None = None
         self._dqijdu: NDArray | None = None
 
+    @classmethod
+    def from_arrays(
+        cls,
+        supercell: PhonopyAtoms,
+        dDijdu: NDArray,
+        dqijdu: NDArray,
+        Dij: NDArray,
+        qij: NDArray,
+        symmetry: Symmetry | None = None,
+        atom_indices: Sequence[int] | NDArray | None = None,
+        verbose: bool = True,
+    ) -> DDijQij:
+        """Return DDijQij that holds dDij/du and dqij/du computed before.
+
+        This is used to read phelel_params.hdf5.  The parameters other than the
+        four arrays are those of __init__.
+
+        Parameters
+        ----------
+        dDijdu, dqijdu : ndarray
+            dDij/du and dqij/du.
+            dtype='complex128',
+            shape=(ncdij, atom_indices, 3, supercell_atoms, lmdim, lmdim)
+        Dij, qij : ndarray
+            Dij and qij of the perfect supercell at atom_indices.
+            dtype='complex128', shape=(ncdij, atom_indices, lmdim, lmdim)
+
+        Returns
+        -------
+        DDijQij
+
+        """
+        ddijqij = cls(
+            supercell, symmetry=symmetry, atom_indices=atom_indices, verbose=verbose
+        )
+        ncdij, lmdim = Dij.shape[0], Dij.shape[-1]
+        n_atoms = len(ddijqij.atom_indices)
+        shape_du = (ncdij, n_atoms, 3, len(supercell), lmdim, lmdim)
+        shape = (ncdij, n_atoms, lmdim, lmdim)
+        for name, value, expected in (
+            ("dDijdu", dDijdu, shape_du),
+            ("dqijdu", dqijdu, shape_du),
+            ("Dij", Dij, shape),
+            ("qij", qij, shape),
+        ):
+            if value.shape != expected:
+                raise ValueError(f"Shape of {name} is {value.shape}, not {expected}.")
+        ddijqij._dDijdu = np.array(dDijdu, dtype="complex128", order="C")
+        ddijqij._dqijdu = np.array(dqijdu, dtype="complex128", order="C")
+        ddijqij._Dij = np.array(Dij, dtype="complex128", order="C")
+        ddijqij._qij = np.array(qij, dtype="complex128", order="C")
+        return ddijqij
+
     @property
     def dDijdu(self):
-        """Getter and setter of dDijdu."""
+        """Return dDijdu."""
         return self._dDijdu
-
-    @dDijdu.setter
-    def dDijdu(self, dDijdu):
-        natom = len(self._supercell)
-        shape = (len(self._atom_indices), 3, natom)
-        if dDijdu.shape[1:4] == shape:
-            dtype = "c%d" % (np.dtype("double").itemsize * 2)
-            self._dDijdu = np.array(dDijdu, dtype=dtype, order="C")
-        else:
-            raise RuntimeError(
-                "Array shape[1:4] disagreement is found, %s!=%s."
-                % (shape, dDijdu.shape[1:4])
-            )
 
     @property
     def dqijdu(self):
-        """Getter and setter of dqijdu."""
+        """Return dqijdu."""
         return self._dqijdu
-
-    @dqijdu.setter
-    def dqijdu(self, dqijdu):
-        natom = len(self._supercell)
-        shape = (len(self._atom_indices), 3, natom)
-        if dqijdu.shape[1:4] == shape:
-            dtype = "c%d" % (np.dtype("double").itemsize * 2)
-            self._dqijdu = np.array(dqijdu, dtype=dtype, order="C")
-        else:
-            raise RuntimeError(
-                "Array shape[1:4] disagreement is found, %s!=%s."
-                % (shape, dqijdu.shape[1:4])
-            )
 
     @property
     def Dij(self):
-        """Getter and setter of Dij."""
+        """Return Dij."""
         return self._Dij
-
-    @Dij.setter
-    def Dij(self, Dij):
-        if Dij.shape[1] == len(self._atom_indices):
-            dtype = "c%d" % (np.dtype("double").itemsize * 2)
-            self._Dij = np.array(Dij, dtype=dtype, order="C")
-        else:
-            raise RuntimeError(
-                "Number of atoms in supercell disagrees, %s!=%s."
-                % (len(self._atom_indices), Dij.shape[1])
-            )
 
     @property
     def qij(self):
-        """Getter and setter of qij."""
+        """Return qij."""
         return self._qij
-
-    @qij.setter
-    def qij(self, qij):
-        if qij.shape[1] == len(self._atom_indices):
-            dtype = "c%d" % (np.dtype("double").itemsize * 2)
-            self._qij = np.array(qij, dtype=dtype, order="C")
-        else:
-            raise RuntimeError(
-                "Number of atoms in supercell disagrees, %s!=%s."
-                % (len(self._atom_indices), qij.shape[1])
-            )
 
     @property
     def atom_indices(self) -> NDArray:
@@ -670,8 +675,8 @@ class DDijQij:
             self._dDijdu[:, indices] = ddijqij.dDijdu
             self._dqijdu[:, indices] = ddijqij.dqijdu
 
-        self.Dij = Dij_per[:, self._atom_indices, :, :]
-        self.qij = qij_per[:, self._atom_indices, :, :]
+        self._Dij = Dij_per[:, self._atom_indices]
+        self._qij = qij_per[:, self._atom_indices]
 
     def _allocate_arrays(self, ncdij, lmdim):
         dtype = "c%d" % (np.dtype("double").itemsize * 2)
