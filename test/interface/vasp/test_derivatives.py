@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import copy
 import lzma
+import warnings
 from pathlib import Path
+from typing import Literal
 
 import h5py
 import numpy as np
@@ -402,6 +404,29 @@ def test_create_derivatives_C111_phonon_supercell_without_dataset():
         create_derivatives(phelel, dir_names, subtract_rfs=True)
 
 
+@pytest.mark.parametrize("name", ["C111", "C111-ncl"])
+def test_create_derivatives_C111_native_equals_finufft(name: str):
+    """The native evaluation gives dVdu of finufft with finufft_eps=1e-12.
+
+    The native evaluation is exact, so the difference is the error of finufft.
+    With C111-ncl (ncdij=4), the values are also rotated in spin space after
+    the evaluation.  phelel_disp_C111.yaml has no magnetic moments, and the
+    warning about it is not the subject of this test.
+
+    """
+    dVdu = []
+    for kwargs in ({"nufft": "native"}, {"finufft_eps": 1e-12}):
+        phelel = _get_phelel_C111("phelel_disp_C111.yaml", **kwargs)
+        dir_names = [cwd / f"{name}_disp-000", cwd / f"{name}_disp-001"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", MagneticMomentsWarning)
+            create_derivatives(phelel, dir_names, subtract_rfs=True)
+        assert phelel.dVdu is not None
+        dVdu.append(phelel.dVdu.dVdu)
+    atol = 1e-10 * np.abs(dVdu[1]).max()
+    np.testing.assert_allclose(dVdu[0], dVdu[1], rtol=0, atol=atol)
+
+
 def test_read_files_C111_ncl():
     """Test reading files with non-collinear case of C-1x1x1."""
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
@@ -538,7 +563,10 @@ def _assert_derivatives_equal_to_reference(data_dir: Path):
 
 
 def _get_phelel_C111(
-    phelel_yaml_filename: str, phonon_supercell_matrix: NDArray | None = None
+    phelel_yaml_filename: str,
+    phonon_supercell_matrix: NDArray | None = None,
+    nufft: Literal["finufft", "native"] | None = None,
+    finufft_eps: float | None = None,
 ) -> Phelel:
     phe_yml = PhelelYaml().read(cwd / phelel_yaml_filename)
     phelel = Phelel(
@@ -547,6 +575,8 @@ def _get_phelel_C111(
         primitive_matrix=phe_yml.primitive_matrix,
         phonon_supercell_matrix=phonon_supercell_matrix,
         fft_mesh=[18, 18, 18],
+        nufft=nufft,
+        finufft_eps=finufft_eps,
         log_level=1,
     )
     phelel.dataset = phe_yml.dataset

@@ -176,16 +176,17 @@ def _anisotropic_function(frac: np.ndarray) -> np.ndarray:
     )
 
 
-def test_run_without_symmetry(capsys: pytest.CaptureFixture):
+@pytest.mark.parametrize("nufft", ["finufft", "native"])
+def test_run_without_symmetry(capsys: pytest.CaptureFixture, nufft: str):
     """dV/du is the change of the potential divided by the displacement.
 
     With the identity as the only symmetry operation, the displacement of atom
     1 along x gives dV/du_x of atom 1, and dV/du_y and dV/du_z are zero.  The
     change of the potential is given on a VASP mesh with different numbers of
     points along the three axes, and dV/du_x is evaluated at the grid points by
-    NUFFT.  The function differs along the axes and has sine terms, so mixing
-    up the axes or the sign of the Fourier transform changes the result.  With
-    verbose=False, nothing is printed.
+    finufft or by the native evaluation.  The function differs along the axes
+    and has sine terms, so mixing up the axes or the sign of the Fourier
+    transform changes the result.  With verbose=False, nothing is printed.
 
     """
     phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
@@ -202,6 +203,7 @@ def test_run_without_symmetry(capsys: pytest.CaptureFixture):
         supercell,
         symmetry=Symmetry(supercell, is_symmetry=False),
         atom_indices=np.array([0]),
+        nufft=nufft,
         verbose=False,
     )
     dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
@@ -233,7 +235,8 @@ def _model_potential_gradient(
     return np.sin(phase) @ (coef * G[:, i_dir])
 
 
-def test_run_with_symmetry():
+@pytest.mark.parametrize("nufft", ["finufft", "native"])
+def test_run_with_symmetry(nufft: str):
     """dV/du of all atoms and directions are obtained from one displacement.
 
     The model potential of diamond is the sum of phi(r - R) of the atoms, with
@@ -251,7 +254,9 @@ def test_run_with_symmetry():
     supercell = phe.supercell
     lattice = supercell.cell
     positions = supercell.scaled_positions
-    dlp = DLocalPotential([6, 6, 6], phe.p2s_matrix, supercell, verbose=False)
+    dlp = DLocalPotential(
+        [6, 6, 6], phe.p2s_matrix, supercell, nufft=nufft, verbose=False
+    )
     dlp.run(V_loc_per, [V_loc_disp], [displacement])
 
     assert dlp.dVdu is not None
@@ -269,7 +274,8 @@ def test_run_with_symmetry():
     np.testing.assert_allclose(dlp.dVdu[0], expected, atol=atol)
 
 
-def test_interpolation_with_atom_indices_in_any_order():
+@pytest.mark.parametrize("nufft", ["finufft", "native"])
+def test_interpolation_with_atom_indices_in_any_order(nufft: str):
     """dV/du of each atom is that of the atom, in the order of atom_indices.
 
     The site-symmetry operations are collected for the equivalent atoms in
@@ -285,6 +291,7 @@ def test_interpolation_with_atom_indices_in_any_order():
         supercell,
         phe.symmetry,
         atom_indices=np.array([1, 0]),
+        nufft=nufft,
         verbose=False,
     )
     lpi.run([DeltaLocalPotential(V_loc_per, V_loc_disp, displacement)])
