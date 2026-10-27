@@ -14,9 +14,10 @@ from phelel.base.local_potential import get_grid_points
 # (p2s_matrix, mesh shape (N^s_3, N^s_2, N^s_1) of the supercell, fft_mesh,
 #  rotation, translation)
 # fcc primitive cell in the conventional cubic supercell (D = 4), diag(3, 1, 1)
-# (D = 3, q points with q != -q mod 1), and a hexagonal six-fold rotation that
-# maps the box of the coefficients outside itself.  Each mesh has even and odd
-# numbers of points, so the coefficients at N^s_k / 2 are included.
+# (D = 3, q points with q != -q mod 1), diag(2, 2, 3) (D = 12, two diagonal
+# elements of the Smith normal form larger than one), and a hexagonal six-fold
+# rotation that maps the box of the coefficients outside itself.  Each mesh has
+# even and odd numbers of points, so the coefficients at N^s_k / 2 are included.
 _cases = {
     "fcc-identity": (
         [[-1, 1, 1], [1, -1, 1], [1, 1, -1]],
@@ -45,6 +46,13 @@ _cases = {
         [3, 5, 5],
         [[1, 0, 0], [0, 0, -1], [0, 1, 0]],
         [1 / 3, 0.0, 0.5],
+    ),
+    "diag223-fourfold": (
+        [[2, 0, 0], [0, 2, 0], [0, 0, 3]],
+        (7, 6, 6),
+        [4, 4, 4],
+        [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+        [0.5, 0.0, 1 / 3],
     ),
     "hexagonal-sixfold": (
         [[2, 0, 0], [0, 2, 0], [0, 0, 1]],

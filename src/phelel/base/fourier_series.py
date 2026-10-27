@@ -13,8 +13,8 @@ g_k = +N^s_k / 2.  This is the box used with finufft.
 
 The series is evaluated at the grid points of get_grid_points, the points
 (N^p)^-1 m + l in the primitive cell coordinates with the mesh indices m of
-fft_mesh (N^p) and the lattice points l in the supercell.  With the
-coordinates g^p = (M^s)^-T g of g in the reciprocal basis of the primitive
+fft_mesh (N^p) and the lattice points l of get_lattice_points.  With the
+coordinates h = (M^s)^-T g of g in the reciprocal basis of the primitive
 cell (M^s = p2s_matrix) split into the integer part K and the fractional part
 q,
 
@@ -35,6 +35,7 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import NDArray
 from phonopy.structure.cells import determinant
+from phonors import snf3x3
 
 from phelel.utils.lattice_points import get_lattice_points
 
@@ -69,6 +70,8 @@ class FourierSeriesOnGrid:
     qpoints : ndarray
         q points commensurate with the supercell in the reciprocal basis of the
         primitive cell, 0 <= q_k < 1, in the order of the first axis of phi.
+        With the Smith normal form U_1 M^s U_2 = diag(d), q = U_1^T diag(d)^-1 n'
+        mod 1, and n' runs in the order of np.ndindex(d).
         dtype='double', shape=(D, 3)
     lattice_points : ndarray
         Lattice points of the primitive cell, one from each class modulo the
@@ -95,31 +98,28 @@ class FourierSeriesOnGrid:
         p2s_matrix = np.array(p2s_matrix, dtype="int64")
         self._num_cells = abs(int(determinant(p2s_matrix)))
 
-        # D (M^s)^-1 is an integer matrix, so D g^p = g @ B is computed with
+        # D (M^s)^-1 is an integer matrix, so D h = g @ B is computed with
         # integers for row vectors g.
         self._B = np.array(
             np.rint(self._num_cells * np.linalg.inv(p2s_matrix)), dtype="int64"
         )
+        # The lattice points are l = U_1^-1 n with n in the order of
+        # np.ndindex(d), and the q points are labeled by n' in the same order,
+        # so that exp(2 pi i q . l) = prod_k exp(2 pi i n'_k n_k / d_k).
         lattice_points, _ = get_lattice_points(p2s_matrix)
         self._lattice_points = np.array(lattice_points, dtype="int64")
-
-        # Representatives of Z^3 / (M^s)^T Z^3 give each q of the D q points
-        # once.
-        g_reps, _ = get_lattice_points(p2s_matrix.T)
-        self._q_keys = np.sort(
-            self._encode_Dq(
-                (np.array(g_reps, dtype="int64") @ self._B) % self._num_cells
-            )
-        )
-        self._qpoints = self._decode_Dq(self._q_keys) / self._num_cells
+        d, U1, U2 = snf3x3(p2s_matrix)
+        self._snf_diag = np.array(d, dtype="int64")
+        self._U2 = np.array(U2, dtype="int64")
+        n_prime = np.array(list(np.ndindex(*self._snf_diag)), dtype="int64")
+        Dq = ((n_prime * (self._num_cells // self._snf_diag)) @ U1) % self._num_cells
+        self._qpoints = Dq / self._num_cells
 
         # exp(2 pi i q . (N^p)^-1 m), shape=(D, N^p_3, N^p_2, N^p_1)
         m = np.indices([int(n) for n in self._fft_mesh[::-1]]).reshape(3, -1)[::-1].T
         self._phase_qm = np.exp(
             2j * np.pi * (self._qpoints / self._fft_mesh) @ m.T
         ).reshape(-1, *self._fft_mesh[::-1])
-        # exp(2 pi i q . l), shape=(D (lattice points), D (q points))
-        self._phase_lq = np.exp(2j * np.pi * self._lattice_points @ self._qpoints.T)
 
     @property
     def qpoints(self) -> NDArray[np.double]:
@@ -199,10 +199,10 @@ class FourierSeriesOnGrid:
         else:
             phase = np.exp(-2j * np.pi * g @ np.asarray(translation, dtype="double"))
 
-        # g^p = K + q with D g^p = g @ B computed with integers.
-        Dgp = g @ self._B
-        K = Dgp // self._num_cells
-        i_q = np.searchsorted(self._q_keys, self._encode_Dq(Dgp % self._num_cells))
+        # h = K + q with D h = g @ B computed with integers, and q labeled by
+        # n' = U_2^T g mod d.
+        K = (g @ self._B) // self._num_cells
+        i_q = np.ravel_multi_index(((g @ self._U2) % self._snf_diag).T, self._snf_diag)
         Kbar = K % self._fft_mesh
         n1, n2, n3 = self._fft_mesh
         index = ((i_q * n3 + Kbar[:, 2]) * n2 + Kbar[:, 1]) * n1 + Kbar[:, 0]
@@ -222,6 +222,9 @@ class FourierSeriesOnGrid:
     def sum_over_qpoints(self, phi: NDArray) -> NDArray[np.cdouble]:
         """Return sum_q exp(2 pi i q . l) phi_q(m) in the order of get_grid_points.
 
+        With q labeled by n' and l by n (see qpoints), the sum is a DFT of the
+        shape diag(d) from n' to n.
+
         Parameters
         ----------
         phi : ndarray
@@ -236,17 +239,11 @@ class FourierSeriesOnGrid:
             dtype='complex128', shape=(D * prod(fft_mesh),)
 
         """
-        return (self._phase_lq @ phi.reshape(self._num_cells, -1)).ravel()
-
-    def _encode_Dq(self, Dq: NDArray[np.int64]) -> NDArray[np.int64]:
-        """Return one integer for each row of D q, 0 <= D q_k < D."""
-        D = self._num_cells
-        return (Dq[..., 0] * D + Dq[..., 1]) * D + Dq[..., 2]
-
-    def _decode_Dq(self, keys: NDArray[np.int64]) -> NDArray[np.int64]:
-        """Return D q from the integers of _encode_Dq."""
-        D = self._num_cells
-        return np.stack([keys // (D * D), (keys // D) % D, keys % D], axis=-1)
+        values = (
+            np.fft.ifftn(phi.reshape(*self._snf_diag, -1), axes=(0, 1, 2))
+            * self._num_cells
+        )
+        return values.ravel()
 
 
 def _get_box(shape: tuple[int, ...]) -> NDArray[np.int64]:
