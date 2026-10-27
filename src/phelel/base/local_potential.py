@@ -127,9 +127,11 @@ class LocalPotentialInterpolationNUFFT:
         dtype='double'
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
-        Lattice points in supercell in primitive cell coordinates
+        Lattice points of the primitive cell, one from each class modulo the
+        lattice of the supercell, in the basis vectors of the primitive cell.
+        They are not reduced into the supercell.  See get_lattice_points.
         dtype='int64'
-        shape=(det(supercell_matrxi), 3)
+        shape=(det(p2s_matrix), 3)
     dVdu : ndarray
         Displacement derivative of local potential in supercell interpolated on
         mesh grid of primitve cell
@@ -489,8 +491,10 @@ class DLocalPotential:
         dtype='double'
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
-        Lattice points in supercell in primitive cell coordinates.
-        dtype='int64', shape=(det(supercell_matrxi), 3)
+        Lattice points of the primitive cell, one from each class modulo the
+        lattice of the supercell, in the basis vectors of the primitive cell.
+        They are not reduced into the supercell.  See get_lattice_points.
+        dtype='int64', shape=(det(p2s_matrix), 3)
     supercell : PhonopyAtoms
         Supercell.
     symmetry : Symmetry
@@ -592,7 +596,8 @@ class DLocalPotential:
             returns.
             dtype='double', shape=(prod(fft_mesh) * det(p2s_matrix), 3)
         lattice_points : ndarray
-            Lattice points in the supercell, as get_grid_points returns.
+            Lattice points of the primitive cell in the basis vectors of the
+            primitive cell, as get_grid_points returns.
             dtype='int64', shape=(det(p2s_matrix), 3)
 
         Returns
@@ -887,7 +892,9 @@ def get_grid_points(
         dtype='double'
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
-        Lattice points in supercell in primitive cell coordinates
+        Lattice points of the primitive cell, one from each class modulo the
+        lattice of the supercell, in the basis vectors of the primitive cell.
+        They are not reduced into the supercell.  See get_lattice_points.
         dtype='int64'
         shape=(det(p2s_matrix), 3)
 

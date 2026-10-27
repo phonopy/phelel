@@ -5,7 +5,38 @@ from phonors import snf3x3
 
 
 def get_lattice_points(p2s_matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return lattice points and D (diagonal elements) of SNF."""
+    """Return the lattice points of the primitive cell modulo the supercell.
+
+    The basis vectors of the primitive cell A^p and those of the supercell
+    A^s are related by A^s = A^p M (basis vectors as columns, M =
+    p2s_matrix).  A lattice point is given by the integer vector l of its
+    coordinates with respect to the basis vectors of the primitive cell, at
+    A^p l in Cartesian coordinates.  l and l + M t (t an integer vector)
+    differ by a lattice vector of the supercell, and one l is returned from
+    each such class, D = |det M| of them.
+
+    With the Smith normal form P M Q = diag(d), the l are P^-1 n for the
+    integer vectors n with 0 <= n_k < d_k, in the order of np.ndindex(d)
+    (n_3 runs fastest).  The l are not reduced into the supercell: their
+    coordinates M^-1 l with respect to the basis vectors of the supercell
+    can be outside [0, 1).
+
+    Parameters
+    ----------
+    p2s_matrix : ndarray
+        Integer matrix M with A^s = A^p M.
+        dtype='int64', shape=(3, 3)
+
+    Returns
+    -------
+    lattice_points : ndarray
+        l in the basis vectors of the primitive cell.
+        dtype='int64', shape=(D, 3)
+    multi : ndarray
+        Diagonal elements d of the Smith normal form, with prod(d) = D.
+        dtype='int64', shape=(3,)
+
+    """
     multi, P, _ = snf3x3(np.array(p2s_matrix, dtype="int64"))
     P_inv = np.rint(np.linalg.inv(P)).astype(int)
     lattice_points = np.array(
