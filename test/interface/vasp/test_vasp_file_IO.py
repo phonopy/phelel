@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from phelel.interface.vasp.file_IO import (
+    get_CHGCAR,
     read_inwap_yaml,
     read_local_potential_vaspouth5,
     read_PAW_Dij_qij,
@@ -112,3 +113,45 @@ def test_read_local_potential_vaspouth5_version(
         v, vx, vy, vz = pot
         expected = np.array([v + vz, vx - 1j * vy, vx + 1j * vy, v - vz])
     np.testing.assert_allclose(read_local_potential_vaspouth5(filename), expected)
+
+
+def _get_CHGCAR_by_loop(charge: np.ndarray, header: str) -> str:
+    """Return the text of get_CHGCAR by the loop over the points one by one."""
+    text = header + "\n%5d%5d%5d\n" % charge.shape[::-1]
+    count = 0
+    for z in range(charge.shape[0]):
+        for y in range(charge.shape[1]):
+            for x in range(charge.shape[2]):
+                text += " %17.11e" % charge[z, y, x]
+                count += 1
+                if (count % 5) == 0:
+                    count = 0
+                    text += "\n"
+    return text
+
+
+@pytest.mark.parametrize("shape", [(2, 3, 5), (3, 2, 7), (1, 1, 4)])
+def test_get_CHGCAR_equals_loop(shape: tuple[int, int, int]):
+    """get_CHGCAR gives the same text as the loop over the points.
+
+    The number of values is a multiple of five for (2, 3, 5), where the text
+    ends with a newline, and not for the others.  The values have both signs
+    and exponents of two and three digits.
+
+    """
+    rng = np.random.default_rng(0)
+    charge = rng.standard_normal(shape) * 10.0 ** rng.integers(-120, 120, shape)
+    header = "header\n1.0"
+    assert get_CHGCAR(charge, header) == _get_CHGCAR_by_loop(charge, header)
+
+
+def test_get_CHGCAR_text():
+    """Values are written five in a line with x running fastest."""
+    charge = np.arange(6, dtype="double").reshape(1, 2, 3) - 2.5
+    expected = (
+        "H\n    3    2    1\n"
+        " -2.50000000000e+00 -1.50000000000e+00 -5.00000000000e-01"
+        " 5.00000000000e-01 1.50000000000e+00\n"
+        " 2.50000000000e+00"
+    )
+    assert get_CHGCAR(charge, "H") == expected

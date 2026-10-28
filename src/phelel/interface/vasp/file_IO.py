@@ -245,18 +245,23 @@ def read_local_potential(
 def get_CHGCAR(charge: NDArray, header: str) -> str:
     """Return CHGCAR style text from ndarray.
 
-    Each value is preceded by a space, so that a negative value is separated
-    from the value before it.
+    The values are written five in a line in the order of charge[z, y, x] with
+    x running fastest.  Each value is preceded by a space, so that a negative
+    value is separated from the value before it.  The last line ends with a
+    newline only when it has five values.
+
+    Parameters
+    ----------
+    charge : ndarray
+        Values on the mesh.
+        dtype='double', shape=(nz, ny, nx)
+    header : str
+        Lines written before the mesh, without the last newline.
 
     """
+    values = charge.ravel().tolist()
+    num_lines, num_rest = divmod(len(values), 5)
     text = header + "\n%5d%5d%5d\n" % charge.shape[::-1]
-    count = 0
-    for z in range(charge.shape[0]):
-        for y in range(charge.shape[1]):
-            for x in range(charge.shape[2]):
-                text += " %17.11e" % charge[z, y, x]
-                count += 1
-                if (count % 5) == 0:
-                    count = 0
-                    text += "\n"
+    text += ((" %17.11e" * 5 + "\n") * num_lines) % tuple(values[: num_lines * 5])
+    text += (" %17.11e" * num_rest) % tuple(values[num_lines * 5 :])
     return text
