@@ -191,10 +191,16 @@ def test_phelel_unit_conversion_factor_and_dynamical_matrix(
 
 @pytest.mark.parametrize(
     "nufft,is_error",
-    [(None, False), ("finufft", False), ("native", False), ("nfft", True)],
+    [
+        (None, False),
+        ("finufft", False),
+        ("native", False),
+        ("native-box", False),
+        ("nfft", True),
+    ],
 )
 def test_phelel_nufft(nufft: str | None, is_error: bool):
-    """Only "finufft", "native" and None are accepted for nufft."""
+    """Only "finufft", "native", "native-box" and None are accepted for nufft."""
     unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
 
     def _phelel():
@@ -212,9 +218,11 @@ def test_phelel_nufft(nufft: str | None, is_error: bool):
         _phelel()
 
 
-@pytest.mark.parametrize("nufft,is_error", [(None, False), ("native", True)])
+@pytest.mark.parametrize(
+    "nufft,is_error", [(None, False), ("native", True), ("native-box", True)]
+)
 def test_phelel_finufft_eps_with_nufft(nufft: str | None, is_error: bool):
-    """finufft_eps is an error with nufft="native"."""
+    """finufft_eps is an error with nufft="native" and "native-box"."""
     unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
 
     def _phelel():

@@ -94,7 +94,7 @@ class Phelel:
         symprec: float = 1e-5,
         is_symmetry: bool = True,
         calculator: str | None = None,
-        nufft: Literal["finufft", "native"] | None = None,
+        nufft: Literal["finufft", "native", "native-box"] | None = None,
         finufft_eps: float | None = None,
         log_level: int = 0,
         site_mixture_scheme: Literal["merge", "split"] = "merge",
@@ -136,14 +136,19 @@ class Phelel:
             Phonopy and gives the physical units, also those written by
             to_phelel_yaml. None gives the same units as "vasp". Default is
             None.
-        nufft : {"finufft", "native"} or None, optional
+        nufft : {"finufft", "native", "native-box"} or None, optional
             Method to evaluate the Fourier series of the change of the local
             potential at the grid points.  "finufft" uses finufft with
-            finufft_eps.  "native" evaluates the series exactly with NumPy.
-            None is "finufft".  Default is None.
+            finufft_eps.  "native" and "native-box" evaluate the series with
+            NumPy without the approximation of NUFFT.  "native" keeps the
+            symmetry and the reality of the potential between the points of
+            the FFT mesh of the supercell, and "native-box" gives the series of
+            finufft.  See LocalPotentialInterpolationNUFFT.  None is "finufft".
+            Default is None.
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
-            corresponds to 1e-6.  It is an error with nufft="native".
+            corresponds to 1e-6.  It is an error with nufft="native" or
+            "native-box".
         log_level : int, optional
             Log level. 0 is most quiet. Default is 0.
         site_mixture_scheme : Literal["merge", "split"], optional
@@ -157,13 +162,14 @@ class Phelel:
         self._symprec = symprec
         self._is_symmetry = is_symmetry
         self._calculator = calculator
-        if nufft not in (None, "finufft", "native"):
+        if nufft not in (None, "finufft", "native", "native-box"):
             raise ValueError(
-                f'nufft has to be "finufft", "native" or None, not "{nufft}".'
+                'nufft has to be "finufft", "native", "native-box" or None, '
+                f'not "{nufft}".'
             )
-        if nufft == "native" and finufft_eps is not None:
-            raise ValueError('finufft_eps cannot be given with nufft="native".')
-        self._nufft: Literal["finufft", "native"] = (
+        if nufft in ("native", "native-box") and finufft_eps is not None:
+            raise ValueError(f'finufft_eps cannot be given with nufft="{nufft}".')
+        self._nufft: Literal["finufft", "native", "native-box"] = (
             "finufft" if nufft is None else nufft
         )
         self._finufft_eps = finufft_eps

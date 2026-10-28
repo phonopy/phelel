@@ -4,11 +4,14 @@
 
 ## Unreleased
 
-- `--nufft native` of `phelel` and `velph phelel differentiate`, `NUFFT = native`
-  in the configuration file of `phelel`, and `nufft="native"` of `Phelel` and
-  `phelel.load()` evaluate the change of the local potential at the grid points
-  by FFTs with NumPy, without the approximation of finufft. The default is
-  finufft, as before. See {ref}`phelel_nufft_option`.
+- `--nufft` of `phelel` and `velph phelel differentiate`, `NUFFT` in the
+  configuration file of `phelel`, and `nufft` of `Phelel` and `phelel.load()`
+  choose how the change of the local potential is evaluated at the grid points:
+  `finufft` (the default, as before), `native` or `native-box`. `native` and
+  `native-box` use FFTs with NumPy, without the approximation of finufft.
+  `native` keeps the symmetry of the crystal and the reality of the potential
+  between the points of the FFT mesh of the supercell, and `native-box` gives
+  the series that finufft evaluates. See {ref}`phelel_nufft_option`.
 
 ## Oct-26-2026: Version 0.17.0
 

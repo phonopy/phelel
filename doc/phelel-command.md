@@ -202,13 +202,31 @@ of the electron-phonon calculation and gives it to phelel.
 
 VASP gives the change of the local potential on the FFT mesh of the supercell,
 and phelel evaluates its Fourier series at the points of the mesh given by
-`--fft-mesh` and at these points moved by the symmetry operations.
-`--nufft finufft`, the default, evaluates the series by
-[finufft](https://finufft.readthedocs.io/) to the accuracy given by
-`--finufft-eps` (1e-6 by default). `--nufft native` evaluates it by FFTs with
-NumPy, without the approximation of finufft, and `--finufft-eps` cannot be given
-with it. The derivatives of the two differ by the error of finufft. By default,
-finufft runs on all the CPU cores, and `--nufft native` runs on one core.
+`--fft-mesh` and at these points moved by the symmetry operations. `--nufft`
+chooses how the series is evaluated.
+
+| `--nufft`           | Evaluation                                                                  | Reciprocal lattice vectors |
+| ------------------- | --------------------------------------------------------------------------- | -------------------------- |
+| `finufft` (default) | [finufft](https://finufft.readthedocs.io/) to the accuracy of `--finufft-eps` (1e-6 by default) | box                        |
+| `native`            | FFTs with NumPy, without the approximation of finufft                       | shortest                   |
+| `native-box`        | FFTs with NumPy, without the approximation of finufft                       | box                        |
+
+The Fourier coefficients of the FFT mesh of the supercell are periodic in the
+reciprocal lattice vectors, with the period of the mesh. Each coefficient is
+given to one of the vectors equal to each other modulo this period, and the
+choice changes the series between the points of the mesh. "Shortest" gives it
+to the shortest vectors, divided equally among those of the same length, so
+that the series keeps the symmetry of the crystal and is real (Hermitian with
+non-collinear spin). "Box" gives it to the vectors in a box, which for an even
+mesh number N contains +N/2 but not -N/2, and the series does not keep them.
+When the points given by `--fft-mesh` are on the FFT mesh of the supercell, the
+choice does not change the derivatives. Otherwise those of `native` differ from
+those of the others, by about 1e-5 relative in the examples tested.
+
+The derivatives of `native-box` and `finufft` differ by the error of finufft.
+`--finufft-eps` cannot be given with `native` or `native-box`. By default,
+finufft runs on all the CPU cores, and `native` and `native-box` run on one
+core.
 
 In a configuration file, `NUFFT = native` is the same as `--nufft native`.
 

@@ -202,12 +202,14 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--nufft",
         dest="nufft",
-        choices=["finufft", "native"],
+        choices=["finufft", "native", "native-box"],
         default=None,
         help=(
             "Method to evaluate the change of the local potential at the grid "
-            'points: "finufft" (default) or "native" (FFT without the '
-            "approximation of NUFFT)"
+            'points: "finufft" (default), "native" (FFT without the '
+            "approximation of NUFFT, keeping the symmetry and the reality of the "
+            "potential between the FFT mesh points of the supercell) or "
+            '"native-box" (FFT giving the series of finufft)'
         ),
     )
     parser.add_argument(
