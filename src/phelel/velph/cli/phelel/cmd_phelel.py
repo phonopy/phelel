@@ -10,6 +10,7 @@ import click
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
+from phelel.velph.cli.phelel.dump_dvdu import dump_dvdu
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.supercells import write_supercell_input_files
@@ -143,6 +144,36 @@ def cmd_differentiate(
     hdf5_filename.parent.mkdir(parents=True, exist_ok=True)
     phe.save_hdf5(filename=hdf5_filename)
     click.echo(f'"{hdf5_filename}" was written.')
+
+
+#
+# velph phelel dump-dvdu
+#
+@cmd_phelel.command("dump-dvdu")
+@click.option(
+    "--atom",
+    "atom_numbers",
+    type=int,
+    multiple=True,
+    help=(
+        "Number of an atom in the supercell, counted from 1, whose dV/du is "
+        "written.  It can be given more than once.  Default is all the atoms of "
+        "dV/du, those of the primitive cell in the supercell."
+    ),
+)
+@click.help_option("-h", "--help")
+def cmd_dump_dvdu(atom_numbers: tuple[int, ...]) -> None:
+    """Write dV/du of phelel_params.hdf5 in LOCPOT-like files.
+
+    For each atom, phelel/locpot_viz-{atom}-{x,y,z}.dat has dV/du of the
+    potential part v.  With spin, the magnetic parts are written in
+    phelel/locpot_viz-{atom}-{x,y,z}-vz.dat (collinear) or
+    phelel/locpot_viz-{atom}-{x,y,z}-{vx,vy,vz}.dat (non-collinear).  The
+    local potential is (v + v_z, v - v_z) for spin up and down, or the 2x2
+    matrix v + v_x sigma_x + v_y sigma_y + v_z sigma_z.
+
+    """
+    dump_dvdu(atom_numbers)
 
 
 #
