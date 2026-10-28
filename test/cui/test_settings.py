@@ -19,7 +19,7 @@ def test_finufft_eps_from_conf_file(tmp_path: pathlib.Path):
     assert settings.finufft_eps == 1e-8
 
 
-@pytest.mark.parametrize("value", ["native", "NATIVE", "finufft"])
+@pytest.mark.parametrize("value", ["native", "NATIVE", "native-box", "finufft"])
 def test_nufft_from_conf_file(tmp_path: pathlib.Path, value: str):
     """NUFFT in a configuration file is read in lower case."""
     filename = tmp_path / "phelel.conf"
@@ -39,26 +39,27 @@ def test_nufft_from_args():
 def test_nufft_from_conf_file_with_wrong_value(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture
 ):
-    """A value other than finufft and native stops with a message."""
+    """A value other than finufft, native and native-box stops with a message."""
     filename = tmp_path / "phelel.conf"
     filename.write_text("NUFFT = nfft\n", encoding="utf-8")
     with pytest.raises(SystemExit):
         PhelelConfParser(filename=filename)
     out = capsys.readouterr().out
     assert out == (
-        'nufft has to be "finufft" or "native", not "nfft".\n'
+        'nufft has to be "finufft", "native" or "native-box", not "nfft".\n'
         "Please check the setting tags and options.\n"
     )
 
 
-def test_finufft_eps_with_native_nufft(capsys: pytest.CaptureFixture):
-    """--finufft-eps with --nufft native stops with a message."""
-    args = get_parser("run").parse_args(["--nufft", "native", "--finufft-eps", "1e-8"])
+@pytest.mark.parametrize("nufft", ["native", "native-box"])
+def test_finufft_eps_with_native_nufft(nufft: str, capsys: pytest.CaptureFixture):
+    """--finufft-eps with --nufft native or native-box stops with a message."""
+    args = get_parser("run").parse_args(["--nufft", nufft, "--finufft-eps", "1e-8"])
     with pytest.raises(SystemExit):
         PhelelConfParser(args=args)
     out = capsys.readouterr().out
     assert out == (
-        "FINUFFT_EPS (--finufft-eps) cannot be given with NUFFT = native "
-        "(--nufft native).\n"
+        f"FINUFFT_EPS (--finufft-eps) cannot be given with NUFFT = {nufft} "
+        f"(--nufft {nufft}).\n"
         "Please check the setting tags and options.\n"
     )

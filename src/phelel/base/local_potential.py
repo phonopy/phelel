@@ -155,7 +155,7 @@ class LocalPotentialInterpolationNUFFT:
         symmetry: Symmetry,
         atom_indices: NDArray | None = None,
         finufft_eps: float | None = None,
-        nufft: Literal["finufft", "native"] = "finufft",
+        nufft: Literal["finufft", "native", "native-box"] = "finufft",
         verbose: bool = True,
     ):
         """Init method.
@@ -181,11 +181,16 @@ class LocalPotentialInterpolationNUFFT:
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
             corresponds to 1e-6.
-        nufft : {"finufft", "native"}, optional
+        nufft : {"finufft", "native", "native-box"}, optional
             Method to evaluate the Fourier series of dV at the grid points.
-            "finufft" uses finufft with finufft_eps.  "native" evaluates the
-            series exactly by FourierSeriesOnGrid, and finufft_eps is not used.
-            Default is "finufft".
+            "finufft" uses finufft with finufft_eps.  "native" and "native-box"
+            evaluate the series by FourierSeriesOnGrid without the approximation
+            of NUFFT, and finufft_eps is not used.  They differ in the g chosen
+            from each g + N^s n (see phelel.base.fourier_series), which changes
+            the values between the points of the FFT mesh of the supercell.
+            "native" takes the shortest reciprocal lattice vectors, which keeps
+            the symmetry and the reality of dV there.  "native-box" takes the
+            box used with finufft.  Default is "finufft".
         verbose : bool, optional
             To display log or not
 
@@ -213,6 +218,13 @@ class LocalPotentialInterpolationNUFFT:
         assert 3 == self._grid_points.shape[1]
         self._fourier_series: FourierSeriesOnGrid | None = None
         if nufft == "native":
+            self._fourier_series = FourierSeriesOnGrid(
+                fft_mesh,
+                self._p2s_matrix,
+                representatives="shortest",
+                supercell_lattice=supercell.cell,
+            )
+        elif nufft == "native-box":
             self._fourier_series = FourierSeriesOnGrid(fft_mesh, self._p2s_matrix)
 
         self._dVdu: NDArray | None = None
@@ -333,7 +345,9 @@ class LocalPotentialInterpolationNUFFT:
             if self._fourier_series is None:
                 print("Running finufft (eps=%.3e)..." % self._finufft_eps)
             else:
-                print("Evaluating Fourier series of dV at grid points (native)...")
+                print(
+                    f"Evaluating Fourier series of dV at grid points ({self._nufft})..."
+                )
 
         ncdij = delta_Vs[0].dV.shape[0]
         dVdu = np.zeros(
@@ -371,8 +385,8 @@ class LocalPotentialInterpolationNUFFT:
         """Rotate dV by rotating coordinates of delta potential passively.
 
         With finufft, the grid points are rotated instead of delta potential.
-        With nufft="native", the Fourier coefficients are relabeled by
-        FourierSeriesOnGrid.
+        With nufft="native" or "native-box", the Fourier coefficients are
+        relabeled by FourierSeriesOnGrid.
 
         Parameters
         ----------
@@ -415,8 +429,8 @@ class LocalPotentialInterpolationNUFFT:
         Returns
         -------
         ndarray
-            get_fourier_coefficients(dV) with nufft="native", otherwise
-            _get_iFFT_of_dV(dV).
+            get_fourier_coefficients(dV) with nufft="native" or "native-box",
+            otherwise _get_iFFT_of_dV(dV).
             dtype='complex128', shape=dV.shape
 
         """
@@ -566,7 +580,7 @@ class DLocalPotential:
         symmetry: Symmetry | None = None,
         atom_indices: NDArray | None = None,
         finufft_eps: float | None = None,
-        nufft: Literal["finufft", "native"] = "finufft",
+        nufft: Literal["finufft", "native", "native-box"] = "finufft",
         verbose: bool = True,
     ):
         """Init method.
@@ -591,7 +605,7 @@ class DLocalPotential:
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
             corresponds to 1e-6.
-        nufft : {"finufft", "native"}, optional
+        nufft : {"finufft", "native", "native-box"}, optional
             Method to evaluate the Fourier series of dV at the grid points.  See
             LocalPotentialInterpolationNUFFT.  Default is "finufft".
         verbose : bool
@@ -612,7 +626,7 @@ class DLocalPotential:
         else:
             self._symmetry = symmetry
         self._finufft_eps: float | None = finufft_eps
-        self._nufft: Literal["finufft", "native"] = nufft
+        self._nufft: Literal["finufft", "native", "native-box"] = nufft
         self._lattice_points: NDArray | None = None
         self._grid_points: NDArray | None = None
         self._dVdu: NDArray | None = None  # self.dVdu is provided by @property.

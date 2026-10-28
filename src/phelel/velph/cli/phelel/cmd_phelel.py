@@ -93,11 +93,14 @@ def cmd_generate(toml_filename: str):
 )
 @click.option(
     "--nufft",
-    type=click.Choice(["finufft", "native"]),
+    type=click.Choice(["finufft", "native", "native-box"]),
     default=None,
     help=(
         "Method to evaluate the change of the local potential at the grid points: "
-        '"finufft" (default) or "native" (FFT without the approximation of NUFFT).'
+        '"finufft" (default), "native" (FFT without the approximation of NUFFT, '
+        "keeping the symmetry and the reality of the potential between the FFT "
+        'mesh points of the supercell) or "native-box" (FFT giving the series of '
+        "finufft)."
     ),
 )
 @click.option(
@@ -111,7 +114,7 @@ def cmd_generate(toml_filename: str):
 def cmd_differentiate(
     toml_filename: str,
     encut: float | None,
-    nufft: Literal["finufft", "native"] | None,
+    nufft: Literal["finufft", "native", "native-box"] | None,
     verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5.

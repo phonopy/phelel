@@ -283,9 +283,9 @@ cell for `encut` and `prec` in the INCAR tags of the electron-phonon input sets
 (`selfenergy` and `transport`). These input sets have to give the same mesh,
 because VASP stops when its FFT grid differs from the mesh in
 `phelel_params.hdf5`. `--encut` gives ENCUT in place of `encut` of these input
-sets. `--nufft native` evaluates the change of the local potential by FFTs in
-place of finufft (see {ref}`phelel_nufft_option`), and `NUFFT: native.` is
-printed after the FFT mesh.
+sets. `--nufft native` and `--nufft native-box` evaluate the change of the
+local potential by FFTs in place of finufft (see {ref}`phelel_nufft_option`),
+and `NUFFT: native.` or `NUFFT: native-box.` is printed after the FFT mesh.
 
 ```bash
 % velph phelel differentiate

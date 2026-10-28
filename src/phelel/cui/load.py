@@ -43,7 +43,7 @@ def load(
     subtract_rfs: bool = True,
     symprec: float = 1e-5,
     is_symmetry: bool = True,
-    nufft: Literal["finufft", "native"] | None = None,
+    nufft: Literal["finufft", "native", "native-box"] | None = None,
     log_level: int = 0,
 ) -> Phelel:
     """Loader function.
@@ -108,7 +108,7 @@ def load(
         is 1e-5.
     is_symmetry : bool, optional
         Use crystal symmetry or not. Default is True.
-    nufft : {"finufft", "native"} or None, optional
+    nufft : {"finufft", "native", "native-box"} or None, optional
         Method to evaluate the Fourier series of the change of the local
         potential at the grid points.  See Phelel.  Default is None, which is
         "finufft".

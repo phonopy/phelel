@@ -381,18 +381,19 @@ def test_differentiate_with_nufft(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """With --nufft native, "NUFFT: native." is printed and dVdu changes slightly.
+    """With --nufft, "NUFFT: <value>." is printed and dVdu changes slightly.
 
     Without --nufft, nothing about NUFFT is printed, so that the outputs shown in
-    the documentation stay the same.  dVdu with "native" differs from that with
-    finufft by the error of finufft, which shows that the option reaches the
-    calculation.
+    the documentation stay the same.  dVdu with "native-box" differs from that
+    with finufft by the error of finufft.  dVdu with "native" differs also by the
+    choice of g between the points of the FFT mesh of the supercell.  The
+    differences show that the option reaches the calculation.
 
     """
     data = nacl_velph_toml()
     dVdu = {}
-    for option in ([], ["--nufft", "native"]):
-        work_dir = tmp_path / ("native" if option else "default")
+    for nufft in (None, "native-box", "native"):
+        work_dir = tmp_path / (nufft or "default")
         work_dir.mkdir()
         (work_dir / "velph.toml").write_text(tomli_w.dumps(data))
         shutil.copytree(cwd / "C111" / "phelel", work_dir / "phelel")
@@ -401,18 +402,22 @@ def test_differentiate_with_nufft(
             work_dir / "phelel" / "phelel_disp.yaml",
         )
         monkeypatch.chdir(work_dir)
+        option = [] if nufft is None else ["--nufft", nufft]
         result = CliRunner().invoke(cmd_root, ["phelel", "differentiate", *option])
         assert result.exit_code == 0, result.output
-        if option:
-            assert "NUFFT: native.\n" in result.output
-        else:
+        if nufft is None:
             assert "NUFFT" not in result.output
+        else:
+            assert f"NUFFT: {nufft}.\n" in result.output
         with h5py.File(work_dir / "phelel" / "phelel_params.hdf5") as f:
-            dVdu[bool(option)] = f["dVdu"][:]
-    assert not np.array_equal(dVdu[True], dVdu[False])
+            dVdu[nufft] = f["dVdu"][:]
+    scale = np.abs(dVdu[None]).max()
+    assert not np.array_equal(dVdu["native-box"], dVdu[None])
     np.testing.assert_allclose(
-        dVdu[True], dVdu[False], rtol=0, atol=1e-6 * np.abs(dVdu[False]).max()
+        dVdu["native-box"], dVdu[None], rtol=0, atol=1e-6 * scale
     )
+    assert np.abs(dVdu["native"] - dVdu["native-box"]).max() > 1e-6 * scale
+    np.testing.assert_allclose(dVdu["native"], dVdu[None], rtol=0, atol=1e-4 * scale)
 
 
 def test_differentiate_without_supercell_directory(

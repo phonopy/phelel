@@ -107,21 +107,23 @@ class PhelelConfParser(ConfParser):
 
             if conf_key == "nufft":
                 nufft = confs["nufft"].strip().lower()
-                if nufft in ("finufft", "native"):
+                if nufft in ("finufft", "native", "native-box"):
                     self._set_parameter("nufft", nufft)
                 else:
                     self.setting_error(
-                        f'nufft has to be "finufft" or "native", not "{nufft}".'
+                        'nufft has to be "finufft", "native" or "native-box", '
+                        f'not "{nufft}".'
                     )
 
             if conf_key == "subtract_rfs":
                 if confs["subtract_rfs"] == ".true.":
                     self._set_parameter("subtract_rfs", True)
 
-        if self._parameters.get("nufft") == "native" and "finufft_eps" in confs:
+        nufft = self._parameters.get("nufft")
+        if nufft in ("native", "native-box") and "finufft_eps" in confs:
             self.setting_error(
-                "FINUFFT_EPS (--finufft-eps) cannot be given with NUFFT = native "
-                "(--nufft native)."
+                f"FINUFFT_EPS (--finufft-eps) cannot be given with NUFFT = {nufft} "
+                f"(--nufft {nufft})."
             )
 
     def _set_settings(self, settings: PhelelSettings):
