@@ -197,6 +197,21 @@ of the local potentials are written in `phelel_params.hdf5`. Give the FFT mesh
 calculation. `velph phelel differentiate` computes this mesh from ENCUT and PREC
 of the electron-phonon calculation and gives it to phelel.
 
+(phelel_nufft_option)=
+### `--nufft`
+
+VASP gives the change of the local potential on the FFT mesh of the supercell,
+and phelel evaluates its Fourier series at the points of the mesh given by
+`--fft-mesh` and at these points moved by the symmetry operations.
+`--nufft finufft`, the default, evaluates the series by
+[finufft](https://finufft.readthedocs.io/) to the accuracy given by
+`--finufft-eps` (1e-6 by default). `--nufft native` evaluates it by FFTs with
+NumPy, without the approximation of finufft, and `--finufft-eps` cannot be given
+with it. The derivatives of the two differ by the error of finufft. By default,
+finufft runs on all the CPU cores, and `--nufft native` runs on one core.
+
+In a configuration file, `NUFFT = native` is the same as `--nufft native`.
+
 ### `--config`
 
 The settings are read from the configuration file given by `--config`, e.g.,

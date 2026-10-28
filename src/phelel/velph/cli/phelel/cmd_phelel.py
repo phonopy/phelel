@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Literal
 
 import click
 
@@ -90,6 +91,15 @@ def cmd_generate(toml_filename: str):
     ),
 )
 @click.option(
+    "--nufft",
+    type=click.Choice(["finufft", "native"]),
+    default=None,
+    help=(
+        "Method to evaluate the change of the local potential at the grid points: "
+        '"finufft" (default) or "native" (FFT without the approximation of NUFFT).'
+    ),
+)
+@click.option(
     "-v",
     "verbose",
     is_flag=True,
@@ -100,6 +110,7 @@ def cmd_generate(toml_filename: str):
 def cmd_differentiate(
     toml_filename: str,
     encut: float | None,
+    nufft: Literal["finufft", "native"] | None,
     verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5.
@@ -119,12 +130,14 @@ def cmd_differentiate(
             'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
         )
 
-    phe = phelel.load(yaml_filename, is_symmetry=is_symmetry)
+    phe = phelel.load(yaml_filename, is_symmetry=is_symmetry, nufft=nufft)
     phe.fft_mesh = get_fft_mesh(project, phe.primitive.cell, encut=encut)
     if encut is None:
         click.echo(f"FFT mesh: {phe.fft_mesh}.")
     else:
         click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
+    if nufft is not None:
+        click.echo(f"NUFFT: {nufft}.")
 
     run_derivatives(phe, project_dir=project_dir, verbose=verbose)
     hdf5_filename.parent.mkdir(parents=True, exist_ok=True)

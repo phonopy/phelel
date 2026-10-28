@@ -18,6 +18,7 @@ class PhelelSettings(Settings):
         self.create_derivatives = None
         self.fft_mesh_numbers = None
         self.finufft_eps = None
+        self.nufft = None
         self.phonon_supercell_matrix = None
         self.subtract_rfs = False
 
@@ -52,6 +53,9 @@ class PhelelConfParser(ConfParser):
         if "finufft_eps" in args:
             if args.finufft_eps is not None:
                 self._confs["finufft_eps"] = args.finufft_eps
+        if "nufft" in args:
+            if args.nufft is not None:
+                self._confs["nufft"] = args.nufft
         if "phonon_supercell_dimension" in args:
             dim_phonon = args.phonon_supercell_dimension
             if dim_phonon is not None:
@@ -101,9 +105,24 @@ class PhelelConfParser(ConfParser):
             if conf_key == "finufft_eps":
                 self._set_parameter("finufft_eps", float(confs["finufft_eps"]))
 
+            if conf_key == "nufft":
+                nufft = confs["nufft"].strip().lower()
+                if nufft in ("finufft", "native"):
+                    self._set_parameter("nufft", nufft)
+                else:
+                    self.setting_error(
+                        f'nufft has to be "finufft" or "native", not "{nufft}".'
+                    )
+
             if conf_key == "subtract_rfs":
                 if confs["subtract_rfs"] == ".true.":
                     self._set_parameter("subtract_rfs", True)
+
+        if self._parameters.get("nufft") == "native" and "finufft_eps" in confs:
+            self.setting_error(
+                "FINUFFT_EPS (--finufft-eps) cannot be given with NUFFT = native "
+                "(--nufft native)."
+            )
 
     def _set_settings(self, settings: PhelelSettings):
         super()._set_settings(settings)
@@ -123,6 +142,9 @@ class PhelelConfParser(ConfParser):
         if "finufft_eps" in params:
             if params["finufft_eps"]:
                 settings.finufft_eps = params["finufft_eps"]
+
+        if "nufft" in params:
+            settings.nufft = params["nufft"]
 
         if "subtract_rfs" in params:
             if params["subtract_rfs"]:
