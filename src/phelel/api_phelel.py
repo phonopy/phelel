@@ -94,7 +94,7 @@ class Phelel:
         symprec: float = 1e-5,
         is_symmetry: bool = True,
         calculator: str | None = None,
-        nufft: str | None = None,
+        nufft: Literal["finufft", "native"] | None = None,
         finufft_eps: float | None = None,
         log_level: int = 0,
         site_mixture_scheme: Literal["merge", "split"] = "merge",
@@ -136,12 +136,14 @@ class Phelel:
             Phonopy and gives the physical units, also those written by
             to_phelel_yaml. None gives the same units as "vasp". Default is
             None.
-        nufft : str or None, optional
-            'finufft' only, which is used also for None.  Other values are an
-            error.  Default is None.
+        nufft : {"finufft", "native"} or None, optional
+            Method to evaluate the Fourier series of the change of the local
+            potential at the grid points.  "finufft" uses finufft with
+            finufft_eps.  "native" evaluates the series exactly with NumPy.
+            None is "finufft".  Default is None.
         finufft_eps : float or None, optional
             Accuracy of finufft interpolation. Default is None, which
-            corresponds to 1e-6.
+            corresponds to 1e-6.  It is an error with nufft="native".
         log_level : int, optional
             Log level. 0 is most quiet. Default is 0.
         site_mixture_scheme : Literal["merge", "split"], optional
@@ -155,8 +157,15 @@ class Phelel:
         self._symprec = symprec
         self._is_symmetry = is_symmetry
         self._calculator = calculator
-        if nufft not in (None, "finufft"):
-            raise ValueError(f'nufft has to be "finufft" or None, not "{nufft}".')
+        if nufft not in (None, "finufft", "native"):
+            raise ValueError(
+                f'nufft has to be "finufft", "native" or None, not "{nufft}".'
+            )
+        if nufft == "native" and finufft_eps is not None:
+            raise ValueError('finufft_eps cannot be given with nufft="native".')
+        self._nufft: Literal["finufft", "native"] = (
+            "finufft" if nufft is None else nufft
+        )
         self._finufft_eps = finufft_eps
         self._log_level = log_level
 
@@ -666,6 +675,7 @@ class Phelel:
             symmetry=self.symmetry,
             atom_indices=self._phelel_phonon.primitive.p2s_map,
             finufft_eps=self._finufft_eps,
+            nufft=self._nufft,
             verbose=self._log_level > 0,
         )
         dlp.run(potentials[0], potentials[1:], self._get_first_atoms())

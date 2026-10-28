@@ -2,6 +2,14 @@
 
 # Change Log
 
+## Unreleased
+
+- `--nufft native` of `phelel` and `velph phelel differentiate`, `NUFFT = native`
+  in the configuration file of `phelel`, and `nufft="native"` of `Phelel` and
+  `phelel.load()` evaluate the change of the local potential at the grid points
+  by FFTs with NumPy, without the approximation of finufft. The default is
+  finufft, as before. See {ref}`phelel_nufft_option`.
+
 ## Oct-26-2026: Version 0.17.0
 
 - phonopy 4.8.6 or later is required, for the magnetic moments in the form

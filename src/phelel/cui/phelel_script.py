@@ -231,6 +231,7 @@ def main(**argparse_control):
         is_symmetry=settings.is_symmetry,
         calculator=phe_yml.calculator,
         finufft_eps=settings.finufft_eps,
+        nufft=settings.nufft,
     )
     if phonon_supercell_matrix is not None:
         assert phelel.phonon_supercell_matrix is not None
@@ -244,6 +245,7 @@ def main(**argparse_control):
             primitive_matrix,
             phonon_supercell_matrix,
             fft_mesh,
+            settings.nufft,
         )
 
     if phe_yml.dataset is not None:
@@ -380,6 +382,7 @@ def _show_settings(
     primitive_matrix: str | NDArray | None,
     phonon_supercell_matrix: NDArray | None,
     fft_mesh: NDArray | None,
+    nufft: str | None = None,
 ) -> None:
     """Show the crystal structure and the settings."""
     print("")
@@ -406,6 +409,8 @@ def _show_settings(
             print("    %s" % v)
     if fft_mesh is not None:
         print("  FFT mesh: [%d %d %d]" % tuple(fft_mesh))
+    if nufft is not None:
+        print(f"  NUFFT: {nufft}")
     print("Space group type: %s" % phelel.symmetry.get_international_table())
     print("-" * 30 + " primitive cell " + "-" * 30)
     print_cell(phelel.primitive)

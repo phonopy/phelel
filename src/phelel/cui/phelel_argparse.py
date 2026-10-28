@@ -200,6 +200,17 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
         help="Accuracy of finufft interpolation (default=1e-6)",
     )
     parser.add_argument(
+        "--nufft",
+        dest="nufft",
+        choices=["finufft", "native"],
+        default=None,
+        help=(
+            "Method to evaluate the change of the local potential at the grid "
+            'points: "finufft" (default) or "native" (FFT without the '
+            "approximation of NUFFT)"
+        ),
+    )
+    parser.add_argument(
         "--srfs",
         "--subtract-residual-forces",
         dest="subtract_rfs",

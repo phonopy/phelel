@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import copy
 import lzma
+import warnings
 from pathlib import Path
+from typing import Literal
 
 import h5py
 import numpy as np
@@ -402,6 +404,29 @@ def test_create_derivatives_C111_phonon_supercell_without_dataset():
         create_derivatives(phelel, dir_names, subtract_rfs=True)
 
 
+@pytest.mark.parametrize("name", ["C111", "C111-ncl"])
+def test_create_derivatives_C111_native_equals_finufft(name: str):
+    """The native evaluation gives dVdu of finufft with finufft_eps=1e-12.
+
+    The native evaluation is exact, so the difference is the error of finufft.
+    With C111-ncl (ncdij=4), the values are also rotated in spin space after
+    the evaluation.  phelel_disp_C111.yaml has no magnetic moments, and the
+    warning about it is not the subject of this test.
+
+    """
+    dVdu = []
+    for kwargs in ({"nufft": "native"}, {"finufft_eps": 1e-12}):
+        phelel = _get_phelel_C111("phelel_disp_C111.yaml", **kwargs)
+        dir_names = [cwd / f"{name}_disp-000", cwd / f"{name}_disp-001"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", MagneticMomentsWarning)
+            create_derivatives(phelel, dir_names, subtract_rfs=True)
+        assert phelel.dVdu is not None
+        dVdu.append(phelel.dVdu.dVdu)
+    atol = 1e-10 * np.abs(dVdu[1]).max()
+    np.testing.assert_allclose(dVdu[0], dVdu[1], rtol=0, atol=atol)
+
+
 def test_read_files_C111_ncl():
     """Test reading files with non-collinear case of C-1x1x1."""
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
@@ -486,8 +511,9 @@ def test_run_derivatives_without_any_phonon_dataset():
         phelel.run_derivatives(phe_input)
 
 
+@pytest.mark.parametrize("nufft", [None, "native"])
 @pytest.mark.parametrize("name", ["C", "Mg"])
-def test_create_derivatives_vaspout_h5(name: str):
+def test_create_derivatives_vaspout_h5(name: str, nufft: Literal["native"] | None):
     """Derivatives from vaspout.h5 are equal to the reference values.
 
     The data are diamond (conventional cell, 8 atoms) and hcp Mg (2 atoms), with
@@ -495,14 +521,16 @@ def test_create_derivatives_vaspout_h5(name: str):
     derivatives_vaspout/README.md).  The reference dVdu and dDijdu were computed
     by phelel from the same files with fft_mesh stored in reference.hdf5.  qij
     of PAW depends only on the species, and qij of all supercells of these data
-    are equal, so dqijdu is zero.
+    are equal, so dqijdu is zero.  The reference was computed with finufft, and
+    nufft="native" differs from it by the error of finufft.
 
     """
-    _assert_derivatives_equal_to_reference(cwd / "derivatives_vaspout" / name)
+    _assert_derivatives_equal_to_reference(cwd / "derivatives_vaspout" / name, nufft)
 
 
+@pytest.mark.parametrize("nufft", [None, "native"])
 @pytest.mark.parametrize("name", ["Cr", "Fe-ncl"])
-def test_create_derivatives_lwap_files(name: str):
+def test_create_derivatives_lwap_files(name: str, nufft: Literal["native"] | None):
     """Derivatives from the files written with LWAP = .TRUE. are equal to the reference.
 
     The data are bcc Cr, collinear and antiferromagnetic (ncdij=2), and bcc Fe,
@@ -512,13 +540,15 @@ def test_create_derivatives_lwap_files(name: str):
     PAW-STRENGTH.bin and PAW-OVERLAP.bin, and the forces from vaspout.h5.  In
     both, some of the symmetry operations used in the symmetrization are
     combined with time reversal.  dqijdu is zero for the same reason as in
-    test_create_derivatives_vaspout_h5.
+    test_create_derivatives_vaspout_h5, and so is the role of nufft.
 
     """
-    _assert_derivatives_equal_to_reference(cwd / "derivatives_lwap" / name)
+    _assert_derivatives_equal_to_reference(cwd / "derivatives_lwap" / name, nufft)
 
 
-def _assert_derivatives_equal_to_reference(data_dir: Path):
+def _assert_derivatives_equal_to_reference(
+    data_dir: Path, nufft: Literal["native"] | None = None
+):
     """Assert dVdu, dDijdu and dqijdu computed from the files of data_dir.
 
     dVdu and dDijdu are compared with those in reference.hdf5, computed with
@@ -528,7 +558,9 @@ def _assert_derivatives_equal_to_reference(data_dir: Path):
     with h5py.File(data_dir / "reference.hdf5") as f:
         fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
         ref = {key: f[key][()] for key in ("dVdu", "dDijdu")}
-    phe = phelel.load(data_dir / "phelel_disp.yaml", fft_mesh=fft_mesh, is_nac=False)
+    phe = phelel.load(
+        data_dir / "phelel_disp.yaml", fft_mesh=fft_mesh, is_nac=False, nufft=nufft
+    )
     create_derivatives(phe, sorted(data_dir.glob("disp-*")))
     assert phe.dVdu is not None
     for key, value in (("dVdu", phe.dVdu.dVdu), ("dDijdu", phe.dDijdu.dDijdu)):
@@ -538,7 +570,10 @@ def _assert_derivatives_equal_to_reference(data_dir: Path):
 
 
 def _get_phelel_C111(
-    phelel_yaml_filename: str, phonon_supercell_matrix: NDArray | None = None
+    phelel_yaml_filename: str,
+    phonon_supercell_matrix: NDArray | None = None,
+    nufft: Literal["finufft", "native"] | None = None,
+    finufft_eps: float | None = None,
 ) -> Phelel:
     phe_yml = PhelelYaml().read(cwd / phelel_yaml_filename)
     phelel = Phelel(
@@ -547,6 +582,8 @@ def _get_phelel_C111(
         primitive_matrix=phe_yml.primitive_matrix,
         phonon_supercell_matrix=phonon_supercell_matrix,
         fft_mesh=[18, 18, 18],
+        nufft=nufft,
+        finufft_eps=finufft_eps,
         log_level=1,
     )
     phelel.dataset = phe_yml.dataset

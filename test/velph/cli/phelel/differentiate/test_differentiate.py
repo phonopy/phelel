@@ -376,6 +376,45 @@ def test_differentiate_writes_fft_mesh(
         np.testing.assert_array_equal(f["FFT_mesh"][:], expected)
 
 
+def test_differentiate_with_nufft(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """With --nufft native, "NUFFT: native." is printed and dVdu changes slightly.
+
+    Without --nufft, nothing about NUFFT is printed, so that the outputs shown in
+    the documentation stay the same.  dVdu with "native" differs from that with
+    finufft by the error of finufft, which shows that the option reaches the
+    calculation.
+
+    """
+    data = nacl_velph_toml()
+    dVdu = {}
+    for option in ([], ["--nufft", "native"]):
+        work_dir = tmp_path / ("native" if option else "default")
+        work_dir.mkdir()
+        (work_dir / "velph.toml").write_text(tomli_w.dumps(data))
+        shutil.copytree(cwd / "C111" / "phelel", work_dir / "phelel")
+        shutil.copy(
+            cwd / "C111" / "phelel_disp_C111.yaml",
+            work_dir / "phelel" / "phelel_disp.yaml",
+        )
+        monkeypatch.chdir(work_dir)
+        result = CliRunner().invoke(cmd_root, ["phelel", "differentiate", *option])
+        assert result.exit_code == 0, result.output
+        if option:
+            assert "NUFFT: native.\n" in result.output
+        else:
+            assert "NUFFT" not in result.output
+        with h5py.File(work_dir / "phelel" / "phelel_params.hdf5") as f:
+            dVdu[bool(option)] = f["dVdu"][:]
+    assert not np.array_equal(dVdu[True], dVdu[False])
+    np.testing.assert_allclose(
+        dVdu[True], dVdu[False], rtol=0, atol=1e-6 * np.abs(dVdu[False]).max()
+    )
+
+
 def test_differentiate_without_supercell_directory(
     nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
