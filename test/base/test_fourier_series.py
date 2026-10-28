@@ -8,9 +8,10 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+import phelel.base.fourier_series as fourier_series
 from phelel.base.fourier_series import (
     FourierSeriesOnGrid,
-    _get_box,
+    _get_reciprocal_lattice_vectors,
     get_fourier_coefficients,
     get_shortest_representatives,
 )
@@ -268,10 +269,10 @@ def test_shortest_representatives_are_invariant_under_rotations(
     """
     rotations = _get_lattice_symmetries(lattice, shape)
     assert len(rotations) == num_rotations
-    g, _, weight = get_shortest_representatives(shape, lattice)
+    g, _, weight = get_shortest_representatives(shape[::-1], lattice)
     assert (weight < 1).any()
     ref = _sorted_rows(np.c_[g, weight])
-    g_box = _get_box(shape)
+    g_box = _get_reciprocal_lattice_vectors(shape[::-1])
     ref_box = _sorted_rows(g_box)
     is_box_invariant = []
     for W in rotations:
@@ -313,6 +314,195 @@ def test_shortest_equals_box_on_mesh(
         assert diff < 1e-12
     else:
         assert diff > 1e-3
+
+
+# Bases of the orthorhombic and hexagonal lattices multiplied by unimodular
+# matrices, for which the Delaunay reduction changes the basis of the period
+# lattice.
+_skewed_orthorhombic = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]]) @ np.diag(
+    [1.0, 1.3, 1.7]
+)
+_skewed_hexagonal = np.array([[2, 1, 0], [1, 1, 0], [0, 1, 1]]) @ _hexagonal
+# A basis found by a random search, for which skipping the move of g into the
+# centered cell of the reduced basis chooses a longer g.
+_random_skewed = np.array(
+    [
+        [2.532413380062898, -2.573145484891704, 2.923962746453382],
+        [3.5074710879688458, -0.49063708996215505, 0.9912863771012315],
+        [4.243828401469066, -2.4855201785036973, 2.8482581228465507],
+    ]
+)
+# Product of shears that makes a basis strongly skewed.
+_shears = (
+    np.array([[1, 3, 0], [0, 1, 0], [0, 0, 1]])
+    @ np.array([[1, 0, 0], [0, 1, 4], [0, 0, 1]])
+    @ np.array([[1, 0, 0], [0, 1, 0], [3, 2, 1]])
+)
+
+
+def _get_shortest_representatives_by_bound(
+    shape: tuple[int, int, int], lattice: NDArray, tolerance: float = 1e-5
+) -> tuple[NDArray, NDArray, NDArray]:
+    """Return the shortest g + N^s n searched without reducing the basis.
+
+    A candidate y = g + N^s n not longer than the longest |G| of the box has
+    |y_k| <= bound = (longest |G|) / sqrt(lambda_min) with the smallest
+    eigenvalue lambda_min of the metric, so |n_k| <= (bound + N^s_k / 2) / N^s_k.
+    The number of n grows with the skewness of the basis vectors.
+
+    """
+    g_box = _get_reciprocal_lattice_vectors(shape[::-1])
+    mesh = np.array(shape[::-1], dtype="int64")
+    metric = np.linalg.inv(lattice @ lattice.T)
+
+    def get_lengths(g: NDArray) -> NDArray:
+        return np.sqrt(np.einsum("ij,jk,ik->i", g, metric, g))
+
+    shortest = get_lengths(g_box)
+    bound = shortest.max() * (1 + tolerance) / np.sqrt(np.linalg.eigvalsh(metric).min())
+    n_max = ((bound + mesh / 2) // mesh).astype("int64")
+    shifts = np.array(list(itertools.product(*[range(-n, n + 1) for n in n_max])))
+    shifts = shifts * mesh
+    for shift in shifts:
+        shortest = np.minimum(shortest, get_lengths(g_box + shift))
+    chosen_g = []
+    chosen_source = []
+    for shift in shifts:
+        g = g_box + shift
+        is_shortest = get_lengths(g) <= shortest * (1 + tolerance)
+        chosen_g.append(g[is_shortest])
+        chosen_source.append(np.nonzero(is_shortest)[0])
+    g = np.concatenate(chosen_g)
+    source = np.concatenate(chosen_source)
+    multiplicity = np.bincount(source, minlength=len(g_box))
+    return g, source, 1.0 / multiplicity[source]
+
+
+@pytest.mark.parametrize(
+    "shape,lattice",
+    [
+        ((6, 6, 6), _cubic),
+        ((5, 6, 8), np.diag([3.0, 1.0, 1.0])),
+        ((5, 6, 6), _hexagonal),
+        ((5, 6, 4), _skewed_orthorhombic),
+        ((6, 5, 6), _skewed_hexagonal),
+    ],
+)
+def test_shortest_representatives_equal_search_without_reduction(
+    shape: tuple[int, int, int], lattice: NDArray
+):
+    """The shortest g + N^s n equal those searched without the reduced basis.
+
+    The coefficients divided among g of the same length are included.
+
+    """
+    g, source, weight = get_shortest_representatives(shape[::-1], lattice)
+    g_ref, source_ref, weight_ref = _get_shortest_representatives_by_bound(
+        shape, lattice
+    )
+    assert (weight < 1).any()
+    np.testing.assert_array_equal(
+        _sorted_rows(np.c_[source, g, weight]),
+        _sorted_rows(np.c_[source_ref, g_ref, weight_ref]),
+    )
+
+
+@pytest.mark.parametrize("lattice", [_cubic, _hexagonal])
+def test_shortest_representatives_do_not_depend_on_basis(lattice: NDArray):
+    """The shortest G with their weights are the same for a skewed basis.
+
+    With the mesh (n, n, n), the period lattice {N^s n} of g is kept when the
+    basis vectors A of the supercell are replaced by U A with a unimodular U,
+    so the shortest G = g (U A)^-T and their weights are the same.  U is
+    _shears, which makes the basis strongly skewed.
+
+    """
+    shape = (6, 6, 6)
+    G_weight = []
+    for A in (lattice, _shears @ lattice):
+        g, _, weight = get_shortest_representatives(shape[::-1], A)
+        G = g @ np.linalg.inv(A).T
+        G_weight.append(_sorted_rows(np.round(np.c_[G, weight], 8)))
+    assert (G_weight[0][:, 3] < 1).any()
+    np.testing.assert_allclose(G_weight[1], G_weight[0], atol=1e-8)
+
+
+@pytest.mark.parametrize(
+    "shape,lattice",
+    [
+        ((6, 4, 5), _random_skewed),
+        ((6, 5, 4), _shears @ _cubic),
+        ((5, 6, 6), _shears @ _hexagonal),
+    ],
+)
+def test_shortest_representatives_are_closest(
+    shape: tuple[int, int, int], lattice: NDArray
+):
+    """No chosen g becomes shorter by a Voronoi-relevant vector of the period lattice.
+
+    The Voronoi-relevant vectors of a lattice with a Delaunay-reduced basis
+    w_1, w_2, w_3 have coefficients in {-1, 0, 1} (Conway and Sloane, Proc. R.
+    Soc. Lond. A 436, 55 (1992)), and y is the shortest of y + {N^s n} when no
+    relevant vector v makes |G(y - v)| shorter than |G(y)|.  This holds
+    independently of the range of the search.  The bases are strongly skewed,
+    for which the search without the reduction is too slow to compare with.
+
+    """
+    mesh = np.array(shape[::-1])
+    period_lattice = np.diag(mesh) @ np.linalg.inv(lattice).T
+    W = fourier_series._get_reduced_period_basis(period_lattice) @ np.diag(mesh)
+    v = np.array(list(itertools.product((-1, 0, 1), repeat=3))) @ W
+    metric = np.linalg.inv(lattice @ lattice.T)
+    g, _, _ = get_shortest_representatives(shape[::-1], lattice)
+    lengths = np.sqrt(np.einsum("ij,jk,ik->i", g, metric, g))
+    y = g[:, None, :] - v[None, :, :]
+    others = np.sqrt(np.einsum("abj,jk,abk->ab", y, metric, y))
+    assert (others.min(axis=1) >= lengths * (1 - 1e-8)).all()
+
+
+@pytest.mark.parametrize("is_reduced", [True, False])
+def test_shortest_representatives_path_superbase(
+    is_reduced: bool, monkeypatch: pytest.MonkeyPatch
+):
+    """All the closest points are chosen with the superbase of the path type.
+
+    The period lattice {N^s n} is the cubic lattice with the basis
+    w_1 = (-1, 1, 0), w_2 = (1, 0, -1), w_3 = (0, 0, 1) of N^s_k b_k, which with
+    w_0 = (0, -1, 0) is an obtuse superbase of the path type.  G of
+    g = (N/2, 0, N/2) is (w_1 + w_3) / 2 = (-1/2, 1/2, 1/2), the center of a cube
+    of the lattice, so the shortest G are the eight (+-1/2, +-1/2, +-1/2).  One
+    of them is G - w_1 - w_2 - 2 w_3, with the coefficient 2 outside
+    {-1, 0, 1}.  The search is made in this basis when the reduction, which
+    gives an orthogonal basis, is replaced by the identity.
+
+    """
+    if not is_reduced:
+        monkeypatch.setattr(
+            fourier_series,
+            "_get_reduced_period_basis",
+            lambda _: np.eye(3, dtype="int64"),
+        )
+    n = 4
+    shape = (n, n, n)
+    path = np.array([[-1.0, 1.0, 0.0], [1.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
+    reciprocal = path / n
+    lattice = np.linalg.inv(reciprocal).T
+    g, source, weight = get_shortest_representatives(shape[::-1], lattice)
+    i = np.nonzero(
+        (_get_reciprocal_lattice_vectors(shape[::-1]) == [n // 2, 0, n // 2]).all(
+            axis=1
+        )
+    )[0][0]
+    np.testing.assert_array_equal(weight[source == i], 1 / 8)
+    G = g[source == i] @ reciprocal
+    expected = np.array(list(itertools.product([-0.5, 0.5], repeat=3)))
+    np.testing.assert_allclose(_sorted_rows(G), expected, atol=1e-12)
+
+
+def test_shortest_representatives_tolerance_error():
+    """A tolerance that is not positive is an error."""
+    with pytest.raises(ValueError, match="tolerance has to be positive"):
+        get_shortest_representatives([2, 2, 2], _cubic, tolerance=0)
 
 
 def test_representatives_errors():
