@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import textwrap
 from collections.abc import Sequence
 from typing import Literal
@@ -787,35 +788,79 @@ class DLocalPotential:
                 indices.append(np.where(self.atom_indices == ai)[0][0])
             self._dVdu[:, indices, :, :] = lpi.dVdu
 
-    def visualize(self, pcell: PhonopyAtoms, i_atom: int):
-        """Visualize dV/du in x, y, z."""
+    def visualize(
+        self,
+        pcell: PhonopyAtoms,
+        i_atom: int,
+        directory: str | os.PathLike = ".",
+    ) -> list[pathlib.Path]:
+        """Write dV/du of an atom in x, y, z in LOCPOT-like files.
+
+        The parts v, v_x, v_y, v_z of get_potential_and_magnetic_parts are
+        written in
+
+            locpot_viz-{atom number}-{x,y,z}.dat for v,
+            locpot_viz-{atom number}-{x,y,z}-{vx,vy,vz}.dat for the others,
+
+        where the atom number counts the atoms of the supercell from 1.
+
+        Parameters
+        ----------
+        pcell : PhonopyAtoms
+            Primitive cell, whose basis vectors are p2s_matrix^-1 times those
+            of the supercell.
+        i_atom : int
+            Index of the atom in atom_indices.
+        directory : str or os.PathLike, optional
+            Directory where the files are written.  Default is the current
+            directory.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Written files.
+
+        """
         assert self._grid_points is not None
         assert self._dVdu is not None
         atom_number = self._atom_indices[i_atom] + 1
-        for i_dir in range(3):
-            xyz = "xyz"[i_dir]
-            # spin 1 only
-            multi = visualize_distribution(
-                "locpot_viz-%03d-%s.dat" % (atom_number, xyz),
-                pcell,
-                self._p2s_matrix,
-                self._fft_mesh,
-                self._grid_points,
-                self._dVdu[0, i_atom, i_dir],
-            )
+        filenames = []
+        for i_dir, xyz in enumerate("xyz"):
+            parts = get_potential_and_magnetic_parts(self._dVdu[:, i_atom, i_dir])
+            for name, values in parts.items():
+                suffix = "" if name == "v" else f"-{name}"
+                filename = (
+                    pathlib.Path(directory)
+                    / f"locpot_viz-{atom_number:03d}-{xyz}{suffix}.dat"
+                )
+                multi = visualize_distribution(
+                    filename,
+                    pcell,
+                    self._p2s_matrix,
+                    self._fft_mesh,
+                    self._grid_points,
+                    values,
+                )
+                filenames.append(filename)
 
         if self._verbose:
+            names = ", ".join(
+                f'"locpot_viz-{atom_number:03d}-{{x,y,z}}'
+                + ("" if name == "v" else f"-{name}")
+                + '.dat"'
+                for name in parts
+            )
             msg = (
                 "[%d, %d, %d] supercell of primitive cell is "
-                "used. dV/du is written in "
-                '"locpot_viz-%03d-{x,y,z}.dat", in LOCPOT-like '
-                "format." % (tuple(multi) + (atom_number,))
+                "used. dV/du is written in %s, in LOCPOT-like "
+                "format." % (*multi, names)
             )
             print(
                 textwrap.fill(
                     msg, width=70, initial_indent="    ", subsequent_indent="    "
                 )
             )
+        return filenames
 
     def _get_dVdu_shape(self) -> tuple[int, int, int]:
         """Return the shape of dVdu without the spin index.
@@ -837,6 +882,55 @@ class DLocalPotential:
     def _allocate_arrays(self, ncdij: int):
         shape = (ncdij, *self._get_dVdu_shape())
         self._dVdu = np.zeros(shape, dtype="complex128", order="C")
+
+
+def get_potential_and_magnetic_parts(
+    values: NDArray[np.cdouble],
+) -> dict[str, NDArray[np.double]]:
+    """Return the potential part and the magnetic parts of spin components.
+
+    The spin components c are those of the local potential read from VASP and
+    of dVdu of DLocalPotential: (v) without spin, (v + v_z, v - v_z) with
+    collinear spin, and the 2x2 matrix (v + v_z, v_x - i v_y, v_x + i v_y,
+    v - v_z) with non-collinear spin.  They are converted back by
+
+        ncdij = 2: v = (c_0 + c_1) / 2, v_z = (c_0 - c_1) / 2,
+        ncdij = 4: v = (c_0 + c_3) / 2, v_x = (c_1 + c_2) / 2,
+                   v_y = i (c_1 - c_2) / 2, v_z = (c_0 - c_3) / 2.
+
+    v, v_x, v_y, v_z are real, and their real parts are returned.
+
+    Parameters
+    ----------
+    values : ndarray
+        Spin components.
+        dtype='complex128', shape=(ncdij, ...)
+
+    Returns
+    -------
+    dict
+        "v", and "vz" for ncdij = 2 or "vx", "vy", "vz" for ncdij = 4, in this
+        order.
+        dtype='double', shape=values.shape[1:] each
+
+    """
+    c = values
+    if len(c) == 1:
+        parts = {"v": c[0]}
+    elif len(c) == 2:
+        parts = {"v": (c[0] + c[1]) / 2, "vz": (c[0] - c[1]) / 2}
+    elif len(c) == 4:
+        parts = {
+            "v": (c[0] + c[3]) / 2,
+            "vx": (c[1] + c[2]) / 2,
+            "vy": 1j * (c[1] - c[2]) / 2,
+            "vz": (c[0] - c[3]) / 2,
+        }
+    else:
+        raise ValueError(
+            f"Number of spin components has to be 1, 2 or 4, not {len(c)}."
+        )
+    return {name: np.array(part.real, dtype="double") for name, part in parts.items()}
 
 
 def visualize_distribution(

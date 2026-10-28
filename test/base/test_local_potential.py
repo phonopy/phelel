@@ -16,6 +16,7 @@ from phelel.base.local_potential import (
     DLocalPotential,
     LocalPotentialInterpolationNUFFT,
     get_grid_points,
+    get_potential_and_magnetic_parts,
 )
 
 cwd = pathlib.Path(__file__).parent
@@ -106,6 +107,97 @@ def test_visualize(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, caps
         frac = (np.linalg.inv(phe.supercell.cell.T) @ lattice_viz @ (index / mesh).T).T
         expected = _periodic_function(frac, i_dir).reshape(mesh[::-1])
         np.testing.assert_allclose(values, expected, atol=1e-10)
+
+
+def _get_spin_components(parts: list[np.ndarray]) -> np.ndarray:
+    """Return the spin components of VASP from v, (v_z) or (v_x, v_y, v_z)."""
+    if len(parts) == 1:
+        return np.array(parts, dtype="complex128")
+    if len(parts) == 2:
+        v, vz = parts
+        return np.array([v + vz, v - vz], dtype="complex128")
+    v, vx, vy, vz = parts
+    return np.array([v + vz, vx - 1j * vy, vx + 1j * vy, v - vz])
+
+
+@pytest.mark.parametrize("names", [["v"], ["v", "vz"], ["v", "vx", "vy", "vz"]])
+def test_get_potential_and_magnetic_parts(names: list[str]):
+    """v, v_x, v_y, v_z are recovered from the spin components."""
+    rng = np.random.default_rng(0)
+    parts = [rng.standard_normal((2, 3)) for _ in names]
+    result = get_potential_and_magnetic_parts(_get_spin_components(parts))
+    assert list(result) == names
+    for name, part in zip(names, parts, strict=True):
+        assert result[name].dtype == np.double
+        np.testing.assert_allclose(result[name], part, atol=1e-14)
+
+
+def test_get_potential_and_magnetic_parts_error():
+    """Three spin components are rejected."""
+    with pytest.raises(ValueError, match="has to be 1, 2 or 4, not 3"):
+        get_potential_and_magnetic_parts(np.zeros((3, 2), dtype="complex128"))
+
+
+@pytest.mark.parametrize("names", [["v", "vz"], ["v", "vx", "vy", "vz"]])
+def test_visualize_magnetic_parts(
+    names: list[str], tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Each of v, v_x, v_y, v_z is written in its own file in the directory.
+
+    The part k of the direction i_dir is (k + 1) times the function of
+    _periodic_function, so a file with another part or direction has other
+    values.  Nothing is written in the current directory.
+
+    """
+    monkeypatch.chdir(tmp_path)
+    directory = tmp_path / "out"
+    directory.mkdir()
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    fft_mesh = np.array([4, 4, 4])
+    atom_indices = phe.primitive.p2s_map
+    grid_points, lattice_points = get_grid_points(fft_mesh, phe.p2s_matrix)
+    dVdu = np.zeros(
+        (len(names), len(atom_indices), 3, len(grid_points)), dtype="complex128"
+    )
+    i_atom = 1
+    for i_dir in range(3):
+        f = _periodic_function(grid_points, i_dir)
+        dVdu[:, i_atom, i_dir] = _get_spin_components(
+            [(k + 1) * f for k in range(len(names))]
+        )
+    dlp = DLocalPotential.from_arrays(
+        fft_mesh,
+        phe.p2s_matrix,
+        phe.supercell,
+        dVdu,
+        grid_points,
+        lattice_points,
+        atom_indices=atom_indices,
+        verbose=False,
+    )
+
+    filenames = dlp.visualize(phe.primitive, i_atom, directory=directory)
+
+    expected_names = [
+        f"locpot_viz-005-{xyz}" + ("" if name == "v" else f"-{name}") + ".dat"
+        for xyz in "xyz"
+        for name in names
+    ]
+    assert [f.name for f in filenames] == expected_names
+    assert sorted(p.name for p in directory.iterdir()) == sorted(expected_names)
+    assert list(tmp_path.iterdir()) == [directory]
+    for i_dir, xyz in enumerate("xyz"):
+        for k, name in enumerate(names):
+            suffix = "" if name == "v" else f"-{name}"
+            mesh, values = _read_locpot(directory / f"locpot_viz-005-{xyz}{suffix}.dat")
+            multiplicity = np.array(mesh) // fft_mesh
+            lattice_viz = phe.primitive.cell.T @ np.diag(multiplicity)
+            index = np.array(list(np.ndindex(*mesh[::-1])))[:, ::-1]
+            frac = (
+                np.linalg.inv(phe.supercell.cell.T) @ lattice_viz @ (index / mesh).T
+            ).T
+            expected = (k + 1) * _periodic_function(frac, i_dir).reshape(mesh[::-1])
+            np.testing.assert_allclose(values, expected, atol=1e-10)
 
 
 def test_get_grid_points():
