@@ -6,6 +6,7 @@
 * phonors
 * phono3py
 * spglib
+* scipy
 * {ref}`reference_finufft`
 * click
 * tomli-w

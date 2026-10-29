@@ -20,6 +20,7 @@ https://phonopy.github.io/phelel/
 * phonors
 * phono3py
 * spglib
+* scipy
 * finufft
 * click
 * tomli-w

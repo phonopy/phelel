@@ -16,6 +16,7 @@ dependencies = [
     "phonors >= 0.6.0",
     "phono3py >= 4.8.0",
     "spglib >= 2.5.0",
+    "scipy",
     "finufft",
     "click",
     "tomli-w"
