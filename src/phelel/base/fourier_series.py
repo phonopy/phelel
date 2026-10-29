@@ -37,23 +37,15 @@ so no approximation is involved.
 
 from __future__ import annotations
 
-import itertools
 from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
 from phonopy.structure.cells import determinant, get_reduced_bases
-from phonors import snf3x3
+from phonors import bz_grid_addresses, snf3x3
 
 from phelel.utils.lattice_points import get_lattice_points
-
-# Relative tolerance of the lengths of reciprocal lattice vectors taken as
-# equal in get_shortest_representatives.  It covers the rounding errors and a
-# basis that is symmetric only within symprec (1e-5 Angstrom by default, about
-# 1e-6 relative to lattice parameters of a few Angstrom), and is much smaller
-# than the relative difference to the next longer candidates.
-_LENGTH_TOLERANCE = 1e-5
 
 
 def get_fourier_coefficients(values: NDArray) -> NDArray[np.cdouble]:
@@ -422,7 +414,6 @@ def _get_reciprocal_lattice_vectors(mesh: Sequence[int] | NDArray) -> NDArray[np
 def get_shortest_representatives(
     mesh: Sequence[int] | NDArray,
     supercell_lattice: NDArray,
-    tolerance: float = _LENGTH_TOLERANCE,
 ) -> tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.double]]:
     """Return the shortest g + N^s n for each class g mod N^s.
 
@@ -430,31 +421,19 @@ def get_shortest_representatives(
     the integer coordinates of the reciprocal basis of the supercell, the
     vectors g + N^s n with the shortest |G| are chosen, where G = sum_k g_k b_k
     with the reciprocal basis vectors b_k of the supercell (without the factor
-    2 pi), so |G|^2 = g . (A A^T)^-1 g with the basis vectors of the supercell
-    in the rows of A.  Lengths within the relative tolerance of the shortest are
-    taken as equal, and the coefficient is divided equally among them.
+    2 pi).  The coefficient is divided equally among the vectors of the same
+    length.
 
-    The candidates are searched in a Delaunay-reduced basis of the period
-    lattice {N^s n}, so that the search does not grow with the skewness of the
-    basis vectors.  With the reduced basis in the rows of W = P N^s in the
-    coordinates g (P unimodular, see _get_reduced_period_basis), each g is
-    moved to
-
-        y0 = g - round(g W^-1) W,
-
-    whose coordinates s0 = y0 W^-1 satisfy |s0_i| <= 1/2.  A candidate
-    y = y0 - m W not longer than (1 + tolerance) |G(y0)| has the coordinates
-    s0_i - m_i = G(y) . w*_i, where w*_i are the dual vectors of the reduced
-    basis, so
-
-        |m_i| <= 1/2 + (1 + tolerance) max |G(y0)| |w*_i|,
-
-    and all m in this range are searched.  A positive tolerance also keeps a
-    bound that is an integer from being rounded down.  The range is {-1, 0, 1}^3 for a
-    cubic period lattice.  It cannot be fixed to {-1, 0, 1}^3 in general: with
-    the obtuse superbase of the path type w_1 = (-1, 1, 0), w_2 = (1, 0, -1),
-    w_3 = (0, 0, 1) of the cubic lattice, the closest points to
-    (w_1 + w_3) / 2 include w_1 + w_2 + 2 w_3.
+    These are the points of the mesh in the Brillouin zone of the period
+    lattice {N^s n}, including those on its surface, and they are computed by
+    phonors.bz_grid_addresses with the mesh N^s.  phonors takes two squared
+    lengths as equal when they differ by less than 0.01 max_i |r_i|^2 /
+    (N^s_i)^2, computed from the basis vectors r_i of the period lattice that
+    it is given.  For a skewed basis of the supercell, N^s_k b_k are long and
+    this tolerance can be larger than the difference to the next longer
+    vectors, so a Delaunay-reduced basis, the rows of P B with the rows
+    N^s_k b_k of B (see _get_reduced_period_basis), is given with
+    Q = (P^T)^-1.  Then the mesh and the returned g stay in the coordinates g.
 
     Parameters
     ----------
@@ -464,9 +443,6 @@ def get_shortest_representatives(
     supercell_lattice : ndarray
         Basis vectors of the supercell in row vectors.
         dtype='double', shape=(3, 3)
-    tolerance : float, optional
-        Relative tolerance of the lengths, which has to be positive.  Default
-        is _LENGTH_TOLERANCE.
 
     Returns
     -------
@@ -484,46 +460,19 @@ def get_shortest_representatives(
 
     """
     mesh = np.array(mesh, dtype="int64")
-    if tolerance <= 0:
-        raise ValueError(f"tolerance has to be positive, not {tolerance}.")
-    g_box = _get_reciprocal_lattice_vectors(mesh)
-    metric = np.linalg.inv(supercell_lattice @ supercell_lattice.T)
-
-    def get_lengths(g: NDArray[np.int64]) -> NDArray[np.double]:
-        return np.sqrt(np.einsum("ij,jk,ik->i", g, metric, g))
-
     period_lattice = np.diag(mesh) @ np.linalg.inv(supercell_lattice).T
     P = _get_reduced_period_basis(period_lattice)
-    W = np.array(P @ np.diag(mesh), dtype="int64")
-    y0: NDArray[np.int64] = np.array(
-        g_box - np.rint(g_box @ np.linalg.inv(W)).astype("int64") @ W, dtype="int64"
+    Q = np.array(np.rint(np.linalg.inv(P.T)), dtype="int64")
+    addresses, bz_map, bzg2grg = bz_grid_addresses(
+        mesh,
+        Q,
+        np.zeros(3, dtype="int64"),
+        np.array((P @ period_lattice).T, dtype="double", order="C"),
+        2,
     )
-    shortest = get_lengths(y0)
-    reduced_dual = np.linalg.inv(P @ period_lattice).T
-    m_max = np.floor(
-        0.5 + shortest.max() * (1 + tolerance) * np.linalg.norm(reduced_dual, axis=1)
-    ).astype("int64")
-    shifts = (
-        np.array(
-            list(itertools.product(*[range(-n, n + 1) for n in m_max])),
-            dtype="int64",
-        )
-        @ W
-    )
-    for shift in shifts:
-        shortest = np.minimum(shortest, get_lengths(y0 - shift))
-
-    chosen_g = []
-    chosen_source = []
-    for shift in shifts:
-        y = y0 - shift
-        is_shortest = get_lengths(y) <= shortest * (1 + tolerance)
-        chosen_g.append(y[is_shortest])
-        chosen_source.append(np.nonzero(is_shortest)[0])
-    g = np.concatenate(chosen_g)
-    source = np.concatenate(chosen_source)
-    multiplicity = np.bincount(source, minlength=len(g_box))
-    return g, source, 1.0 / multiplicity[source]
+    g = np.array(addresses, dtype="int64")
+    source = np.array(bzg2grg, dtype="int64")
+    return g, source, 1.0 / np.diff(bz_map)[source]
 
 
 def _get_reduced_period_basis(period_lattice: NDArray) -> NDArray[np.int64]:
