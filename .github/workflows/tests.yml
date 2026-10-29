@@ -34,6 +34,13 @@ jobs:
           cd symfc
           pip install -e . -vvv
           cd ..
+      - name: Install phonors develop branch
+        run: |
+          conda activate test
+          git clone --depth 1 https://github.com/phonopy/phonors.git
+          cd phonors
+          pip install . -vvv
+          cd ..
       - name: Install phonopy develop branch
         run: |
           conda activate test

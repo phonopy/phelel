@@ -44,7 +44,7 @@ import numpy as np
 import scipy.fft
 from numpy.typing import NDArray
 from phonopy.structure.cells import determinant, get_reduced_bases
-from phonors import bz_grid_addresses, snf3x3
+from phonors import bin_supercell_fourier_coefficients, bz_grid_addresses, snf3x3
 
 from phelel.utils.lattice_points import get_lattice_points
 
@@ -96,6 +96,7 @@ class FourierSeriesOnGrid:
         p2s_matrix: NDArray,
         representatives: Literal["box", "shortest"] = "box",
         supercell_lattice: NDArray | None = None,
+        lang: Literal["Rust", "Python"] = "Rust",
     ):
         """Init method.
 
@@ -115,13 +116,20 @@ class FourierSeriesOnGrid:
             "shortest" to compare the lengths of the reciprocal lattice
             vectors.
             dtype='double', shape=(3, 3)
+        lang : str, optional
+            Implementation of the sums F_q(Kbar) in get_phi, "Rust" (default)
+            by phonors.bin_supercell_fourier_coefficients or "Python" by NumPy.
+            "Python" is kept as the reference of "Rust".
 
         """
+        if lang not in ("Rust", "Python"):
+            raise ValueError(f'lang has to be "Rust" or "Python", not "{lang}".')
+        self._lang = lang
         self._set_representatives(representatives, supercell_lattice)
         self._fft_mesh = np.array(fft_mesh, dtype="int64")
-        p2s_matrix = np.array(p2s_matrix, dtype="int64")
-        self._set_integer_coordinates(p2s_matrix)
-        self._set_lattice_points_and_qpoints(p2s_matrix)
+        self._p2s_matrix = np.array(p2s_matrix, dtype="int64")
+        self._set_integer_coordinates(self._p2s_matrix)
+        self._set_lattice_points_and_qpoints(self._p2s_matrix)
         self._set_phase_qm()
 
     def _set_representatives(
@@ -202,7 +210,10 @@ class FourierSeriesOnGrid:
             exp(2 pi i q . l) = prod_k exp(2 pi i n'_k n_k / d_k),
 
         and the sum over q in sum_over_qpoints is a DFT of the shape d from n'
-        to n.  U_2 is kept to compute n' of each g in get_phi.
+        to n.  U_2 is kept to compute n' of each g in get_phi with
+        lang="Python".  With lang="Rust",
+        phonors.bin_supercell_fourier_coefficients computes n' with the same
+        snf3x3.
 
         """
         lattice_points, _ = get_lattice_points(p2s_matrix)
@@ -273,7 +284,9 @@ class FourierSeriesOnGrid:
 
         The rotated function f(g^-1 x) has the coefficients
         exp(-2 pi i g' . w) f(W^T g') at g' = W^-T g, where W and w are rotation
-        and translation.
+        and translation.  The sums F_q(Kbar) of the coefficients are computed
+        by _bin_coefficients_rust or _bin_coefficients_python following lang,
+        and the DFT over Kbar by scipy.fft.
 
         Parameters
         ----------
@@ -299,7 +312,71 @@ class FourierSeriesOnGrid:
         """
         shape = coefficients[0].shape
         assert all(c.shape == shape for c in coefficients)
-        mesh = shape[::-1]
+        if self._lang == "Rust":
+            Fs = self._bin_coefficients_rust(coefficients, rotation, translation)
+        else:
+            Fs = self._bin_coefficients_python(coefficients, rotation, translation)
+        return [
+            scipy.fft.ifftn(F, axes=(1, 2, 3), norm="forward", workers=-1)
+            * self._phase_qm
+            for F in Fs
+        ]
+
+    def _bin_coefficients_rust(
+        self,
+        coefficients: list[NDArray],
+        rotation: NDArray | None,
+        translation: NDArray | None,
+    ) -> list[NDArray[np.cdouble]]:
+        """Return F_q(Kbar) by phonors.bin_supercell_fourier_coefficients.
+
+        Parameters and the returned arrays are those of
+        _bin_coefficients_python.
+
+        """
+        if self._representatives == "box":
+            representatives = {}
+        else:
+            g, source, weight = self._get_shortest_representatives(
+                coefficients[0].shape[::-1]
+            )
+            representatives = {"g": g, "source": source, "weight": weight}
+        return bin_supercell_fourier_coefficients(
+            [np.ascontiguousarray(c, dtype="complex128") for c in coefficients],
+            self._p2s_matrix,
+            self._fft_mesh,
+            rotation=(
+                None
+                if rotation is None
+                else np.array(np.rint(np.linalg.inv(rotation)), dtype="int64")
+            ),
+            translation=(
+                None if translation is None else np.array(translation, dtype="double")
+            ),
+            **representatives,
+        )
+
+    def _bin_coefficients_python(
+        self,
+        coefficients: list[NDArray],
+        rotation: NDArray | None,
+        translation: NDArray | None,
+    ) -> list[NDArray[np.cdouble]]:
+        """Return F_q(Kbar), the sums of the coefficients with the same q and Kbar.
+
+        Parameters
+        ----------
+        See get_phi.
+
+        Returns
+        -------
+        list of ndarray
+            F_q(Kbar) with q in the order of qpoints, summed in the order of the
+            rows of g by np.bincount.
+            dtype='complex128', shape=(D, N^p_3, N^p_2, N^p_1) each
+
+        """
+        mesh = coefficients[0].shape[::-1]
         if self._representatives == "box":
             g = _get_reciprocal_lattice_vectors(mesh)
             source = None
@@ -322,7 +399,7 @@ class FourierSeriesOnGrid:
         index = ((i_q * n3 + Kbar[:, 2]) * n2 + Kbar[:, 1]) * n1 + Kbar[:, 0]
         size = self._num_cells * n1 * n2 * n3
 
-        phis = []
+        Fs = []
         for c in coefficients:
             w = c.ravel() if source is None else c.ravel()[source] * weight
             if phase is not None:
@@ -331,9 +408,8 @@ class FourierSeriesOnGrid:
                 index, weights=w.imag, minlength=size
             )
             F = F.reshape(self._num_cells, n3, n2, n1)
-            phi = scipy.fft.ifftn(F, axes=(1, 2, 3), norm="forward", workers=-1)
-            phis.append(phi * self._phase_qm)
-        return phis
+            Fs.append(F)
+        return Fs
 
     def sum_over_qpoints(self, phi: NDArray) -> NDArray[np.cdouble]:
         """Return sum_q exp(2 pi i q . l) phi_q(m) in the order of get_grid_points.
