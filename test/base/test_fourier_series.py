@@ -138,9 +138,10 @@ def _assert_off_mesh_along_even_axes(shape: tuple[int, int, int], x: NDArray):
             assert (abs(nx - np.rint(nx)) > 1e-8).any()
 
 
+@pytest.mark.parametrize("lang", ["Rust", "Python"])
 @pytest.mark.parametrize("representatives", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_evaluate_equals_direct_sum(case: str, representatives: str):
+def test_evaluate_equals_direct_sum(case: str, representatives: str, lang: str):
     """Values at the grid points are the Fourier series summed term by term.
 
     For g = {W|w}, f(g^-1 x) is evaluated at x' = W^-1 (x - w).
@@ -150,7 +151,11 @@ def test_evaluate_equals_direct_sum(case: str, representatives: str):
     p2s = np.array(p2s, dtype="int64")
     coefs = [_random_coefficients(shape, seed) for seed in (1, 2)]
     fsg = FourierSeriesOnGrid(
-        fft_mesh, p2s, representatives=representatives, supercell_lattice=lattice
+        fft_mesh,
+        p2s,
+        representatives=representatives,
+        supercell_lattice=lattice,
+        lang=lang,
     )
     grid_points, lattice_points = get_grid_points(fft_mesh, p2s)
     np.testing.assert_array_equal(fsg.lattice_points, lattice_points)
@@ -193,8 +198,9 @@ def test_qpoints(case: str):
     assert len(np.unique(Dq, axis=0)) == D
 
 
+@pytest.mark.parametrize("lang", ["Rust", "Python"])
 @pytest.mark.parametrize("case", _cases)
-def test_lattice_fourier_sum_equals_D_phi(case: str):
+def test_lattice_fourier_sum_equals_D_phi(case: str, lang: str):
     """sum_l f(x_lm) exp(-2 pi i q . l) = D phi_q(m).
 
     f(x_lm) are computed by the direct sum, so that this does not depend on
@@ -205,7 +211,7 @@ def test_lattice_fourier_sum_equals_D_phi(case: str):
     p2s, shape, fft_mesh, rotation, translation, _ = _cases[case]
     p2s = np.array(p2s, dtype="int64")
     coefs = _random_coefficients(shape, 4)
-    fsg = FourierSeriesOnGrid(fft_mesh, p2s)
+    fsg = FourierSeriesOnGrid(fft_mesh, p2s, lang=lang)
     grid_points, lattice_points = get_grid_points(fft_mesh, p2s)
     D = len(lattice_points)
 
@@ -222,6 +228,43 @@ def test_lattice_fourier_sum_equals_D_phi(case: str):
         rtol=0,
         atol=1e-10 * np.abs(lattice_sum).max(),
     )
+
+
+@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("case", _cases)
+def test_lang_rust_equals_python(case: str, representatives: str):
+    """F_q(Kbar) of lang="Rust" are those of the reference lang="Python".
+
+    Both sum the coefficients of each bin in the order of the rows of g, so
+    they are equal without the translation.  With the translation, the phase
+    factors of Rust and NumPy may differ in the last bits.
+
+    """
+    p2s, shape, fft_mesh, rotation, translation, lattice = _cases[case]
+    p2s = np.array(p2s, dtype="int64")
+    coefs = [_random_coefficients(shape, seed) for seed in (5, 6)]
+    fsg_rust, fsg_python = (
+        FourierSeriesOnGrid(
+            fft_mesh,
+            p2s,
+            representatives=representatives,
+            supercell_lattice=lattice,
+            lang=lang,
+        )
+        for lang in ("Rust", "Python")
+    )
+    Fs_rust = fsg_rust._bin_coefficients_rust(coefs, rotation, None)
+    Fs_python = fsg_rust._bin_coefficients_python(coefs, rotation, None)
+    for F_rust, F_python in zip(Fs_rust, Fs_python, strict=True):
+        assert F_rust.shape == F_python.shape
+        np.testing.assert_array_equal(F_rust, F_python)
+
+    phis_rust = fsg_rust.get_phi(coefs, rotation=rotation, translation=translation)
+    phis_python = fsg_python.get_phi(coefs, rotation=rotation, translation=translation)
+    for phi_rust, phi_python in zip(phis_rust, phis_python, strict=True):
+        np.testing.assert_allclose(
+            phi_rust, phi_python, rtol=0, atol=1e-13 * np.abs(phi_python).max()
+        )
 
 
 def _get_lattice_symmetries(lattice: NDArray, shape: tuple[int, int, int]):
@@ -506,3 +549,10 @@ def test_representatives_errors():
         FourierSeriesOnGrid([2, 2, 2], p2s, representatives="nearest")  # type: ignore
     with pytest.raises(ValueError, match="supercell_lattice is needed"):
         FourierSeriesOnGrid([2, 2, 2], p2s, representatives="shortest")
+
+
+def test_lang_errors():
+    """Unknown lang is an error."""
+    p2s = np.eye(3, dtype="int64")
+    with pytest.raises(ValueError, match="lang has to be"):
+        FourierSeriesOnGrid([2, 2, 2], p2s, lang="C")  # type: ignore
