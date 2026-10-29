@@ -41,6 +41,7 @@ from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
+import scipy.fft
 from numpy.typing import NDArray
 from phonopy.structure.cells import determinant, get_reduced_bases
 from phonors import bz_grid_addresses, snf3x3
@@ -330,7 +331,7 @@ class FourierSeriesOnGrid:
                 index, weights=w.imag, minlength=size
             )
             F = F.reshape(self._num_cells, n3, n2, n1)
-            phi = np.fft.ifftn(F, axes=(1, 2, 3)) * (n1 * n2 * n3)
+            phi = scipy.fft.ifftn(F, axes=(1, 2, 3), norm="forward", workers=-1)
             phis.append(phi * self._phase_qm)
         return phis
 
@@ -354,9 +355,11 @@ class FourierSeriesOnGrid:
             dtype='complex128', shape=(D * prod(fft_mesh),)
 
         """
-        values = (
-            np.fft.ifftn(phi.reshape(*self._snf_diag, -1), axes=(0, 1, 2))
-            * self._num_cells
+        values = scipy.fft.ifftn(
+            phi.reshape(*self._snf_diag, -1),
+            axes=(0, 1, 2),
+            norm="forward",
+            workers=-1,
         )
         return values.ravel()
 
