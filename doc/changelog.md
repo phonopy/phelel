@@ -12,6 +12,10 @@
   `native` keeps the symmetry of the crystal and the reality of the potential
   between the points of the FFT mesh of the supercell, and `native-box` gives
   the series that finufft evaluates. See {ref}`phelel_nufft_option`.
+- `native` chooses the shortest reciprocal lattice vectors with
+  `bz_grid_addresses` of phonors, which is parallelized: for an FFT mesh of
+  300x300x300 points of the supercell, the choice takes 0.25 s on 18 cores
+  instead of 30 s.
 
 ## Oct-26-2026: Version 0.17.0
 

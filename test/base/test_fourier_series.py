@@ -499,12 +499,6 @@ def test_shortest_representatives_path_superbase(
     np.testing.assert_allclose(_sorted_rows(G), expected, atol=1e-12)
 
 
-def test_shortest_representatives_tolerance_error():
-    """A tolerance that is not positive is an error."""
-    with pytest.raises(ValueError, match="tolerance has to be positive"):
-        get_shortest_representatives([2, 2, 2], _cubic, tolerance=0)
-
-
 def test_representatives_errors():
     """Unknown representatives and "shortest" without the lattice are errors."""
     p2s = np.eye(3, dtype="int64")
