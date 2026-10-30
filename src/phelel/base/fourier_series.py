@@ -8,14 +8,14 @@ points) is the Fourier series
 where x are the fractional coordinates in the supercell basis vectors and g
 the integer coordinates of the reciprocal lattice vectors of the supercell.
 f(g) is periodic with the period N^s_k in g_k, so one g is chosen from each
-g + N^s n (n integer vectors).  The choice does not change the values on the
+g + N^s t (t integer vectors).  The choice does not change the values on the
 FFT mesh, but it changes the values between the mesh points.  Two choices are
 implemented:
 
 - "box": -ceil(N^s_k / 2) + 1 <= g_k <= floor(N^s_k / 2), so for even N^s_k
   the coefficient at the array index N^s_k / 2 is assigned to
   g_k = +N^s_k / 2.  This is the box used with finufft.
-- "shortest": the g + N^s n with the shortest reciprocal lattice vector.  When
+- "shortest": the g + N^s t with the shortest reciprocal lattice vector.  When
   several have the same length, the coefficient is divided equally among them.
 
 The series is evaluated at the grid points of get_grid_points, the points
@@ -79,8 +79,8 @@ class FourierSeriesOnGrid:
     qpoints : ndarray
         q points commensurate with the supercell in the reciprocal basis of the
         primitive cell, 0 <= q_k < 1, in the order of the first axis of phi.
-        With the Smith normal form U_1 M^s U_2 = diag(d), q = U_1^T diag(d)^-1 n'
-        mod 1, and n' runs in the order of np.ndindex(d).
+        With the Smith normal form P M^s Q = diag(d), q = P^T diag(d)^-1 n_q
+        mod 1, and n_q runs in the order of np.ndindex(d).
         dtype='double', shape=(D, 3)
     lattice_points : ndarray
         Lattice points of the primitive cell, one from each class modulo the
@@ -109,7 +109,7 @@ class FourierSeriesOnGrid:
             Supercell matrix M^s relative to the primitive cell.
             dtype='int64', shape=(3, 3)
         representatives : str, optional
-            Choice of g from each g + N^s n, "box" (default) or "shortest".  See
+            Choice of g from each g + N^s t, "box" (default) or "shortest".  See
             the module docstring.
         supercell_lattice : ndarray, optional
             Basis vectors of the supercell in row vectors, needed for
@@ -137,7 +137,7 @@ class FourierSeriesOnGrid:
         representatives: Literal["box", "shortest"],
         supercell_lattice: NDArray | None,
     ) -> None:
-        """Set the choice of g from each g + N^s n.
+        """Set the choice of g from each g + N^s t.
 
         The g of "shortest" depend on the FFT mesh of the supercell, which is
         known only when the coefficients are given, so they are computed in
@@ -185,44 +185,44 @@ class FourierSeriesOnGrid:
     def _set_lattice_points_and_qpoints(self, p2s_matrix: NDArray[np.int64]) -> None:
         """Set the lattice points l and the q points by the Smith normal form.
 
-        snf3x3 gives the unimodular U_1 and U_2 with U_1 M^s U_2 = diag(d), so
+        snf3x3 gives the unimodular P and Q with P M^s Q = diag(d), so
 
-            (M^s)^-T = U_1^T diag(d)^-1 U_2^T,
-            h = (M^s)^-T g = U_1^T diag(d)^-1 (U_2^T g).
+            (M^s)^-T = P^T diag(d)^-1 Q^T,
+            h = (M^s)^-T g = P^T diag(d)^-1 (Q^T g).
 
-        Adding d_k to the k-th element of U_2^T g adds the integer vector
-        U_1^T e_k to h, so the fractional part q of h depends only on
+        Adding d_k to the k-th element of Q^T g adds the integer vector
+        P^T e_k to h, so the fractional part q of h depends only on
 
-            n' = U_2^T g mod d,
+            n_q = Q^T g mod d,
 
-        and the D = d_1 d_2 d_3 labels n' give D different q because U_1^T is
+        and the D = d_1 d_2 d_3 labels n_q give D different q because P^T is
         unimodular:
 
-            q = U_1^T diag(d)^-1 n' mod 1.
+            q = P^T diag(d)^-1 n_q mod 1.
 
-        With row vectors, D q = ((n' * D / d) @ U_1) mod D, where D / d_k is an
-        integer because D = d_1 d_2 d_3.  n' runs in the order of
+        With row vectors, D q = ((n_q * D / d) @ P) mod D, where D / d_k is an
+        integer because D = d_1 d_2 d_3.  n_q runs in the order of
         np.ndindex(d).
 
-        get_lattice_points gives l = U_1^-1 n with n in the order of
-        np.ndindex(d).  Then q . l = n' . diag(d)^-1 U_1 U_1^-1 n mod 1, so
+        get_lattice_points gives l = P^-1 n_l with n_l in the order of
+        np.ndindex(d).  Then q . l = n_q . diag(d)^-1 P P^-1 n_l mod 1, so
 
-            exp(2 pi i q . l) = prod_k exp(2 pi i n'_k n_k / d_k),
+            exp(2 pi i q . l) = prod_k exp(2 pi i (n_q)_k (n_l)_k / d_k),
 
-        and the sum over q in sum_over_qpoints is a DFT of the shape d from n'
-        to n.  U_2 is kept to compute n' of each g in get_phi with
+        and the sum over q in sum_over_qpoints is a DFT of the shape d from n_q
+        to n_l.  Q is kept to compute n_q of each g in get_phi with
         lang="Python".  With lang="Rust",
-        phonors.bin_supercell_fourier_coefficients computes n' with the same
+        phonors.bin_supercell_fourier_coefficients computes n_q with the same
         snf3x3.
 
         """
         lattice_points, _ = get_lattice_points(p2s_matrix)
         self._lattice_points = np.array(lattice_points, dtype="int64")
-        d, U1, U2 = snf3x3(p2s_matrix)
+        d, P, Q = snf3x3(p2s_matrix)
         self._snf_diag = np.array(d, dtype="int64")
-        self._U2 = np.array(U2, dtype="int64")
-        n_prime = np.array(list(np.ndindex(*self._snf_diag)), dtype="int64")
-        Dq = ((n_prime * (self._num_cells // self._snf_diag)) @ U1) % self._num_cells
+        self._snf_Q = np.array(Q, dtype="int64")
+        n_q = np.array(list(np.ndindex(*self._snf_diag)), dtype="int64")
+        Dq = ((n_q * (self._num_cells // self._snf_diag)) @ P) % self._num_cells
         self._qpoints = Dq / self._num_cells
 
     def _set_phase_qm(self) -> None:
@@ -345,11 +345,7 @@ class FourierSeriesOnGrid:
             [np.ascontiguousarray(c, dtype="complex128") for c in coefficients],
             self._p2s_matrix,
             self._fft_mesh,
-            rotation=(
-                None
-                if rotation is None
-                else np.array(np.rint(np.linalg.inv(rotation)), dtype="int64")
-            ),
+            rotation=(None if rotation is None else np.array(rotation, dtype="int64")),
             translation=(
                 None if translation is None else np.array(translation, dtype="double")
             ),
@@ -372,7 +368,7 @@ class FourierSeriesOnGrid:
         -------
         list of ndarray
             F_q(Kbar) with q in the order of qpoints, summed in the order of the
-            rows of g by np.bincount.
+            rows of g by np.add.at.
             dtype='complex128', shape=(D, N^p_3, N^p_2, N^p_1) each
 
         """
@@ -391,12 +387,14 @@ class FourierSeriesOnGrid:
             phase = np.exp(-2j * np.pi * g @ np.asarray(translation, dtype="double"))
 
         # h = K + q with D h = g @ B computed with integers, and q labeled by
-        # n' = U_2^T g mod d.
+        # n_q = Q^T g mod d.
         K = (g @ self._B) // self._num_cells
-        i_q = np.ravel_multi_index(((g @ self._U2) % self._snf_diag).T, self._snf_diag)
+        i_q = np.ravel_multi_index(
+            ((g @ self._snf_Q) % self._snf_diag).T, self._snf_diag
+        )
         Kbar = K % self._fft_mesh
         n1, n2, n3 = self._fft_mesh
-        index = ((i_q * n3 + Kbar[:, 2]) * n2 + Kbar[:, 1]) * n1 + Kbar[:, 0]
+        i_F = ((i_q * n3 + Kbar[:, 2]) * n2 + Kbar[:, 1]) * n1 + Kbar[:, 0]
         size = self._num_cells * n1 * n2 * n3
 
         Fs = []
@@ -404,18 +402,16 @@ class FourierSeriesOnGrid:
             w = c.ravel() if source is None else c.ravel()[source] * weight
             if phase is not None:
                 w = w * phase
-            F = np.bincount(index, weights=w.real, minlength=size) + 1j * np.bincount(
-                index, weights=w.imag, minlength=size
-            )
-            F = F.reshape(self._num_cells, n3, n2, n1)
-            Fs.append(F)
+            F = np.zeros(size, dtype="complex128")
+            np.add.at(F, i_F, w)
+            Fs.append(F.reshape(self._num_cells, n3, n2, n1))
         return Fs
 
     def sum_over_qpoints(self, phi: NDArray) -> NDArray[np.cdouble]:
         """Return sum_q exp(2 pi i q . l) phi_q(m) in the order of get_grid_points.
 
-        With q labeled by n' and l by n (see qpoints), the sum is a DFT of the
-        shape diag(d) from n' to n.
+        With q labeled by n_q and l by n_l (see qpoints), the sum is a DFT of the
+        shape diag(d) from n_q to n_l.
 
         Parameters
         ----------
@@ -494,17 +490,17 @@ def get_shortest_representatives(
     mesh: Sequence[int] | NDArray,
     supercell_lattice: NDArray,
 ) -> tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.double]]:
-    """Return the shortest g + N^s n for each class g mod N^s.
+    """Return the shortest g + N^s t for each class g mod N^s.
 
     For each reciprocal lattice vector g of _get_reciprocal_lattice_vectors, in
     the integer coordinates of the reciprocal basis of the supercell, the
-    vectors g + N^s n with the shortest |G| are chosen, where G = sum_k g_k b_k
+    vectors g + N^s t with the shortest |G| are chosen, where G = sum_k g_k b_k
     with the reciprocal basis vectors b_k of the supercell (without the factor
     2 pi).  The coefficient is divided equally among the vectors of the same
     length.
 
     These are the points of the mesh in the Brillouin zone of the period
-    lattice {N^s n}, including those on its surface, and they are computed by
+    lattice {N^s t}, including those on its surface, and they are computed by
     phonors.bz_grid_addresses with the mesh N^s.  phonors takes two squared
     lengths as equal when they differ by less than 0.01 max_i |r_i|^2 /
     (N^s_i)^2, computed from the basis vectors r_i of the period lattice that

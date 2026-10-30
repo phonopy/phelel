@@ -15,11 +15,11 @@ def get_lattice_points(p2s_matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     differ by a lattice vector of the supercell, and one l is returned from
     each such class, D = |det M| of them.
 
-    With the Smith normal form P M Q = diag(d), the l are P^-1 n for the
-    integer vectors n with 0 <= n_k < d_k, in the order of np.ndindex(d)
-    (n_3 runs fastest).  The l are not reduced into the supercell: their
-    coordinates M^-1 l with respect to the basis vectors of the supercell
-    can be outside [0, 1).
+    With the Smith normal form P M Q = diag(d), the l are P^-1 n_l for the
+    integer vectors n_l with 0 <= (n_l)_k < d_k, in the order of
+    np.ndindex(d) ((n_l)_3 runs fastest).  The l are not reduced into the
+    supercell: their coordinates M^-1 l with respect to the basis vectors of
+    the supercell can be outside [0, 1).
 
     Parameters
     ----------
