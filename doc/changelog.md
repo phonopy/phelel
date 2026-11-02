@@ -2,26 +2,9 @@
 
 # Change Log
 
-## Unreleased
+## Nov-2-2026: Version 0.18.1
 
-- `velph convert` and the velph subcommands read `[vasp.el_bands]` of velph
-  0.10 and earlier, which has both `kpoints_opt` and `kpoints_dense`. Before,
-  they stopped with `Unknown key "kpoints_dense"`. `[vasp.el_bands]` is
-  converted to `[vasp.el_bands]` and `[vasp.el_dos]`, which are the input sets
-  that `velph el_bands generate` of these versions writes. See
-  {ref}`velph_changes_0_15_el_bands_0_10`.
-- `velph phelel differentiate` prints the progress: when it starts reading
-  the VASP output files, and when it computes the derivatives of each
-  displaced atom. With `-v`, it also prints each file after the file is read
-  and the drift of the force constants. Before, it printed only the FFT mesh
-  and the name of the written file, and `-v` printed each file before reading
-  the forces of the files.
-- `phelel` prints the drift of the force constants only with `-v`.
-- `velph convert` and the velph subcommands replace `scheduler_name` of a
-  `velph.toml` of velph 0.14 by `scheduler_template`, so that the job scripts
-  are those that velph 0.14 writes. Before, they stopped with
-  `"scheduler_name" is removed`, and `velph convert` wrote no file. See
-  {ref}`velph_changes_0_15_scheduler`.
+- Maintenance release
 
 ## Nov-2-2026: Version 0.18.0
 
