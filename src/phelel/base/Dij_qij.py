@@ -763,10 +763,36 @@ def _rotate_Dij_in_orbital_space(
     """
     lmdim = Dij.shape[-1]
     rot_Dij = np.zeros_like(Dij)
+    # The rotation matrix of an atom depends only on the l of its channels, so
+    # it is built once for each sequence of l.
+    bigDeltas: dict[tuple[int, ...] | None, NDArray] = {}
     for i, (Dij_atom, lm_atom) in enumerate(zip(Dij, lm_channels, strict=True)):
-        bigDelta = _get_orbital_rotation_matrix(Delta, lm_atom, lmdim)
+        key = _get_channel_key(lm_atom)
+        if key not in bigDeltas:
+            bigDeltas[key] = _get_orbital_rotation_matrix(Delta, lm_atom, lmdim)
+        bigDelta = bigDeltas[key]
         rot_Dij[perm[i]] = bigDelta @ Dij_atom @ bigDelta.T.conj()
     return rot_Dij
+
+
+def _get_channel_key(lm_channels: dict) -> tuple[int, ...] | None:
+    """Return the l of the channels of an atom, which fix its rotation matrix.
+
+    Parameters
+    ----------
+    lm_channels : dict
+        lm channels of the atom.
+
+    Returns
+    -------
+    tuple of int or None
+        l of the channels in their order, or None when the atom has no
+        channels.
+
+    """
+    if lm_channels["channels"] is None:
+        return None
+    return tuple(int(ll["l"]) for ll in lm_channels["channels"])
 
 
 def _check_Dij_symmetry(
@@ -802,38 +828,14 @@ def _check_Dij_symmetry(
     ncdij = Dij.shape[0]
     if ncdij == 1:
         return
-    rotations = symmetry.symmetry_operations["rotations"]
-    lattice = np.array(supercell.cell.T, dtype="double", order="C")
-    perms = symmetry.atomic_permutations
-    lxlylz = LxLyLzMatrices().run()
-    Deltas: dict[bytes, list[NDArray]] = {}
-    deviations = []
-    for r, perm, tr in zip(rotations, perms, get_time_reversals(symmetry), strict=True):
-        key = r.tobytes()
-        if key not in Deltas:
-            shr = SHRotationMatrices(r, lattice, lxlylz)
-            shr.run()
-            assert shr.Delta is not None
-            Deltas[key] = shr.Delta
-        vals = [
-            _rotate_Dij_in_orbital_space(Dij[i], lm_channels, Deltas[key], perm)
-            for i in range(ncdij)
-        ]
-        if ncdij == 4:
-            vals = rotate_delta_vals_in_spin_space(vals, r, lattice)
-        if tr:
-            vals = apply_time_reversal_in_spin_space(vals)
-        deviations.append(
-            max(np.abs(v - Dij_s).max() for v, Dij_s in zip(vals, Dij, strict=True))
-        )
-    deviations_array = np.array(deviations)
-    n_changed = int((deviations_array > tolerance).sum())
+    deviations = _get_Dij_symmetry_deviations(Dij, lm_channels, supercell, symmetry)
+    n_changed = int((deviations > tolerance).sum())
     if n_changed == 0:
         return
     warnings.warn(
         "Every symmetry operation should leave the PAW strengths Dij of the "
-        f"perfect supercell unchanged, but {n_changed} of the {len(rotations)} "
-        f"operations change them by up to {deviations_array.max():.2g} eV "
+        f"perfect supercell unchanged, but {n_changed} of the {len(deviations)} "
+        f"operations change them by up to {deviations.max():.2g} eV "
         f"(tolerance {tolerance:g} eV). The magnetic moments included in the "
         "symmetry operations do not describe the magnetic state of the VASP "
         f"calculation (ncdij={ncdij}), and the derivatives obtained with these "
@@ -843,3 +845,80 @@ def _check_Dij_symmetry(
         MagneticMomentsWarning,
         stacklevel=1,
     )
+
+
+def _get_Dij_symmetry_deviations(
+    Dij: NDArray,
+    lm_channels: list[dict],
+    supercell: PhonopyAtoms,
+    symmetry: Symmetry,
+) -> NDArray[np.double]:
+    """Return how much each symmetry operation changes Dij of the supercell.
+
+    Each operation, with its spin rotation for ncdij=4 and with time reversal
+    where the operation has it, transforms Dij. The change is the largest
+    absolute difference between the transformed Dij and Dij.
+
+    The operations that have the same rotation and the same time reversal,
+    e.g., those that differ by a pure translation, rotate Dij of each atom in
+    the same way and differ only in the atom that receives it. So Dij of the
+    atoms is rotated once for each pair of rotation and time reversal, without
+    the permutation, and Dij rotated from atom i is compared with Dij of atom
+    perm[i] for each operation. The rotations in orbital space and in spin
+    space act on each atom separately, so the changes are the same as those
+    obtained by rotating Dij for each operation. The pairs are processed one
+    by one, so that only the rotated Dij of one pair is kept in memory.
+
+    Parameters
+    ----------
+    Dij : NDArray
+        Dij of the perfect supercell, shape=(ncdij, natom, lmdim, lmdim).
+    lm_channels : list[dict]
+        lm channels of the atoms.
+    supercell : PhonopyAtoms
+        Perfect supercell.
+    symmetry : Symmetry
+        Symmetry of the supercell.
+
+    Returns
+    -------
+    NDArray
+        Change of Dij by each operation, in the order of the operations of
+        symmetry.
+        dtype='double', shape=(n_operations,)
+
+    """
+    ncdij = Dij.shape[0]
+    rotations = symmetry.symmetry_operations["rotations"]
+    lattice = np.array(supercell.cell.T, dtype="double", order="C")
+    perms = symmetry.atomic_permutations
+    lxlylz = LxLyLzMatrices().run()
+    time_reversals = get_time_reversals(symmetry)
+    no_perm = np.arange(Dij.shape[1])
+    # Indices of the operations for each pair of rotation and time reversal.
+    groups: dict[tuple[bytes, bool], list[int]] = {}
+    for i_op, (r, tr) in enumerate(zip(rotations, time_reversals, strict=True)):
+        key = (r.tobytes(), bool(tr))
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(i_op)
+    deviations = np.zeros(len(rotations), dtype="double")
+    for indices in groups.values():
+        r = rotations[indices[0]]
+        shr = SHRotationMatrices(r, lattice, lxlylz)
+        shr.run()
+        assert shr.Delta is not None
+        vals = [
+            _rotate_Dij_in_orbital_space(Dij[i], lm_channels, shr.Delta, no_perm)
+            for i in range(ncdij)
+        ]
+        if ncdij == 4:
+            vals = rotate_delta_vals_in_spin_space(vals, r, lattice)
+        if time_reversals[indices[0]]:
+            vals = apply_time_reversal_in_spin_space(vals)
+        rotated = np.array(vals)
+        # rotated[:, i] is Dij rotated from atom i, which each operation of the
+        # pair moves to atom perm[i].
+        for i_op in indices:
+            deviations[i_op] = np.abs(rotated - Dij[:, perms[i_op]]).max()
+    return deviations

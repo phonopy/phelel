@@ -2,6 +2,14 @@
 
 # Change Log
 
+## Unreleased
+
+- With spin, the check that the symmetry operations leave the PAW strengths
+  Dij of the perfect supercell unchanged is faster. Dij is rotated once for
+  each pair of rotation and time reversal, instead of once for each symmetry
+  operation. On a supercell of 96 atoms with non-collinear spin, the check took
+  1.8 s instead of 16.6 s. The results are unchanged.
+
 ## Nov-2-2026: Version 0.18.1
 
 - Maintenance release
