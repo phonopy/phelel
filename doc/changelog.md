@@ -2,20 +2,35 @@
 
 # Change Log
 
-## Unreleased
+## Nov-2-2026: Version 0.18.0
 
-- `--nufft` of `phelel` and `velph phelel differentiate`, `NUFFT` in the
-  configuration file of `phelel`, and `nufft` of `Phelel` and `phelel.load()`
-  choose how the change of the local potential is evaluated at the grid points:
-  `finufft` (the default, as before), `native` or `native-box`. `native` and
-  `native-box` use FFTs with NumPy, without the approximation of finufft.
-  `native` keeps the symmetry of the crystal and the reality of the potential
-  between the points of the FFT mesh of the supercell, and `native-box` gives
-  the series that finufft evaluates. See {ref}`phelel_nufft_option`.
-- `native` chooses the shortest reciprocal lattice vectors with
-  `bz_grid_addresses` of phonors, which is parallelized: for an FFT mesh of
-  300x300x300 points of the supercell, the choice takes 0.25 s on 18 cores
-  instead of 30 s.
+- `--dv-evaluation-method` of `phelel` and `velph phelel differentiate`,
+  `DV_EVALUATION_METHOD` in the configuration file of `phelel`, and
+  `dv_evaluation_method` of `Phelel` and `phelel.load()` are added. They choose
+  how the change of the local potential is computed at the points of
+  `--fft-mesh`, which are in general not on the FFT mesh of the supercell. The
+  choices are `shortest` (the default), `box` and `finufft`. They differ in the
+  reciprocal lattice vectors at which the Fourier coefficients are placed, and
+  `shortest` and `box` compute the values without the approximation of
+  finufft. `shortest` keeps the symmetry of the crystal and the reality of the
+  potential between the points of the FFT mesh of the supercell. `box` gives
+  the values that finufft computes, without the error of finufft. See
+  {ref}`phelel_dv_evaluation_method_option`.
+- The default is `shortest`. Before, finufft was always used. When the points
+  given by `--fft-mesh` are not on the FFT mesh of the supercell, dV/du differs
+  from that of the earlier versions: it has no imaginary part, which `finufft`
+  gives. To get dV/du of the earlier versions, use
+  `--dv-evaluation-method finufft`, or `--dv-evaluation-method box`, which
+  differs from it only by the error of finufft.
+- finufft is no longer a dependency of phelel. It is needed only with
+  `--dv-evaluation-method finufft`. Install it by
+  `conda install -c conda-forge finufft` or `pip install finufft`.
+- phonors 0.7.0 or later is required. `shortest` chooses the shortest
+  reciprocal lattice vectors with `bz_grid_addresses` of phonors, which is
+  parallelized: for an FFT mesh of 300x300x300 points of the supercell, the
+  choice takes 0.25 s on 18 cores instead of 30 s. `shortest` and `box` add up
+  the Fourier coefficients with `bin_supercell_fourier_coefficients` of phonors
+  and compute the inverse FFTs with scipy.fft, both in parallel.
 
 ## Oct-26-2026: Version 0.17.0
 

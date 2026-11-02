@@ -18,22 +18,60 @@ from phelel.interface.vasp.file_IO import (
 cwd = pathlib.Path(__file__).parent
 
 
+def _is_finufft_installed() -> bool:
+    try:
+        import finufft  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def pytest_configure(config: pytest.Config):
+    """Register the finufft marker."""
+    config.addinivalue_line(
+        "markers",
+        "finufft: the test uses finufft and is skipped when it is not installed",
+    )
+
+
+def pytest_runtest_setup(item: pytest.Item):
+    """Skip the tests marked with finufft when finufft is not installed.
+
+    finufft is not a dependency of phelel.
+
+    """
+    if item.get_closest_marker("finufft") is not None and not _is_finufft_installed():
+        pytest.skip("finufft is not installed")
+
+
 @pytest.fixture(scope="session")
 def phelel_empty_C111() -> Phelel:
-    """Return phelel_disp.yaml instance of C111."""
-    return phelel.load(cwd / "phelel_disp_C111.yaml")
+    """Return phelel_disp.yaml instance of C111 with "box".
+
+    See _get_phelel for dv_evaluation_method.
+
+    """
+    return phelel.load(cwd / "phelel_disp_C111.yaml", dv_evaluation_method="box")
 
 
 @pytest.fixture(scope="session")
 def phelel_empty_NaCl111() -> Phelel:
-    """Return phelel_disp.yaml instance of NaCl111."""
-    return phelel.load(cwd / "phelel_disp_NaCl111.yaml")
+    """Return phelel_disp.yaml instance of NaCl111 with "box".
+
+    See _get_phelel for dv_evaluation_method.
+
+    """
+    return phelel.load(cwd / "phelel_disp_NaCl111.yaml", dv_evaluation_method="box")
 
 
 @pytest.fixture(scope="session")
 def phelel_empty_CdAs2_111() -> Phelel:
-    """Return phelel_disp.yaml instance of CdAs2-111."""
-    return phelel.load(cwd / "phelel_disp_CdAs2.yaml")
+    """Return phelel_disp.yaml instance of CdAs2-111 with "box".
+
+    See _get_phelel for dv_evaluation_method.
+
+    """
+    return phelel.load(cwd / "phelel_disp_CdAs2.yaml", dv_evaluation_method="box")
 
 
 @pytest.fixture(scope="session")
@@ -134,6 +172,16 @@ def phelel_CdAs2_111(
 
 
 def _get_phelel(phe: Phelel, phe_input: PhelelDataset):
+    """Run the derivatives with fft_mesh=[14, 14, 14].
+
+    The reference values in phelel_params_*.hdf5 were computed with finufft,
+    the default before.  phe has dv_evaluation_method="box", which gives the
+    values of finufft without its error and does not need finufft.  The grid
+    points are not on the FFT mesh of the supercell.  There "shortest", the
+    default, gives no imaginary part and differs from the reference by up to
+    4e-4 relative to the largest value.
+
+    """
     phei = phe_input
     phe.fft_mesh = [14, 14, 14]
     phe.run_derivatives(phei)
