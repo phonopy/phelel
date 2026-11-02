@@ -10,6 +10,13 @@
   converted to `[vasp.el_bands]` and `[vasp.el_dos]`, which are the input sets
   that `velph el_bands generate` of these versions writes. See
   {ref}`velph_changes_0_15_el_bands_0_10`.
+- `velph phelel differentiate` prints the progress: when it starts reading
+  the VASP output files, and when it computes the derivatives of each
+  displaced atom. With `-v`, it also prints each file after the file is read
+  and the drift of the force constants. Before, it printed only the FFT mesh
+  and the name of the written file, and `-v` printed each file before reading
+  the forces of the files.
+- `phelel` prints the drift of the force constants only with `-v`.
 
 ## Nov-2-2026: Version 0.18.0
 

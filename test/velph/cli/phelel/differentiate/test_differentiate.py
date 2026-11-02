@@ -383,9 +383,9 @@ def test_differentiate_with_dv_evaluation_method(
 ):
     """With --dv-evaluation-method, the method is printed and dVdu changes slightly.
 
-    Without --dv-evaluation-method, nothing about the method is printed, so that
-    the outputs shown in the documentation stay the same, and dVdu is that of
-    "shortest", the default.
+    Without --dv-evaluation-method, velph prints no line of the method, and
+    dVdu is that of "shortest", the default.  The method is also in the lines
+    of the progress of the derivatives, which are printed in both cases.
     dVdu with "box" differs from that with "shortest" by the choice of g
     between the points of the FFT mesh of the supercell.  The difference shows
     that the option reaches the calculation.  "finufft" is compared with
@@ -412,7 +412,10 @@ def test_differentiate_with_dv_evaluation_method(
         result = CliRunner().invoke(cmd_root, ["phelel", "differentiate", *option])
         assert result.exit_code == 0, result.output
         if dv_evaluation_method is None:
-            assert "dV evaluation method" not in result.output
+            assert not any(
+                line.startswith("dV evaluation method")
+                for line in result.output.splitlines()
+            )
         else:
             assert f"dV evaluation method: {dv_evaluation_method}.\n" in result.output
         with h5py.File(work_dir / "phelel" / "phelel_params.hdf5") as f:
@@ -460,3 +463,57 @@ def test_run_derivatives_missing_files(tmp_path: pathlib.Path):
         "PAW-STRENGTH.bin and PAW-OVERLAP.bin.\n"
         "Not found: vaspout.h5, PAW-STRENGTH.bin, PAW-OVERLAP.bin."
     )
+
+
+@pytest.mark.parametrize("verbose", [False, True])
+def test_differentiate_progress(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    verbose: bool,
+):
+    """The progress of the derivatives is printed, and more with -v.
+
+    Without -v, the reading of the VASP output files and the derivatives of
+    each displaced atom are printed.  With -v, the file that has been read and
+    the drift of the force constants are printed in addition, after
+    "Reading ...".  That each file is printed after it is read is tested by
+    test_read_vasp_forces_prints_after_reading in
+    test/interface/vasp/test_derivatives.py.
+
+    """
+    (tmp_path / "velph.toml").write_text(tomli_w.dumps(nacl_velph_toml()))
+    shutil.copytree(cwd / "C111" / "phelel", tmp_path / "phelel")
+    shutil.copy(
+        cwd / "C111" / "phelel_disp_C111.yaml", tmp_path / "phelel" / "phelel_disp.yaml"
+    )
+    monkeypatch.chdir(tmp_path)
+    option = ["-v"] if verbose else []
+    result = CliRunner().invoke(cmd_root, ["phelel", "differentiate", *option])
+    assert result.exit_code == 0, result.output
+    lines = result.output.splitlines()
+
+    progress = [
+        "Reading the VASP output files of 2 supercells...",
+        "Computing dV at grid points (dV evaluation method: shortest)...",
+        "Computed dV/du by displaced atom 1",
+        "Computed dV/du by displaced atom 5",
+        "Computing dDij/du and dqij/du of displaced atom 1...",
+        "Computing dDij/du and dqij/du of displaced atom 5...",
+        '"phelel/phelel_params.hdf5" was written.',
+    ]
+    for line in progress:
+        assert line in lines
+    read_lines = [
+        'Forces were read from "phelel/disp-000/vasprun.xml.xz".',
+        'Forces were read from "phelel/disp-001/vasprun.xml".',
+    ]
+    is_drift = [line.startswith("Max drift of force constants") for line in lines]
+    if not verbose:
+        assert not any(line in lines for line in read_lines)
+        assert not any(is_drift)
+        return
+    reading = lines.index(progress[0])
+    for line in read_lines:
+        assert lines.index(line) > reading
+    assert any(is_drift)

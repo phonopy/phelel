@@ -139,6 +139,9 @@ def cmd_differentiate(
         yaml_filename,
         is_symmetry=is_symmetry,
         dv_evaluation_method=dv_evaluation_method,
+        # log_level=1 shows the progress of the derivatives, and 2 also the
+        # drift of the force constants.
+        log_level=2 if verbose else 1,
     )
     phe.fft_mesh = get_fft_mesh(project, phe.primitive.cell, encut=encut)
     if encut is None:

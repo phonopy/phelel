@@ -394,6 +394,29 @@ def test_read_vasp_forces_wrong_number_of_atoms():
         )
 
 
+def test_read_vasp_forces_prints_after_reading(capsys: pytest.CaptureFixture):
+    """The message of a file is printed after the file is read.
+
+    The second file has the forces of a supercell of 64 atoms, which are not
+    those of the supercell of 8 atoms.  The message of the first file is
+    printed, that of the second file is not, and the error names the second
+    file.  phonopy also prints that parsing the second file failed.
+
+    """
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    capsys.readouterr()
+    filenames = [
+        cwd / "C111_disp-000" / "vasprun.xml.xz",
+        cwd / "C222_disp-000" / "vasprun.xml.xz",
+    ]
+    with pytest.raises(ValueError) as excinfo:
+        read_vasp_forces(filenames, phelel.supercell, log_level=1)
+    assert f'"{filenames[1]}"' in str(excinfo.value)
+    lines = capsys.readouterr().out.splitlines()
+    assert f'Forces were read from "{filenames[0]}".' in lines
+    assert f'Forces were read from "{filenames[1]}".' not in lines
+
+
 def test_create_derivatives_C111_phonon_supercell_without_dataset():
     """A phonon supercell without the phonon dataset is an error."""
     phelel = _get_phelel_C111(
