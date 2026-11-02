@@ -197,7 +197,21 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
         dest="finufft_eps",
         type=float,
         default=None,
-        help="Accuracy of finufft interpolation (default=1e-6)",
+        help=("Accuracy of finufft with --dv-evaluation-method finufft (default=1e-6)"),
+    )
+    parser.add_argument(
+        "--dv-evaluation-method",
+        dest="dv_evaluation_method",
+        choices=["shortest", "box", "finufft"],
+        default=None,
+        help=(
+            "How the change of the local potential is computed at the grid "
+            'points: "shortest" (default, placing each Fourier coefficient at '
+            "the shortest reciprocal lattice vectors, which keeps the symmetry "
+            "and the reality of the potential between the FFT mesh points of "
+            'the supercell), "box" (giving the values of finufft without its '
+            'error) or "finufft" (needs finufft installed)'
+        ),
     )
     parser.add_argument(
         "--srfs",

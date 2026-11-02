@@ -70,9 +70,11 @@ file (see {ref}`velph_subcommands_scheduler`).
 
 ```{note}
 `scheduler_name` of velph 0.14, which chose a job script of SGE or Slurm written
-in velph, is removed. A `velph.toml` or a template with `scheduler_name` is an
-error. See {ref}`velph_changes_0_15_scheduler` for the `scheduler_template` that
-gives the same job script.
+in velph, is removed. A `velph.toml` of velph 0.15 or a template with
+`scheduler_name` is an error. In a `velph.toml` of velph 0.14, `velph convert`
+and the subcommands replace it by the `scheduler_template` that gives the same
+job script. See {ref}`velph_changes_0_15_scheduler` for this
+`scheduler_template`.
 ```
 
 ## Writing `scheduler_template`

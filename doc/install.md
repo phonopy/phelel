@@ -6,10 +6,14 @@
 * phonors
 * phono3py
 * spglib
-* {ref}`reference_finufft`
+* scipy
 * click
 * tomli-w
 * seekpath (optional)
+* {ref}`reference_finufft` (optional, only for
+  `--dv-evaluation-method finufft`, see
+  {ref}`phelel_dv_evaluation_method_option`). The package name is `finufft`
+  both in conda-forge and in PyPI.
 
 ## Installation from source code
 
@@ -25,7 +29,7 @@ From source code of phelel,
 ```
 % conda create -n phelel -c conda-forge
 % conda activate phelel
-% conda install -c conda-forge phono3py finufft click tomli-w seekpath
+% conda install -c conda-forge phono3py click tomli-w seekpath
 % git clone https://github.com/phonopy/phelel.git
 % cd phelel
 % pip install -e .

@@ -197,6 +197,84 @@ of the local potentials are written in `phelel_params.hdf5`. Give the FFT mesh
 calculation. `velph phelel differentiate` computes this mesh from ENCUT and PREC
 of the electron-phonon calculation and gives it to phelel.
 
+(phelel_dv_evaluation_method_option)=
+### `--dv-evaluation-method`
+
+VASP gives the change of the local potential, $\Delta V$, on the FFT mesh of the
+supercell. phelel needs $\Delta V$ at the points of the mesh given by
+`--fft-mesh` and at these points moved by the symmetry operations. These points
+are in general not on the FFT mesh of the supercell.
+
+At such a point $\mathbf{r}$, phelel computes $\Delta V(\mathbf{r})$ from the
+Fourier coefficients $c(\mathbf{g})$ of the values on the FFT mesh of the
+supercell, which are their discrete Fourier transform:
+
+$$
+\Delta V(\mathbf{r}) = \sum_{\mathbf{g}} c(\mathbf{g})
+\exp(2\pi i \mathbf{g} \cdot \mathbf{r}).
+$$
+
+Here $\mathbf{r} = (r_1, r_2, r_3)$ is the position in the basis vectors of the
+supercell, and the integers $\mathbf{g} = (g_1, g_2, g_3)$ give a reciprocal
+lattice vector of the supercell, so that
+$\mathbf{g} \cdot \mathbf{r} = g_1 r_1 + g_2 r_2 + g_3 r_3$. The sum has one
+term for each point of the FFT mesh of the supercell. `--dv-evaluation-method`
+chooses where each coefficient is placed in the sum and how the sum is computed.
+
+| `--dv-evaluation-method` | Where each coefficient is placed | How the sum is computed                                                                         |
+| ------------------------ | -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `shortest` (default)     | shortest                         | without approximation                                                                           |
+| `box`                    | box                              | without approximation                                                                           |
+| `finufft`                | box                              | [finufft](https://finufft.readthedocs.io/) to the accuracy of `--finufft-eps` (1e-6 by default) |
+
+Let $N_1$, $N_2$ and $N_3$ be the mesh numbers of the FFT mesh of the
+supercell. For integers $n_1$, $n_2$ and $n_3$, $\mathbf{g}$ and
+$\mathbf{g} + (N_1 n_1, N_2 n_2, N_3 n_3)$ have the same coefficient. Each
+coefficient is placed at one of these $\mathbf{g}$ in the sum. At the points of
+the FFT mesh of the supercell, $\exp(2\pi i \mathbf{g} \cdot \mathbf{r})$ is the
+same for all of them, so the choice does not change $\Delta V(\mathbf{r})$
+there. At other points, the choice changes $\Delta V(\mathbf{r})$.
+
+- "Shortest" places each coefficient at the $\mathbf{g}$ whose reciprocal
+  lattice vector is the shortest. When several of them have the same length,
+  the coefficient is divided equally among them. Then $\Delta V(\mathbf{r})$
+  has the symmetry of the crystal and is real (Hermitian with non-collinear
+  spin) at every point.
+- "Box" places each coefficient at the $\mathbf{g}$ with
+  $-N_k/2 < g_k \le N_k/2$. For an even $N_k$, the coefficient is placed at
+  $g_k = N_k/2$ and not divided with $g_k = -N_k/2$. When this coefficient is
+  not zero, $\Delta V(\mathbf{r})$ between the points of the FFT mesh of the
+  supercell has an imaginary part, and in general does not have the symmetry
+  of the crystal.
+
+`shortest` and `box` compute the sum in two steps. Many terms of the sum have
+the same $\exp(2\pi i \mathbf{g} \cdot \mathbf{r})$ at all the points of
+`--fft-mesh`, and phelel first adds up the coefficients of these terms. phelel
+then computes the sum of the remaining terms by inverse FFTs. The result is the
+sum itself, up to rounding errors. `finufft` computes the sum with finufft,
+which approximates it to the accuracy of `--finufft-eps`.
+
+When the points given by `--fft-mesh` are on the FFT mesh of the supercell, the
+choice of `--dv-evaluation-method` does not change the derivatives. Otherwise
+the derivatives of `shortest` differ from those of `box` and `finufft`. In the
+examples tested, the real parts differed by up to 3e-6 relative to the largest
+value. `box` and `finufft` gave imaginary parts of up to 4e-4 relative, and
+`shortest` gave none.
+
+`box` gives the values that finufft computes, without the error of finufft. The
+derivatives of `box` and `finufft` differ by the error of finufft.
+
+finufft is not a dependency of phelel. To use
+`--dv-evaluation-method finufft`, install the `finufft` package by
+`conda install -c conda-forge finufft` or `pip install finufft`.
+`--finufft-eps` can be given only with `finufft`.
+
+finufft runs on all the CPU cores by default. In `shortest` and `box`, the
+inverse FFTs and the steps done by phonors also run on all the CPU cores.
+
+In a configuration file, `DV_EVALUATION_METHOD = box` is the same as
+`--dv-evaluation-method box`.
+
 ### `--config`
 
 The settings are read from the configuration file given by `--config`, e.g.,

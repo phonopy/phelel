@@ -27,7 +27,7 @@ file. It prints the settings that were removed and the k-point blocks whose
 ```
 % velph convert velph.toml velph-new.toml
 fft_mesh of [phelel] was removed.
-"velph-new.toml" has been written from "velph.toml".
+"velph-new.toml" was written from "velph.toml".
 ```
 
 To use the new file, rename `velph-new.toml` to `velph.toml`.
@@ -36,6 +36,31 @@ The velph subcommands also read a `velph.toml` of velph 0.14 without
 `velph convert`. They convert the settings to those of velph 0.15 when they
 read the file, and they do not change the file. In both cases, `kspacing` in a
 k-point block is converted to `mesh` in the same way as velph 0.14 does.
+
+(velph_changes_0_15_el_bands_0_10)=
+#### `[vasp.el_bands]` of velph 0.10 and earlier
+
+`velph convert` and the subcommands also convert `[vasp.el_bands]` of velph
+0.10 and earlier. In these versions, `[vasp.el_bands]` is one input set with
+both `kpoints_opt` and `kpoints_dense`. `velph el_bands generate` of these
+versions writes the band structure with `kpoints_opt` and the INCAR tags
+without `lorbit` and `nedos`, and the DOS with `kpoints_dense` and all the
+INCAR tags. In the same way, `[vasp.el_bands]` is converted to two input sets:
+
+- `[vasp.el_bands]` without `kpoints_dense`, and without `lorbit` and `nedos`
+  in `[vasp.el_bands.incar]`.
+- `[vasp.el_dos]` without `kpoints_opt`. It is written only when
+  `[vasp.el_bands]` has `kpoints_dense`.
+
+`velph convert` prints these changes:
+
+```
+% velph convert velph.toml velph-new.toml
+fft_mesh of [phelel] was removed.
+[vasp.el_bands] was split into [vasp.el_bands] with kpoints_opt and [vasp.el_dos] with kpoints_dense.
+lorbit and nedos were removed from [vasp.el_bands.incar].
+"velph-new.toml" was written from "velph.toml".
+```
 
 ### Settings that velph 0.15 does not use
 
@@ -54,10 +79,21 @@ The following settings of velph 0.14 have no place in velph 0.15.
 A key that velph 0.15 does not know is an error, also in a `velph.toml` of
 velph 0.14. velph 0.14 did not use such a key and printed no message.
 
-`scheduler_name` in `[scheduler]` or in `[vasp.<input set>.scheduler]` is an
-error, also in a `velph.toml` of velph 0.14, and `velph convert` writes no file
-then. Replace it with `scheduler_template` (see
-{ref}`velph_changes_0_15_scheduler`).
+`scheduler_name` in `[scheduler]` or in `[vasp.<input set>.scheduler]` of a
+`velph.toml` of velph 0.14 is replaced by `scheduler_template`, so that the job
+scripts are those that velph 0.14 writes (see
+{ref}`velph_changes_0_15_scheduler`). `velph convert` and the subcommands do
+this in the same way, and `velph convert` prints it:
+
+```
+% velph convert velph.toml velph-new.toml
+fft_mesh of [phelel] was removed.
+scheduler_name = "sge" of [scheduler] was removed.
+scheduler_template was written to give the job scripts that velph 0.14 writes for scheduler_name.
+"velph-new.toml" was written from "velph.toml".
+```
+
+`scheduler_name` in a `velph.toml` of velph 0.15 is an error.
 
 ### Directories with new names
 
@@ -120,9 +156,12 @@ changes that concern the file.
 
 With `scheduler_name = "sge"` or `"slurm"`, velph 0.14 wrote a job script of SGE
 or Slurm that was written in velph, and it did not use `scheduler_template`.
-velph 0.15 writes the job script from `scheduler_template` only. To write the
-job script that velph 0.14 wrote, remove `scheduler_name` and give the
-following `scheduler_template`.
+velph 0.15 writes the job script from `scheduler_template` only. For a
+`velph.toml` of velph 0.14, `velph convert` and the subcommands replace
+`scheduler_name` by the following `scheduler_template`, which gives the job
+script that velph 0.14 wrote (see {ref}`velph_changes_0_15_convert`). In a
+template of `velph init`, remove `scheduler_name` and give this
+`scheduler_template`.
 
 For `scheduler_name = "sge"`,
 

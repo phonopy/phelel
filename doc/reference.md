@@ -70,7 +70,10 @@ reduction, is handled by spglib
 (reference_finufft)=
 ## finufft
 
-The local potentials from VASP calculation results are interpolated using
-[finufft](https://finufft.readthedocs.io/). For more information and references
-on finufft, visit
+With `--dv-evaluation-method finufft` of `phelel` and
+`velph phelel differentiate`, the change of the local potential is computed at
+the points of `--fft-mesh` using [finufft](https://finufft.readthedocs.io/)
+(see {ref}`phelel_dv_evaluation_method_option`). finufft is not a dependency
+of phelel, and is installed by `conda install -c conda-forge finufft` or
+`pip install finufft`. For more information and references on finufft, visit
 [https://finufft.readthedocs.io/en/latest/refs.html](https://finufft.readthedocs.io/en/latest/refs.html).

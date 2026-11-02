@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import pathlib
+from typing import Literal
 
 import click
 
 import phelel
 from phelel.cui.phelel_script import finalize_phelel
 from phelel.velph.cli.phelel.differentiate import get_fft_mesh, run_derivatives
+from phelel.velph.cli.phelel.dump_dvdu import dump_dvdu
 from phelel.velph.cli.phelel.init import run_init
 from phelel.velph.cli.phelel.phonopy import create_phonopy_yaml
 from phelel.velph.cli.supercells import write_supercell_input_files
@@ -90,6 +92,19 @@ def cmd_generate(toml_filename: str):
     ),
 )
 @click.option(
+    "--dv-evaluation-method",
+    type=click.Choice(["shortest", "box", "finufft"]),
+    default=None,
+    help=(
+        "How the change of the local potential is computed at the grid points: "
+        '"shortest" (default, placing each Fourier coefficient at the shortest '
+        "reciprocal lattice vectors, which keeps the symmetry and the reality of "
+        'the potential between the FFT mesh points of the supercell), "box" '
+        '(giving the values of finufft without its error) or "finufft" (needs '
+        "finufft installed)."
+    ),
+)
+@click.option(
     "-v",
     "verbose",
     is_flag=True,
@@ -100,6 +115,7 @@ def cmd_generate(toml_filename: str):
 def cmd_differentiate(
     toml_filename: str,
     encut: float | None,
+    dv_evaluation_method: Literal["shortest", "box", "finufft"] | None,
     verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5.
@@ -119,17 +135,56 @@ def cmd_differentiate(
             'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
         )
 
-    phe = phelel.load(yaml_filename, is_symmetry=is_symmetry)
+    phe = phelel.load(
+        yaml_filename,
+        is_symmetry=is_symmetry,
+        dv_evaluation_method=dv_evaluation_method,
+        # log_level=1 shows the progress of the derivatives, and 2 also the
+        # drift of the force constants.
+        log_level=2 if verbose else 1,
+    )
     phe.fft_mesh = get_fft_mesh(project, phe.primitive.cell, encut=encut)
     if encut is None:
         click.echo(f"FFT mesh: {phe.fft_mesh}.")
     else:
         click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
+    if dv_evaluation_method is not None:
+        click.echo(f"dV evaluation method: {dv_evaluation_method}.")
 
     run_derivatives(phe, project_dir=project_dir, verbose=verbose)
     hdf5_filename.parent.mkdir(parents=True, exist_ok=True)
     phe.save_hdf5(filename=hdf5_filename)
     click.echo(f'"{hdf5_filename}" was written.')
+
+
+#
+# velph phelel dump-dvdu
+#
+@cmd_phelel.command("dump-dvdu")
+@click.option(
+    "--atom",
+    "atom_numbers",
+    type=int,
+    multiple=True,
+    help=(
+        "Number of an atom in the supercell, counted from 1, whose dV/du is "
+        "written.  It can be given more than once.  Default is all the atoms of "
+        "dV/du, those of the primitive cell in the supercell."
+    ),
+)
+@click.help_option("-h", "--help")
+def cmd_dump_dvdu(atom_numbers: tuple[int, ...]) -> None:
+    """Write dV/du of phelel_params.hdf5 in LOCPOT-like files.
+
+    For each atom, phelel/locpot_viz-{atom}-{x,y,z}.dat has dV/du of the
+    potential part v.  With spin, the magnetic parts are written in
+    phelel/locpot_viz-{atom}-{x,y,z}-vz.dat (collinear) or
+    phelel/locpot_viz-{atom}-{x,y,z}-{vx,vy,vz}.dat (non-collinear).  The
+    local potential is (v + v_z, v - v_z) for spin up and down, or the 2x2
+    matrix v + v_x sigma_x + v_y sigma_y + v_z sigma_z.
+
+    """
+    dump_dvdu(atom_numbers)
 
 
 #

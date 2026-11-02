@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import textwrap
 from collections.abc import Sequence
+from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,6 +17,7 @@ from phonopy.structure.cells import determinant, get_supercell
 from phonopy.structure.symmetry import Symmetry
 from phonors import snf3x3
 
+from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.symmetrization import (
     check_displaced_atoms,
@@ -27,6 +30,24 @@ from phelel.utils.spinor import (
     apply_time_reversal_in_spin_space,
     rotate_delta_vals_in_spin_space,
 )
+
+
+def check_finufft_installed():
+    """Raise ImportError when finufft is not installed.
+
+    finufft is used with dv_evaluation_method="finufft", and is not a
+    dependency of phelel.
+
+    """
+    try:
+        import finufft  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            'dv_evaluation_method="finufft" (--dv-evaluation-method finufft, '
+            "DV_EVALUATION_METHOD = finufft) needs finufft, which is not "
+            "installed. Install the finufft package, e.g., by "
+            '"conda install -c conda-forge finufft" or "pip install finufft".'
+        ) from e
 
 
 class DeltaLocalPotential:
@@ -127,9 +148,11 @@ class LocalPotentialInterpolationNUFFT:
         dtype='double'
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
-        Lattice points in supercell in primitive cell coordinates
+        Lattice points of the primitive cell, one from each class modulo the
+        lattice of the supercell, in the basis vectors of the primitive cell.
+        They are not reduced into the supercell.  See get_lattice_points.
         dtype='int64'
-        shape=(det(supercell_matrxi), 3)
+        shape=(det(p2s_matrix), 3)
     dVdu : ndarray
         Displacement derivative of local potential in supercell interpolated on
         mesh grid of primitve cell
@@ -150,6 +173,7 @@ class LocalPotentialInterpolationNUFFT:
         symmetry: Symmetry,
         atom_indices: NDArray | None = None,
         finufft_eps: float | None = None,
+        dv_evaluation_method: Literal["shortest", "box", "finufft"] = "shortest",
         verbose: bool = True,
     ):
         """Init method.
@@ -173,8 +197,22 @@ class LocalPotentialInterpolationNUFFT:
             If None, supposed to be all atoms. Internally only symmetrically
             equivalent atoms to the dispalced atom are selected to compute.
         finufft_eps : float or None, optional
-            Accuracy of finufft interpolation. Default is None, which
+            Accuracy of finufft. Default is None, which
             corresponds to 1e-6.
+        dv_evaluation_method : {"shortest", "box", "finufft"}, optional
+            Method to compute dV at the grid points as the sum over g of the
+            Fourier coefficients of dV on the FFT mesh of the supercell times
+            exp(2 pi i g . x).  The coefficients are periodic in g, and each
+            one is placed at one g of g + N^s n (see
+            phelel.base.fourier_series).  The choice changes the values
+            between the points of the FFT mesh of the supercell.  "shortest"
+            places it at the shortest reciprocal lattice vectors, which keeps
+            the symmetry and the reality of dV there.  "box" places it in the
+            box used with finufft.  Both compute the sum by
+            FourierSeriesOnGrid without approximation, and finufft_eps is not
+            used.  "finufft" computes the sum in the same box with finufft to
+            the accuracy of finufft_eps, and needs finufft, which is not a
+            dependency of phelel.  Default is "shortest".
         verbose : bool, optional
             To display log or not
 
@@ -186,10 +224,13 @@ class LocalPotentialInterpolationNUFFT:
         self._supercell = supercell
         self._symmetry = symmetry
         self._atom_indices_in = atom_indices
+        if dv_evaluation_method == "finufft":
+            check_finufft_installed()
         if finufft_eps is None:
             self._finufft_eps = 1e-6
         else:
             self._finufft_eps = finufft_eps
+        self._dv_evaluation_method = dv_evaluation_method
 
         ##########
         # Public #
@@ -199,6 +240,16 @@ class LocalPotentialInterpolationNUFFT:
             fft_mesh, self._p2s_matrix
         )
         assert 3 == self._grid_points.shape[1]
+        self._fourier_series: FourierSeriesOnGrid | None = None
+        if dv_evaluation_method == "shortest":
+            self._fourier_series = FourierSeriesOnGrid(
+                fft_mesh,
+                self._p2s_matrix,
+                representatives="shortest",
+                supercell_lattice=supercell.cell,
+            )
+        elif dv_evaluation_method == "box":
+            self._fourier_series = FourierSeriesOnGrid(fft_mesh, self._p2s_matrix)
 
         self._dVdu: NDArray | None = None
         self._atom_indices_returned: NDArray | None = None
@@ -277,7 +328,7 @@ class LocalPotentialInterpolationNUFFT:
 
             dV_kg(r) = dV_k(g^-1 r),
 
-        which is evaluated at the grid points by NUFFT (_rotate_dV).  For
+        which is evaluated at the grid points by _rotate_dV.  For
         ncdij=4, dV_kg is also rotated in spin space by R, and for the
         operations combined with time reversal, time reversal is applied in
         spin space.
@@ -315,19 +366,26 @@ class LocalPotentialInterpolationNUFFT:
         disps_inv = np.linalg.pinv(disps)
 
         if self._verbose:
-            print("Running finufft (eps=%.3e)..." % self._finufft_eps)
+            if self._fourier_series is None:
+                print("Running finufft (eps=%.3e)..." % self._finufft_eps)
+            else:
+                print(
+                    "Computing dV at grid points (dV evaluation method: "
+                    f"{self._dv_evaluation_method})..."
+                )
 
         ncdij = delta_Vs[0].dV.shape[0]
         dVdu = np.zeros(
             (ncdij, 3, len(self._grid_points)), dtype="complex128", order="C"
         )
-        self._init_finufft([dV.shape for dV in delta_Vs[0].dV])
+        if self._fourier_series is None:
+            self._init_finufft([dV.shape for dV in delta_Vs[0].dV])
 
         count = 0
         for delta_V in delta_Vs:
-            dVs_iFT = [self._get_iFFT_of_dV(dV) for dV in delta_V.dV]
+            dVs_rec = [self._get_Fourier_coefficients(dV) for dV in delta_V.dV]
             for r, t, tr in zip(rotations, translations, time_reversals, strict=True):
-                dVs_rotated = self._rotate_dV(dVs_iFT, r, t)
+                dVs_rotated = self._rotate_dV(dVs_rec, r, t)
                 if ncdij == 4:  # Need to rotate in spin space, too.
                     dVs_spinor_rotated = rotate_delta_vals_in_spin_space(
                         dVs_rotated, r, lattice
@@ -340,22 +398,25 @@ class LocalPotentialInterpolationNUFFT:
                     dVdu[i_cdij] += np.outer(disps_inv[:, count], dVs_rotated[i_cdij])
                 count += 1
                 dVs_rotated.clear()
-            dVs_iFT.clear()
+            dVs_rec.clear()
 
-        self._finalize_finufft()
+        if self._fourier_series is None:
+            self._finalize_finufft()
         return dVdu
 
     def _rotate_dV(
-        self, dV_iFTs: list[NDArray], r: NDArray, t: NDArray
+        self, dVs_rec: list[NDArray], r: NDArray, t: NDArray
     ) -> list[NDArray]:
         """Rotate dV by rotating coordinates of delta potential passively.
 
-        Instead of rotating delta potential, grid points are rotated.
+        With finufft, the grid points are rotated instead of delta potential.
+        With dv_evaluation_method="shortest" or "box", the Fourier coefficients
+        are relabeled by FourierSeriesOnGrid.
 
         Parameters
         ----------
-        dV_iFTs : list of ndarray
-            Results of _get_iFFT_of_dV for each spin component.
+        dVs_rec : list of ndarray
+            Results of _get_Fourier_coefficients for each spin component.
             dtype='complex128', shape=(nz, ny, nx) each
         r : ndarray
             Rotation of the operation g in the supercell basis vectors.
@@ -372,11 +433,35 @@ class LocalPotentialInterpolationNUFFT:
             dtype='complex128', shape=(n_grid_points,) each
 
         """
+        if self._fourier_series is not None:
+            return self._fourier_series.evaluate(dVs_rec, rotation=r, translation=t)
         r_inv = np.linalg.inv(r)
         t_inv = -r_inv @ t
         grid_points = self._grid_points @ r_inv.T + t_inv
         grid_points -= np.rint(grid_points)
-        return self._run_finufft(grid_points, dV_iFTs)
+        return self._run_finufft(grid_points, dVs_rec)
+
+    def _get_Fourier_coefficients(self, dV: NDArray) -> NDArray:
+        """Return the Fourier coefficients of dV in the layout of the method.
+
+        Parameters
+        ----------
+        dV : ndarray
+            Change in the local potential of one spin component on the mesh of
+            VASP.
+            dtype='complex128', shape=(nz, ny, nx)
+
+        Returns
+        -------
+        ndarray
+            get_fourier_coefficients(dV) with dv_evaluation_method="shortest" or
+            "box", otherwise _get_iFFT_of_dV(dV).
+            dtype='complex128', shape=dV.shape
+
+        """
+        if self._fourier_series is None:
+            return self._get_iFFT_of_dV(dV)
+        return get_fourier_coefficients(dV)
 
     def _get_iFFT_of_dV(self, dV: NDArray) -> NDArray:
         """Inverse FFT.
@@ -489,8 +574,10 @@ class DLocalPotential:
         dtype='double'
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
-        Lattice points in supercell in primitive cell coordinates.
-        dtype='int64', shape=(det(supercell_matrxi), 3)
+        Lattice points of the primitive cell, one from each class modulo the
+        lattice of the supercell, in the basis vectors of the primitive cell.
+        They are not reduced into the supercell.  See get_lattice_points.
+        dtype='int64', shape=(det(p2s_matrix), 3)
     supercell : PhonopyAtoms
         Supercell.
     symmetry : Symmetry
@@ -518,6 +605,7 @@ class DLocalPotential:
         symmetry: Symmetry | None = None,
         atom_indices: NDArray | None = None,
         finufft_eps: float | None = None,
+        dv_evaluation_method: Literal["shortest", "box", "finufft"] = "shortest",
         verbose: bool = True,
     ):
         """Init method.
@@ -540,8 +628,11 @@ class DLocalPotential:
             If None, supposed to be all atoms. Internally only symmetrically
             equivalent atoms to the dispalced atom are selected to compute.
         finufft_eps : float or None, optional
-            Accuracy of finufft interpolation. Default is None, which
+            Accuracy of finufft. Default is None, which
             corresponds to 1e-6.
+        dv_evaluation_method : {"shortest", "box", "finufft"}, optional
+            Method to compute dV at the grid points.  See
+            LocalPotentialInterpolationNUFFT.  Default is "shortest".
         verbose : bool
             To display log or not
 
@@ -560,6 +651,9 @@ class DLocalPotential:
         else:
             self._symmetry = symmetry
         self._finufft_eps: float | None = finufft_eps
+        self._dv_evaluation_method: Literal["shortest", "box", "finufft"] = (
+            dv_evaluation_method
+        )
         self._lattice_points: NDArray | None = None
         self._grid_points: NDArray | None = None
         self._dVdu: NDArray | None = None  # self.dVdu is provided by @property.
@@ -592,7 +686,8 @@ class DLocalPotential:
             returns.
             dtype='double', shape=(prod(fft_mesh) * det(p2s_matrix), 3)
         lattice_points : ndarray
-            Lattice points in the supercell, as get_grid_points returns.
+            Lattice points of the primitive cell in the basis vectors of the
+            primitive cell, as get_grid_points returns.
             dtype='int64', shape=(det(p2s_matrix), 3)
 
         Returns
@@ -709,6 +804,7 @@ class DLocalPotential:
             self._symmetry,
             atom_indices=self._atom_indices,
             finufft_eps=self._finufft_eps,
+            dv_evaluation_method=self._dv_evaluation_method,
             verbose=self._verbose,
         )
         self._lattice_points = lpi.lattice_points.copy(order="C")
@@ -733,35 +829,79 @@ class DLocalPotential:
                 indices.append(np.where(self.atom_indices == ai)[0][0])
             self._dVdu[:, indices, :, :] = lpi.dVdu
 
-    def visualize(self, pcell: PhonopyAtoms, i_atom: int):
-        """Visualize dV/du in x, y, z."""
+    def visualize(
+        self,
+        pcell: PhonopyAtoms,
+        i_atom: int,
+        directory: str | os.PathLike = ".",
+    ) -> list[pathlib.Path]:
+        """Write dV/du of an atom in x, y, z in LOCPOT-like files.
+
+        The parts v, v_x, v_y, v_z of get_potential_and_magnetic_parts are
+        written in
+
+            locpot_viz-{atom number}-{x,y,z}.dat for v,
+            locpot_viz-{atom number}-{x,y,z}-{vx,vy,vz}.dat for the others,
+
+        where the atom number counts the atoms of the supercell from 1.
+
+        Parameters
+        ----------
+        pcell : PhonopyAtoms
+            Primitive cell, whose basis vectors are p2s_matrix^-1 times those
+            of the supercell.
+        i_atom : int
+            Index of the atom in atom_indices.
+        directory : str or os.PathLike, optional
+            Directory where the files are written.  Default is the current
+            directory.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Written files.
+
+        """
         assert self._grid_points is not None
         assert self._dVdu is not None
         atom_number = self._atom_indices[i_atom] + 1
-        for i_dir in range(3):
-            xyz = "xyz"[i_dir]
-            # spin 1 only
-            multi = visualize_distribution(
-                "locpot_viz-%03d-%s.dat" % (atom_number, xyz),
-                pcell,
-                self._p2s_matrix,
-                self._fft_mesh,
-                self._grid_points,
-                self._dVdu[0, i_atom, i_dir],
-            )
+        filenames = []
+        for i_dir, xyz in enumerate("xyz"):
+            parts = get_potential_and_magnetic_parts(self._dVdu[:, i_atom, i_dir])
+            for name, values in parts.items():
+                suffix = "" if name == "v" else f"-{name}"
+                filename = (
+                    pathlib.Path(directory)
+                    / f"locpot_viz-{atom_number:03d}-{xyz}{suffix}.dat"
+                )
+                multi = visualize_distribution(
+                    filename,
+                    pcell,
+                    self._p2s_matrix,
+                    self._fft_mesh,
+                    self._grid_points,
+                    values,
+                )
+                filenames.append(filename)
 
         if self._verbose:
+            names = ", ".join(
+                f'"locpot_viz-{atom_number:03d}-{{x,y,z}}'
+                + ("" if name == "v" else f"-{name}")
+                + '.dat"'
+                for name in parts
+            )
             msg = (
                 "[%d, %d, %d] supercell of primitive cell is "
-                "used. dV/du is written in "
-                '"locpot_viz-%03d-{x,y,z}.dat", in LOCPOT-like '
-                "format." % (tuple(multi) + (atom_number,))
+                "used. dV/du is written in %s, in LOCPOT-like "
+                "format." % (*multi, names)
             )
             print(
                 textwrap.fill(
                     msg, width=70, initial_indent="    ", subsequent_indent="    "
                 )
             )
+        return filenames
 
     def _get_dVdu_shape(self) -> tuple[int, int, int]:
         """Return the shape of dVdu without the spin index.
@@ -783,6 +923,55 @@ class DLocalPotential:
     def _allocate_arrays(self, ncdij: int):
         shape = (ncdij, *self._get_dVdu_shape())
         self._dVdu = np.zeros(shape, dtype="complex128", order="C")
+
+
+def get_potential_and_magnetic_parts(
+    values: NDArray[np.cdouble],
+) -> dict[str, NDArray[np.double]]:
+    """Return the potential part and the magnetic parts of spin components.
+
+    The spin components c are those of the local potential read from VASP and
+    of dVdu of DLocalPotential: (v) without spin, (v + v_z, v - v_z) with
+    collinear spin, and the 2x2 matrix (v + v_z, v_x - i v_y, v_x + i v_y,
+    v - v_z) with non-collinear spin.  They are converted back by
+
+        ncdij = 2: v = (c_0 + c_1) / 2, v_z = (c_0 - c_1) / 2,
+        ncdij = 4: v = (c_0 + c_3) / 2, v_x = (c_1 + c_2) / 2,
+                   v_y = i (c_1 - c_2) / 2, v_z = (c_0 - c_3) / 2.
+
+    v, v_x, v_y, v_z are real, and their real parts are returned.
+
+    Parameters
+    ----------
+    values : ndarray
+        Spin components.
+        dtype='complex128', shape=(ncdij, ...)
+
+    Returns
+    -------
+    dict
+        "v", and "vz" for ncdij = 2 or "vx", "vy", "vz" for ncdij = 4, in this
+        order.
+        dtype='double', shape=values.shape[1:] each
+
+    """
+    c = values
+    if len(c) == 1:
+        parts = {"v": c[0]}
+    elif len(c) == 2:
+        parts = {"v": (c[0] + c[1]) / 2, "vz": (c[0] - c[1]) / 2}
+    elif len(c) == 4:
+        parts = {
+            "v": (c[0] + c[3]) / 2,
+            "vx": (c[1] + c[2]) / 2,
+            "vy": 1j * (c[1] - c[2]) / 2,
+            "vz": (c[0] - c[3]) / 2,
+        }
+    else:
+        raise ValueError(
+            f"Number of spin components has to be 1, 2 or 4, not {len(c)}."
+        )
+    return {name: np.array(part.real, dtype="double") for name, part in parts.items()}
 
 
 def visualize_distribution(
@@ -887,7 +1076,9 @@ def get_grid_points(
         dtype='double'
         shape=(prod(fft_mesh)*det(p2s_matrix), 3)
     lattice_points : ndarray
-        Lattice points in supercell in primitive cell coordinates
+        Lattice points of the primitive cell, one from each class modulo the
+        lattice of the supercell, in the basis vectors of the primitive cell.
+        They are not reduced into the supercell.  See get_lattice_points.
         dtype='int64'
         shape=(det(p2s_matrix), 3)
 

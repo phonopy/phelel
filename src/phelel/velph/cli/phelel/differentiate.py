@@ -65,6 +65,7 @@ def run_derivatives(
     if phe.phonon_supercell_matrix is not None:
         dir_names += _get_phonon_dir_names(phe, project_dir)
 
+    click.echo(f"Reading the VASP output files of {len(dir_names)} supercells...")
     try:
         create_derivatives(
             phe,

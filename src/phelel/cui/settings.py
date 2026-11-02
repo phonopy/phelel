@@ -18,6 +18,7 @@ class PhelelSettings(Settings):
         self.create_derivatives = None
         self.fft_mesh_numbers = None
         self.finufft_eps = None
+        self.dv_evaluation_method = None
         self.phonon_supercell_matrix = None
         self.subtract_rfs = False
 
@@ -52,6 +53,9 @@ class PhelelConfParser(ConfParser):
         if "finufft_eps" in args:
             if args.finufft_eps is not None:
                 self._confs["finufft_eps"] = args.finufft_eps
+        if "dv_evaluation_method" in args:
+            if args.dv_evaluation_method is not None:
+                self._confs["dv_evaluation_method"] = args.dv_evaluation_method
         if "phonon_supercell_dimension" in args:
             dim_phonon = args.phonon_supercell_dimension
             if dim_phonon is not None:
@@ -101,9 +105,26 @@ class PhelelConfParser(ConfParser):
             if conf_key == "finufft_eps":
                 self._set_parameter("finufft_eps", float(confs["finufft_eps"]))
 
+            if conf_key == "dv_evaluation_method":
+                dv_evaluation_method = confs["dv_evaluation_method"].strip().lower()
+                if dv_evaluation_method in ("shortest", "box", "finufft"):
+                    self._set_parameter("dv_evaluation_method", dv_evaluation_method)
+                else:
+                    self.setting_error(
+                        'DV_EVALUATION_METHOD has to be "shortest", "box" or '
+                        f'"finufft", not "{dv_evaluation_method}".'
+                    )
+
             if conf_key == "subtract_rfs":
                 if confs["subtract_rfs"] == ".true.":
                     self._set_parameter("subtract_rfs", True)
+
+        dv_evaluation_method = self._parameters.get("dv_evaluation_method")
+        if dv_evaluation_method != "finufft" and "finufft_eps" in confs:
+            self.setting_error(
+                "FINUFFT_EPS (--finufft-eps) can be given only with "
+                "DV_EVALUATION_METHOD = finufft (--dv-evaluation-method finufft)."
+            )
 
     def _set_settings(self, settings: PhelelSettings):
         super()._set_settings(settings)
@@ -123,6 +144,9 @@ class PhelelConfParser(ConfParser):
         if "finufft_eps" in params:
             if params["finufft_eps"]:
                 settings.finufft_eps = params["finufft_eps"]
+
+        if "dv_evaluation_method" in params:
+            settings.dv_evaluation_method = params["dv_evaluation_method"]
 
         if "subtract_rfs" in params:
             if params["subtract_rfs"]:

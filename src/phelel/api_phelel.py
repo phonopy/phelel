@@ -26,7 +26,7 @@ from phonopy.structure.symmetry import Symmetry
 
 from phelel import __version__
 from phelel.base.Dij_qij import DDijQij
-from phelel.base.local_potential import DLocalPotential
+from phelel.base.local_potential import DLocalPotential, check_finufft_installed
 from phelel.file_IO import write_phelel_params_hdf5
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.utils.lattice_points import get_p2s_matrix
@@ -94,7 +94,7 @@ class Phelel:
         symprec: float = 1e-5,
         is_symmetry: bool = True,
         calculator: str | None = None,
-        nufft: str | None = None,
+        dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
         finufft_eps: float | None = None,
         log_level: int = 0,
         site_mixture_scheme: Literal["merge", "split"] = "merge",
@@ -136,12 +136,30 @@ class Phelel:
             Phonopy and gives the physical units, also those written by
             to_phelel_yaml. None gives the same units as "vasp". Default is
             None.
-        nufft : str or None, optional
-            'finufft' only, which is used also for None.  Other values are an
-            error.  Default is None.
+        dv_evaluation_method : {"shortest", "box", "finufft"} or None, optional
+            Method to compute the change of the local potential at the grid
+            points of fft_mesh, which are in general not on the FFT mesh of
+            the supercell.  The value at a point r is the sum over g of
+            c(g) exp(2 pi i g . r), where c(g) are the Fourier coefficients
+            (the discrete Fourier transform) of the values on the FFT mesh of
+            the supercell.  c(g) is periodic in g with the mesh numbers of
+            that mesh, so each coefficient is placed at one of the g equal
+            modulo the mesh numbers.  "shortest" places it at the shortest
+            reciprocal lattice vectors, which keeps the symmetry and the
+            reality of the potential between the points of the FFT mesh of
+            the supercell.  "box" places it in the box -N/2 < g <= N/2.  Both
+            compute the sum without approximation: the coefficients whose
+            exp(2 pi i g . r) are the same at all the grid points are added
+            up, and the sum over these is computed by inverse FFTs on
+            fft_mesh.  "finufft" places the coefficients in the same box as
+            "box" and computes the sum with finufft to the accuracy of
+            finufft_eps, so "box" gives the values of finufft without its
+            error.  finufft is not a dependency of phelel and has to be
+            installed for "finufft".  See LocalPotentialInterpolationNUFFT.
+            None is "shortest".  Default is None.
         finufft_eps : float or None, optional
-            Accuracy of finufft interpolation. Default is None, which
-            corresponds to 1e-6.
+            Accuracy of finufft. Default is None, which corresponds to 1e-6.
+            It can be given only with dv_evaluation_method="finufft".
         log_level : int, optional
             Log level. 0 is most quiet. Default is 0.
         site_mixture_scheme : Literal["merge", "split"], optional
@@ -155,8 +173,20 @@ class Phelel:
         self._symprec = symprec
         self._is_symmetry = is_symmetry
         self._calculator = calculator
-        if nufft not in (None, "finufft"):
-            raise ValueError(f'nufft has to be "finufft" or None, not "{nufft}".')
+        if dv_evaluation_method not in (None, "shortest", "box", "finufft"):
+            raise ValueError(
+                'dv_evaluation_method has to be "shortest", "box", "finufft" or '
+                f'None, not "{dv_evaluation_method}".'
+            )
+        self._dv_evaluation_method: Literal["shortest", "box", "finufft"] = (
+            "shortest" if dv_evaluation_method is None else dv_evaluation_method
+        )
+        if self._dv_evaluation_method != "finufft" and finufft_eps is not None:
+            raise ValueError(
+                'finufft_eps can be given only with dv_evaluation_method="finufft".'
+            )
+        if self._dv_evaluation_method == "finufft":
+            check_finufft_installed()
         self._finufft_eps = finufft_eps
         self._log_level = log_level
 
@@ -542,10 +572,13 @@ class Phelel:
             )
         else:
             phonon_dataset = None
+        # The drift of the force constants is shown only with log_level > 1, so
+        # that log_level=1 shows the progress of the derivatives only.
         self._prepare_phonon(
             dataset=phonon_dataset,
             forces=phe_input.forces,
             calculate_full_force_constants=True,
+            show_drift=self._log_level > 1,
         )
         self._dVdu = self._get_derivatives_of_potential(phe_input.local_potentials)
         if phe_input.kinetic_potentials is not None:
@@ -666,6 +699,7 @@ class Phelel:
             symmetry=self.symmetry,
             atom_indices=self._phelel_phonon.primitive.p2s_map,
             finufft_eps=self._finufft_eps,
+            dv_evaluation_method=self._dv_evaluation_method,
             verbose=self._log_level > 0,
         )
         dlp.run(potentials[0], potentials[1:], self._get_first_atoms())

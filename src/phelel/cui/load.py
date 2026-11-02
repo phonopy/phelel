@@ -43,6 +43,7 @@ def load(
     subtract_rfs: bool = True,
     symprec: float = 1e-5,
     is_symmetry: bool = True,
+    dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
     log_level: int = 0,
 ) -> Phelel:
     """Loader function.
@@ -107,6 +108,9 @@ def load(
         is 1e-5.
     is_symmetry : bool, optional
         Use crystal symmetry or not. Default is True.
+    dv_evaluation_method : {"shortest", "box", "finufft"} or None, optional
+        Method to compute the change of the local potential at the grid
+        points.  See Phelel.  Default is None, which is "shortest".
     log_level : int, optional
         Log level. 0 is most quiet. Default is 0.
 
@@ -159,6 +163,7 @@ def load(
         symprec=symprec,
         calculator=calculator,
         is_symmetry=is_symmetry,
+        dv_evaluation_method=dv_evaluation_method,
         log_level=log_level,
         site_mixture_scheme=site_mixture_scheme or "merge",
     )

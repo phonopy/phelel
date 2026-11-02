@@ -32,11 +32,14 @@ was replaced by `mesh`.
 ```bash
 % velph convert velph.toml velph-new.toml
 fft_mesh of [phelel] was removed.
-"velph-new.toml" has been written from "velph.toml".
+"velph-new.toml" was written from "velph.toml".
 ```
 
 The other subcommands also read a `velph.toml` of velph 0.14 as it is. See
-{ref}`velph_changes_0_15_project_folder`.
+{ref}`velph_changes_0_15_project_folder`. `[vasp.el_bands]` of velph 0.10 and
+earlier, which has both `kpoints_opt` and `kpoints_dense`, is converted to
+`[vasp.el_bands]` and `[vasp.el_dos]` (see
+{ref}`velph_changes_0_15_el_bands_0_10`).
 
 (velph_subcommands_scheduler)=
 ## `velph scheduler`
@@ -283,7 +286,10 @@ cell for `encut` and `prec` in the INCAR tags of the electron-phonon input sets
 (`selfenergy` and `transport`). These input sets have to give the same mesh,
 because VASP stops when its FFT grid differs from the mesh in
 `phelel_params.hdf5`. `--encut` gives ENCUT in place of `encut` of these input
-sets.
+sets. `--dv-evaluation-method` chooses how the change of the local potential
+is computed at the points of the FFT mesh, `shortest` by default (see
+{ref}`phelel_dv_evaluation_method_option`). With `--dv-evaluation-method`, its
+value is printed after the FFT mesh, such as `dV evaluation method: box.`
 
 ```bash
 % velph phelel differentiate
@@ -293,8 +299,20 @@ Found "phelel/disp-001/vaspout.h5".
 Found "phelel/disp-002/vaspout.h5".
 Found "phelel/disp-003/vaspout.h5".
 Found "phelel/disp-004/vaspout.h5".
+Reading the VASP output files of 5 supercells...
+Computing dV at grid points (dV evaluation method: shortest)...
+Computed dV/du by displaced atom 1
+Computing dV at grid points (dV evaluation method: shortest)...
+Computed dV/du by displaced atom 33
+Computing dDij/du and dqij/du of displaced atom 1...
+Computing dDij/du and dqij/du of displaced atom 33...
 "phelel/phelel_params.hdf5" was written.
 ```
+
+The lines after `Reading the VASP output files` show the progress of the
+derivatives, one line for each displaced atom. With `-v`, each VASP output file
+is also printed after it is read, and the drift of the force constants is
+printed.
 
 (velph_phelel_phonopy_subcommand)=
 ### `velph phelel phonopy`
