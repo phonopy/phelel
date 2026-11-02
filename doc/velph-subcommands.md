@@ -299,8 +299,20 @@ Found "phelel/disp-001/vaspout.h5".
 Found "phelel/disp-002/vaspout.h5".
 Found "phelel/disp-003/vaspout.h5".
 Found "phelel/disp-004/vaspout.h5".
+Reading the VASP output files of 5 supercells...
+Computing dV at grid points (dV evaluation method: shortest)...
+Computed dV/du by displaced atom 1
+Computing dV at grid points (dV evaluation method: shortest)...
+Computed dV/du by displaced atom 33
+Computing dDij/du and dqij/du of displaced atom 1...
+Computing dDij/du and dqij/du of displaced atom 33...
 "phelel/phelel_params.hdf5" was written.
 ```
+
+The lines after `Reading the VASP output files` show the progress of the
+derivatives, one line for each displaced atom. With `-v`, each VASP output file
+is also printed after it is read, and the drift of the force constants is
+printed.
 
 (velph_phelel_phonopy_subcommand)=
 ### `velph phelel phonopy`
