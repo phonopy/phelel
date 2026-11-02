@@ -145,6 +145,114 @@ def test_parse_legacy_velph_toml_removed_keys(
     assert config.vasp.input_sets["nac"].cell == "unitcell"
 
 
+def _with_el_bands_of_velph_0_10(
+    data: dict[str, Any], kpoints_dense: bool = True
+) -> dict[str, Any]:
+    """Return data with [vasp.el_bands] in the form of velph 0.10 and earlier.
+
+    velph init of these versions writes one [vasp.el_bands] with lorbit and
+    nedos in incar, kpoints_opt and kpoints_dense, in place of
+    [vasp.el_bands.bands] and [vasp.el_bands.dos].  The tables are made from
+    those of [vasp.el_bands.bands] and [vasp.el_bands.dos] of data, and
+    [vasp.el_bands.scheduler] is added.
+
+    """
+    data = copy.deepcopy(data)
+    bands = data["vasp"]["el_bands"]["bands"]
+    dos = data["vasp"]["el_bands"]["dos"]
+    el_bands = {
+        "incar": {"lorbit": 11, "nedos": 5001, **bands["incar"]},
+        "kpoints": bands["kpoints"],
+        "kpoints_opt": bands["kpoints_opt"],
+        "scheduler": {"pe": "mpi 8"},
+    }
+    if kpoints_dense:
+        el_bands["kpoints_dense"] = dos["kpoints_dense"]
+    data["vasp"]["el_bands"] = el_bands
+    return data
+
+
+@pytest.mark.parametrize("kpoints_dense", [True, False])
+def test_parse_legacy_velph_toml_el_bands_of_velph_0_10(
+    nacl_velph_toml_v014: Callable[[], dict], kpoints_dense: bool
+):
+    """[vasp.el_bands] of velph 0.10 is read as [vasp.el_bands] and [vasp.el_dos].
+
+    These are the input sets that "velph el_bands generate" of velph 0.10
+    writes in el_bands/bands and el_bands/dos.  [vasp.el_bands] has the INCAR
+    tags without lorbit and nedos and kpoints_opt, and [vasp.el_dos] has all
+    the INCAR tags and kpoints_dense.  Both have kpoints and the scheduler.
+    Without kpoints_dense, velph 0.10 writes no DOS, and there is no
+    [vasp.el_dos].  data is not modified.
+
+    """
+    data = _with_el_bands_of_velph_0_10(nacl_velph_toml_v014(), kpoints_dense)
+    original = copy.deepcopy(data)
+    config = parse_legacy_velph_toml(data)
+    assert data == original
+
+    el_bands = data["vasp"]["el_bands"]
+    assert config.vasp is not None and config.vasp.input_sets is not None
+    input_sets = config.vasp.input_sets
+    bands = input_sets["el_bands"]
+    assert bands.incar == {
+        tag: value
+        for tag, value in el_bands["incar"].items()
+        if tag not in ("lorbit", "nedos")
+    }
+    assert bands.kpoints == KpointsMesh(mesh=tuple(el_bands["kpoints"]["mesh"]))
+    assert bands.kpoints_opt == LinePath(line=51)
+    assert bands.kpoints_dense is None
+    assert bands.scheduler == {"pe": "mpi 8"}
+    if not kpoints_dense:
+        assert "el_dos" not in input_sets
+        return
+    dos = input_sets["el_dos"]
+    assert dos.incar == el_bands["incar"]
+    assert dos.kpoints == bands.kpoints
+    assert dos.kpoints_dense == KpointsMesh(
+        mesh=tuple(el_bands["kpoints_dense"]["mesh"])
+    )
+    assert dos.kpoints_opt is None
+    assert dos.scheduler == {"pe": "mpi 8"}
+
+
+def test_convert_legacy_velph_toml_el_bands_of_velph_0_10(
+    nacl_velph_toml_v014: Callable[[], dict],
+    tmp_path: pathlib.Path,
+):
+    """The command "velph convert" prints how [vasp.el_bands] of 0.10 is converted.
+
+    kspacing of [vasp.el_bands.kpoints] is replaced by mesh in both
+    [vasp.el_bands] and [vasp.el_dos].
+
+    """
+    data = _with_el_bands_of_velph_0_10(nacl_velph_toml_v014())
+    data["vasp"]["el_bands"]["kpoints"] = {"kspacing": 0.15}
+    old_filename = tmp_path / "velph_v010.toml"
+    old_filename.write_text(tomli_w.dumps(data))
+    new_filename = tmp_path / "velph.toml"
+
+    result = CliRunner().invoke(
+        cmd_root, ["convert", str(old_filename), str(new_filename)]
+    )
+    assert result.exit_code == 0, result.output
+    assert result.stdout.splitlines() == [
+        "fft_mesh of [phelel] was removed.",
+        "[vasp.el_bands] was split into [vasp.el_bands] with kpoints_opt and "
+        "[vasp.el_dos] with kpoints_dense.",
+        "lorbit and nedos were removed from [vasp.el_bands.incar].",
+        "kspacing of [vasp.el_bands.kpoints] was replaced by mesh.",
+        f'"{new_filename}" was written from "{old_filename}".',
+    ]
+    config = load_velph_toml(new_filename)
+    assert config == _with_current_version(parse_legacy_velph_toml(data))
+    assert config.vasp is not None and config.vasp.input_sets is not None
+    kpoints = config.vasp.input_sets["el_bands"].kpoints
+    assert isinstance(kpoints, KpointsMesh)
+    assert config.vasp.input_sets["el_dos"].kpoints == kpoints
+
+
 def _velph_toml_with_kspacing(data: dict[str, Any]) -> dict[str, Any]:
     """Return data with kspacing in the k-point blocks that velph 0.14 converts.
 

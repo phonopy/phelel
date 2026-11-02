@@ -8,8 +8,10 @@ write the same VASP input files as those of velph 0.14.
 
 velph init of every version up to 0.14 writes [phelel] version, so a
 velph.toml of velph earlier than 0.14 is read in the same way as one of velph
-0.14.  The conversion is written for the format of velph 0.14, and it has not
-been checked on files of earlier versions.  A key that the new format does not
+0.14.  The conversion is written for the format of velph 0.14 and for
+[vasp.el_bands] of velph 0.10 and earlier.  It has been checked on one
+velph.toml of velph 0.9.0, which had no other key of the earlier format than
+[vasp.el_bands] and "scheduler_name".  A key that the new format does not
 have is reported by parse_velph_toml as an unknown key.  A key whose meaning
 differs from that in velph 0.14 is read with the meaning of velph 0.14, and no
 error is raised.
@@ -23,6 +25,13 @@ The conversion is as follows.
   it, because velph init writes all INCAR tags in each input set.
 - [vasp.el_bands.bands] and [vasp.el_bands.dos] become [vasp.el_bands] and
   [vasp.el_dos].
+- [vasp.el_bands] of velph 0.10 and earlier, which has neither bands nor dos,
+  is one input set for both the band structure and the DOS.  "velph el_bands
+  generate" of these versions writes the band structure with kpoints_opt and
+  the INCAR tags without lorbit and nedos, and the DOS with kpoints_dense and
+  all the INCAR tags.  [vasp.el_bands] becomes [vasp.el_bands] without
+  kpoints_dense and without lorbit and nedos in incar, and, when it has
+  kpoints_dense, also [vasp.el_dos] without kpoints_opt.
 - [vasp.relax] and [vasp.nac] without "cell" get the cell that the generate
   commands of velph 0.14 use: the unit cell for relax and the primitive cell
   for nac.
@@ -71,6 +80,11 @@ _REMOVED_CODE_KEYS = (
     "phonon_supercell_dimension",
     "phonon_supercell_matrix",
 )
+
+# INCAR tags that "velph el_bands generate" of velph 0.10 and earlier removes
+# from [vasp.el_bands.incar] for the band structure.  The names are compared in
+# lower case.
+_BANDS_REMOVED_INCAR_TAGS = ("lorbit", "nedos")
 
 # Cells that the generate commands of velph 0.14 use for relax and nac when
 # "cell" is not given (DefaultCellChoices in velph/cli/utils.py of 0.14).
@@ -185,6 +199,9 @@ def _conversion_messages(data: Mapping[str, Any]) -> list[str]:
         input_set = vasp.get(code)
         if isinstance(input_set, Mapping) and "phonon" in input_set:
             messages.append(f"[vasp.{code}.phonon] was removed.")
+    el_bands = vasp.get("el_bands")
+    if isinstance(el_bands, Mapping) and not ({"bands", "dos"} & set(el_bands)):
+        messages += _el_bands_of_velph_0_10_messages(el_bands)
     for name, input_set in _legacy_input_sets(vasp):
         for block in ("kpoints", "kpoints_dense"):
             kpoints = input_set.get(block)
@@ -192,6 +209,27 @@ def _conversion_messages(data: Mapping[str, Any]) -> list[str]:
                 messages.append(
                     f"kspacing of [vasp.{name}.{block}] was replaced by mesh."
                 )
+    return messages
+
+
+def _el_bands_of_velph_0_10_messages(el_bands: Mapping[str, Any]) -> list[str]:
+    """Return how [vasp.el_bands] of velph 0.10 and earlier is converted."""
+    messages = []
+    if "kpoints_dense" in el_bands:
+        messages.append(
+            "[vasp.el_bands] was split into [vasp.el_bands] with kpoints_opt and "
+            "[vasp.el_dos] with kpoints_dense."
+        )
+    incar = el_bands.get("incar")
+    if isinstance(incar, Mapping):
+        removed = [
+            tag for tag in incar if tag.lower().strip() in _BANDS_REMOVED_INCAR_TAGS
+        ]
+        if removed:
+            verb = "was" if len(removed) == 1 else "were"
+            messages.append(
+                f"{' and '.join(removed)} {verb} removed from [vasp.el_bands.incar]."
+            )
     return messages
 
 
@@ -239,12 +277,42 @@ def _convert_vasp_section(vasp: dict[str, Any]) -> None:
             vasp["el_bands"] = el_bands["bands"]
         if "dos" in el_bands:
             vasp["el_dos"] = el_bands["dos"]
+    elif isinstance(el_bands, dict):
+        _split_el_bands_of_velph_0_10(vasp, el_bands)
     for set_name, default_cell in _DEFAULT_CELLS.items():
         input_set = vasp.get(set_name)
         if not isinstance(input_set, dict):
             continue
         cell = input_set.get("cell", default_cell)
         input_set["cell"] = cell.lower() if isinstance(cell, str) else cell
+
+
+def _split_el_bands_of_velph_0_10(
+    vasp: dict[str, Any], el_bands: dict[str, Any]
+) -> None:
+    """Split [vasp.el_bands] of velph 0.10 and earlier into el_bands and el_dos.
+
+    The input sets are those that "velph el_bands generate" of velph 0.10
+    writes in el_bands/bands and el_bands/dos (see the docstring of this
+    module).  el_dos is made only when el_bands has kpoints_dense, because
+    the DOS is not written without it.
+
+    """
+    bands = {key: value for key, value in el_bands.items() if key != "kpoints_dense"}
+    incar = bands.get("incar")
+    if isinstance(incar, dict):
+        bands["incar"] = {
+            tag: value
+            for tag, value in incar.items()
+            if tag.lower().strip() not in _BANDS_REMOVED_INCAR_TAGS
+        }
+    vasp["el_bands"] = bands
+    if "kpoints_dense" in el_bands:
+        # A copy, so that el_bands and el_dos share no table, for example
+        # kpoints, whose kspacing _convert_kspacing replaces in place.
+        vasp["el_dos"] = copy.deepcopy(
+            {key: value for key, value in el_bands.items() if key != "kpoints_opt"}
+        )
 
 
 def _convert_kspacing(data: dict[str, Any]) -> None:
