@@ -39,6 +39,13 @@ The conversion is as follows.
   is converted to mesh in the same way as the generate commands of velph 0.14
   do, that is, with use_grg=True, so the mesh is a generalized regular grid
   when the cell has a single lattice point.
+- scheduler_name in [scheduler] and [vasp.<input set>.scheduler] is removed.
+  With scheduler_name = "sge" or "slurm", velph 0.14 writes the job script of
+  its own template of SGE or Slurm and does not use scheduler_template.
+  scheduler_template of [scheduler] becomes the template that velph 0.14 uses
+  with [scheduler] alone, and an input set whose job script velph 0.14 writes
+  from another template gets it as scheduler_template of
+  [vasp.<input set>.scheduler].  The job scripts are then those of velph 0.14.
 
 convert_legacy_velph_toml writes the converted velph.toml in a new file.  The
 command "velph convert OLD NEW" runs it.  [velph] version of the new file is the
@@ -85,6 +92,38 @@ _REMOVED_CODE_KEYS = (
 # from [vasp.el_bands.incar] for the band structure.  The names are compared in
 # lower case.
 _BANDS_REMOVED_INCAR_TAGS = ("lorbit", "nedos")
+
+# Job script templates of velph 0.14 for scheduler_name = "sge" and "slurm"
+# (velph/utils/scheduler.py of velph 0.14).  The lines of _SGE_OPTIONAL_LINES
+# are in the template of SGE only when the key is given.
+_SGE_HEADER = """#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -m n
+#$ -N {job_name}
+#$ -V
+#$ -o _scheduler-stdout.txt
+#$ -e _scheduler-stderr.txt
+"""
+_SGE_OPTIONAL_LINES = (("pe", "#$ -pe {pe}\n"), ("walltime", "#$ -l h_rt={walltime}\n"))
+_JOB_COMMANDS = """
+{prepend_text}
+
+{mpirun_command} {vasp_binary}
+
+{append_text}
+"""
+_SLURM_TEMPLATE = (
+    """#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --partition={partition}
+#SBATCH --nodes={nodes}
+#SBATCH --ntasks={ntasks}
+#SBATCH --time=96:00:00      # Time limit hrs:min:sec
+#SBATCH --output=ci_%j.log   # Standard output and error log
+"""
+    + _JOB_COMMANDS
+)
 
 # Cells that the generate commands of velph 0.14 use for relax and nac when
 # "cell" is not given (DefaultCellChoices in velph/cli/utils.py of 0.14).
@@ -146,6 +185,7 @@ def parse_legacy_velph_toml(
     if isinstance(vasp, dict):
         _convert_vasp_section(vasp)
         _convert_kspacing(converted)
+    _convert_scheduler_name(converted)
     return parse_velph_toml(converted, name=name)
 
 
@@ -202,6 +242,7 @@ def _conversion_messages(data: Mapping[str, Any]) -> list[str]:
     el_bands = vasp.get("el_bands")
     if isinstance(el_bands, Mapping) and not ({"bands", "dos"} & set(el_bands)):
         messages += _el_bands_of_velph_0_10_messages(el_bands)
+    messages += _scheduler_name_messages(data, vasp)
     for name, input_set in _legacy_input_sets(vasp):
         for block in ("kpoints", "kpoints_dense"):
             kpoints = input_set.get(block)
@@ -230,6 +271,32 @@ def _el_bands_of_velph_0_10_messages(el_bands: Mapping[str, Any]) -> list[str]:
             messages.append(
                 f"{' and '.join(removed)} {verb} removed from [vasp.el_bands.incar]."
             )
+    return messages
+
+
+def _scheduler_name_messages(
+    data: Mapping[str, Any], vasp: Mapping[str, Any]
+) -> list[str]:
+    """Return the sections whose scheduler_name the conversion removes."""
+    sections = []
+    scheduler = data.get("scheduler")
+    if isinstance(scheduler, Mapping) and "scheduler_name" in scheduler:
+        sections.append(("scheduler", scheduler["scheduler_name"]))
+    for name, input_set in _legacy_input_sets(vasp):
+        own = input_set.get("scheduler")
+        if isinstance(own, Mapping) and "scheduler_name" in own:
+            sections.append((f"vasp.{name}.scheduler", own["scheduler_name"]))
+    messages = [
+        f'scheduler_name = "{value}" of [{section}] was removed.'
+        for section, value in sections
+    ]
+    if isinstance(scheduler, Mapping) and any(
+        value in ("sge", "slurm") for _, value in sections
+    ):
+        messages.append(
+            "scheduler_template was written to give the job scripts that velph "
+            "0.14 writes for scheduler_name."
+        )
     return messages
 
 
@@ -313,6 +380,63 @@ def _split_el_bands_of_velph_0_10(
         vasp["el_dos"] = copy.deepcopy(
             {key: value for key, value in el_bands.items() if key != "kpoints_opt"}
         )
+
+
+def _template_of_velph_0_14(scheduler: Mapping[str, Any]) -> str | None:
+    """Return the job script template that velph 0.14 uses with scheduler.
+
+    scheduler is the settings of a job, [scheduler] together with
+    [vasp.<input set>.scheduler].  None is returned when velph 0.14 has no
+    template for it, and then velph 0.14 stops when it writes the job script.
+
+    """
+    name = scheduler.get("scheduler_name")
+    if name == "sge":
+        optional = "".join(
+            line for key, line in _SGE_OPTIONAL_LINES if key in scheduler
+        )
+        return _SGE_HEADER + optional + _JOB_COMMANDS
+    if name == "slurm":
+        return _SLURM_TEMPLATE
+    return scheduler.get("scheduler_template")
+
+
+def _convert_scheduler_name(data: dict[str, Any]) -> None:
+    """Replace scheduler_name by the scheduler_template of velph 0.14.
+
+    See the docstring of this module.  Without [scheduler], velph 0.14 writes
+    no job script, and scheduler_name of [vasp.<input set>.scheduler] is only
+    removed.  An input set for which velph 0.14 has no template is left with
+    the template of [scheduler], because no template stands for the error of
+    velph 0.14.
+
+    """
+    vasp = data.get("vasp")
+    own_schedulers = {
+        set_name: input_set["scheduler"]
+        for set_name, input_set in (vasp.items() if isinstance(vasp, dict) else ())
+        if isinstance(input_set, dict) and isinstance(input_set.get("scheduler"), dict)
+    }
+    scheduler = data.get("scheduler")
+    if not isinstance(scheduler, dict):
+        for own in own_schedulers.values():
+            own.pop("scheduler_name", None)
+        return
+    if "scheduler_name" not in scheduler and not any(
+        "scheduler_name" in own for own in own_schedulers.values()
+    ):
+        return
+    template = _template_of_velph_0_14(scheduler)
+    for own in own_schedulers.values():
+        own_template = _template_of_velph_0_14({**scheduler, **own})
+        own.pop("scheduler_name", None)
+        if own_template is not None and own_template != own.get(
+            "scheduler_template", template
+        ):
+            own["scheduler_template"] = own_template
+    scheduler.pop("scheduler_name", None)
+    if template is not None:
+        scheduler["scheduler_template"] = template
 
 
 def _convert_kspacing(data: dict[str, Any]) -> None:

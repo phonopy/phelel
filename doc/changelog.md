@@ -17,6 +17,11 @@
   and the name of the written file, and `-v` printed each file before reading
   the forces of the files.
 - `phelel` prints the drift of the force constants only with `-v`.
+- `velph convert` and the velph subcommands replace `scheduler_name` of a
+  `velph.toml` of velph 0.14 by `scheduler_template`, so that the job scripts
+  are those that velph 0.14 writes. Before, they stopped with
+  `"scheduler_name" is removed`, and `velph convert` wrote no file. See
+  {ref}`velph_changes_0_15_scheduler`.
 
 ## Nov-2-2026: Version 0.18.0
 

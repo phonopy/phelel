@@ -28,6 +28,8 @@ from phelel.velph.config.schema import (
     VelphConfig,
 )
 from phelel.velph.errors import VelphConfigError
+from phelel.velph.jobs.project import read_velph_toml
+from phelel.velph.jobs.vasp_job import effective_scheduler, make_job_script
 from phelel.velph.utils.vasp_input import write_kpoints_mesh
 
 # KPOINTS files that the generate commands of velph 0.14 write, for each input
@@ -502,9 +504,7 @@ def test_convert_legacy_velph_toml_kspacing_and_removed_keys(
     ]
 
 
-@pytest.mark.parametrize(
-    "case", ["new_exists", "new_format", "invalid", "scheduler_name"]
-)
+@pytest.mark.parametrize("case", ["new_exists", "new_format", "invalid"])
 def test_convert_legacy_velph_toml_error(
     nacl_velph_toml_v014: Callable[[], dict],
     case: str,
@@ -519,12 +519,9 @@ def test_convert_legacy_velph_toml_error(
     elif case == "new_format":
         data["velph"] = {"version": data["phelel"].pop("version")}
         expected = "it is in the new format"
-    elif case == "invalid":
+    else:
         data["phelel"]["supercell_dimension"] = [2, 2]
         expected = "[phelel]"
-    else:
-        data["scheduler"]["scheduler_name"] = "sge"
-        expected = '[scheduler] "scheduler_name" is removed.'
     old_filename = tmp_path / "velph_v014.toml"
     old_filename.write_text(tomli_w.dumps(data))
 
@@ -563,3 +560,130 @@ def test_load_velph_toml_without_version(
         "velph 0.14 and earlier write [phelel] version.\n"
         'Run "velph init" to make a new velph.toml.'
     )
+
+
+def _job_script_of_velph_0_14(scheduler: dict[str, Any], job_id: str | None) -> str:
+    """Return the job script that velph 0.14 writes for the scheduler settings.
+
+    This is the code of velph/utils/scheduler.py and write_launch_script of
+    velph/cli/utils.py of velph 0.14, written here as the reference.
+
+    """
+    if scheduler.get("scheduler_name") == "sge":
+        header = """#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -m n
+#$ -N {job_name}
+#$ -V
+#$ -o _scheduler-stdout.txt
+#$ -e _scheduler-stderr.txt
+"""
+        params = []
+        if "pe" in scheduler:
+            params.append("#$ -pe {pe}")
+        if "walltime" in scheduler:
+            params.append("#$ -l h_rt={walltime}")
+        params_header = "\n".join(params) + "\n" if params else ""
+        commands = """
+{prepend_text}
+
+{mpirun_command} {vasp_binary}
+
+{append_text}
+"""
+        template = header + params_header + commands
+    elif scheduler.get("scheduler_name") == "slurm":
+        template = """#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --partition={partition}
+#SBATCH --nodes={nodes}
+#SBATCH --ntasks={ntasks}
+#SBATCH --time=96:00:00      # Time limit hrs:min:sec
+#SBATCH --output=ci_%j.log   # Standard output and error log
+
+{prepend_text}
+
+{mpirun_command} {vasp_binary}
+
+{append_text}
+"""
+    else:
+        template = scheduler["scheduler_template"]
+    scheduler = copy.deepcopy(scheduler)
+    if "job_name" in scheduler and job_id is not None:
+        scheduler["job_name"] += f"-{job_id}"
+    return template.format(**scheduler)
+
+
+def _with_scheduler_name(data: dict[str, Any], case: str) -> dict[str, Any]:
+    """Return data with scheduler_name of velph 0.14 for the case."""
+    data = copy.deepcopy(data)
+    scheduler = data["scheduler"]
+    if case == "sge":
+        # velph 0.14 does not use scheduler_template with scheduler_name.
+        scheduler.update(scheduler_name="sge", pe="mpi 16")
+    elif case == "sge_pe_in_input_set":
+        scheduler["scheduler_name"] = "sge"
+        del scheduler["walltime"]
+        data["vasp"]["phelel"]["scheduler"] = {"pe": "mpi 64"}
+    elif case == "slurm":
+        scheduler.update(scheduler_name="slurm", partition="all", ntasks=16)
+    elif case == "sge_in_input_set":
+        data["vasp"]["nac"]["scheduler"] = {"scheduler_name": "sge", "pe": "mpi 4"}
+    else:
+        scheduler["scheduler_name"] = "custom"
+    return data
+
+
+@pytest.mark.parametrize(
+    "case", ["sge", "sge_pe_in_input_set", "slurm", "sge_in_input_set", "custom"]
+)
+def test_convert_legacy_velph_toml_scheduler_name(
+    nacl_velph_toml_v014: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    case: str,
+):
+    """scheduler_name is converted so that the job scripts are those of velph 0.14.
+
+    The job script of every input set, also with a job_id such as that of
+    relax, is compared with that written by the code of velph 0.14.  The cases
+    are SGE with pe and walltime, SGE with pe only in [vasp.phelel.scheduler]
+    and without walltime, Slurm, scheduler_name only in [vasp.nac.scheduler],
+    and a name other than "sge" and "slurm", with which velph 0.14 uses
+    scheduler_template.
+
+    """
+    data = _with_scheduler_name(nacl_velph_toml_v014(), case)
+    old_filename = tmp_path / "velph_v014.toml"
+    old_filename.write_text(tomli_w.dumps(data))
+    new_filename = tmp_path / "velph.toml"
+    messages = convert_legacy_velph_toml(old_filename, new_filename)
+    assert "scheduler_name" not in new_filename.read_text()
+
+    project = read_velph_toml(new_filename)
+    tables = _input_set_tables(data)
+    assert project.config.vasp is not None
+    assert project.config.vasp.input_sets is not None
+    assert set(project.config.vasp.input_sets) == set(tables)
+    for set_name, table in tables.items():
+        scheduler = {**data["scheduler"], **table.get("scheduler", {})}
+        for job_id in (None, "iter1"):
+            assert make_job_script(
+                effective_scheduler(project, set_name, job_id=job_id)
+            ) == _job_script_of_velph_0_14(scheduler, job_id), (set_name, job_id)
+
+    if case == "sge_in_input_set":
+        removed = ['scheduler_name = "sge" of [vasp.nac.scheduler] was removed.']
+    else:
+        name = data["scheduler"]["scheduler_name"]
+        removed = [f'scheduler_name = "{name}" of [scheduler] was removed.']
+    written = (
+        []
+        if case == "custom"
+        else [
+            "scheduler_template was written to give the job scripts that velph "
+            "0.14 writes for scheduler_name."
+        ]
+    )
+    assert messages == ["fft_mesh of [phelel] was removed.", *removed, *written]

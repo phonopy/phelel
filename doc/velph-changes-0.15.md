@@ -79,10 +79,21 @@ The following settings of velph 0.14 have no place in velph 0.15.
 A key that velph 0.15 does not know is an error, also in a `velph.toml` of
 velph 0.14. velph 0.14 did not use such a key and printed no message.
 
-`scheduler_name` in `[scheduler]` or in `[vasp.<input set>.scheduler]` is an
-error, also in a `velph.toml` of velph 0.14, and `velph convert` writes no file
-then. Replace it with `scheduler_template` (see
-{ref}`velph_changes_0_15_scheduler`).
+`scheduler_name` in `[scheduler]` or in `[vasp.<input set>.scheduler]` of a
+`velph.toml` of velph 0.14 is replaced by `scheduler_template`, so that the job
+scripts are those that velph 0.14 writes (see
+{ref}`velph_changes_0_15_scheduler`). `velph convert` and the subcommands do
+this in the same way, and `velph convert` prints it:
+
+```
+% velph convert velph.toml velph-new.toml
+fft_mesh of [phelel] was removed.
+scheduler_name = "sge" of [scheduler] was removed.
+scheduler_template was written to give the job scripts that velph 0.14 writes for scheduler_name.
+"velph-new.toml" was written from "velph.toml".
+```
+
+`scheduler_name` in a `velph.toml` of velph 0.15 is an error.
 
 ### Directories with new names
 
@@ -145,9 +156,12 @@ changes that concern the file.
 
 With `scheduler_name = "sge"` or `"slurm"`, velph 0.14 wrote a job script of SGE
 or Slurm that was written in velph, and it did not use `scheduler_template`.
-velph 0.15 writes the job script from `scheduler_template` only. To write the
-job script that velph 0.14 wrote, remove `scheduler_name` and give the
-following `scheduler_template`.
+velph 0.15 writes the job script from `scheduler_template` only. For a
+`velph.toml` of velph 0.14, `velph convert` and the subcommands replace
+`scheduler_name` by the following `scheduler_template`, which gives the job
+script that velph 0.14 wrote (see {ref}`velph_changes_0_15_convert`). In a
+template of `velph init`, remove `scheduler_name` and give this
+`scheduler_template`.
 
 For `scheduler_name = "sge"`,
 
