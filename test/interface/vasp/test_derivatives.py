@@ -385,13 +385,17 @@ def test_read_files_perfect_supercell_forces(
 
 
 def test_read_vasp_forces_wrong_number_of_atoms():
-    """Forces of a supercell of a different number of atoms are an error."""
+    """Forces of a supercell of a different number of atoms are an error.
+
+    vasprun.xml of C222 has the forces of 64 atoms, and the supercell of C111
+    has 8 atoms.  The error names the file.
+
+    """
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
-    with pytest.raises(ValueError, match="Forces of the 8 atoms"):
-        read_vasp_forces(
-            [cwd / f"C222_disp-{i:03d}" / "vasprun.xml.xz" for i in range(2)],
-            phelel.supercell,
-        )
+    filename = cwd / "C222_disp-000" / "vasprun.xml.xz"
+    with pytest.raises(ValueError, match="Forces of the 8 atoms") as excinfo:
+        read_vasp_forces([filename], phelel.supercell)
+    assert f'"{filename}"' in str(excinfo.value)
 
 
 def test_read_vasp_forces_prints_after_reading(capsys: pytest.CaptureFixture):
