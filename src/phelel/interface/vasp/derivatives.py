@@ -157,17 +157,20 @@ def read_vasp_forces(
     all_filenames = list(filenames)
     if perfect_filename is not None:
         all_filenames.insert(0, perfect_filename)
-    if log_level:
-        for filename in all_filenames:
-            print(f'Forces were read from "{filename}".')
 
-    calc_dataset = parse_set_of_forces(len(supercell), all_filenames, verbose=False)
-    if not calc_dataset:
-        raise ValueError(
-            f"Forces of the {len(supercell)} atoms of the supercell could not be "
-            "read from the VASP output files."
-        )
-    forces = calc_dataset["forces"]
+    # The files are read one by one, so that the message of each file is printed
+    # after the file is read.  Reading vasprun.xml can take long.
+    forces = []
+    for filename in all_filenames:
+        calc_dataset = parse_set_of_forces(len(supercell), [filename], verbose=False)
+        if not calc_dataset:
+            raise ValueError(
+                f"Forces of the {len(supercell)} atoms of the supercell could not "
+                f'be read from "{filename}".'
+            )
+        forces.append(calc_dataset["forces"][0])
+        if log_level:
+            print(f'Forces were read from "{filename}".')
     if perfect_filename is None:
         return forces
     if log_level:
@@ -348,5 +351,5 @@ def _read_PAW_strength_and_overlap(
         Dijs.append(dij)
         qijs.append(qij)
         if log_level:
-            print(f'Dijs and qjis were read from "{Dij_qij_path}".')
+            print(f'Dij and qij were read from "{Dij_qij_path}".')
     return Dijs, qijs

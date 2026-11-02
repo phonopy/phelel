@@ -572,10 +572,13 @@ class Phelel:
             )
         else:
             phonon_dataset = None
+        # The drift of the force constants is shown only with log_level > 1, so
+        # that log_level=1 shows the progress of the derivatives only.
         self._prepare_phonon(
             dataset=phonon_dataset,
             forces=phe_input.forces,
             calculate_full_force_constants=True,
+            show_drift=self._log_level > 1,
         )
         self._dVdu = self._get_derivatives_of_potential(phe_input.local_potentials)
         if phe_input.kinetic_potentials is not None:

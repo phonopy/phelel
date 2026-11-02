@@ -214,7 +214,7 @@ class DDijQijFit:
         for i_atom, sitesyms in enumerate(sitesym_sets):
             if self._verbose:
                 print(
-                    "Computing dDij/du and dqij/du of displaced atom %d:"
+                    "Computing dDij/du and dqij/du of displaced atom %d..."
                     % (atoms[i_atom] + 1)
                 )
             dDijdu[:, i_atom], dqijdu[:, i_atom] = self._run_at_atom(
