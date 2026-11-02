@@ -2,6 +2,15 @@
 
 # Change Log
 
+## Unreleased
+
+- `velph convert` and the velph subcommands read `[vasp.el_bands]` of velph
+  0.10 and earlier, which has both `kpoints_opt` and `kpoints_dense`. Before,
+  they stopped with `Unknown key "kpoints_dense"`. `[vasp.el_bands]` is
+  converted to `[vasp.el_bands]` and `[vasp.el_dos]`, which are the input sets
+  that `velph el_bands generate` of these versions writes. See
+  {ref}`velph_changes_0_15_el_bands_0_10`.
+
 ## Nov-2-2026: Version 0.18.0
 
 - `--dv-evaluation-method` of `phelel` and `velph phelel differentiate`,

@@ -27,7 +27,7 @@ file. It prints the settings that were removed and the k-point blocks whose
 ```
 % velph convert velph.toml velph-new.toml
 fft_mesh of [phelel] was removed.
-"velph-new.toml" has been written from "velph.toml".
+"velph-new.toml" was written from "velph.toml".
 ```
 
 To use the new file, rename `velph-new.toml` to `velph.toml`.
@@ -36,6 +36,31 @@ The velph subcommands also read a `velph.toml` of velph 0.14 without
 `velph convert`. They convert the settings to those of velph 0.15 when they
 read the file, and they do not change the file. In both cases, `kspacing` in a
 k-point block is converted to `mesh` in the same way as velph 0.14 does.
+
+(velph_changes_0_15_el_bands_0_10)=
+#### `[vasp.el_bands]` of velph 0.10 and earlier
+
+`velph convert` and the subcommands also convert `[vasp.el_bands]` of velph
+0.10 and earlier. In these versions, `[vasp.el_bands]` is one input set with
+both `kpoints_opt` and `kpoints_dense`. `velph el_bands generate` of these
+versions writes the band structure with `kpoints_opt` and the INCAR tags
+without `lorbit` and `nedos`, and the DOS with `kpoints_dense` and all the
+INCAR tags. In the same way, `[vasp.el_bands]` is converted to two input sets:
+
+- `[vasp.el_bands]` without `kpoints_dense`, and without `lorbit` and `nedos`
+  in `[vasp.el_bands.incar]`.
+- `[vasp.el_dos]` without `kpoints_opt`. It is written only when
+  `[vasp.el_bands]` has `kpoints_dense`.
+
+`velph convert` prints these changes:
+
+```
+% velph convert velph.toml velph-new.toml
+fft_mesh of [phelel] was removed.
+[vasp.el_bands] was split into [vasp.el_bands] with kpoints_opt and [vasp.el_dos] with kpoints_dense.
+lorbit and nedos were removed from [vasp.el_bands.incar].
+"velph-new.toml" was written from "velph.toml".
+```
 
 ### Settings that velph 0.15 does not use
 

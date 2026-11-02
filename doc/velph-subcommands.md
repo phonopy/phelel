@@ -32,11 +32,14 @@ was replaced by `mesh`.
 ```bash
 % velph convert velph.toml velph-new.toml
 fft_mesh of [phelel] was removed.
-"velph-new.toml" has been written from "velph.toml".
+"velph-new.toml" was written from "velph.toml".
 ```
 
 The other subcommands also read a `velph.toml` of velph 0.14 as it is. See
-{ref}`velph_changes_0_15_project_folder`.
+{ref}`velph_changes_0_15_project_folder`. `[vasp.el_bands]` of velph 0.10 and
+earlier, which has both `kpoints_opt` and `kpoints_dense`, is converted to
+`[vasp.el_bands]` and `[vasp.el_dos]` (see
+{ref}`velph_changes_0_15_el_bands_0_10`).
 
 (velph_subcommands_scheduler)=
 ## `velph scheduler`
