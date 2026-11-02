@@ -32,6 +32,24 @@ from phelel.utils.spinor import (
 )
 
 
+def check_finufft_installed():
+    """Raise ImportError when finufft is not installed.
+
+    finufft is used with dv_evaluation_method="finufft", and is not a
+    dependency of phelel.
+
+    """
+    try:
+        import finufft  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            'dv_evaluation_method="finufft" (--dv-evaluation-method finufft, '
+            "DV_EVALUATION_METHOD = finufft) needs finufft, which is not "
+            "installed. Install the finufft package, e.g., by "
+            '"conda install -c conda-forge finufft" or "pip install finufft".'
+        ) from e
+
+
 class DeltaLocalPotential:
     """Container to store change in local potential by atomic displacement.
 
@@ -155,7 +173,7 @@ class LocalPotentialInterpolationNUFFT:
         symmetry: Symmetry,
         atom_indices: NDArray | None = None,
         finufft_eps: float | None = None,
-        nufft: Literal["finufft", "native", "native-box"] = "finufft",
+        dv_evaluation_method: Literal["shortest", "box", "finufft"] = "shortest",
         verbose: bool = True,
     ):
         """Init method.
@@ -179,18 +197,22 @@ class LocalPotentialInterpolationNUFFT:
             If None, supposed to be all atoms. Internally only symmetrically
             equivalent atoms to the dispalced atom are selected to compute.
         finufft_eps : float or None, optional
-            Accuracy of finufft interpolation. Default is None, which
+            Accuracy of finufft. Default is None, which
             corresponds to 1e-6.
-        nufft : {"finufft", "native", "native-box"}, optional
-            Method to evaluate the Fourier series of dV at the grid points.
-            "finufft" uses finufft with finufft_eps.  "native" and "native-box"
-            evaluate the series by FourierSeriesOnGrid without the approximation
-            of NUFFT, and finufft_eps is not used.  They differ in the g chosen
-            from each g + N^s n (see phelel.base.fourier_series), which changes
-            the values between the points of the FFT mesh of the supercell.
-            "native" takes the shortest reciprocal lattice vectors, which keeps
-            the symmetry and the reality of dV there.  "native-box" takes the
-            box used with finufft.  Default is "finufft".
+        dv_evaluation_method : {"shortest", "box", "finufft"}, optional
+            Method to compute dV at the grid points as the sum over g of the
+            Fourier coefficients of dV on the FFT mesh of the supercell times
+            exp(2 pi i g . x).  The coefficients are periodic in g, and each
+            one is placed at one g of g + N^s n (see
+            phelel.base.fourier_series).  The choice changes the values
+            between the points of the FFT mesh of the supercell.  "shortest"
+            places it at the shortest reciprocal lattice vectors, which keeps
+            the symmetry and the reality of dV there.  "box" places it in the
+            box used with finufft.  Both compute the sum by
+            FourierSeriesOnGrid without approximation, and finufft_eps is not
+            used.  "finufft" computes the sum in the same box with finufft to
+            the accuracy of finufft_eps, and needs finufft, which is not a
+            dependency of phelel.  Default is "shortest".
         verbose : bool, optional
             To display log or not
 
@@ -202,11 +224,13 @@ class LocalPotentialInterpolationNUFFT:
         self._supercell = supercell
         self._symmetry = symmetry
         self._atom_indices_in = atom_indices
+        if dv_evaluation_method == "finufft":
+            check_finufft_installed()
         if finufft_eps is None:
             self._finufft_eps = 1e-6
         else:
             self._finufft_eps = finufft_eps
-        self._nufft = nufft
+        self._dv_evaluation_method = dv_evaluation_method
 
         ##########
         # Public #
@@ -217,14 +241,14 @@ class LocalPotentialInterpolationNUFFT:
         )
         assert 3 == self._grid_points.shape[1]
         self._fourier_series: FourierSeriesOnGrid | None = None
-        if nufft == "native":
+        if dv_evaluation_method == "shortest":
             self._fourier_series = FourierSeriesOnGrid(
                 fft_mesh,
                 self._p2s_matrix,
                 representatives="shortest",
                 supercell_lattice=supercell.cell,
             )
-        elif nufft == "native-box":
+        elif dv_evaluation_method == "box":
             self._fourier_series = FourierSeriesOnGrid(fft_mesh, self._p2s_matrix)
 
         self._dVdu: NDArray | None = None
@@ -346,7 +370,8 @@ class LocalPotentialInterpolationNUFFT:
                 print("Running finufft (eps=%.3e)..." % self._finufft_eps)
             else:
                 print(
-                    f"Evaluating Fourier series of dV at grid points ({self._nufft})..."
+                    "Computing dV at grid points (dV evaluation method: "
+                    f"{self._dv_evaluation_method})..."
                 )
 
         ncdij = delta_Vs[0].dV.shape[0]
@@ -385,8 +410,8 @@ class LocalPotentialInterpolationNUFFT:
         """Rotate dV by rotating coordinates of delta potential passively.
 
         With finufft, the grid points are rotated instead of delta potential.
-        With nufft="native" or "native-box", the Fourier coefficients are
-        relabeled by FourierSeriesOnGrid.
+        With dv_evaluation_method="shortest" or "box", the Fourier coefficients
+        are relabeled by FourierSeriesOnGrid.
 
         Parameters
         ----------
@@ -429,8 +454,8 @@ class LocalPotentialInterpolationNUFFT:
         Returns
         -------
         ndarray
-            get_fourier_coefficients(dV) with nufft="native" or "native-box",
-            otherwise _get_iFFT_of_dV(dV).
+            get_fourier_coefficients(dV) with dv_evaluation_method="shortest" or
+            "box", otherwise _get_iFFT_of_dV(dV).
             dtype='complex128', shape=dV.shape
 
         """
@@ -580,7 +605,7 @@ class DLocalPotential:
         symmetry: Symmetry | None = None,
         atom_indices: NDArray | None = None,
         finufft_eps: float | None = None,
-        nufft: Literal["finufft", "native", "native-box"] = "finufft",
+        dv_evaluation_method: Literal["shortest", "box", "finufft"] = "shortest",
         verbose: bool = True,
     ):
         """Init method.
@@ -603,11 +628,11 @@ class DLocalPotential:
             If None, supposed to be all atoms. Internally only symmetrically
             equivalent atoms to the dispalced atom are selected to compute.
         finufft_eps : float or None, optional
-            Accuracy of finufft interpolation. Default is None, which
+            Accuracy of finufft. Default is None, which
             corresponds to 1e-6.
-        nufft : {"finufft", "native", "native-box"}, optional
-            Method to evaluate the Fourier series of dV at the grid points.  See
-            LocalPotentialInterpolationNUFFT.  Default is "finufft".
+        dv_evaluation_method : {"shortest", "box", "finufft"}, optional
+            Method to compute dV at the grid points.  See
+            LocalPotentialInterpolationNUFFT.  Default is "shortest".
         verbose : bool
             To display log or not
 
@@ -626,7 +651,9 @@ class DLocalPotential:
         else:
             self._symmetry = symmetry
         self._finufft_eps: float | None = finufft_eps
-        self._nufft: Literal["finufft", "native", "native-box"] = nufft
+        self._dv_evaluation_method: Literal["shortest", "box", "finufft"] = (
+            dv_evaluation_method
+        )
         self._lattice_points: NDArray | None = None
         self._grid_points: NDArray | None = None
         self._dVdu: NDArray | None = None  # self.dVdu is provided by @property.
@@ -777,7 +804,7 @@ class DLocalPotential:
             self._symmetry,
             atom_indices=self._atom_indices,
             finufft_eps=self._finufft_eps,
-            nufft=self._nufft,
+            dv_evaluation_method=self._dv_evaluation_method,
             verbose=self._verbose,
         )
         self._lattice_points = lpi.lattice_points.copy(order="C")

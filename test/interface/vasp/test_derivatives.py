@@ -404,19 +404,24 @@ def test_create_derivatives_C111_phonon_supercell_without_dataset():
         create_derivatives(phelel, dir_names, subtract_rfs=True)
 
 
+@pytest.mark.finufft
 @pytest.mark.parametrize("name", ["C111", "C111-ncl"])
-def test_create_derivatives_C111_native_box_equals_finufft(name: str):
-    """nufft="native-box" gives dVdu of finufft with finufft_eps=1e-12.
+def test_create_derivatives_C111_box_equals_finufft(name: str):
+    """dv_evaluation_method="box" gives dVdu of finufft with finufft_eps=1e-12.
 
-    "native-box" evaluates the series of finufft without the approximation of
-    NUFFT, so the difference is the error of finufft.
+    "box" places the Fourier coefficients in the box of finufft and computes
+    the values without approximation, so the difference is the error of
+    finufft.
     With C111-ncl (ncdij=4), the values are also rotated in spin space after
     the evaluation.  phelel_disp_C111.yaml has no magnetic moments, and the
     warning about it is not the subject of this test.
 
     """
     dVdu = []
-    for kwargs in ({"nufft": "native-box"}, {"finufft_eps": 1e-12}):
+    for kwargs in (
+        {"dv_evaluation_method": "box"},
+        {"dv_evaluation_method": "finufft", "finufft_eps": 1e-12},
+    ):
         phelel = _get_phelel_C111("phelel_disp_C111.yaml", **kwargs)
         dir_names = [cwd / f"{name}_disp-000", cwd / f"{name}_disp-001"]
         with warnings.catch_warnings():
@@ -512,9 +517,13 @@ def test_run_derivatives_without_any_phonon_dataset():
         phelel.run_derivatives(phe_input)
 
 
-@pytest.mark.parametrize("nufft", [None, "native-box"])
+@pytest.mark.parametrize(
+    "dv_evaluation_method", [pytest.param("finufft", marks=pytest.mark.finufft), "box"]
+)
 @pytest.mark.parametrize("name", ["C", "Mg"])
-def test_create_derivatives_vaspout_h5(name: str, nufft: Literal["native-box"] | None):
+def test_create_derivatives_vaspout_h5(
+    name: str, dv_evaluation_method: Literal["finufft", "box"]
+):
     """Derivatives from vaspout.h5 are equal to the reference values.
 
     The data are diamond (conventional cell, 8 atoms) and hcp Mg (2 atoms), with
@@ -523,15 +532,21 @@ def test_create_derivatives_vaspout_h5(name: str, nufft: Literal["native-box"] |
     by phelel from the same files with fft_mesh stored in reference.hdf5.  qij
     of PAW depends only on the species, and qij of all supercells of these data
     are equal, so dqijdu is zero.  The reference was computed with finufft, and
-    nufft="native-box" differs from it by the error of finufft.
+    dv_evaluation_method="box" differs from it by the error of finufft.
 
     """
-    _assert_derivatives_equal_to_reference(cwd / "derivatives_vaspout" / name, nufft)
+    _assert_derivatives_equal_to_reference(
+        cwd / "derivatives_vaspout" / name, dv_evaluation_method
+    )
 
 
-@pytest.mark.parametrize("nufft", [None, "native-box"])
+@pytest.mark.parametrize(
+    "dv_evaluation_method", [pytest.param("finufft", marks=pytest.mark.finufft), "box"]
+)
 @pytest.mark.parametrize("name", ["Cr", "Fe-ncl"])
-def test_create_derivatives_lwap_files(name: str, nufft: Literal["native-box"] | None):
+def test_create_derivatives_lwap_files(
+    name: str, dv_evaluation_method: Literal["finufft", "box"]
+):
     """Derivatives from the files written with LWAP = .TRUE. are equal to the reference.
 
     The data are bcc Cr, collinear and antiferromagnetic (ncdij=2), and bcc Fe,
@@ -541,10 +556,13 @@ def test_create_derivatives_lwap_files(name: str, nufft: Literal["native-box"] |
     PAW-STRENGTH.bin and PAW-OVERLAP.bin, and the forces from vaspout.h5.  In
     both, some of the symmetry operations used in the symmetrization are
     combined with time reversal.  dqijdu is zero for the same reason as in
-    test_create_derivatives_vaspout_h5, and so is the role of nufft.
+    test_create_derivatives_vaspout_h5, and so is the role of
+    dv_evaluation_method.
 
     """
-    _assert_derivatives_equal_to_reference(cwd / "derivatives_lwap" / name, nufft)
+    _assert_derivatives_equal_to_reference(
+        cwd / "derivatives_lwap" / name, dv_evaluation_method
+    )
 
 
 @pytest.mark.parametrize(
@@ -555,8 +573,8 @@ def test_create_derivatives_lwap_files(name: str, nufft: Literal["native-box"] |
         cwd / "derivatives_lwap" / "Fe-ncl",
     ],
 )
-def test_create_derivatives_native_on_mesh(data_dir: Path):
-    """nufft="native" gives dVdu of "native-box" when the grid is on the mesh.
+def test_create_derivatives_shortest_on_mesh(data_dir: Path):
+    """Method "shortest" gives dVdu of "box" when the grid is on the mesh.
 
     For these data, the grid points of fft_mesh in reference.hdf5 are on the FFT
     mesh of the supercell, where the choice of g from each g + N^s n does not
@@ -564,21 +582,23 @@ def test_create_derivatives_native_on_mesh(data_dir: Path):
 
     """
     dVdu = {
-        nufft: _create_derivatives(data_dir, nufft).dVdu.dVdu
-        for nufft in ("native", "native-box")
+        dv_evaluation_method: _create_derivatives(
+            data_dir, dv_evaluation_method
+        ).dVdu.dVdu
+        for dv_evaluation_method in ("shortest", "box")
     }
-    atol = 1e-12 * np.abs(dVdu["native-box"]).max()
-    np.testing.assert_allclose(dVdu["native"], dVdu["native-box"], rtol=0, atol=atol)
+    atol = 1e-12 * np.abs(dVdu["box"]).max()
+    np.testing.assert_allclose(dVdu["shortest"], dVdu["box"], rtol=0, atol=atol)
 
 
-def test_create_derivatives_native_is_real():
-    """nufft="native" gives real dVdu of diamond, and "native-box" does not.
+def test_create_derivatives_shortest_is_real():
+    """Method "shortest" gives real dVdu of diamond, and "box" does not.
 
     The grid points of diamond are not on the FFT mesh of the supercell.  There
-    the box of "native-box" and finufft, which has the coefficients of
+    the box of "box" and finufft, which has the coefficients of
     g_k = N^s_k / 2 only at +N^s_k / 2, gives an imaginary part to the change of
-    the real potential.  "native" divides them equally between +-N^s_k / 2.  Its
-    dVdu differs from the reference computed with finufft by about 1e-5
+    the real potential.  "shortest" divides them equally between +-N^s_k / 2.
+    Its dVdu differs from the reference computed with finufft by about 1e-5
     relative.
 
     """
@@ -586,17 +606,20 @@ def test_create_derivatives_native_is_real():
     with h5py.File(data_dir / "reference.hdf5") as f:
         ref = f["dVdu"][()]
     dVdu = {
-        nufft: _create_derivatives(data_dir, nufft).dVdu.dVdu
-        for nufft in ("native", "native-box")
+        dv_evaluation_method: _create_derivatives(
+            data_dir, dv_evaluation_method
+        ).dVdu.dVdu
+        for dv_evaluation_method in ("shortest", "box")
     }
     scale = np.abs(ref).max()
-    assert np.abs(dVdu["native"].imag).max() < 1e-12 * scale
-    assert np.abs(dVdu["native-box"].imag).max() > 1e-6 * scale
-    np.testing.assert_allclose(dVdu["native"], ref, rtol=0, atol=1e-4 * scale)
+    assert np.abs(dVdu["shortest"].imag).max() < 1e-12 * scale
+    assert np.abs(dVdu["box"].imag).max() > 1e-6 * scale
+    np.testing.assert_allclose(dVdu["shortest"], ref, rtol=0, atol=1e-4 * scale)
 
 
 def _create_derivatives(
-    data_dir: Path, nufft: Literal["native", "native-box"] | None = None
+    data_dir: Path,
+    dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
 ) -> Phelel:
     """Return Phelel with the derivatives from the files of data_dir.
 
@@ -606,7 +629,10 @@ def _create_derivatives(
     with h5py.File(data_dir / "reference.hdf5") as f:
         fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
     phe = phelel.load(
-        data_dir / "phelel_disp.yaml", fft_mesh=fft_mesh, is_nac=False, nufft=nufft
+        data_dir / "phelel_disp.yaml",
+        fft_mesh=fft_mesh,
+        is_nac=False,
+        dv_evaluation_method=dv_evaluation_method,
     )
     create_derivatives(phe, sorted(data_dir.glob("disp-*")))
     assert phe.dVdu is not None
@@ -614,7 +640,7 @@ def _create_derivatives(
 
 
 def _assert_derivatives_equal_to_reference(
-    data_dir: Path, nufft: Literal["native-box"] | None = None
+    data_dir: Path, dv_evaluation_method: Literal["finufft", "box"]
 ):
     """Assert dVdu, dDijdu and dqijdu computed from the files of data_dir.
 
@@ -624,7 +650,7 @@ def _assert_derivatives_equal_to_reference(
     """
     with h5py.File(data_dir / "reference.hdf5") as f:
         ref = {key: f[key][()] for key in ("dVdu", "dDijdu")}
-    phe = _create_derivatives(data_dir, nufft)
+    phe = _create_derivatives(data_dir, dv_evaluation_method)
     assert phe.dVdu is not None
     for key, value in (("dVdu", phe.dVdu.dVdu), ("dDijdu", phe.dDijdu.dDijdu)):
         atol = 1e-6 * np.abs(ref[key]).max()
@@ -635,7 +661,7 @@ def _assert_derivatives_equal_to_reference(
 def _get_phelel_C111(
     phelel_yaml_filename: str,
     phonon_supercell_matrix: NDArray | None = None,
-    nufft: Literal["finufft", "native", "native-box"] | None = None,
+    dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
     finufft_eps: float | None = None,
 ) -> Phelel:
     phe_yml = PhelelYaml().read(cwd / phelel_yaml_filename)
@@ -645,7 +671,7 @@ def _get_phelel_C111(
         primitive_matrix=phe_yml.primitive_matrix,
         phonon_supercell_matrix=phonon_supercell_matrix,
         fft_mesh=[18, 18, 18],
-        nufft=nufft,
+        dv_evaluation_method=dv_evaluation_method,
         finufft_eps=finufft_eps,
         log_level=1,
     )

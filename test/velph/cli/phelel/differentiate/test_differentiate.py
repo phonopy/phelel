@@ -376,24 +376,26 @@ def test_differentiate_writes_fft_mesh(
         np.testing.assert_array_equal(f["FFT_mesh"][:], expected)
 
 
-def test_differentiate_with_nufft(
+def test_differentiate_with_dv_evaluation_method(
     nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """With --nufft, "NUFFT: <value>." is printed and dVdu changes slightly.
+    """With --dv-evaluation-method, the method is printed and dVdu changes slightly.
 
-    Without --nufft, nothing about NUFFT is printed, so that the outputs shown in
-    the documentation stay the same.  dVdu with "native-box" differs from that
-    with finufft by the error of finufft.  dVdu with "native" differs also by the
-    choice of g between the points of the FFT mesh of the supercell.  The
-    differences show that the option reaches the calculation.
+    Without --dv-evaluation-method, nothing about the method is printed, so that
+    the outputs shown in the documentation stay the same, and dVdu is that of
+    "shortest", the default.
+    dVdu with "box" differs from that with "shortest" by the choice of g
+    between the points of the FFT mesh of the supercell.  The difference shows
+    that the option reaches the calculation.  "finufft" is compared with
+    "box" in test/interface/vasp/test_derivatives.py.
 
     """
     data = nacl_velph_toml()
     dVdu = {}
-    for nufft in (None, "native-box", "native"):
-        work_dir = tmp_path / (nufft or "default")
+    for dv_evaluation_method in (None, "shortest", "box"):
+        work_dir = tmp_path / (dv_evaluation_method or "default")
         work_dir.mkdir()
         (work_dir / "velph.toml").write_text(tomli_w.dumps(data))
         shutil.copytree(cwd / "C111" / "phelel", work_dir / "phelel")
@@ -402,22 +404,23 @@ def test_differentiate_with_nufft(
             work_dir / "phelel" / "phelel_disp.yaml",
         )
         monkeypatch.chdir(work_dir)
-        option = [] if nufft is None else ["--nufft", nufft]
+        option = (
+            []
+            if dv_evaluation_method is None
+            else ["--dv-evaluation-method", dv_evaluation_method]
+        )
         result = CliRunner().invoke(cmd_root, ["phelel", "differentiate", *option])
         assert result.exit_code == 0, result.output
-        if nufft is None:
-            assert "NUFFT" not in result.output
+        if dv_evaluation_method is None:
+            assert "dV evaluation method" not in result.output
         else:
-            assert f"NUFFT: {nufft}.\n" in result.output
+            assert f"dV evaluation method: {dv_evaluation_method}.\n" in result.output
         with h5py.File(work_dir / "phelel" / "phelel_params.hdf5") as f:
-            dVdu[nufft] = f["dVdu"][:]
+            dVdu[dv_evaluation_method] = f["dVdu"][:]
     scale = np.abs(dVdu[None]).max()
-    assert not np.array_equal(dVdu["native-box"], dVdu[None])
-    np.testing.assert_allclose(
-        dVdu["native-box"], dVdu[None], rtol=0, atol=1e-6 * scale
-    )
-    assert np.abs(dVdu["native"] - dVdu["native-box"]).max() > 1e-6 * scale
-    np.testing.assert_allclose(dVdu["native"], dVdu[None], rtol=0, atol=1e-4 * scale)
+    np.testing.assert_array_equal(dVdu[None], dVdu["shortest"])
+    assert np.abs(dVdu["box"] - dVdu["shortest"]).max() > 1e-6 * scale
+    np.testing.assert_allclose(dVdu["box"], dVdu["shortest"], rtol=0, atol=1e-4 * scale)
 
 
 def test_differentiate_without_supercell_directory(

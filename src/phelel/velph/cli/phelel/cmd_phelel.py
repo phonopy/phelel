@@ -92,15 +92,16 @@ def cmd_generate(toml_filename: str):
     ),
 )
 @click.option(
-    "--nufft",
-    type=click.Choice(["finufft", "native", "native-box"]),
+    "--dv-evaluation-method",
+    type=click.Choice(["shortest", "box", "finufft"]),
     default=None,
     help=(
-        "Method to evaluate the change of the local potential at the grid points: "
-        '"finufft" (default), "native" (FFT without the approximation of NUFFT, '
-        "keeping the symmetry and the reality of the potential between the FFT "
-        'mesh points of the supercell) or "native-box" (FFT giving the series of '
-        "finufft)."
+        "How the change of the local potential is computed at the grid points: "
+        '"shortest" (default, placing each Fourier coefficient at the shortest '
+        "reciprocal lattice vectors, which keeps the symmetry and the reality of "
+        'the potential between the FFT mesh points of the supercell), "box" '
+        '(giving the values of finufft without its error) or "finufft" (needs '
+        "finufft installed)."
     ),
 )
 @click.option(
@@ -114,7 +115,7 @@ def cmd_generate(toml_filename: str):
 def cmd_differentiate(
     toml_filename: str,
     encut: float | None,
-    nufft: Literal["finufft", "native", "native-box"] | None,
+    dv_evaluation_method: Literal["shortest", "box", "finufft"] | None,
     verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5.
@@ -134,14 +135,18 @@ def cmd_differentiate(
             'Found "nosym = true" in [phelel] section. Symmetrization is turned off.'
         )
 
-    phe = phelel.load(yaml_filename, is_symmetry=is_symmetry, nufft=nufft)
+    phe = phelel.load(
+        yaml_filename,
+        is_symmetry=is_symmetry,
+        dv_evaluation_method=dv_evaluation_method,
+    )
     phe.fft_mesh = get_fft_mesh(project, phe.primitive.cell, encut=encut)
     if encut is None:
         click.echo(f"FFT mesh: {phe.fft_mesh}.")
     else:
         click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
-    if nufft is not None:
-        click.echo(f"NUFFT: {nufft}.")
+    if dv_evaluation_method is not None:
+        click.echo(f"dV evaluation method: {dv_evaluation_method}.")
 
     run_derivatives(phe, project_dir=project_dir, verbose=verbose)
     hdf5_filename.parent.mkdir(parents=True, exist_ok=True)

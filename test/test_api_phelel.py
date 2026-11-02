@@ -1,6 +1,7 @@
 """Test for Phelel class."""
 
 import pathlib
+import sys
 
 import h5py
 import numpy as np
@@ -33,6 +34,41 @@ def test_api_phelel_CdAs2_111(phelel_CdAs2_111: Phelel):
     """Test by CdAs2 conv. unit cell 1x1x1 (I-centred tetragonal)."""
     filename = cwd / "phelel_params_CdAs2_111.hdf5"
     _compare(filename, phelel_CdAs2_111)
+
+
+@pytest.mark.parametrize(
+    "name,yaml_filename",
+    [
+        ("C111", "phelel_disp_C111.yaml"),
+        ("NaCl111", "phelel_disp_NaCl111.yaml"),
+        ("CdAs2_111", "phelel_disp_CdAs2.yaml"),
+    ],
+)
+def test_api_phelel_default_dv_evaluation_method(
+    name: str, yaml_filename: str, request: pytest.FixtureRequest
+):
+    """The default gives real dVdu with the real part of the reference.
+
+    The default is dv_evaluation_method="shortest".  The reference in
+    phelel_params_*.hdf5 was computed with finufft, whose box of reciprocal
+    lattice vectors gives an imaginary part to dVdu at the grid points of
+    fft_mesh=[14, 14, 14], which are not on the FFT mesh of the supercell.
+    "shortest" places the coefficients at the shortest vectors, which keeps
+    dVdu real.  The real parts differ by the choice of the
+    vectors, by up to 2.5e-6 relative to the largest value for these data.
+    dDijdu does not depend on dv_evaluation_method.
+
+    """
+    phe = phelel.load(cwd / yaml_filename)
+    phe.fft_mesh = [14, 14, 14]
+    phe.run_derivatives(request.getfixturevalue(f"phelel_input_{name}"))
+    assert phe.dVdu is not None
+    with h5py.File(cwd / f"phelel_params_{name}.hdf5", "r") as f:
+        dVdu_ref = f["dVdu"][:]
+    scale = np.abs(dVdu_ref).max()
+    dVdu = phe.dVdu.dVdu
+    np.testing.assert_allclose(dVdu.real, dVdu_ref[..., 0], rtol=0, atol=1e-5 * scale)
+    assert np.abs(dVdu.imag).max() < 1e-12 * scale
 
 
 def test_read_phelel_params_hdf5(phelel_CdAs2_111: Phelel):
@@ -190,17 +226,17 @@ def test_phelel_unit_conversion_factor_and_dynamical_matrix(
 
 
 @pytest.mark.parametrize(
-    "nufft,is_error",
+    "dv_evaluation_method,is_error",
     [
         (None, False),
-        ("finufft", False),
-        ("native", False),
-        ("native-box", False),
+        pytest.param("finufft", False, marks=pytest.mark.finufft),
+        ("shortest", False),
+        ("box", False),
         ("nfft", True),
     ],
 )
-def test_phelel_nufft(nufft: str | None, is_error: bool):
-    """Only "finufft", "native", "native-box" and None are accepted for nufft."""
+def test_phelel_dv_evaluation_method(dv_evaluation_method: str | None, is_error: bool):
+    """Only "shortest", "box", "finufft" and None are accepted."""
     unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
 
     def _phelel():
@@ -208,7 +244,7 @@ def test_phelel_nufft(nufft: str | None, is_error: bool):
             unitcell,
             supercell_matrix=np.eye(3, dtype=int),
             primitive_matrix="P",
-            nufft=nufft,
+            dv_evaluation_method=dv_evaluation_method,
         )
 
     if is_error:
@@ -219,10 +255,22 @@ def test_phelel_nufft(nufft: str | None, is_error: bool):
 
 
 @pytest.mark.parametrize(
-    "nufft,is_error", [(None, False), ("native", True), ("native-box", True)]
+    "dv_evaluation_method,is_error",
+    [
+        (None, True),
+        pytest.param("finufft", False, marks=pytest.mark.finufft),
+        ("shortest", True),
+        ("box", True),
+    ],
 )
-def test_phelel_finufft_eps_with_nufft(nufft: str | None, is_error: bool):
-    """finufft_eps is an error with nufft="native" and "native-box"."""
+def test_phelel_finufft_eps_with_dv_evaluation_method(
+    dv_evaluation_method: str | None, is_error: bool
+):
+    """finufft_eps is accepted only with dv_evaluation_method="finufft".
+
+    dv_evaluation_method=None is "shortest".
+
+    """
     unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
 
     def _phelel():
@@ -230,7 +278,7 @@ def test_phelel_finufft_eps_with_nufft(nufft: str | None, is_error: bool):
             unitcell,
             supercell_matrix=np.eye(3, dtype=int),
             primitive_matrix="P",
-            nufft=nufft,
+            dv_evaluation_method=dv_evaluation_method,
             finufft_eps=1e-8,
         )
 
@@ -239,3 +287,23 @@ def test_phelel_finufft_eps_with_nufft(nufft: str | None, is_error: bool):
             _phelel()
     else:
         _phelel()
+
+
+def test_phelel_dv_evaluation_method_finufft_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Method "finufft" without finufft stops with ImportError to install it.
+
+    finufft is not a dependency of phelel.  It is hidden by None in sys.modules,
+    which makes "import finufft" raise ImportError.
+
+    """
+    unitcell = phelel.load(cwd / "phelel_disp_C111.yaml").unitcell
+    monkeypatch.setitem(sys.modules, "finufft", None)
+    with pytest.raises(ImportError, match="Install the finufft package"):
+        Phelel(
+            unitcell,
+            supercell_matrix=np.eye(3, dtype=int),
+            primitive_matrix="P",
+            dv_evaluation_method="finufft",
+        )
