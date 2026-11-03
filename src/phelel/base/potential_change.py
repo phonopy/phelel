@@ -138,3 +138,61 @@ def _rotate_spin_components_python(
                     term = factors[i_sp, i_s, i_s1, i_s2] * original[i_s1 * 2 + i_s2]
                     rotated += term
             values[i_sp * 2 + i_s][...] = rotated
+
+
+def apply_time_reversal_to_spin_components(
+    values: list[NDArray[np.cdouble]],
+    lang: Literal["Rust", "Python"] = "Rust",
+) -> None:
+    """Apply time reversal to the spin components, in place.
+
+    Time reversal is i sigma_y K, under which the 2x2 matrix
+    V = [[v_0, v_1], [v_2, v_3]] of four spin components, in the order
+    [11, 12, 21, 22] of VASP, becomes sigma_y V^* sigma_y:
+
+        [v_0, v_1, v_2, v_3] -> [conj(v_3), -conj(v_2), -conj(v_1), conj(v_0)].
+
+    This keeps the scalar part and flips the sign of the magnetic part.  For
+    two components (collinear, up and down), the two are exchanged and
+    conjugated, [v_0, v_1] -> [conj(v_1), conj(v_0)], and for one component it
+    is only conjugated.
+
+    Parameters
+    ----------
+    values : list of ndarray
+        One, two or four spin components, overwritten by the time-reversed
+        ones.
+        dtype='complex128', the same shape, C-contiguous
+    lang : str, optional
+        "Rust" (default) by phonors.apply_time_reversal_to_spin_components or
+        "Python".
+
+    """
+    if lang == "Rust":
+        _apply_time_reversal_to_spin_components_rust(values)
+    else:
+        _apply_time_reversal_to_spin_components_python(values)
+
+
+def _apply_time_reversal_to_spin_components_rust(
+    values: list[NDArray[np.cdouble]],
+) -> None:
+    """Apply time reversal by phonors.apply_time_reversal_to_spin_components."""
+    phonors.apply_time_reversal_to_spin_components(values)
+
+
+def _apply_time_reversal_to_spin_components_python(
+    values: list[NDArray[np.cdouble]],
+) -> None:
+    """Apply time reversal by NumPy."""
+    original = [value.copy() for value in values]
+    if len(values) == 4:
+        values[0][...] = original[3].conj()
+        values[1][...] = -original[2].conj()
+        values[2][...] = -original[1].conj()
+        values[3][...] = original[0].conj()
+    elif len(values) == 2:
+        values[0][...] = original[1].conj()
+        values[1][...] = original[0].conj()
+    else:
+        values[0][...] = original[0].conj()

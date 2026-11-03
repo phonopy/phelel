@@ -19,6 +19,8 @@ from phelel.base.local_potential import (
     LocalPotentialInterpolationNUFFT,
 )
 from phelel.base.potential_change import (
+    _apply_time_reversal_to_spin_components_python,
+    _apply_time_reversal_to_spin_components_rust,
     _multiply_by_phase_python,
     _multiply_by_phase_rust,
     _rotate_spin_components_python,
@@ -133,25 +135,76 @@ def test_rotate_spin_components_rust_rejects_wrong_input():
         _rotate_spin_components_rust(values, np.eye(3, dtype="complex128"))
 
 
-def test_local_potential_interpolation_rust_and_python_agree():
-    """dV/du with lang="Rust" and lang="Python" agree for ncdij=4.
+@pytest.mark.parametrize("num_components", [1, 2, 4])
+def test_apply_time_reversal_to_spin_components(num_components: int):
+    """Rust and Python give the formulas of the docstring.
 
-    bcc Fe with non-collinear moments along z in the conventional cell, with
-    the one-atom primitive cell (N_c = 2), random potentials of four spin
-    components, and a displacement off the symmetry axes.  The operations
-    include rotations whose D is not diagonal and operations combined with
-    time reversal.
+    The number of elements is larger than one chunk of the Rust kernel (4096).
+
+    """
+    values = [_random_complex((5, 1000), seed=seed) for seed in range(num_components)]
+    if num_components == 4:
+        expected = [
+            values[3].conj(),
+            -values[2].conj(),
+            -values[1].conj(),
+            values[0].conj(),
+        ]
+    elif num_components == 2:
+        expected = [values[1].conj(), values[0].conj()]
+    else:
+        expected = [values[0].conj()]
+    values_rust = [value.copy() for value in values]
+    values_python = [value.copy() for value in values]
+
+    _apply_time_reversal_to_spin_components_rust(values_rust)
+    _apply_time_reversal_to_spin_components_python(values_python)
+
+    np.testing.assert_array_equal(values_python, expected)
+    np.testing.assert_array_equal(values_rust, expected)
+
+
+def test_apply_time_reversal_to_spin_components_rust_rejects_wrong_input():
+    """Wrong numbers, shapes and layouts raise ValueError."""
+    values = [_random_complex((4, 6), seed=seed) for seed in range(4)]
+    with pytest.raises(ValueError, match="one, two or four spin components"):
+        _apply_time_reversal_to_spin_components_rust(values[:3])
+    with pytest.raises(ValueError, match="same shape"):
+        _apply_time_reversal_to_spin_components_rust(
+            [values[0], values[1][:, :3].copy()]
+        )
+    with pytest.raises(ValueError, match="C-contiguous"):
+        _apply_time_reversal_to_spin_components_rust(
+            [value[:, ::2] for value in values]
+        )
+
+
+@pytest.mark.parametrize(
+    "magnetic_moments,ncdij",
+    [([[0, 0, 3], [0, 0, 3]], 4), ([3, -3], 2), (None, 1)],
+)
+def test_local_potential_interpolation_rust_and_python_agree(
+    magnetic_moments: list | None, ncdij: int
+):
+    """dV/du with lang="Rust" and lang="Python" agree.
+
+    bcc Fe in the conventional cell, with the one-atom primitive cell
+    (N_c = 2), random potentials, and a displacement off the symmetry axes.
+    With non-collinear moments along z (ncdij=4), the operations include
+    rotations whose D is not diagonal and operations combined with time
+    reversal.  With collinear antiferromagnetic moments (ncdij=2), the second
+    atom is reached only by operations combined with time reversal.
 
     """
     cell = PhonopyAtoms(
         symbols=["Fe", "Fe"],
         cell=np.eye(3) * 2.83,
         scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
-        magnetic_moments=[[0, 0, 3], [0, 0, 3]],
+        magnetic_moments=magnetic_moments,
     )
     p2s_matrix = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]], dtype="int64")
-    V_perfect = _random_complex((4, 6, 6, 6), seed=1)
-    V_displaced = V_perfect + 0.1 * _random_complex((4, 6, 6, 6), seed=2)
+    V_perfect = _random_complex((ncdij, 6, 6, 6), seed=1)
+    V_displaced = V_perfect + 0.1 * _random_complex((ncdij, 6, 6, 6), seed=2)
     displacement = {"number": 0, "displacement": [0.01, 0.02, 0.005]}
 
     dVdus = {}
@@ -162,7 +215,7 @@ def test_local_potential_interpolation_rust_and_python_agree():
         lpi.run([DeltaLocalPotential(V_perfect, V_displaced, displacement)])
         dVdus[lang] = lpi.dVdu
 
-    assert dVdus["Rust"].shape == (4, 2, 3, 2 * 4**3)
+    assert dVdus["Rust"].shape == (ncdij, 2, 3, 2 * 4**3)
     scale = np.abs(dVdus["Python"]).max()
     np.testing.assert_allclose(
         dVdus["Rust"], dVdus["Python"], rtol=0, atol=1e-13 * scale

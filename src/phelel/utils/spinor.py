@@ -7,7 +7,10 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from phelel.base.potential_change import rotate_spin_components
+from phelel.base.potential_change import (
+    apply_time_reversal_to_spin_components,
+    rotate_spin_components,
+)
 from phelel.utils.spherical_harmonics import get_n_and_rotation_order
 
 
@@ -211,7 +214,9 @@ def apply_time_reversal_in_spin_space(delta_vals: list[NDArray]) -> list[NDArray
 
     This keeps the scalar part and flips the sign of the magnetic part. For
     ncdij=2, spin up and down are exchanged. For ncdij=1, only the complex
-    conjugate is taken.
+    conjugate is taken.  This is done by
+    phelel.base.potential_change.apply_time_reversal_to_spin_components with
+    lang="Python" on a copy of ``delta_vals``.
 
     Parameters
     ----------
@@ -220,14 +225,6 @@ def apply_time_reversal_in_spin_space(delta_vals: list[NDArray]) -> list[NDArray
         basis, after spatial and spin rotations.
 
     """
-    ncdij = len(delta_vals)
-    if ncdij == 4:
-        return [
-            delta_vals[3].conj(),
-            -delta_vals[2].conj(),
-            -delta_vals[1].conj(),
-            delta_vals[0].conj(),
-        ]
-    if ncdij == 2:
-        return [delta_vals[1].conj(), delta_vals[0].conj()]
-    return [delta_vals[0].conj()]
+    delta_vals_reversed = [vals.copy() for vals in delta_vals]
+    apply_time_reversal_to_spin_components(delta_vals_reversed, lang="Python")
+    return delta_vals_reversed

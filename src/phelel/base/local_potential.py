@@ -19,7 +19,10 @@ from phonors import snf3x3
 
 from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
-from phelel.base.potential_change import rotate_spin_components
+from phelel.base.potential_change import (
+    apply_time_reversal_to_spin_components,
+    rotate_spin_components,
+)
 from phelel.base.symmetrization import (
     check_displaced_atoms,
     get_displacements_with_rotations,
@@ -27,10 +30,7 @@ from phelel.base.symmetrization import (
 )
 from phelel.interface.vasp.file_IO import get_CHGCAR
 from phelel.utils.lattice_points import get_lattice_points
-from phelel.utils.spinor import (
-    SpinorRotationMatrices,
-    apply_time_reversal_in_spin_space,
-)
+from phelel.utils.spinor import SpinorRotationMatrices
 
 
 def check_finufft_installed():
@@ -404,7 +404,7 @@ class LocalPotentialInterpolationNUFFT:
                     srm = SpinorRotationMatrices(rotation, lattice).run()
                     rotate_spin_components(dVs_rotated, srm.Delta, lang=self._lang)
                 if time_reversal:
-                    dVs_rotated = apply_time_reversal_in_spin_space(dVs_rotated)
+                    apply_time_reversal_to_spin_components(dVs_rotated, lang=self._lang)
                 for i_cdij in range(ncdij):
                     dVdu[i_cdij] += np.outer(disps_inv[:, count], dVs_rotated[i_cdij])
                 count += 1
