@@ -46,6 +46,7 @@ from numpy.typing import NDArray
 from phonopy.structure.cells import determinant, get_reduced_bases
 from phonors import bin_supercell_fourier_coefficients, bz_grid_addresses, snf3x3
 
+from phelel.base.potential_change import multiply_by_phase
 from phelel.utils.lattice_points import get_lattice_points
 
 
@@ -117,9 +118,10 @@ class FourierSeriesOnGrid:
             vectors.
             dtype='double', shape=(3, 3)
         lang : str, optional
-            Implementation of the sums F_q(Kbar) in get_phi, "Rust" (default)
-            by phonors.bin_supercell_fourier_coefficients or "Python" by NumPy.
-            "Python" is kept as the reference of "Rust".
+            Implementation of the sums F_q(Kbar) and of the multiplication by
+            the phase in get_phi, "Rust" (default) by phonors
+            (bin_supercell_fourier_coefficients and multiply_by_phase) or
+            "Python" by NumPy.  "Python" is kept as the reference of "Rust".
 
         """
         if lang not in ("Rust", "Python"):
@@ -286,7 +288,8 @@ class FourierSeriesOnGrid:
         exp(-2 pi i g' . w) f(W^T g') at g' = W^-T g, where W and w are rotation
         and translation.  The sums F_q(Kbar) of the coefficients are computed
         by _bin_coefficients_rust or _bin_coefficients_python following lang,
-        and the DFT over Kbar by scipy.fft.
+        the DFT over Kbar by scipy.fft, and the multiplication by the phase
+        by multiply_by_phase following lang.
 
         Parameters
         ----------
@@ -316,11 +319,12 @@ class FourierSeriesOnGrid:
             Fs = self._bin_coefficients_rust(coefficients, rotation, translation)
         else:
             Fs = self._bin_coefficients_python(coefficients, rotation, translation)
-        return [
-            scipy.fft.ifftn(F, axes=(1, 2, 3), norm="forward", workers=-1)
-            * self._phase_qm
-            for F in Fs
-        ]
+        phis = []
+        for F in Fs:
+            phi = scipy.fft.ifftn(F, axes=(1, 2, 3), norm="forward", workers=-1)
+            multiply_by_phase(phi, self._phase_qm, lang=self._lang)
+            phis.append(phi)
+        return phis
 
     def _bin_coefficients_rust(
         self,
