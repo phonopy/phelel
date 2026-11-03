@@ -9,6 +9,10 @@
   each pair of rotation and time reversal, instead of once for each symmetry
   operation. On a supercell of 96 atoms with non-collinear spin, the check took
   1.8 s instead of 16.6 s. The results are unchanged.
+- The finite-difference derivative of the local potential is faster. The
+  element-wise steps, which ran on one core, run in parallel in phonors. The
+  results differ from before by rounding errors only. This needs phonors with
+  these steps, which is not released yet.
 
 ## Nov-2-2026: Version 0.18.1
 
