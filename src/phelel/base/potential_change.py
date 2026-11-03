@@ -56,7 +56,7 @@ def multiply_by_phase(
 def _multiply_by_phase_rust(
     phi: NDArray[np.cdouble], phase: NDArray[np.cdouble]
 ) -> None:
-    """Multiply phi by phase by phonors.multiply_by_phase."""
+    """Call phonors.multiply_by_phase."""
     phonors.multiply_by_phase(phi, phase)
 
 
@@ -103,7 +103,7 @@ def rotate_spin_components(
 def _rotate_spin_components_rust(
     values: list[NDArray[np.cdouble]], spin_rotation: NDArray[np.cdouble]
 ) -> None:
-    """Rotate the spin components by phonors.rotate_spin_components."""
+    """Call phonors.rotate_spin_components."""
     phonors.rotate_spin_components(
         values, np.asarray(spin_rotation, dtype="complex128")
     )
@@ -177,7 +177,7 @@ def apply_time_reversal_to_spin_components(
 def _apply_time_reversal_to_spin_components_rust(
     values: list[NDArray[np.cdouble]],
 ) -> None:
-    """Apply time reversal by phonors.apply_time_reversal_to_spin_components."""
+    """Call phonors.apply_time_reversal_to_spin_components."""
     phonors.apply_time_reversal_to_spin_components(values)
 
 
@@ -196,3 +196,128 @@ def _apply_time_reversal_to_spin_components_python(
         values[1][...] = original[0].conj()
     else:
         values[0][...] = original[0].conj()
+
+
+def add_to_normal_equation_rhs(
+    normal_equation_rhs: NDArray[np.cdouble],
+    displacement: NDArray[np.double],
+    values: list[NDArray[np.cdouble]],
+    lang: Literal["Rust", "Python"] = "Rust",
+) -> None:
+    """Add the outer products of displacement and the spin components, in place.
+
+        normal_equation_rhs[c, i, i_grid] += displacement[i] * values[c][i_grid]
+
+    for each spin component c, each Cartesian direction i of the displacement
+    and each grid point i_grid.  In LocalPotentialInterpolationNUFFT._run_at_atom,
+    displacement is a rotated displacement R u_k and values are the spin
+    components of the rotated change of the potential dV_kg at the grid
+    points.  One call adds one term; the calls for all pairs (k, g) give the
+    right-hand side U^T dV of the normal equations.
+
+    Parameters
+    ----------
+    normal_equation_rhs : ndarray
+        Right-hand side of the normal equations, to which the products are
+        added.  The axes are the spin components, the Cartesian directions x,
+        y, z of the displacement and the grid points.
+        dtype='complex128', shape=(n_components, 3, n_grid_points),
+        C-contiguous
+    displacement : ndarray
+        Displacement in Cartesian coordinates, R u_k in _run_at_atom.
+        dtype='double', shape=(3,)
+    values : list of ndarray
+        n_components spin components of the potential change at the grid
+        points, in the order [11, 12, 21, 22] of VASP for four components.
+        dtype='complex128', shape=(n_grid_points,) each, C-contiguous
+    lang : str, optional
+        "Rust" (default) by phonors.add_to_normal_equation_rhs or "Python".
+
+    """
+    if lang == "Rust":
+        _add_to_normal_equation_rhs_rust(normal_equation_rhs, displacement, values)
+    else:
+        _add_to_normal_equation_rhs_python(normal_equation_rhs, displacement, values)
+
+
+def _add_to_normal_equation_rhs_rust(
+    normal_equation_rhs: NDArray[np.cdouble],
+    displacement: NDArray[np.double],
+    values: list[NDArray[np.cdouble]],
+) -> None:
+    """Call phonors.add_to_normal_equation_rhs."""
+    phonors.add_to_normal_equation_rhs(
+        normal_equation_rhs, np.ascontiguousarray(displacement, dtype="double"), values
+    )
+
+
+def _add_to_normal_equation_rhs_python(
+    normal_equation_rhs: NDArray[np.cdouble],
+    displacement: NDArray[np.double],
+    values: list[NDArray[np.cdouble]],
+) -> None:
+    """Add the outer products by NumPy."""
+    for i_component, value in enumerate(values):
+        normal_equation_rhs[i_component] += np.outer(displacement, value)
+
+
+def apply_inverse_normal_matrix(
+    normal_equation_rhs: NDArray[np.cdouble],
+    inverse_normal_matrix: NDArray[np.double],
+    lang: Literal["Rust", "Python"] = "Rust",
+) -> None:
+    """Multiply normal_equation_rhs by pinv(U^T U) along the direction axis.
+
+        normal_equation_rhs[c, :, i_grid]
+            <- inverse_normal_matrix @ normal_equation_rhs[c, :, i_grid]
+
+    For each spin component c and each grid point i_grid, the three values
+    normal_equation_rhs[c, :, i_grid], one for each Cartesian direction of the
+    displacement, form a vector, which is replaced by its product with
+    inverse_normal_matrix, in place.  The sum over the columns runs in their
+    order, without BLAS.  In LocalPotentialInterpolationNUFFT._run_at_atom,
+    this turns the right-hand side U^T dV of the normal equations into dV/du.
+
+    Parameters
+    ----------
+    normal_equation_rhs : ndarray
+        Right-hand side of the normal equations, overwritten by the products,
+        which are dV/du in _run_at_atom.  The axes are the spin components,
+        the Cartesian directions x, y, z of the displacement and the grid
+        points.
+        dtype='complex128', shape=(n_components, 3, n_grid_points),
+        C-contiguous
+    inverse_normal_matrix : ndarray
+        Pseudo-inverse pinv(U^T U) of the matrix U^T U of the normal
+        equations, where the rows of U are the rotated displacements.
+        dtype='double', shape=(3, 3)
+    lang : str, optional
+        "Rust" (default) by phonors.apply_inverse_normal_matrix or "Python".
+
+    """
+    if lang == "Rust":
+        _apply_inverse_normal_matrix_rust(normal_equation_rhs, inverse_normal_matrix)
+    else:
+        _apply_inverse_normal_matrix_python(normal_equation_rhs, inverse_normal_matrix)
+
+
+def _apply_inverse_normal_matrix_rust(
+    normal_equation_rhs: NDArray[np.cdouble], inverse_normal_matrix: NDArray[np.double]
+) -> None:
+    """Call phonors.apply_inverse_normal_matrix."""
+    phonors.apply_inverse_normal_matrix(
+        normal_equation_rhs, np.asarray(inverse_normal_matrix, dtype="double")
+    )
+
+
+def _apply_inverse_normal_matrix_python(
+    normal_equation_rhs: NDArray[np.cdouble], inverse_normal_matrix: NDArray[np.double]
+) -> None:
+    """Multiply by inverse_normal_matrix with NumPy, element-wise over i_grid."""
+    for i_component in range(normal_equation_rhs.shape[0]):
+        original = normal_equation_rhs[i_component].copy()
+        for i in range(3):
+            product = np.zeros_like(original[0])
+            for j in range(3):
+                product += inverse_normal_matrix[i, j] * original[j]
+            normal_equation_rhs[i_component, i] = product

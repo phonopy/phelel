@@ -19,6 +19,10 @@ from phelel.base.local_potential import (
     LocalPotentialInterpolationNUFFT,
 )
 from phelel.base.potential_change import (
+    _add_to_normal_equation_rhs_python,
+    _add_to_normal_equation_rhs_rust,
+    _apply_inverse_normal_matrix_python,
+    _apply_inverse_normal_matrix_rust,
     _apply_time_reversal_to_spin_components_python,
     _apply_time_reversal_to_spin_components_rust,
     _multiply_by_phase_python,
@@ -176,6 +180,143 @@ def test_apply_time_reversal_to_spin_components_rust_rejects_wrong_input():
     with pytest.raises(ValueError, match="C-contiguous"):
         _apply_time_reversal_to_spin_components_rust(
             [value[:, ::2] for value in values]
+        )
+
+
+def test_add_to_normal_equation_rhs():
+    """Rust and Python add displacement[i] * values[c] to normal_equation_rhs[c, i].
+
+    Two additions to a nonzero normal_equation_rhs, with two spin components,
+    are compared with np.einsum.  The number of elements is larger than one
+    chunk of the Rust kernel (4096).
+
+    """
+    rng = np.random.default_rng(10)
+    num_grid_points = 5000
+    start = _random_complex((2, 3, num_grid_points), seed=11)
+    additions = [
+        (
+            rng.standard_normal(3),
+            [_random_complex((num_grid_points,), seed=s) for s in (12, 13)],
+        ),
+        (
+            rng.standard_normal(3),
+            [_random_complex((num_grid_points,), seed=s) for s in (14, 15)],
+        ),
+    ]
+    expected = start + sum(
+        np.einsum("i,cn->cin", displacement, np.array(values))
+        for displacement, values in additions
+    )
+    normal_equation_rhs_rust = start.copy()
+    normal_equation_rhs_python = start.copy()
+    for displacement, values in additions:
+        _add_to_normal_equation_rhs_rust(normal_equation_rhs_rust, displacement, values)
+        _add_to_normal_equation_rhs_python(
+            normal_equation_rhs_python, displacement, values
+        )
+
+    atol = 1e-14 * np.abs(expected).max()
+    np.testing.assert_allclose(normal_equation_rhs_python, expected, rtol=0, atol=atol)
+    np.testing.assert_allclose(
+        normal_equation_rhs_rust, normal_equation_rhs_python, rtol=0, atol=atol
+    )
+
+
+def test_add_to_normal_equation_rhs_rust_rejects_wrong_input():
+    """Inconsistent shapes and non-contiguous arrays raise ValueError."""
+    normal_equation_rhs = _random_complex((2, 3, 8), seed=1)
+    displacement = np.ones(3)
+    values = [_random_complex((8,), seed=seed) for seed in (2, 3)]
+    with pytest.raises(ValueError, match="same number of elements"):
+        _add_to_normal_equation_rhs_rust(
+            normal_equation_rhs, displacement, [values[0], values[1][:5].copy()]
+        )
+    with pytest.raises(ValueError, match="displacement must have shape"):
+        _add_to_normal_equation_rhs_rust(normal_equation_rhs, np.ones(2), values)
+    with pytest.raises(ValueError, match="normal_equation_rhs must have shape"):
+        _add_to_normal_equation_rhs_rust(normal_equation_rhs, displacement, values[:1])
+    with pytest.raises(ValueError, match="spin components must be C-contiguous"):
+        _add_to_normal_equation_rhs_rust(
+            normal_equation_rhs,
+            displacement,
+            [_random_complex((16,), seed=4)[::2]] * 2,
+        )
+    with pytest.raises(ValueError, match="normal_equation_rhs must be C-contiguous"):
+        _add_to_normal_equation_rhs_rust(
+            _random_complex((2, 3, 16), seed=5)[:, :, ::2], displacement, values
+        )
+
+
+def test_apply_inverse_normal_matrix():
+    """Rust and Python multiply normal_equation_rhs[c, :, x] by the matrix.
+
+    The reference is computed with np.einsum.  The number of elements is
+    larger than one chunk of the Rust kernel (4096).
+
+    """
+    matrix = np.random.default_rng(20).standard_normal((3, 3))
+    normal_equation_rhs = _random_complex((4, 3, 5000), seed=21)
+    expected = np.einsum("ij,cjn->cin", matrix, normal_equation_rhs)
+    normal_equation_rhs_rust = normal_equation_rhs.copy()
+    normal_equation_rhs_python = normal_equation_rhs.copy()
+
+    _apply_inverse_normal_matrix_rust(normal_equation_rhs_rust, matrix)
+    _apply_inverse_normal_matrix_python(normal_equation_rhs_python, matrix)
+
+    atol = 1e-14 * np.abs(expected).max()
+    np.testing.assert_allclose(normal_equation_rhs_python, expected, rtol=0, atol=atol)
+    np.testing.assert_allclose(
+        normal_equation_rhs_rust, normal_equation_rhs_python, rtol=0, atol=atol
+    )
+
+
+def test_apply_inverse_normal_matrix_rust_rejects_wrong_input():
+    """Wrong shapes and a non-contiguous normal_equation_rhs raise ValueError."""
+    matrix = np.eye(3)
+    with pytest.raises(ValueError, match="shape \\(n_components, 3, n_grid_points\\)"):
+        _apply_inverse_normal_matrix_rust(_random_complex((2, 2, 8), seed=1), matrix)
+    with pytest.raises(ValueError, match="shape \\(3, 3\\)"):
+        _apply_inverse_normal_matrix_rust(_random_complex((2, 3, 8), seed=1), np.eye(2))
+    with pytest.raises(ValueError, match="C-contiguous"):
+        _apply_inverse_normal_matrix_rust(
+            _random_complex((2, 3, 8), seed=1)[:, :, ::2], matrix
+        )
+
+
+@pytest.mark.parametrize("rank", [3, 2])
+def test_normal_equations_give_pinv_of_displacements(rank: int):
+    """pinv(U^T U) U^T dV equals pinv(U) dV for the displacements of a site.
+
+    U has more rows than columns, as the rotated displacements of
+    get_displacements_with_rotations.  With rank 2, all displacements lie in
+    a plane, U^T U is singular, and both give the minimum-norm solution.  The
+    sum of the outer products and the multiplication by pinv(U^T U) are those
+    of _run_at_atom.
+
+    """
+    rng = np.random.default_rng(30)
+    disps = rng.standard_normal((8, 3))
+    if rank == 2:
+        disps[:, 2] = disps[:, 0] - 0.5 * disps[:, 1]
+    assert np.linalg.matrix_rank(disps) == rank
+    values = [
+        [_random_complex((50,), seed=100 + 2 * k + c) for c in range(2)]
+        for k in range(8)
+    ]
+    expected = np.einsum("wk,kcn->cwn", np.linalg.pinv(disps), np.array(values))
+    for add, multiply in (
+        (_add_to_normal_equation_rhs_rust, _apply_inverse_normal_matrix_rust),
+        (_add_to_normal_equation_rhs_python, _apply_inverse_normal_matrix_python),
+    ):
+        normal_equation_rhs = np.zeros((2, 3, 50), dtype="complex128")
+        for disp, value in zip(disps, values, strict=True):
+            add(normal_equation_rhs, disp, value)
+        multiply(
+            normal_equation_rhs, np.linalg.pinv(np.einsum("ki,kj->ij", disps, disps))
+        )
+        np.testing.assert_allclose(
+            normal_equation_rhs, expected, rtol=0, atol=1e-12 * np.abs(expected).max()
         )
 
 
