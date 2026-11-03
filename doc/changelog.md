@@ -15,11 +15,11 @@
   these steps, which is not released yet.
 - With `--dv-evaluation-method shortest` (the default), the derivative of the
   local potential is faster. The Fourier coefficients are sorted once, instead
-  of once for each symmetry operation, for the operations whose rotations keep
-  the FFT mesh of the supercell. For the other operations, they are sorted for
-  each operation as before, and a message tells how many rotations do not keep
-  the mesh. The results differ from before by rounding errors only. This needs
-  phonors with `sort_rows_by_bin`, which is not released yet.
+  of once for each symmetry operation, when the FFT mesh of the supercell has
+  the symmetry of the supercell. Otherwise they are sorted for each operation
+  as before for the rotations that need it, and a message tells how many
+  rotations these are. The results differ from before by rounding errors only.
+  This needs phonors with `sort_rows_by_bin`, which is not released yet.
 - `LocalPotentialInterpolationNUFFT` of `phelel.base.local_potential` is
   renamed `DLocalPotentialFit`, after `DDijQijFit`. NUFFT is no longer used by
   default.

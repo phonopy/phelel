@@ -312,15 +312,18 @@ def test_run_without_symmetry(capsys: pytest.CaptureFixture, dv_evaluation_metho
     assert capsys.readouterr().out == ""
 
 
-@pytest.mark.parametrize("mesh,num_not_keeping", [((10, 8, 6), 40), ((8, 8, 8), 0)])
-def test_run_prints_rotations_not_keeping_mesh(
-    capsys: pytest.CaptureFixture, mesh: tuple[int, int, int], num_not_keeping: int
+@pytest.mark.parametrize(
+    "mesh,num_sorted_each_time", [((10, 8, 6), 40), ((8, 8, 8), 0)]
+)
+def test_run_prints_rotations_sorted_each_time(
+    capsys: pytest.CaptureFixture, mesh: tuple[int, int, int], num_sorted_each_time: int
 ):
-    """With verbose, the rotations that do not keep the supercell mesh are counted.
+    """With verbose, the rotations that need sorting each time are counted.
 
     The 48 rotations of the cubic supercell of diamond are signed permutations
-    of the axes.  The mesh (6, 8, 10) is kept only by the eight that do not
-    exchange axes, and (8, 8, 8) by all.  The message is printed once.
+    of the axes.  The shortest g of the mesh (6, 8, 10) are closed only under
+    the eight that do not exchange axes, and those of (8, 8, 8) under all.
+    The message is printed once.
 
     """
     phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
@@ -340,14 +343,16 @@ def test_run_prints_rotations_not_keeping_mesh(
     )
     dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
     out = capsys.readouterr().out
-    if num_not_keeping:
+    if num_sorted_each_time:
         message = (
-            f"The FFT mesh of the supercell {mesh[::-1]} is not invariant under "
-            f"{num_not_keeping} of the 48 rotations of the supercell."
+            f"For {num_sorted_each_time} of the 48 rotations of the supercell, the "
+            "Fourier coefficients of dV are sorted for each operation, which is "
+            "slower. This happens when the FFT mesh of the supercell "
+            f"{mesh[::-1]} does not have the symmetry of the supercell."
         )
         assert out.count(message) == 1
     else:
-        assert "is not invariant" not in out
+        assert "sorted for each operation" not in out
 
 
 def _model_potential_gradient(
