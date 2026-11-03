@@ -14,7 +14,7 @@ from phelel.api_phelel import Phelel
 from phelel.base.local_potential import (
     DeltaLocalPotential,
     DLocalPotential,
-    LocalPotentialInterpolationNUFFT,
+    DLocalPotentialFit,
     get_grid_points,
     get_potential_and_magnetic_parts,
 )
@@ -391,7 +391,7 @@ def test_interpolation_with_atom_indices_in_any_order(dv_evaluation_method: str)
     """
     phe, V_loc_per, V_loc_disp, displacement = _diamond_model_input()
     supercell = phe.supercell
-    lpi = LocalPotentialInterpolationNUFFT(
+    local_potential_fit = DLocalPotentialFit(
         [6, 6, 6],
         phe.p2s_matrix,
         supercell,
@@ -400,15 +400,19 @@ def test_interpolation_with_atom_indices_in_any_order(dv_evaluation_method: str)
         dv_evaluation_method=dv_evaluation_method,
         verbose=False,
     )
-    lpi.run([DeltaLocalPotential(V_loc_per, V_loc_disp, displacement)])
+    local_potential_fit.run([DeltaLocalPotential(V_loc_per, V_loc_disp, displacement)])
 
-    np.testing.assert_array_equal(lpi.atom_indices_returned, [1, 0])
-    assert lpi.dVdu is not None
-    for dVdu, i_atom in zip(lpi.dVdu[0], lpi.atom_indices_returned, strict=True):
+    np.testing.assert_array_equal(local_potential_fit.atom_indices_returned, [1, 0])
+    assert local_potential_fit.dVdu is not None
+    for dVdu, i_atom in zip(
+        local_potential_fit.dVdu[0],
+        local_potential_fit.atom_indices_returned,
+        strict=True,
+    ):
         expected = np.array(
             [
                 _model_potential_gradient(
-                    lpi.grid_points,
+                    local_potential_fit.grid_points,
                     supercell.scaled_positions[i_atom],
                     supercell.cell,
                     i_dir,
@@ -418,6 +422,20 @@ def test_interpolation_with_atom_indices_in_any_order(dv_evaluation_method: str)
         )
         atol = 1e-5 * np.abs(expected).max()
         np.testing.assert_allclose(dVdu, expected, atol=atol)
+
+
+def test_local_potential_fit_rejects_unknown_lang():
+    """An unknown lang raises ValueError."""
+    phe = _diamond_model_input()[0]
+    with pytest.raises(ValueError, match="lang has to be"):
+        DLocalPotentialFit(
+            [6, 6, 6],
+            phe.p2s_matrix,
+            phe.supercell,
+            phe.symmetry,
+            verbose=False,
+            lang="C",  # type: ignore[arg-type]
+        )
 
 
 def test_run_with_undisplaced_atoms():

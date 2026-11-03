@@ -13,6 +13,9 @@
   element-wise steps, which ran on one core, run in parallel in phonors. The
   results differ from before by rounding errors only. This needs phonors with
   these steps, which is not released yet.
+- `LocalPotentialInterpolationNUFFT` of `phelel.base.local_potential` is
+  renamed `DLocalPotentialFit`, after `DDijQijFit`. NUFFT is no longer used by
+  default.
 
 ## Nov-2-2026: Version 0.18.1
 

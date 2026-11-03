@@ -155,7 +155,7 @@ class Phelel:
             "box" and computes the sum with finufft to the accuracy of
             finufft_eps, so "box" gives the values of finufft without its
             error.  finufft is not a dependency of phelel and has to be
-            installed for "finufft".  See LocalPotentialInterpolationNUFFT.
+            installed for "finufft".  See DLocalPotentialFit.
             None is "shortest".  Default is None.
         finufft_eps : float or None, optional
             Accuracy of finufft. Default is None, which corresponds to 1e-6.

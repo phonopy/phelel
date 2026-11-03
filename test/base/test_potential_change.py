@@ -16,7 +16,7 @@ from phonopy.structure.symmetry import Symmetry
 
 from phelel.base.local_potential import (
     DeltaLocalPotential,
-    LocalPotentialInterpolationNUFFT,
+    DLocalPotentialFit,
 )
 from phelel.base.potential_change import (
     _add_to_normal_equation_rhs_python,
@@ -350,11 +350,13 @@ def test_local_potential_interpolation_rust_and_python_agree(
 
     dVdus = {}
     for lang in ("Rust", "Python"):
-        lpi = LocalPotentialInterpolationNUFFT(
+        local_potential_fit = DLocalPotentialFit(
             [4, 4, 4], p2s_matrix, cell, Symmetry(cell), verbose=False, lang=lang
         )
-        lpi.run([DeltaLocalPotential(V_perfect, V_displaced, displacement)])
-        dVdus[lang] = lpi.dVdu
+        local_potential_fit.run(
+            [DeltaLocalPotential(V_perfect, V_displaced, displacement)]
+        )
+        dVdus[lang] = local_potential_fit.dVdu
 
     assert dVdus["Rust"].shape == (ncdij, 2, 3, 2 * 4**3)
     scale = np.abs(dVdus["Python"]).max()

@@ -123,18 +123,20 @@ class DeltaLocalPotential:
             w.write(locpot)
 
 
-class LocalPotentialInterpolationNUFFT:
-    """Interpolation of local potential by non-uniform FFT.
+class DLocalPotentialFit:
+    """Compute dV/du from the displacements of one atom.
 
-    For one displaced atom and maybe also symmetrically equivalent atoms to the
-    dispalced atom.
+    dV/du is computed for the atoms equivalent to the displaced atom, at the
+    grid points of the FFT mesh of the primitive cell in the supercell, by the
+    finite-difference method (see _run_at_atom).  For each of these atoms,
+    there are two loops:
 
-    There are two loops:
-    1) Atomic diplacement directions (outer)
-       iFFT of dV on supercell FFT mesh
-    2) Symmetry operations (inner)
-       NUFFT of iFFT(dV) onto primitive cell FFT mesh grid where
-       the grid is rotated by symmetry operations passively.
+    1) Displacements of the displaced atom (outer): the Fourier coefficients
+       of dV on the FFT mesh of the supercell.
+    2) Symmetry operations that send the displaced atom to the atom (inner):
+       dV of the rotated displacement at the grid points, by
+       FourierSeriesOnGrid or by finufft (dv_evaluation_method), added to the
+       right-hand side of the normal equations.
 
     Attributes
     ----------
@@ -158,12 +160,12 @@ class LocalPotentialInterpolationNUFFT:
         shape=(det(p2s_matrix), 3)
     dVdu : ndarray
         Displacement derivative of local potential in supercell interpolated on
-        mesh grid of primitve cell
+        mesh grid of primitive cell
         dtype='complex128'
         shape=(ncdij, atom_indices, 3, grid_points)
     atom_indices_returned : ndarray
         Atom indices in supercell where dV will be computed. If those indices
-        don't belong to symmetrically equivalent atoms to the dispalced atom.
+        don't belong to symmetrically equivalent atoms to the displaced atom.
         dtype='int64', shape=(atom_indices,)
 
     """
@@ -672,7 +674,7 @@ class DLocalPotential:
             corresponds to 1e-6.
         dv_evaluation_method : {"shortest", "box", "finufft"}, optional
             Method to compute dV at the grid points.  See
-            LocalPotentialInterpolationNUFFT.  Default is "shortest".
+            DLocalPotentialFit.  Default is "shortest".
         verbose : bool
             To display log or not
 
@@ -837,7 +839,7 @@ class DLocalPotential:
 
         """
         check_displaced_atoms(self._atom_indices, displacements, self._symmetry)
-        lpi = LocalPotentialInterpolationNUFFT(
+        local_potential_fit = DLocalPotentialFit(
             self._fft_mesh,
             self._p2s_matrix,
             self._supercell,
@@ -847,8 +849,8 @@ class DLocalPotential:
             dv_evaluation_method=self._dv_evaluation_method,
             verbose=self._verbose,
         )
-        self._lattice_points = lpi.lattice_points.copy(order="C")
-        self._grid_points = lpi.grid_points.copy(order="C")
+        self._lattice_points = local_potential_fit.lattice_points.copy(order="C")
+        self._grid_points = local_potential_fit.grid_points.copy(order="C")
 
         if self._dVdu is None:
             self._allocate_arrays(V_loc_per.shape[0])
@@ -862,12 +864,12 @@ class DLocalPotential:
                     dVs.append(
                         DeltaLocalPotential(V_loc_per, V_loc_disps[i], displacements[i])
                     )
-            lpi.run(dVs)
-            assert lpi.atom_indices_returned is not None
+            local_potential_fit.run(dVs)
+            assert local_potential_fit.atom_indices_returned is not None
             indices = []
-            for ai in lpi.atom_indices_returned:
+            for ai in local_potential_fit.atom_indices_returned:
                 indices.append(np.where(self.atom_indices == ai)[0][0])
-            self._dVdu[:, indices, :, :] = lpi.dVdu
+            self._dVdu[:, indices, :, :] = local_potential_fit.dVdu
 
     def visualize(
         self,
