@@ -17,7 +17,11 @@ from phonopy.structure.cells import determinant, get_supercell
 from phonopy.structure.symmetry import Symmetry
 from phonors import snf3x3
 
-from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
+from phelel.base.fourier_series import (
+    FourierSeriesOnGrid,
+    get_fourier_coefficients,
+    rotation_keeps_mesh,
+)
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.base.potential_change import (
     add_to_normal_equation_rhs,
@@ -274,6 +278,7 @@ class DLocalPotentialFit:
         # Private #
         ###########
         self._finufft_plan = None
+        self._mesh_message_printed = False
 
     @property
     def p2s_matrix(self):
@@ -318,6 +323,9 @@ class DLocalPotentialFit:
         atoms, sitesym_sets = select_equivalent_atoms(
             disp_atom, self._symmetry, self._atom_indices_in
         )
+        if self._verbose and not self._mesh_message_printed:
+            self._print_rotations_not_keeping_mesh(delta_Vs[0].dV.shape[1:][::-1])
+            self._mesh_message_printed = True
 
         ncdij = delta_Vs[0].dV.shape[0]
         dVdu = np.zeros(
@@ -331,6 +339,36 @@ class DLocalPotentialFit:
                 print("Computed dV/du by displaced atom %d" % (atoms[i_atom] + 1))
         self._atom_indices_returned = atoms
         self._dVdu = dVdu
+
+    def _print_rotations_not_keeping_mesh(self, mesh: tuple[int, ...]) -> None:
+        """Print how many rotations do not keep the FFT mesh of the supercell.
+
+        With dv_evaluation_method="shortest", dV of an operation whose rotation
+        keeps the FFT mesh of the supercell is computed with the Fourier
+        coefficients sorted once, and dV of the other operations by sorting
+        them for each operation, which is slower (see
+        FourierSeriesOnGrid._uses_sorted_rows).  The results are correct in
+        both cases.
+
+        Parameters
+        ----------
+        mesh : tuple of int
+            FFT mesh of the supercell (N^s_1, N^s_2, N^s_3).
+
+        """
+        if self._dv_evaluation_method != "shortest":
+            return
+        rotations = np.unique(
+            self._symmetry.symmetry_operations["rotations"].reshape(-1, 9), axis=0
+        ).reshape(-1, 3, 3)
+        num_not_keeping = sum(not rotation_keeps_mesh(mesh, r) for r in rotations)
+        if num_not_keeping:
+            print(
+                f"The FFT mesh of the supercell {tuple(int(n) for n in mesh)} is not "
+                f"invariant under {num_not_keeping} of the {len(rotations)} rotations "
+                "of the supercell. dV of the operations with these rotations is "
+                "computed by a slower path."
+            )
 
     def _run_at_atom(
         self, delta_Vs: list[DeltaLocalPotential], sitesyms: NDArray

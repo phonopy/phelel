@@ -312,6 +312,44 @@ def test_run_without_symmetry(capsys: pytest.CaptureFixture, dv_evaluation_metho
     assert capsys.readouterr().out == ""
 
 
+@pytest.mark.parametrize("mesh,num_not_keeping", [((10, 8, 6), 40), ((8, 8, 8), 0)])
+def test_run_prints_rotations_not_keeping_mesh(
+    capsys: pytest.CaptureFixture, mesh: tuple[int, int, int], num_not_keeping: int
+):
+    """With verbose, the rotations that do not keep the supercell mesh are counted.
+
+    The 48 rotations of the cubic supercell of diamond are signed permutations
+    of the axes.  The mesh (6, 8, 10) is kept only by the eight that do not
+    exchange axes, and (8, 8, 8) by all.  The message is printed once.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    supercell = phe.supercell
+    u = 0.01
+    V_loc_per = np.zeros((1,) + mesh, dtype="complex128")
+    V_loc_disp = (u * _anisotropic_function(_mesh_fractions(mesh)))[None].astype(
+        "complex128"
+    )
+    dlp = DLocalPotential(
+        [4, 4, 4],
+        phe.p2s_matrix,
+        supercell,
+        atom_indices=np.array([0]),
+        dv_evaluation_method="shortest",
+        verbose=True,
+    )
+    dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
+    out = capsys.readouterr().out
+    if num_not_keeping:
+        message = (
+            f"The FFT mesh of the supercell {mesh[::-1]} is not invariant under "
+            f"{num_not_keeping} of the 48 rotations of the supercell."
+        )
+        assert out.count(message) == 1
+    else:
+        assert "is not invariant" not in out
+
+
 def _model_potential_gradient(
     frac: np.ndarray, position: np.ndarray, lattice: np.ndarray, i_dir: int
 ) -> np.ndarray:
