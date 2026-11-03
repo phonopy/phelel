@@ -65,3 +65,76 @@ def _multiply_by_phase_python(
 ) -> None:
     """Multiply phi by phase by NumPy."""
     phi *= phase
+
+
+def rotate_spin_components(
+    values: list[NDArray[np.cdouble]],
+    spin_rotation: NDArray[np.cdouble],
+    lang: Literal["Rust", "Python"] = "Rust",
+) -> None:
+    """Rotate the four spin components in spin space, in place.
+
+    At each element, the values [v_0, v_1, v_2, v_3] of the spin components,
+    in the order [11, 12, 21, 22] of VASP, form the 2x2 matrix
+    V = [[v_0, v_1], [v_2, v_3]], which is replaced by D V D^dagger with
+    D = spin_rotation:
+
+        v'_(2 i_sp + i_s)
+            = sum_(i_s1, i_s2) D[i_sp, i_s1] conj(D[i_s, i_s2]) v_(2 i_s1 + i_s2).
+
+    Parameters
+    ----------
+    values : list of ndarray
+        Four spin components, overwritten by the rotated ones.
+        dtype='complex128', the same shape, C-contiguous
+    spin_rotation : ndarray
+        Rotation matrix D of spinors, e.g., SpinorRotationMatrices.Delta.
+        dtype='complex128', shape=(2, 2)
+    lang : str, optional
+        "Rust" (default) by phonors.rotate_spin_components or "Python".
+
+    """
+    if lang == "Rust":
+        _rotate_spin_components_rust(values, spin_rotation)
+    else:
+        _rotate_spin_components_python(values, spin_rotation)
+
+
+def _rotate_spin_components_rust(
+    values: list[NDArray[np.cdouble]], spin_rotation: NDArray[np.cdouble]
+) -> None:
+    """Rotate the spin components by phonors.rotate_spin_components."""
+    phonors.rotate_spin_components(
+        values, np.asarray(spin_rotation, dtype="complex128")
+    )
+
+
+def _rotate_spin_components_python(
+    values: list[NDArray[np.cdouble]], spin_rotation: NDArray[np.cdouble]
+) -> None:
+    """Rotate the spin components by NumPy.
+
+    The factors D[i_sp, i_s1] conj(D[i_s, i_s2]) are computed first, and the
+    terms are summed in the order of (i_s1, i_s2), as in the Rust
+    implementation.  The loops over (i_sp, i_s, i_s1, i_s2) are outside and
+    the elements are handled by NumPy, whereas in Rust the loop over the
+    elements is outside.
+
+    """
+    factors = np.zeros((2, 2, 2, 2), dtype="complex128")
+    for i_sp in (0, 1):
+        for i_s in (0, 1):
+            for i_s1 in (0, 1):
+                for i_s2 in (0, 1):
+                    factors[i_sp, i_s, i_s1, i_s2] = (
+                        spin_rotation[i_sp, i_s1] * spin_rotation[i_s, i_s2].conj()
+                    )
+    original = [value.copy() for value in values]
+    for i_sp in (0, 1):
+        for i_s in (0, 1):
+            rotated = np.zeros_like(original[0])
+            for i_s1 in (0, 1):
+                for i_s2 in (0, 1):
+                    term = factors[i_sp, i_s, i_s1, i_s2] * original[i_s1 * 2 + i_s2]
+                    rotated += term
+            values[i_sp * 2 + i_s][...] = rotated

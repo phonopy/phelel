@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
+from phelel.base.potential_change import rotate_spin_components
 from phelel.utils.spherical_harmonics import get_n_and_rotation_order
 
 
@@ -164,8 +165,9 @@ def rotate_delta_vals_in_spin_space(
     r"""Take linear combination of delta vals with spin rotation matrix.
 
     In this method A B A^+ is computed, where A is the 2x2 rotation matrix of
-    spin space and B is ``delta_vals_rotated``. What is computed is more
-    precisely,
+    spin space and B is ``delta_vals_rotated``, by
+    phelel.base.potential_change.rotate_spin_components with lang="Python" on
+    a copy of ``delta_vals_rotated``. What is computed is more precisely,
 
     \sum_{i_s1, i_s2} A_{i_sp, i_s1} B_{i_s1, i_s2} (A^+)_{i_s2, i_s}
 
@@ -192,15 +194,8 @@ def rotate_delta_vals_in_spin_space(
     srm = SpinorRotationMatrices(r, lattice).run()
     assert srm.Delta.shape == (2, 2)
 
-    delta_vals_spinor_rotated = [np.zeros_like(delta_vals_rotated[0]) for _ in range(4)]
-    for i_sp in (0, 1):
-        for i_s in (0, 1):
-            for i_s1 in (0, 1):
-                for i_s2 in (0, 1):
-                    d_d = srm.Delta[i_sp, i_s1] * srm.Delta.T.conj()[i_s2, i_s]
-                    delta_vals_spinor_rotated[i_sp * 2 + i_s] += (
-                        d_d * delta_vals_rotated[i_s1 * 2 + i_s2]
-                    )
+    delta_vals_spinor_rotated = [vals.copy() for vals in delta_vals_rotated]
+    rotate_spin_components(delta_vals_spinor_rotated, srm.Delta, lang="Python")
     return delta_vals_spinor_rotated
 
 

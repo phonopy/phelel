@@ -19,6 +19,7 @@ from phonors import snf3x3
 
 from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.potential_change import rotate_spin_components
 from phelel.base.symmetrization import (
     check_displaced_atoms,
     get_displacements_with_rotations,
@@ -27,8 +28,8 @@ from phelel.base.symmetrization import (
 from phelel.interface.vasp.file_IO import get_CHGCAR
 from phelel.utils.lattice_points import get_lattice_points
 from phelel.utils.spinor import (
+    SpinorRotationMatrices,
     apply_time_reversal_in_spin_space,
-    rotate_delta_vals_in_spin_space,
 )
 
 
@@ -175,6 +176,7 @@ class LocalPotentialInterpolationNUFFT:
         finufft_eps: float | None = None,
         dv_evaluation_method: Literal["shortest", "box", "finufft"] = "shortest",
         verbose: bool = True,
+        lang: Literal["Rust", "Python"] = "Rust",
     ):
         """Init method.
 
@@ -215,11 +217,18 @@ class LocalPotentialInterpolationNUFFT:
             dependency of phelel.  Default is "shortest".
         verbose : bool, optional
             To display log or not
+        lang : str, optional
+            Implementation of the steps of phelel.base.potential_change and of
+            FourierSeriesOnGrid, "Rust" (default) by phonors or "Python" by
+            NumPy.  "Python" is kept as the reference of "Rust".
 
         """
         ##########
         # Inputs #
         ##########
+        if lang not in ("Rust", "Python"):
+            raise ValueError(f'lang has to be "Rust" or "Python", not "{lang}".')
+        self._lang: Literal["Rust", "Python"] = lang
         self._verbose = verbose
         self._supercell = supercell
         self._symmetry = symmetry
@@ -247,9 +256,12 @@ class LocalPotentialInterpolationNUFFT:
                 self._p2s_matrix,
                 representatives="shortest",
                 supercell_lattice=supercell.cell,
+                lang=lang,
             )
         elif dv_evaluation_method == "box":
-            self._fourier_series = FourierSeriesOnGrid(fft_mesh, self._p2s_matrix)
+            self._fourier_series = FourierSeriesOnGrid(
+                fft_mesh, self._p2s_matrix, lang=lang
+            )
 
         self._dVdu: NDArray | None = None
         self._atom_indices_returned: NDArray | None = None
@@ -384,15 +396,14 @@ class LocalPotentialInterpolationNUFFT:
         count = 0
         for delta_V in delta_Vs:
             dVs_rec = [self._get_Fourier_coefficients(dV) for dV in delta_V.dV]
-            for r, t, tr in zip(rotations, translations, time_reversals, strict=True):
-                dVs_rotated = self._rotate_dV(dVs_rec, r, t)
+            for rotation, translation, time_reversal in zip(
+                rotations, translations, time_reversals, strict=True
+            ):
+                dVs_rotated = self._rotate_dV(dVs_rec, rotation, translation)
                 if ncdij == 4:  # Need to rotate in spin space, too.
-                    dVs_spinor_rotated = rotate_delta_vals_in_spin_space(
-                        dVs_rotated, r, lattice
-                    )
-                    dVs_rotated.clear()
-                    dVs_rotated = dVs_spinor_rotated
-                if tr:
+                    srm = SpinorRotationMatrices(rotation, lattice).run()
+                    rotate_spin_components(dVs_rotated, srm.Delta, lang=self._lang)
+                if time_reversal:
                     dVs_rotated = apply_time_reversal_in_spin_space(dVs_rotated)
                 for i_cdij in range(ncdij):
                     dVdu[i_cdij] += np.outer(disps_inv[:, count], dVs_rotated[i_cdij])
