@@ -11,7 +11,7 @@ from phonopy.structure.symmetry import Symmetry
 from phelel.base.Dij_qij import DDijQijFit, DeltaDijQij
 from phelel.base.local_potential import (
     DeltaLocalPotential,
-    LocalPotentialInterpolationNUFFT,
+    DLocalPotentialFit,
 )
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
 from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
@@ -119,13 +119,13 @@ def test_check_magnetic_moments(
 def test_local_potential_rejects_mismatched_magmoms():
     """Collinear moments are rejected for dV of ncdij=4."""
     cell = _bcc_fe([3, 3])
-    lpi = LocalPotentialInterpolationNUFFT(
+    local_potential_fit = DLocalPotentialFit(
         [2, 2, 2], np.eye(3, dtype="int64"), cell, Symmetry(cell), verbose=False
     )
     V = np.zeros((4, 2, 2, 2), dtype=complex)
     disp = {"number": 0, "displacement": [0.01, 0, 0]}
     with pytest.raises(MagneticMomentsError, match="ncdij=4"):
-        lpi.run([DeltaLocalPotential(V, V, disp)])
+        local_potential_fit.run([DeltaLocalPotential(V, V, disp)])
 
 
 def test_Dij_qij_rejects_mismatched_magmoms():

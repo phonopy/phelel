@@ -2,7 +2,7 @@
 
 The derivative of the local potential with respect to the displacement of an
 atom is computed by the finite-difference method in
-LocalPotentialInterpolationNUFFT._run_at_atom.  For each pair of a displacement
+DLocalPotentialFit._run_at_atom.  For each pair of a displacement
 and a symmetry operation, the change of the potential is evaluated on the
 output grid, transformed in spin space, and added to the right-hand side of the
 normal equations.  The functions here are the element-wise steps of this
@@ -209,7 +209,7 @@ def add_to_normal_equation_rhs(
         normal_equation_rhs[c, i, i_grid] += displacement[i] * values[c][i_grid]
 
     for each spin component c, each Cartesian direction i of the displacement
-    and each grid point i_grid.  In LocalPotentialInterpolationNUFFT._run_at_atom,
+    and each grid point i_grid.  In DLocalPotentialFit._run_at_atom,
     displacement is a rotated displacement R u_k and values are the spin
     components of the rotated change of the potential dV_kg at the grid
     points.  One call adds one term; the calls for all pairs (k, g) give the
@@ -275,7 +275,7 @@ def apply_inverse_normal_matrix(
     normal_equation_rhs[c, :, i_grid], one for each Cartesian direction of the
     displacement, form a vector, which is replaced by its product with
     inverse_normal_matrix, in place.  The sum over the columns runs in their
-    order, without BLAS.  In LocalPotentialInterpolationNUFFT._run_at_atom,
+    order, without BLAS.  In DLocalPotentialFit._run_at_atom,
     this turns the right-hand side U^T dV of the normal equations into dV/du.
 
     Parameters

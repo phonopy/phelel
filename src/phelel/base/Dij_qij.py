@@ -143,7 +143,7 @@ class DDijQijFit:
 
         See array shape of Dij and qij at DeltaDijQij class. The algorithm
         related to site symmetry (or site symmetry like) is equivalent to that
-        of LocalPotentialInterpolationNUFFT. A bit more detailed comments are
+        of DLocalPotentialFit. A bit more detailed comments are
         written there.
 
         Parameters
@@ -330,7 +330,7 @@ class DDijQijFit:
 
         and dqij/du likewise, where the rows of U are R u_k with g running
         fastest (get_displacements_with_rotations).  Unlike in
-        LocalPotentialInterpolationNUFFT, the changes of all (k, g) are stored
+        DLocalPotentialFit, the changes of all (k, g) are stored
         and multiplied by pinv(U) at once.
 
         Parameters
