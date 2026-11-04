@@ -2,24 +2,20 @@
 
 # Change Log
 
-## Unreleased
+## Nov-4-2026: Version 0.19.0
 
+- phonors 0.8.0 or later and earlier than 0.9 is required.
 - With spin, the check that the symmetry operations leave the PAW strengths
   Dij of the perfect supercell unchanged is faster. Dij is rotated once for
   each pair of rotation and time reversal, instead of once for each symmetry
-  operation. On a supercell of 96 atoms with non-collinear spin, the check took
-  1.8 s instead of 16.6 s. The results are unchanged.
+  operation. The results are unchanged.
 - The finite-difference derivative of the local potential is faster. The
   element-wise steps, which ran on one core, run in parallel in phonors. The
-  results differ from before by rounding errors only. This needs phonors with
-  these steps, which is not released yet.
+  results differ from before by rounding errors only.
 - With `--dv-evaluation-method shortest` (the default), the derivative of the
-  local potential is faster. The Fourier coefficients are sorted once, instead
-  of once for each symmetry operation, when the FFT mesh of the supercell has
-  the symmetry of the supercell. Otherwise they are sorted for each operation
-  as before for the rotations that need it, and a message tells how many
-  rotations these are. The results differ from before by rounding errors only.
-  This needs phonors with `sort_g_points_by_bin`, which is not released yet.
+  local potential is faster, in particular when the FFT mesh of the supercell
+  has the symmetry of the supercell. The results differ from before by
+  rounding errors only.
 - `LocalPotentialInterpolationNUFFT` of `phelel.base.local_potential` is
   renamed `DLocalPotentialFit`, after `DDijQijFit`. NUFFT is no longer used by
   default.
