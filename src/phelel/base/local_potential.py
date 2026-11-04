@@ -258,7 +258,7 @@ class DLocalPotentialFit:
             self._fourier_series = FourierSeriesOnGrid(
                 fft_mesh,
                 self._p2s_matrix,
-                representatives="shortest",
+                g_point_selection="shortest",
                 supercell_lattice=supercell.cell,
                 lang=lang,
             )
@@ -343,7 +343,7 @@ class DLocalPotentialFit:
 
         With dv_evaluation_method="shortest", the Fourier coefficients are
         sorted by bin once for the rotations under which the shortest g are
-        closed (FourierSeriesOnGrid.rows_closed_under_rotation), and for each
+        closed (FourierSeriesOnGrid.g_points_closed_under_rotation), and for each
         operation for the other rotations, which is slower.  This happens when
         the FFT mesh of the supercell does not have the symmetry of the
         supercell.  The results are correct in both cases.
@@ -361,7 +361,7 @@ class DLocalPotentialFit:
             self._symmetry.symmetry_operations["rotations"].reshape(-1, 9), axis=0
         ).reshape(-1, 3, 3)
         num_sorted_each_time = sum(
-            not self._fourier_series.rows_closed_under_rotation(supercell_mesh, r)
+            not self._fourier_series.g_points_closed_under_rotation(supercell_mesh, r)
             for r in rotations
         )
         if num_sorted_each_time:

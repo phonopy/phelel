@@ -6,11 +6,13 @@ points) is the Fourier series
     f(x) = sum_g f(g) exp(2 pi i g . x),
 
 where x are the fractional coordinates in the supercell basis vectors and g
-the integer coordinates of the reciprocal lattice vectors of the supercell.
-f(g) is periodic with the period N^s_k in g_k, so one g is chosen from each
-g + N^s t (t integer vectors).  The choice does not change the values on the
-FFT mesh, but it changes the values between the mesh points.  Two choices are
-implemented:
+the g-points, the points of the reciprocal lattice of the supercell in the
+integer coordinates of its basis.  f(g) is periodic with the period N^s_k in
+g_k, so the g-points at which f(g) is placed are selected from each
+g + N^s t (t integer vectors), one or more.  These are called the selected
+g-points.  The selection does not change the values on the FFT mesh, but it
+changes the values between the mesh points.  Two rules of the selection
+(g_point_selection) are implemented:
 
 - "box": -ceil(N^s_k / 2) + 1 <= g_k <= floor(N^s_k / 2), so for even N^s_k
   the coefficient at the array index N^s_k / 2 is assigned to
@@ -35,10 +37,10 @@ so no approximation is involved.
 
 The coefficient f(g) is stored at the index of g mod N^s in the flattened
 coefficient array, called the source of g.  For a symmetry operation {W|w},
-the coefficient of each chosen g goes to the bin (q, Kbar) of g' = W^-T g.
-F_q(Kbar) is computed in two steps: the g' of all chosen g are sorted by
+the coefficient of each selected g goes to the bin (q, Kbar) of g' = W^-T g.
+F_q(Kbar) is computed in two steps: the g' of all selected g are sorted by
 bin, and the coefficients of g = W^T g' are summed bin by bin.  When W^-T
-maps the chosen g onto themselves, the g' are the chosen g themselves, so
+maps the selected g onto themselves, the g' are the selected g themselves, so
 those sorted once for each mesh are used.  This holds for "shortest" when
 the FFT mesh of the supercell has the symmetry of the supercell, and it is
 checked for each rotation.  Otherwise the g' are sorted for the operation.
@@ -48,6 +50,7 @@ checked for each rotation.  Otherwise the g' are sorted for the operation.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Literal
 
 import numpy as np
@@ -57,9 +60,9 @@ from phonopy.structure.cells import determinant, get_reduced_bases
 from phonors import (
     bin_sorted_supercell_fourier_coefficients,
     bz_grid_addresses,
-    rows_closed_under_rotation,
+    g_points_closed_under_rotation,
     snf3x3,
-    sort_rows_by_bin,
+    sort_g_points_by_bin,
 )
 
 from phelel.base.potential_change import multiply_by_phase
@@ -88,6 +91,51 @@ def get_fourier_coefficients(values: NDArray) -> NDArray[np.cdouble]:
     return coefficients
 
 
+@dataclass
+class _MeshData:
+    """Data that depend on the FFT mesh of the supercell.
+
+    FourierSeriesOnGrid keeps the data of the last mesh it was given and makes
+    them again when the mesh changes.
+
+    Attributes
+    ----------
+    supercell_mesh : tuple of int
+        FFT mesh of the supercell (N^s_1, N^s_2, N^s_3).
+    g : ndarray
+        Selected g-points in the order of their sources: those of
+        _get_reciprocal_lattice_vectors ("box") or of get_shortest_g_points
+        ("shortest").
+        dtype='int64', shape=(num, 3)
+    source_offsets : ndarray
+        The selected g-points with the source s are
+        g[source_offsets[s]:source_offsets[s + 1]].
+        dtype='int64', shape=(N^s_1 N^s_2 N^s_3 + 1,)
+    source_weight : ndarray
+        1 / (number of the selected g-points with the source s) for each
+        source s.
+        dtype='double', shape=(N^s_1 N^s_2 N^s_3,)
+    g_sorted : ndarray
+        g sorted by bin, used for the rotations under which g are closed.
+        dtype='int64', shape=(num, 3)
+    bin_offsets : ndarray
+        The g of the bin i_F are g_sorted[bin_offsets[i_F]:bin_offsets[i_F + 1]].
+        dtype='int64', shape=(N_c * prod(fft_mesh) + 1,)
+    is_closed : dict
+        Whether W^-T maps g onto themselves, by rotation.tobytes(), filled
+        when asked (FourierSeriesOnGrid.g_points_closed_under_rotation).
+
+    """
+
+    supercell_mesh: tuple[int, ...]
+    g: NDArray[np.int64]
+    source_offsets: NDArray[np.int64]
+    source_weight: NDArray[np.double]
+    g_sorted: NDArray[np.int64]
+    bin_offsets: NDArray[np.int64]
+    is_closed: dict[bytes, bool] = field(default_factory=dict)
+
+
 class FourierSeriesOnGrid:
     """Evaluate Fourier series of the supercell exactly at the grid points.
 
@@ -98,12 +146,12 @@ class FourierSeriesOnGrid:
         primitive cell, 0 <= q_k < 1, in the order of the first axis of phi.
         With the Smith normal form P M^s Q = diag(d), q = P^T diag(d)^-1 n_q
         mod 1, and n_q runs in the order of np.ndindex(d).
-        dtype='double', shape=(D, 3)
+        dtype='double', shape=(N_c, 3)
     lattice_points : ndarray
         Lattice points of the primitive cell, one from each class modulo the
         lattice of the supercell, in the basis vectors of the primitive cell,
         the same as those of get_grid_points.  See get_lattice_points.
-        dtype='int64', shape=(D, 3)
+        dtype='int64', shape=(N_c, 3)
 
     """
 
@@ -111,7 +159,7 @@ class FourierSeriesOnGrid:
         self,
         fft_mesh: Sequence[int] | NDArray,
         p2s_matrix: NDArray,
-        representatives: Literal["box", "shortest"] = "box",
+        g_point_selection: Literal["box", "shortest"] = "box",
         supercell_lattice: NDArray | None = None,
         lang: Literal["Rust", "Python"] = "Rust",
     ):
@@ -125,9 +173,9 @@ class FourierSeriesOnGrid:
         p2s_matrix : ndarray
             Supercell matrix M^s relative to the primitive cell.
             dtype='int64', shape=(3, 3)
-        representatives : str, optional
-            Choice of g from each g + N^s t, "box" (default) or "shortest".  See
-            the module docstring.
+        g_point_selection : str, optional
+            Rule of the selection of g from each g + N^s t, "box" (default)
+            or "shortest".  See the module docstring.
         supercell_lattice : ndarray, optional
             Basis vectors of the supercell in row vectors, needed for
             "shortest" to compare the lengths of the reciprocal lattice
@@ -136,74 +184,66 @@ class FourierSeriesOnGrid:
         lang : str, optional
             Implementation of the sums F_q(Kbar) and of the multiplication by
             the phase in get_phi, "Rust" (default) by phonors
-            (sort_rows_by_bin, bin_sorted_supercell_fourier_coefficients,
-            rows_closed_under_rotation and multiply_by_phase) or "Python" by
+            (sort_g_points_by_bin, bin_sorted_supercell_fourier_coefficients,
+            g_points_closed_under_rotation and multiply_by_phase) or "Python" by
             their pure-Python counterparts in this module.
 
         """
         if lang not in ("Rust", "Python"):
             raise ValueError(f'lang has to be "Rust" or "Python", not "{lang}".')
         self._lang = lang
-        self._set_representatives(representatives, supercell_lattice)
+        self._set_g_point_selection(g_point_selection, supercell_lattice)
         self._fft_mesh = np.array(fft_mesh, dtype="int64")
         self._p2s_matrix = np.array(p2s_matrix, dtype="int64")
         self._set_integer_coordinates(self._p2s_matrix)
         self._set_lattice_points_and_qpoints(self._p2s_matrix)
         self._set_phase_qm()
 
-    def _set_representatives(
+    def _set_g_point_selection(
         self,
-        representatives: Literal["box", "shortest"],
+        g_point_selection: Literal["box", "shortest"],
         supercell_lattice: NDArray | None,
     ) -> None:
-        """Set the choice of g from each g + N^s t.
+        """Set the rule of the selection of g from each g + N^s t.
 
-        The chosen g depend on the FFT mesh of the supercell, which is known
-        only when the coefficients are given, so they are computed in get_phi
-        and cached for each mesh (_get_representatives), as are the chosen g
-        sorted by bin (_get_rows_sorted_by_bin) and whether they are closed
-        under a rotation (rows_closed_under_rotation).
+        The selected g depend on the FFT mesh of the supercell, which is known
+        only when the coefficients are given, so they are made in get_phi with
+        the other data of the mesh (_MeshData, _get_mesh_data).
 
         """
-        if representatives not in ("box", "shortest"):
+        if g_point_selection not in ("box", "shortest"):
             raise ValueError(
-                'representatives has to be "box" or "shortest", '
-                f'not "{representatives}".'
+                'g_point_selection has to be "box" or "shortest", '
+                f'not "{g_point_selection}".'
             )
-        if representatives == "shortest" and supercell_lattice is None:
+        if g_point_selection == "shortest" and supercell_lattice is None:
             raise ValueError('supercell_lattice is needed for "shortest".')
-        self._representatives = representatives
+        self._g_point_selection = g_point_selection
         self._supercell_lattice = (
             None
             if supercell_lattice is None
             else np.array(supercell_lattice, dtype="double")
         )
-        self._representatives_cache: dict[
-            tuple[int, ...],
-            tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.double]],
-        ] = {}
-        self._sorted_cache: dict[
-            tuple[int, ...], tuple[NDArray[np.int64], NDArray[np.int64]]
-        ] = {}
-        self._closed_cache: dict[tuple[tuple[int, ...], bytes], bool] = {}
+        self._mesh_data: _MeshData | None = None
 
     def _set_integer_coordinates(self, p2s_matrix: NDArray[np.int64]) -> None:
-        """Set D and B = D (M^s)^-1 to split h = (M^s)^-T g into K + q.
+        """Set N_c and N_c (M^s)^-1 to split h = (M^s)^-T g into K + q.
 
-        D = |det M^s| is the number of primitive cells in the supercell.
+        N_c = |det M^s| is the number of primitive cells in the supercell.
         (M^s)^-1 = adj(M^s) / det(M^s) with the integer adjugate matrix, so
-        B = D (M^s)^-1 is an integer matrix.  For g in row vectors,
+        N_c (M^s)^-1 (_nc_m_inv) is an integer matrix.  For g in row vectors,
 
-            D h = D (M^s)^-T g = (g @ B)^T
+            N_c h = N_c (M^s)^-T g = (g @ _nc_m_inv)^T
 
-        is an integer vector, and the integer part of h is K = floor(D h / D),
-        computed by the integer floor division (g @ B) // D.  The fractional
-        part q = h - K is not computed from D h; its label is given by the
-        Smith normal form (see _set_lattice_points_and_qpoints).
+        is an integer vector, and the integer part of h is
+        K = floor(N_c h / N_c), computed by the integer floor division
+        (g @ _nc_m_inv) // N_c.  The fractional part q = h - K is not computed
+        from N_c h; its label is given by the Smith normal form (see
+        _set_lattice_points_and_qpoints).
 
         """
         self._num_cells = abs(int(determinant(p2s_matrix)))
-        self._B = np.array(
+        self._nc_m_inv = np.array(
             np.rint(self._num_cells * np.linalg.inv(p2s_matrix)), dtype="int64"
         )
 
@@ -220,13 +260,13 @@ class FourierSeriesOnGrid:
 
             n_q = Q^T g mod d,
 
-        and the D = d_1 d_2 d_3 labels n_q give D different q because P^T is
-        unimodular:
+        and the N_c = d_1 d_2 d_3 labels n_q give N_c different q because P^T
+        is unimodular:
 
             q = P^T diag(d)^-1 n_q mod 1.
 
-        With row vectors, D q = ((n_q * D / d) @ P) mod D, where D / d_k is an
-        integer because D = d_1 d_2 d_3.  n_q runs in the order of
+        With row vectors, N_c q = ((n_q * N_c / d) @ P) mod N_c, where N_c / d_k
+        is an integer because N_c = d_1 d_2 d_3.  n_q runs in the order of
         np.ndindex(d).
 
         get_lattice_points gives l = P^-1 n_l with n_l in the order of
@@ -236,9 +276,8 @@ class FourierSeriesOnGrid:
 
         and the sum over q in sum_over_qpoints is a DFT of the shape d from n_q
         to n_l.  Q is kept to compute n_q of each g in get_phi with
-        lang="Python".  With lang="Rust",
-        phonors.bin_supercell_fourier_coefficients computes n_q with the same
-        snf3x3.
+        lang="Python".  With lang="Rust", phonors.sort_g_points_by_bin computes
+        n_q with the same snf3x3.
 
         """
         lattice_points, _ = get_lattice_points(p2s_matrix)
@@ -247,14 +286,14 @@ class FourierSeriesOnGrid:
         self._snf_diag = np.array(d, dtype="int64")
         self._snf_Q = np.array(Q, dtype="int64")
         n_q = np.array(list(np.ndindex(*self._snf_diag)), dtype="int64")
-        Dq = ((n_q * (self._num_cells // self._snf_diag)) @ P) % self._num_cells
-        self._qpoints = Dq / self._num_cells
+        nc_q = ((n_q * (self._num_cells // self._snf_diag)) @ P) % self._num_cells
+        self._qpoints = nc_q / self._num_cells
 
     def _set_phase_qm(self) -> None:
         """Set the phase factors exp(2 pi i q . (N^p)^-1 m) of phi_q(m).
 
         m = (m_1, m_2, m_3) are the mesh indices of fft_mesh N^p.  The array
-        has the shape (D, N^p_3, N^p_2, N^p_1): the first axis follows
+        has the shape (N_c, N^p_3, N^p_2, N^p_1): the first axis follows
         qpoints, and the other axes are m_3, m_2, m_1, the order of the arrays
         of the local potentials.  np.indices of (N^p_3, N^p_2, N^p_1) gives
         (m_3, m_2, m_1), which is reversed to (m_1, m_2, m_3).
@@ -278,8 +317,8 @@ class FourierSeriesOnGrid:
     def evaluate(
         self,
         coefficients: list[NDArray],
-        rotation: NDArray | None = None,
-        translation: NDArray | None = None,
+        rotation: NDArray,
+        translation: NDArray,
     ) -> list[NDArray[np.cdouble]]:
         """Return f(g^-1 x) at the grid points x for each set of coefficients.
 
@@ -291,7 +330,7 @@ class FourierSeriesOnGrid:
         -------
         list of ndarray
             Values at the grid points in the order of get_grid_points.
-            dtype='complex128', shape=(D * prod(fft_mesh),) each
+            dtype='complex128', shape=(N_c * prod(fft_mesh),) each
 
         """
         return [
@@ -302,8 +341,8 @@ class FourierSeriesOnGrid:
     def get_phi(
         self,
         coefficients: list[NDArray],
-        rotation: NDArray | None = None,
-        translation: NDArray | None = None,
+        rotation: NDArray,
+        translation: NDArray,
     ) -> list[NDArray[np.cdouble]]:
         """Return phi_q(m) of f(g^-1 x) for the operation g = {rotation|translation}.
 
@@ -319,20 +358,19 @@ class FourierSeriesOnGrid:
             Fourier coefficients from get_fourier_coefficients, e.g., of the
             spin components.  All have the same shape.
             dtype='complex128', shape=(N^s_3, N^s_2, N^s_1) each
-        rotation : ndarray, optional
-            Rotation W in the supercell basis vectors.  Default is None, which
-            means the identity.
+        rotation : ndarray
+            Rotation W in the supercell basis vectors, the identity for f(x)
+            itself.
             dtype='int64', shape=(3, 3)
-        translation : ndarray, optional
-            Translation w in the supercell basis vectors.  Default is None,
-            which means zero.
+        translation : ndarray
+            Translation w in the supercell basis vectors, zero for f(x) itself.
             dtype='double', shape=(3,)
 
         Returns
         -------
         list of ndarray
             phi_q(m) with q in the order of qpoints.
-            dtype='complex128', shape=(D, N^p_3, N^p_2, N^p_1) each
+            dtype='complex128', shape=(N_c, N^p_3, N^p_2, N^p_1) each
 
         """
         shape = coefficients[0].shape
@@ -348,13 +386,13 @@ class FourierSeriesOnGrid:
     def _bin_coefficients(
         self,
         coefficients: list[NDArray],
-        rotation: NDArray | None,
-        translation: NDArray | None,
+        rotation: NDArray,
+        translation: NDArray,
     ) -> list[NDArray[np.cdouble]]:
         """Return F_q(Kbar), the sums of the coefficients with the same q and Kbar.
 
-        The g' = W^-T g of the chosen g sorted by bin come from
-        _get_rows_sorted_by_bin, and the coefficients of g = W^T g' are summed
+        The g' = W^-T g of the selected g sorted by bin come from
+        _get_g_points_sorted_by_bin, and the coefficients of g = W^T g' are summed
         bin by bin by bin_sorted_supercell_fourier_coefficients of phonors
         (lang="Rust") or _bin_sorted_coefficients_python (lang="Python").
 
@@ -366,24 +404,44 @@ class FourierSeriesOnGrid:
         -------
         list of ndarray
             F_q(Kbar) with q in the order of qpoints.
-            dtype='complex128', shape=(D, N^p_3, N^p_2, N^p_1) each
+            dtype='complex128', shape=(N_c, N^p_3, N^p_2, N^p_1) each
 
         """
         coefficients = [
             np.ascontiguousarray(c, dtype="complex128") for c in coefficients
         ]
-        if rotation is not None:
-            rotation = np.array(rotation, dtype="int64")
-        if translation is not None:
-            translation = np.array(translation, dtype="double")
+        rotation = np.array(rotation, dtype="int64")
+        translation = np.array(translation, dtype="double")
         supercell_mesh = coefficients[0].shape[::-1]
-        g_sorted, bin_offsets = self._get_rows_sorted_by_bin(supercell_mesh, rotation)
-        _, _, source_weight = self._get_representatives(supercell_mesh)
+        g_sorted, bin_offsets = self._get_g_points_sorted_by_bin(
+            supercell_mesh, rotation
+        )
+        source_weight = self._get_mesh_data(supercell_mesh).source_weight
+        Fs = self._sum_by_bin(
+            coefficients, g_sorted, source_weight, bin_offsets, rotation, translation
+        )
+        return [F.reshape(self._num_cells, *self._fft_mesh[::-1]) for F in Fs]
+
+    def _sum_by_bin(
+        self,
+        coefficients: list[NDArray[np.cdouble]],
+        g_sorted: NDArray[np.int64],
+        source_weight: NDArray[np.double],
+        bin_offsets: NDArray[np.int64],
+        rotation: NDArray,
+        translation: NDArray,
+    ) -> list[NDArray[np.cdouble]]:
+        """Sum the coefficients by bin with phonors (lang="Rust") or in Python."""
         if self._lang == "Rust":
-            bin_sorted = bin_sorted_supercell_fourier_coefficients
-        else:
-            bin_sorted = _bin_sorted_coefficients_python
-        Fs = bin_sorted(
+            return bin_sorted_supercell_fourier_coefficients(
+                coefficients,
+                g_sorted,
+                source_weight,
+                bin_offsets,
+                rotation=rotation,
+                translation=translation,
+            )
+        return _bin_sorted_coefficients_python(
             coefficients,
             g_sorted,
             source_weight,
@@ -391,135 +449,119 @@ class FourierSeriesOnGrid:
             rotation=rotation,
             translation=translation,
         )
-        return [F.reshape(self._num_cells, *self._fft_mesh[::-1]) for F in Fs]
 
-    def _get_representatives(
-        self, supercell_mesh: tuple[int, ...]
-    ) -> tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.double]]:
-        """Return the chosen g in the order of their sources, cached.
+    def _get_mesh_data(self, supercell_mesh: Sequence[int]) -> _MeshData:
+        """Return the data of the mesh, made again when the mesh changes."""
+        supercell_mesh = tuple(int(n) for n in supercell_mesh)
+        if self._mesh_data is None or self._mesh_data.supercell_mesh != supercell_mesh:
+            self._mesh_data = self._make_mesh_data(supercell_mesh)
+        return self._mesh_data
 
-        Parameters
-        ----------
-        supercell_mesh : tuple of int
-            FFT mesh of the supercell (N^s_1, N^s_2, N^s_3).
-
-        Returns
-        -------
-        g : ndarray
-            Chosen g: those of _get_reciprocal_lattice_vectors ("box") or of
-            get_shortest_representatives ("shortest").  The g with the source
-            s are g[source_offsets[s]:source_offsets[s + 1]].
-            dtype='int64', shape=(num, 3)
-        source_offsets : ndarray
-            dtype='int64', shape=(N^s_1 N^s_2 N^s_3 + 1,)
-        source_weight : ndarray
-            1 / (number of the chosen g with the source s) for each source s.
-            dtype='double', shape=(N^s_1 N^s_2 N^s_3,)
-
-        """
-        if supercell_mesh not in self._representatives_cache:
-            num_sources = int(np.prod(supercell_mesh))
-            if self._representatives == "box":
-                g = _get_reciprocal_lattice_vectors(supercell_mesh)
-                counts = np.ones(num_sources, dtype="int64")
-            else:
-                assert self._supercell_lattice is not None
-                g, source, _ = get_shortest_representatives(
-                    supercell_mesh, self._supercell_lattice
-                )
-                assert np.all(np.diff(source) >= 0)
-                counts = np.bincount(source, minlength=num_sources)
-            source_offsets = np.concatenate([[0], np.cumsum(counts)]).astype("int64")
-            self._representatives_cache[supercell_mesh] = (
-                g,
-                source_offsets,
-                1.0 / counts,
+    def _make_mesh_data(self, supercell_mesh: tuple[int, ...]) -> _MeshData:
+        """Select the g-points of the mesh and sort them by bin."""
+        if self._g_point_selection == "box":
+            g = _get_reciprocal_lattice_vectors(supercell_mesh)
+            source_offsets = np.arange(len(g) + 1, dtype="int64")
+        else:
+            assert self._supercell_lattice is not None
+            g, source_offsets = get_shortest_g_points(
+                supercell_mesh, self._supercell_lattice
             )
-        return self._representatives_cache[supercell_mesh]
+        g_sorted, bin_offsets = self._sort_g_points_by_bin(g, np.eye(3, dtype="int64"))
+        return _MeshData(
+            supercell_mesh=supercell_mesh,
+            g=g,
+            source_offsets=source_offsets,
+            source_weight=1.0 / np.diff(source_offsets),
+            g_sorted=g_sorted,
+            bin_offsets=bin_offsets,
+        )
 
-    def rows_closed_under_rotation(
-        self, supercell_mesh: tuple[int, ...], rotation: NDArray | None
+    def g_points_closed_under_rotation(
+        self, supercell_mesh: Sequence[int], rotation: NDArray
     ) -> bool:
-        """Return whether W^-T maps the chosen g onto themselves, cached.
+        """Return whether W^-T maps the selected g onto themselves.
 
-        rows_closed_under_rotation of phonors (lang="Rust") or
-        _rows_closed_under_rotation_python (lang="Python") checks that W^-T g
-        is one of the chosen g with its source for every chosen g.  Then the
-        chosen g sorted once are used for this rotation.  None means the
-        identity, which always maps them onto themselves.
+        g_points_closed_under_rotation of phonors (lang="Rust") or
+        _g_points_closed_under_rotation_python (lang="Python") checks that W^-T g
+        is one of the selected g with its source for every selected g.  Then the
+        selected g sorted once are used for this rotation.  The result is
+        kept in _MeshData.is_closed.
 
         """
-        if rotation is None:
-            return True
         rotation = np.array(rotation, dtype="int64")
-        key = (tuple(supercell_mesh), rotation.tobytes())
-        if key not in self._closed_cache:
-            g, source_offsets, _ = self._get_representatives(supercell_mesh)
-            if self._lang == "Rust":
-                rows_closed = rows_closed_under_rotation
-            else:
-                rows_closed = _rows_closed_under_rotation_python
-            self._closed_cache[key] = rows_closed(
-                g, source_offsets, np.array(supercell_mesh, dtype="int64"), rotation
+        mesh_data = self._get_mesh_data(supercell_mesh)
+        key = rotation.tobytes()
+        if key not in mesh_data.is_closed:
+            mesh_data.is_closed[key] = self._is_closed_under(mesh_data, rotation)
+        return mesh_data.is_closed[key]
+
+    def _is_closed_under(self, mesh_data: _MeshData, rotation: NDArray) -> bool:
+        """Check the closure with phonors (lang="Rust") or in Python."""
+        g = mesh_data.g
+        source_offsets = mesh_data.source_offsets
+        supercell_mesh = np.array(mesh_data.supercell_mesh, dtype="int64")
+        if self._lang == "Rust":
+            return g_points_closed_under_rotation(
+                g, source_offsets, supercell_mesh, rotation
             )
-        return self._closed_cache[key]
+        return _g_points_closed_under_rotation_python(
+            g, source_offsets, supercell_mesh, rotation
+        )
 
-    def _get_rows_sorted_by_bin(
-        self, supercell_mesh: tuple[int, ...], rotation: NDArray | None
+    def _get_g_points_sorted_by_bin(
+        self, supercell_mesh: Sequence[int], rotation: NDArray
     ) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
-        """Return g' = W^-T g of the chosen g sorted by bin.
+        """Return g' = W^-T g of the selected g sorted by bin.
 
-        When rows_closed_under_rotation, the g' are the chosen g themselves,
-        and the chosen g sorted by bin once for each mesh (cached) are
-        returned.  Otherwise the g' are sorted for this rotation.  The sorting
-        is done by sort_rows_by_bin of phonors (lang="Rust") or
-        _sort_rows_by_bin_python (lang="Python").
+        When g_points_closed_under_rotation, the g' are the selected g
+        themselves, and the selected g sorted once (_MeshData.g_sorted) are
+        returned.  Otherwise the g' are sorted for this rotation.
 
         Returns
         -------
         g_sorted : ndarray
-            g' in the order of (bin, row of g).
+            g' in the order of (bin, index of g).
             dtype='int64', shape=(num, 3)
         bin_offsets : ndarray
             The g' of the bin i_F are g_sorted[bin_offsets[i_F]:
             bin_offsets[i_F + 1]].
-            dtype='int64', shape=(D * prod(fft_mesh) + 1,)
+            dtype='int64', shape=(N_c * prod(fft_mesh) + 1,)
 
         """
-        g, _, _ = self._get_representatives(supercell_mesh)
-        if self._lang == "Rust":
-            sort_by_bin = self._sort_rows_by_bin_rust
-        else:
-            sort_by_bin = self._sort_rows_by_bin_python
-        if not self.rows_closed_under_rotation(supercell_mesh, rotation):
-            return sort_by_bin(g, rotation)
-        if supercell_mesh not in self._sorted_cache:
-            self._sorted_cache[supercell_mesh] = sort_by_bin(g, None)
-        return self._sorted_cache[supercell_mesh]
+        mesh_data = self._get_mesh_data(supercell_mesh)
+        if self.g_points_closed_under_rotation(supercell_mesh, rotation):
+            return mesh_data.g_sorted, mesh_data.bin_offsets
+        return self._sort_g_points_by_bin(mesh_data.g, rotation)
 
-    def _sort_rows_by_bin_rust(
-        self, g: NDArray[np.int64], rotation: NDArray | None
+    def _sort_g_points_by_bin(
+        self, g: NDArray[np.int64], rotation: NDArray
     ) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
-        """Call sort_rows_by_bin of phonors."""
-        if rotation is not None:
-            rotation = np.array(rotation, dtype="int64")
-        return sort_rows_by_bin(g, self._p2s_matrix, self._fft_mesh, rotation=rotation)
+        """Sort g' = W^-T g by bin with phonors (lang="Rust") or in Python."""
+        if self._lang == "Rust":
+            return self._sort_g_points_by_bin_rust(g, rotation)
+        return self._sort_g_points_by_bin_python(g, rotation)
 
-    def _sort_rows_by_bin_python(
-        self, g: NDArray[np.int64], rotation: NDArray | None
+    def _sort_g_points_by_bin_rust(
+        self, g: NDArray[np.int64], rotation: NDArray
+    ) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
+        """Call sort_g_points_by_bin of phonors."""
+        return sort_g_points_by_bin(
+            g, self._p2s_matrix, self._fft_mesh, np.array(rotation, dtype="int64")
+        )
+
+    def _sort_g_points_by_bin_python(
+        self, g: NDArray[np.int64], rotation: NDArray
     ) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Return g' = W^-T g sorted by bin and the offsets of the bins.
 
-        The pure-Python counterpart of sort_rows_by_bin of phonors.  The g' of
-        a bin are in the order of g.  See _get_rows_sorted_by_bin for the
+        The pure-Python counterpart of sort_g_points_by_bin of phonors.  The g' of
+        a bin are in the order of g.  See _get_g_points_sorted_by_bin for the
         returned arrays.
 
         """
-        if rotation is None:
-            g_rotated = g
-        else:
-            # g' = W^-T g in column vectors is g @ W^-1 in row vectors.
-            g_rotated = g @ np.array(np.rint(np.linalg.inv(rotation)), dtype="int64")
+        # g' = W^-T g in column vectors is g @ W^-1 in row vectors.
+        g_rotated = g @ np.array(np.rint(np.linalg.inv(rotation)), dtype="int64")
         i_F = self._get_bin_indices(g_rotated)
         order = np.argsort(i_F, kind="stable")
         num_bins = self._num_cells * int(np.prod(self._fft_mesh))
@@ -528,21 +570,22 @@ class FourierSeriesOnGrid:
         return np.ascontiguousarray(g_rotated[order]), bin_offsets
 
     def _get_bin_indices(self, g: NDArray[np.int64]) -> NDArray[np.int64]:
-        """Return the flat index i_F of the bin (q, Kbar) of each row of g.
+        """Return the flat index i_F of the bin (q, Kbar) of each g.
 
-        h = (M^s)^-T g = K + q with D h = g @ B computed with integers, and q
-        labeled by n_q = Q^T g mod d (see _set_integer_coordinates and
-        _set_lattice_points_and_qpoints).  With the index i_q of n_q in the
-        order of qpoints and Kbar = K mod N^p,
+        h = (M^s)^-T g = K + q with N_c h = g @ _nc_m_inv computed with integers,
+        and q labeled by n_q = Q^T g mod d (see _set_integer_coordinates and
+        _set_lattice_points_and_qpoints).  With the index i_q of n_q in the order
+        of qpoints and Kbar = K mod N^p,
 
             i_F = ((i_q N^p_3 + Kbar_3) N^p_2 + Kbar_2) N^p_1 + Kbar_1,
 
-        the flat index of the array of the shape (D, N^p_3, N^p_2, N^p_1).
+        the flat index of the array of the shape (N_c, N^p_3, N^p_2, N^p_1).
 
         Parameters
         ----------
         g : ndarray
-            Integer vectors in the reciprocal basis of the supercell, in rows.
+            Points g of the reciprocal lattice of the supercell in integer
+            coordinates.
             dtype='int64', shape=(n, 3)
 
         Returns
@@ -551,7 +594,7 @@ class FourierSeriesOnGrid:
             dtype='int64', shape=(n,)
 
         """
-        K = (g @ self._B) // self._num_cells
+        K = (g @ self._nc_m_inv) // self._num_cells
         i_q = np.ravel_multi_index(
             ((g @ self._snf_Q) % self._snf_diag).T, self._snf_diag
         )
@@ -569,14 +612,14 @@ class FourierSeriesOnGrid:
         ----------
         phi : ndarray
             phi_q(m) from get_phi.
-            dtype='complex128', shape=(D, N^p_3, N^p_2, N^p_1)
+            dtype='complex128', shape=(N_c, N^p_3, N^p_2, N^p_1)
 
         Returns
         -------
         ndarray
             Values at the grid points, the lattice point running slowest and
             m_1 fastest.
-            dtype='complex128', shape=(D * prod(fft_mesh),)
+            dtype='complex128', shape=(N_c * prod(fft_mesh),)
 
         """
         values = scipy.fft.ifftn(
@@ -589,12 +632,12 @@ class FourierSeriesOnGrid:
 
 
 def _get_reciprocal_lattice_vectors(mesh: Sequence[int] | NDArray) -> NDArray[np.int64]:
-    """Return a reciprocal lattice vector g in the box for each class g mod N^s.
+    """Return the g-point g in the box for each source g mod N^s.
 
-    g are the reciprocal lattice vectors of the supercell in the integer
-    coordinates of its reciprocal basis.  Each class g mod N^s is represented by
-    the g in the box -ceil(N^s_k / 2) + 1 <= g_k <= floor(N^s_k / 2), which is
-    used with representatives="box".
+    g are the g-points, the points of the reciprocal lattice of the supercell
+    in the integer coordinates of its basis.  For each source g mod N^s, the g
+    in the box -ceil(N^s_k / 2) + 1 <= g_k <= floor(N^s_k / 2) is selected,
+    which is used with g_point_selection="box".
 
     Parameters
     ----------
@@ -605,11 +648,11 @@ def _get_reciprocal_lattice_vectors(mesh: Sequence[int] | NDArray) -> NDArray[np
     Returns
     -------
     ndarray
-        (g_1, g_2, g_3) of the classes.  The row
+        (g_1, g_2, g_3) of the selected g.  The row
 
             j = (i_3 N^s_2 + i_2) N^s_1 + i_1
 
-        is the class of g_k = i_k mod N^s_k (0 <= i_k < N^s_k), with g_k = i_k
+        is the g with g_k = i_k mod N^s_k (0 <= i_k < N^s_k), with g_k = i_k
         for i_k <= N^s_k / 2 and g_k = i_k - N^s_k otherwise.  This is the
         order of an array of the shape (N^s_3, N^s_2, N^s_1) flattened.  So g_1
         runs fastest and g_3 slowest, each in the order 0, 1, ...,
@@ -632,8 +675,8 @@ def _bin_sorted_coefficients_python(
     g_sorted: NDArray[np.int64],
     source_weight: NDArray[np.double],
     bin_offsets: NDArray[np.int64],
-    rotation: NDArray | None = None,
-    translation: NDArray | None = None,
+    rotation: NDArray,
+    translation: NDArray,
 ) -> list[NDArray[np.cdouble]]:
     """Return the sums of the coefficients over g' sorted by bin.
 
@@ -649,14 +692,14 @@ def _bin_sorted_coefficients_python(
         See FourierSeriesOnGrid.get_phi.
         dtype='complex128', shape=(N^s_3, N^s_2, N^s_1) each
     g_sorted, bin_offsets : ndarray
-        See FourierSeriesOnGrid._get_rows_sorted_by_bin.
+        See FourierSeriesOnGrid._get_g_points_sorted_by_bin.
     source_weight : ndarray
-        See FourierSeriesOnGrid._get_representatives.
-    rotation : ndarray or None
-        Rotation W in the supercell basis vectors.  None means the identity.
+        See _MeshData.
+    rotation : ndarray
+        Rotation W in the supercell basis vectors.
         dtype='int64', shape=(3, 3)
-    translation : ndarray or None
-        Translation w in the supercell basis vectors.  None means zero.
+    translation : ndarray
+        Translation w in the supercell basis vectors.
         dtype='double', shape=(3,)
 
     Returns
@@ -667,39 +710,32 @@ def _bin_sorted_coefficients_python(
 
     """
     supercell_mesh = np.array(coefficients[0].shape[::-1], dtype="int64")
-    W = np.eye(3, dtype="int64") if rotation is None else np.array(rotation)
     # g = W^T g' in column vectors is g' @ W in row vectors.
-    g = g_sorted @ np.array(W, dtype="int64")
+    g = g_sorted @ np.array(rotation, dtype="int64")
     source = _get_source(g, supercell_mesh)
     num_bins = len(bin_offsets) - 1
     bins = np.repeat(np.arange(num_bins), np.diff(bin_offsets))
-    if translation is None:
-        phase = None
-    else:
-        phase = np.exp(-2j * np.pi * g_sorted @ np.asarray(translation, dtype="double"))
+    phase = np.exp(-2j * np.pi * g_sorted @ np.asarray(translation, dtype="double"))
     Fs = []
     for c in coefficients:
-        w = c.ravel()[source] * source_weight[source]
-        if phase is not None:
-            w = w * phase
+        w = c.ravel()[source] * source_weight[source] * phase
         F = np.zeros(num_bins, dtype="complex128")
         np.add.at(F, bins, w)
         Fs.append(F)
     return Fs
 
 
-def _rows_closed_under_rotation_python(
+def _g_points_closed_under_rotation_python(
     g: NDArray[np.int64],
     source_offsets: NDArray[np.int64],
     supercell_mesh: NDArray[np.int64],
     rotation: NDArray,
 ) -> bool:
-    """Return whether W^-T maps the chosen g onto themselves.
+    """Return whether W^-T maps the selected g onto themselves.
 
-    The pure-Python counterpart of rows_closed_under_rotation of phonors:
-    for every chosen g, W^-T g has to be one of the chosen g with the source
-    of W^-T g.  source_offsets is that of
-    FourierSeriesOnGrid._get_representatives.
+    The pure-Python counterpart of g_points_closed_under_rotation of phonors:
+    for every selected g, W^-T g has to be one of the selected g with the source
+    of W^-T g.  source_offsets is that of _MeshData.
 
     """
     # g' = W^-T g in column vectors is g @ W^-1 in row vectors.
@@ -716,7 +752,7 @@ def _get_source(g: NDArray[np.int64], supercell_mesh: NDArray) -> NDArray[np.int
     """Return the index of g mod N^s in the flattened coefficient array.
 
     The source of g, ((g_3 mod N^s_3) N^s_2 + (g_2 mod N^s_2)) N^s_1
-    + (g_1 mod N^s_1), for each row of g.
+    + (g_1 mod N^s_1), for each g.
 
     """
     mesh = np.asarray(supercell_mesh, dtype="int64")
@@ -724,15 +760,15 @@ def _get_source(g: NDArray[np.int64], supercell_mesh: NDArray) -> NDArray[np.int
     return (r[:, 2] * mesh[1] + r[:, 1]) * mesh[0] + r[:, 0]
 
 
-def get_shortest_representatives(
+def get_shortest_g_points(
     mesh: Sequence[int] | NDArray,
     supercell_lattice: NDArray,
-) -> tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.double]]:
-    """Return the shortest g + N^s t for each class g mod N^s.
+) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
+    """Return the shortest g + N^s t for each source g mod N^s.
 
     For each reciprocal lattice vector g of _get_reciprocal_lattice_vectors, in
     the integer coordinates of the reciprocal basis of the supercell, the
-    vectors g + N^s t with the shortest |G| are chosen, where G = sum_k g_k b_k
+    vectors g + N^s t with the shortest |G| are selected, where G = sum_k g_k b_k
     with the reciprocal basis vectors b_k of the supercell (without the factor
     2 pi).  The coefficient is divided equally among the vectors of the same
     length.
@@ -744,9 +780,10 @@ def get_shortest_representatives(
     (N^s_i)^2, computed from the basis vectors r_i of the period lattice that
     it is given.  For a skewed basis of the supercell, N^s_k b_k are long and
     this tolerance can be larger than the difference to the next longer
-    vectors, so a Delaunay-reduced basis, the rows of P B with the rows
-    N^s_k b_k of B (see _get_reduced_period_basis), is given with
-    Q = (P^T)^-1.  Then the mesh and the returned g stay in the coordinates g.
+    vectors, so a Delaunay-reduced basis, the rows of T B with the rows
+    N^s_k b_k of B and the transformation matrix T (see _get_delaunay_tmat),
+    is given with (T^T)^-1.  Then the mesh and the returned g stay in the
+    coordinates g.
 
     Parameters
     ----------
@@ -760,36 +797,33 @@ def get_shortest_representatives(
     Returns
     -------
     g : ndarray
-        Chosen reciprocal lattice vectors in the integer coordinates
-        (g_1, g_2, g_3).
-        dtype='int64', shape=(num, 3)
-    source : ndarray
-        Row j of _get_reciprocal_lattice_vectors of the class of each chosen g,
+        Selected g-points in the integer coordinates (g_1, g_2, g_3), in the
+        order of their sources.  The source of g is the row j of
+        _get_reciprocal_lattice_vectors with the same g mod N^s,
         ((g_3 mod N^s_3) N^s_2 + (g_2 mod N^s_2)) N^s_1 + (g_1 mod N^s_1).
-        dtype='int64', shape=(num,)
-    weight : ndarray
-        1 / (number of g chosen for the same class).
-        dtype='double', shape=(num,)
+        dtype='int64', shape=(num, 3)
+    source_offsets : ndarray
+        The g with the source s are g[source_offsets[s]:source_offsets[s + 1]].
+        This is bz_map of phonors.bz_grid_addresses with the dense format.
+        dtype='int64', shape=(N^s_1 N^s_2 N^s_3 + 1,)
 
     """
     mesh = np.array(mesh, dtype="int64")
     period_lattice = np.diag(mesh) @ np.linalg.inv(supercell_lattice).T
-    P = _get_reduced_period_basis(period_lattice)
-    Q = np.array(np.rint(np.linalg.inv(P.T)), dtype="int64")
-    addresses, bz_map, bzg2grg = bz_grid_addresses(
+    tmat = _get_delaunay_tmat(period_lattice)
+    tmat_inv_t = np.array(np.rint(np.linalg.inv(tmat.T)), dtype="int64")
+    addresses, bz_map, _ = bz_grid_addresses(
         mesh,
-        Q,
+        tmat_inv_t,
         np.zeros(3, dtype="int64"),
-        np.array((P @ period_lattice).T, dtype="double", order="C"),
+        np.array((tmat @ period_lattice).T, dtype="double", order="C"),
         2,
     )
-    g = np.array(addresses, dtype="int64")
-    source = np.array(bzg2grg, dtype="int64")
-    return g, source, 1.0 / np.diff(bz_map)[source]
+    return np.array(addresses, dtype="int64"), np.array(bz_map, dtype="int64")
 
 
-def _get_reduced_period_basis(period_lattice: NDArray) -> NDArray[np.int64]:
-    """Return P with P period_lattice Delaunay-reduced.
+def _get_delaunay_tmat(period_lattice: NDArray) -> NDArray[np.int64]:
+    """Return the transformation matrix T with T period_lattice Delaunay-reduced.
 
     Parameters
     ----------
@@ -800,12 +834,12 @@ def _get_reduced_period_basis(period_lattice: NDArray) -> NDArray[np.int64]:
     Returns
     -------
     ndarray
-        Unimodular matrix P.
+        Unimodular transformation matrix T.
         dtype='int64', shape=(3, 3)
 
     """
     reduced = get_reduced_bases(period_lattice, method="delaunay")
-    P = np.array(np.rint(reduced @ np.linalg.inv(period_lattice)), dtype="int64")
-    if abs(determinant(P)) != 1 or not np.allclose(P @ period_lattice, reduced):
+    tmat = np.array(np.rint(reduced @ np.linalg.inv(period_lattice)), dtype="int64")
+    if abs(determinant(tmat)) != 1 or not np.allclose(tmat @ period_lattice, reduced):
         raise RuntimeError("Delaunay reduction of the period lattice failed.")
-    return P
+    return tmat

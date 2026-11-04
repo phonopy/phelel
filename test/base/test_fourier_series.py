@@ -3,30 +3,31 @@
 from __future__ import annotations
 
 import itertools
+from collections.abc import Sequence
 
 import numpy as np
 import pytest
 from numpy.typing import NDArray
 from phonors import (
     bin_sorted_supercell_fourier_coefficients,
-    rows_closed_under_rotation,
+    g_points_closed_under_rotation,
 )
 
 import phelel.base.fourier_series as fourier_series
 from phelel.base.fourier_series import (
     FourierSeriesOnGrid,
     _bin_sorted_coefficients_python,
+    _g_points_closed_under_rotation_python,
     _get_reciprocal_lattice_vectors,
-    _rows_closed_under_rotation_python,
     get_fourier_coefficients,
-    get_shortest_representatives,
+    get_shortest_g_points,
 )
 from phelel.base.local_potential import get_grid_points
 
 # (p2s_matrix, mesh shape (N^s_3, N^s_2, N^s_1) of the supercell, fft_mesh,
 #  rotation, translation, basis vectors of the supercell in rows)
-# fcc primitive cell in the conventional cubic supercell (D = 4), diag(3, 1, 1)
-# (D = 3, q points with q != -q mod 1), diag(2, 2, 3) (D = 12, two diagonal
+# fcc primitive cell in the conventional cubic supercell (N_c = 4), diag(3, 1, 1)
+# (N_c = 3, q points with q != -q mod 1), diag(2, 2, 3) (N_c = 12, two diagonal
 # elements of the Smith normal form larger than one), and a hexagonal six-fold
 # rotation that maps the box of the coefficients outside itself.  Each mesh has
 # even and odd numbers of points, so the coefficients at N^s_k / 2 are included.
@@ -40,8 +41,8 @@ _cases = {
         [[-1, 1, 1], [1, -1, 1], [1, 1, -1]],
         (6, 5, 4),
         [3, 4, 5],
-        None,
-        None,
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+        [0.0, 0.0, 0.0],
         _cubic,
     ),
     "fcc-threefold": (
@@ -145,9 +146,9 @@ def _assert_off_mesh_along_even_axes(shape: tuple[int, int, int], x: NDArray):
 
 
 @pytest.mark.parametrize("lang", ["Rust", "Python"])
-@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("g_point_selection", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_evaluate_equals_direct_sum(case: str, representatives: str, lang: str):
+def test_evaluate_equals_direct_sum(case: str, g_point_selection: str, lang: str):
     """Values at the grid points are the Fourier series summed term by term.
 
     For g = {W|w}, f(g^-1 x) is evaluated at x' = W^-1 (x - w).
@@ -159,22 +160,18 @@ def test_evaluate_equals_direct_sum(case: str, representatives: str, lang: str):
     fsg = FourierSeriesOnGrid(
         fft_mesh,
         p2s,
-        representatives=representatives,
+        g_point_selection=g_point_selection,
         supercell_lattice=lattice,
         lang=lang,
     )
     grid_points, lattice_points = get_grid_points(fft_mesh, p2s)
     np.testing.assert_array_equal(fsg.lattice_points, lattice_points)
 
-    x = grid_points
-    if rotation is not None:
-        x = (x - translation) @ np.linalg.inv(rotation).T
-    elif translation is not None:
-        x = x - translation
+    x = (grid_points - translation) @ np.linalg.inv(rotation).T
     _assert_off_mesh_along_even_axes(shape, x)
     values = fsg.evaluate(coefs, rotation=rotation, translation=translation)
     for c, v in zip(coefs, values, strict=True):
-        if representatives == "box":
+        if g_point_selection == "box":
             ref = _direct_sum(c, x)
         else:
             ref = _direct_sum_shortest(c, x, lattice)
@@ -193,21 +190,21 @@ def test_get_fourier_coefficients():
 
 @pytest.mark.parametrize("case", ["fcc-identity", "diag311-fourfold"])
 def test_qpoints(case: str):
-    """The D q points are distinct, and D q are integer vectors in [0, D)."""
+    """The N_c q points are distinct, and N_c q are integer vectors in [0, N_c)."""
     p2s = np.array(_cases[case][0], dtype="int64")
-    D = abs(round(np.linalg.det(p2s)))
+    num_cells = abs(round(np.linalg.det(p2s)))
     qpoints = FourierSeriesOnGrid([2, 2, 2], p2s).qpoints
-    Dq = np.rint(qpoints * D).astype(int)
-    assert qpoints.shape == (D, 3)
-    np.testing.assert_allclose(qpoints * D, Dq, atol=1e-12)
-    assert ((Dq >= 0) & (Dq < D)).all()
-    assert len(np.unique(Dq, axis=0)) == D
+    nc_q = np.rint(qpoints * num_cells).astype(int)
+    assert qpoints.shape == (num_cells, 3)
+    np.testing.assert_allclose(qpoints * num_cells, nc_q, atol=1e-12)
+    assert ((nc_q >= 0) & (nc_q < num_cells)).all()
+    assert len(np.unique(nc_q, axis=0)) == num_cells
 
 
 @pytest.mark.parametrize("lang", ["Rust", "Python"])
 @pytest.mark.parametrize("case", _cases)
-def test_lattice_fourier_sum_equals_D_phi(case: str, lang: str):
-    """sum_l f(x_lm) exp(-2 pi i q . l) = D phi_q(m).
+def test_lattice_fourier_sum_equals_nc_phi(case: str, lang: str):
+    """sum_l f(x_lm) exp(-2 pi i q . l) = N_c phi_q(m).
 
     f(x_lm) are computed by the direct sum, so that this does not depend on
     sum_over_qpoints.  With diag(3, 1, 1), q = 1/3 and 2/3 are not equal to -q
@@ -219,26 +216,24 @@ def test_lattice_fourier_sum_equals_D_phi(case: str, lang: str):
     coefs = _random_coefficients(shape, 4)
     fsg = FourierSeriesOnGrid(fft_mesh, p2s, lang=lang)
     grid_points, lattice_points = get_grid_points(fft_mesh, p2s)
-    D = len(lattice_points)
+    num_cells = len(lattice_points)
 
-    x = grid_points
-    if rotation is not None:
-        x = (x - translation) @ np.linalg.inv(rotation).T
+    x = (grid_points - translation) @ np.linalg.inv(rotation).T
     _assert_off_mesh_along_even_axes(shape, x)
-    values = _direct_sum(coefs, x).reshape(D, -1)
+    values = _direct_sum(coefs, x).reshape(num_cells, -1)
     lattice_sum = np.exp(-2j * np.pi * fsg.qpoints @ lattice_points.T) @ values
     (phi,) = fsg.get_phi([coefs], rotation=rotation, translation=translation)
     np.testing.assert_allclose(
         lattice_sum,
-        D * phi.reshape(D, -1),
+        num_cells * phi.reshape(num_cells, -1),
         rtol=0,
         atol=1e-10 * np.abs(lattice_sum).max(),
     )
 
 
-@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("g_point_selection", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_lang_rust_equals_python(case: str, representatives: str):
+def test_lang_rust_equals_python(case: str, g_point_selection: str):
     """F_q(Kbar) of lang="Rust" are those of lang="Python".
 
     Both sum the coefficients of each bin in the same order, so they are
@@ -253,14 +248,14 @@ def test_lang_rust_equals_python(case: str, representatives: str):
         FourierSeriesOnGrid(
             fft_mesh,
             p2s,
-            representatives=representatives,
+            g_point_selection=g_point_selection,
             supercell_lattice=lattice,
             lang=lang,
         )
         for lang in ("Rust", "Python")
     )
-    Fs_rust = fsg_rust._bin_coefficients(coefs, rotation, None)
-    Fs_python = fsg_python._bin_coefficients(coefs, rotation, None)
+    Fs_rust = fsg_rust._bin_coefficients(coefs, rotation, np.zeros(3))
+    Fs_python = fsg_python._bin_coefficients(coefs, rotation, np.zeros(3))
     for F_rust, F_python in zip(Fs_rust, Fs_python, strict=True):
         assert F_rust.shape == F_python.shape
         np.testing.assert_array_equal(F_rust, F_python)
@@ -304,11 +299,27 @@ def _sorted_rows(a: NDArray) -> NDArray:
     return a[np.lexsort(a.T[::-1])]
 
 
+def _get_shortest_g_points_with_source(
+    mesh: Sequence[int], lattice: NDArray
+) -> tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.double]]:
+    """Return g of get_shortest_g_points with the source and weight of each g.
+
+    The source computed from g is checked against source_offsets.
+
+    """
+    g, source_offsets = get_shortest_g_points(mesh, lattice)
+    counts = np.diff(source_offsets)
+    assert (counts > 0).all()
+    source = np.repeat(np.arange(len(counts)), counts)
+    np.testing.assert_array_equal(fourier_series._get_source(g, mesh), source)
+    return g, source, 1.0 / counts[source]
+
+
 @pytest.mark.parametrize(
     "shape,lattice,num_rotations",
     [((6, 6, 6), _cubic, 48), ((5, 6, 6), _hexagonal, 24)],
 )
-def test_shortest_representatives_are_invariant_under_rotations(
+def test_shortest_g_points_are_invariant_under_rotations(
     shape: tuple[int, int, int], lattice: NDArray, num_rotations: int
 ):
     """The shortest g + N^s n with their weights are mapped to themselves.
@@ -322,7 +333,7 @@ def test_shortest_representatives_are_invariant_under_rotations(
     """
     rotations = _get_lattice_symmetries(lattice, shape)
     assert len(rotations) == num_rotations
-    g, _, weight = get_shortest_representatives(shape[::-1], lattice)
+    g, _, weight = _get_shortest_g_points_with_source(shape[::-1], lattice)
     assert (weight < 1).any()
     ref = _sorted_rows(np.c_[g, weight])
     g_box = _get_reciprocal_lattice_vectors(shape[::-1])
@@ -342,7 +353,7 @@ def test_shortest_representatives_are_invariant_under_rotations(
 def test_shortest_equals_box_on_mesh(
     shape: tuple[int, int, int], fft_mesh: list[int], on_mesh: bool
 ):
-    """The choice of g changes the values only off the FFT mesh of the supercell.
+    """The selection of g changes the values only off the FFT mesh of the supercell.
 
     The grid points are on the mesh when (N^p)^-1 (M^s)^-T N^s is an integer
     matrix, and then g + N^s n give the same values.
@@ -355,9 +366,9 @@ def test_shortest_equals_box_on_mesh(
     rotation = [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
     translation = [0.25, 0.25, 0.25]
     values = []
-    for representatives in ("box", "shortest"):
+    for g_point_selection in ("box", "shortest"):
         fsg = FourierSeriesOnGrid(
-            fft_mesh, p2s, representatives=representatives, supercell_lattice=_cubic
+            fft_mesh, p2s, g_point_selection=g_point_selection, supercell_lattice=_cubic
         )
         values.append(
             fsg.evaluate(coefs, rotation=rotation, translation=translation)[0]
@@ -393,7 +404,7 @@ _shears = (
 )
 
 
-def _get_shortest_representatives_by_bound(
+def _get_shortest_g_points_by_bound(
     shape: tuple[int, int, int], lattice: NDArray, tolerance: float = 1e-5
 ) -> tuple[NDArray, NDArray, NDArray]:
     """Return the shortest g + N^s n searched without reducing the basis.
@@ -418,15 +429,15 @@ def _get_shortest_representatives_by_bound(
     shifts = shifts * mesh
     for shift in shifts:
         shortest = np.minimum(shortest, get_lengths(g_box + shift))
-    chosen_g = []
-    chosen_source = []
+    selected_g = []
+    selected_source = []
     for shift in shifts:
         g = g_box + shift
         is_shortest = get_lengths(g) <= shortest * (1 + tolerance)
-        chosen_g.append(g[is_shortest])
-        chosen_source.append(np.nonzero(is_shortest)[0])
-    g = np.concatenate(chosen_g)
-    source = np.concatenate(chosen_source)
+        selected_g.append(g[is_shortest])
+        selected_source.append(np.nonzero(is_shortest)[0])
+    g = np.concatenate(selected_g)
+    source = np.concatenate(selected_source)
     multiplicity = np.bincount(source, minlength=len(g_box))
     return g, source, 1.0 / multiplicity[source]
 
@@ -441,7 +452,7 @@ def _get_shortest_representatives_by_bound(
         ((6, 5, 6), _skewed_hexagonal),
     ],
 )
-def test_shortest_representatives_equal_search_without_reduction(
+def test_shortest_g_points_equal_search_without_reduction(
     shape: tuple[int, int, int], lattice: NDArray
 ):
     """The shortest g + N^s n equal those searched without the reduced basis.
@@ -449,10 +460,8 @@ def test_shortest_representatives_equal_search_without_reduction(
     The coefficients divided among g of the same length are included.
 
     """
-    g, source, weight = get_shortest_representatives(shape[::-1], lattice)
-    g_ref, source_ref, weight_ref = _get_shortest_representatives_by_bound(
-        shape, lattice
-    )
+    g, source, weight = _get_shortest_g_points_with_source(shape[::-1], lattice)
+    g_ref, source_ref, weight_ref = _get_shortest_g_points_by_bound(shape, lattice)
     assert (weight < 1).any()
     np.testing.assert_array_equal(
         _sorted_rows(np.c_[source, g, weight]),
@@ -461,7 +470,7 @@ def test_shortest_representatives_equal_search_without_reduction(
 
 
 @pytest.mark.parametrize("lattice", [_cubic, _hexagonal])
-def test_shortest_representatives_do_not_depend_on_basis(lattice: NDArray):
+def test_shortest_g_points_do_not_depend_on_basis(lattice: NDArray):
     """The shortest G with their weights are the same for a skewed basis.
 
     With the mesh (n, n, n), the period lattice {N^s n} of g is kept when the
@@ -473,7 +482,7 @@ def test_shortest_representatives_do_not_depend_on_basis(lattice: NDArray):
     shape = (6, 6, 6)
     G_weight = []
     for A in (lattice, _shears @ lattice):
-        g, _, weight = get_shortest_representatives(shape[::-1], A)
+        g, _, weight = _get_shortest_g_points_with_source(shape[::-1], A)
         G = g @ np.linalg.inv(A).T
         G_weight.append(_sorted_rows(np.round(np.c_[G, weight], 8)))
     assert (G_weight[0][:, 3] < 1).any()
@@ -488,10 +497,8 @@ def test_shortest_representatives_do_not_depend_on_basis(lattice: NDArray):
         ((5, 6, 6), _shears @ _hexagonal),
     ],
 )
-def test_shortest_representatives_are_closest(
-    shape: tuple[int, int, int], lattice: NDArray
-):
-    """No chosen g becomes shorter by a Voronoi-relevant vector of the period lattice.
+def test_shortest_g_points_are_closest(shape: tuple[int, int, int], lattice: NDArray):
+    """No selected g becomes shorter by a Voronoi-relevant vector of the period lattice.
 
     The Voronoi-relevant vectors of a lattice with a Delaunay-reduced basis
     w_1, w_2, w_3 have coefficients in {-1, 0, 1} (Conway and Sloane, Proc. R.
@@ -503,10 +510,10 @@ def test_shortest_representatives_are_closest(
     """
     mesh = np.array(shape[::-1])
     period_lattice = np.diag(mesh) @ np.linalg.inv(lattice).T
-    W = fourier_series._get_reduced_period_basis(period_lattice) @ np.diag(mesh)
+    W = fourier_series._get_delaunay_tmat(period_lattice) @ np.diag(mesh)
     v = np.array(list(itertools.product((-1, 0, 1), repeat=3))) @ W
     metric = np.linalg.inv(lattice @ lattice.T)
-    g, _, _ = get_shortest_representatives(shape[::-1], lattice)
+    g, _ = get_shortest_g_points(shape[::-1], lattice)
     lengths = np.sqrt(np.einsum("ij,jk,ik->i", g, metric, g))
     y = g[:, None, :] - v[None, :, :]
     others = np.sqrt(np.einsum("abj,jk,abk->ab", y, metric, y))
@@ -514,10 +521,10 @@ def test_shortest_representatives_are_closest(
 
 
 @pytest.mark.parametrize("is_reduced", [True, False])
-def test_shortest_representatives_path_superbase(
+def test_shortest_g_points_path_superbase(
     is_reduced: bool, monkeypatch: pytest.MonkeyPatch
 ):
-    """All the closest points are chosen with the superbase of the path type.
+    """All the closest points are selected with the superbase of the path type.
 
     The period lattice {N^s n} is the cubic lattice with the basis
     w_1 = (-1, 1, 0), w_2 = (1, 0, -1), w_3 = (0, 0, 1) of N^s_k b_k, which with
@@ -532,7 +539,7 @@ def test_shortest_representatives_path_superbase(
     if not is_reduced:
         monkeypatch.setattr(
             fourier_series,
-            "_get_reduced_period_basis",
+            "_get_delaunay_tmat",
             lambda _: np.eye(3, dtype="int64"),
         )
     n = 4
@@ -540,7 +547,7 @@ def test_shortest_representatives_path_superbase(
     path = np.array([[-1.0, 1.0, 0.0], [1.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
     reciprocal = path / n
     lattice = np.linalg.inv(reciprocal).T
-    g, source, weight = get_shortest_representatives(shape[::-1], lattice)
+    g, source, weight = _get_shortest_g_points_with_source(shape[::-1], lattice)
     i = np.nonzero(
         (_get_reciprocal_lattice_vectors(shape[::-1]) == [n // 2, 0, n // 2]).all(
             axis=1
@@ -552,13 +559,13 @@ def test_shortest_representatives_path_superbase(
     np.testing.assert_allclose(_sorted_rows(G), expected, atol=1e-12)
 
 
-def test_representatives_errors():
-    """Unknown representatives and "shortest" without the lattice are errors."""
+def test_g_point_selection_errors():
+    """Unknown g_point_selection and "shortest" without the lattice are errors."""
     p2s = np.eye(3, dtype="int64")
-    with pytest.raises(ValueError, match="representatives has to be"):
-        FourierSeriesOnGrid([2, 2, 2], p2s, representatives="nearest")  # type: ignore
+    with pytest.raises(ValueError, match="g_point_selection has to be"):
+        FourierSeriesOnGrid([2, 2, 2], p2s, g_point_selection="nearest")  # type: ignore
     with pytest.raises(ValueError, match="supercell_lattice is needed"):
-        FourierSeriesOnGrid([2, 2, 2], p2s, representatives="shortest")
+        FourierSeriesOnGrid([2, 2, 2], p2s, g_point_selection="shortest")
 
 
 def test_lang_errors():
@@ -571,65 +578,63 @@ def test_lang_errors():
 def _bin_by_definition(
     fsg: FourierSeriesOnGrid,
     coefficients: list[NDArray],
-    rotation: NDArray | None,
-    translation: NDArray | None,
+    rotation: NDArray,
+    translation: NDArray,
 ) -> list[NDArray]:
-    """Return F_q(Kbar) summed term by term in the order of the chosen g.
+    """Return F_q(Kbar) summed term by term in the order of the selected g.
 
-    The coefficient of each chosen g, times its weight and
+    The coefficient of each selected g, times its weight and
     exp(-2 pi i g' . w), is added to the bin of g' = W^-T g by np.add.at in
-    the order of the chosen g, without sorting.
+    the order of the selected g, without sorting.
 
     """
     supercell_mesh = coefficients[0].shape[::-1]
-    if fsg._representatives == "box":
+    if fsg._g_point_selection == "box":
         g = _get_reciprocal_lattice_vectors(supercell_mesh)
         source = np.arange(len(g))
         weight = np.ones(len(g))
     else:
-        g, source, weight = get_shortest_representatives(
+        g, source, weight = _get_shortest_g_points_with_source(
             supercell_mesh, fsg._supercell_lattice
         )
-    if rotation is not None:
-        g = g @ np.array(np.rint(np.linalg.inv(rotation)), dtype="int64")
+    g = g @ np.array(np.rint(np.linalg.inv(rotation)), dtype="int64")
     i_F = fsg._get_bin_indices(g)
+    phase = np.exp(-2j * np.pi * g @ np.asarray(translation, dtype="double"))
     Fs = []
     for c in coefficients:
-        w = c.ravel()[source] * weight
-        if translation is not None:
-            w = w * np.exp(-2j * np.pi * g @ np.asarray(translation, dtype="double"))
+        w = c.ravel()[source] * weight * phase
         F = np.zeros(fsg._num_cells * np.prod(fsg._fft_mesh), dtype="complex128")
         np.add.at(F, i_F, w)
         Fs.append(F.reshape(fsg._num_cells, *fsg._fft_mesh[::-1]))
     return Fs
 
 
-def _make_fsg(case: str, representatives: str, lang: str = "Rust"):
+def _make_fsg(case: str, g_point_selection: str, lang: str = "Rust"):
     p2s, shape, fft_mesh, rotation, translation, lattice = _cases[case]
     fsg = FourierSeriesOnGrid(
         fft_mesh,
         np.array(p2s, dtype="int64"),
-        representatives=representatives,
+        g_point_selection=g_point_selection,
         supercell_lattice=lattice,
         lang=lang,
     )
     return fsg, shape, rotation, translation, lattice
 
 
-@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("g_point_selection", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_sort_rows_by_bin_rust_equals_python(case: str, representatives: str):
-    """sort_rows_by_bin of phonors equals _sort_rows_by_bin_python.
+def test_sort_g_points_by_bin_rust_equals_python(case: str, g_point_selection: str):
+    """sort_g_points_by_bin of phonors equals _sort_g_points_by_bin_python.
 
     The g' of each bin are those whose i_F is the bin, in the order of the
-    chosen g.
+    selected g.
 
     """
-    fsg, shape, rotation, _, _ = _make_fsg(case, representatives)
-    g, _, _ = fsg._get_representatives(shape[::-1])
-    for W in (None, rotation):
-        g_sorted, bin_offsets = fsg._sort_rows_by_bin_rust(g, W)
-        g_sorted_python, bin_offsets_python = fsg._sort_rows_by_bin_python(g, W)
+    fsg, shape, rotation, _, _ = _make_fsg(case, g_point_selection)
+    g = fsg._get_mesh_data(shape[::-1]).g
+    for W in (np.eye(3, dtype="int64"), rotation):
+        g_sorted, bin_offsets = fsg._sort_g_points_by_bin_rust(g, W)
+        g_sorted_python, bin_offsets_python = fsg._sort_g_points_by_bin_python(g, W)
         np.testing.assert_array_equal(g_sorted, g_sorted_python)
         np.testing.assert_array_equal(bin_offsets, bin_offsets_python)
         assert len(bin_offsets) == len(fsg.qpoints) * np.prod(fsg._fft_mesh) + 1
@@ -637,9 +642,9 @@ def test_sort_rows_by_bin_rust_equals_python(case: str, representatives: str):
         np.testing.assert_array_equal(fsg._get_bin_indices(g_sorted), bins)
 
 
-@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("g_point_selection", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_bin_sorted_rust_equals_python(case: str, representatives: str):
+def test_bin_sorted_rust_equals_python(case: str, g_point_selection: str):
     """bin_sorted_supercell_fourier_coefficients equals its Python counterpart.
 
     Both add the g' of each bin in the order of g_sorted, so they are equal
@@ -648,22 +653,24 @@ def test_bin_sorted_rust_equals_python(case: str, representatives: str):
     used with the g' sorted for each of them.
 
     """
-    fsg, shape, _, translation, lattice = _make_fsg(case, representatives)
+    fsg, shape, _, translation, lattice = _make_fsg(case, g_point_selection)
     coefs = [_random_coefficients(shape, seed) for seed in (7, 8)]
-    _, _, source_weight = fsg._get_representatives(shape[::-1])
-    g, _, _ = fsg._get_representatives(shape[::-1])
-    t_case = np.array(translation if translation is not None else [0.1, 0.2, 0.3])
+    mesh_data = fsg._get_mesh_data(shape[::-1])
+    source_weight = mesh_data.source_weight
+    g = mesh_data.g
+    t_case = np.array(translation if np.any(translation) else [0.1, 0.2, 0.3])
+    zero = np.zeros(3)
     for W in _get_lattice_symmetries(lattice):
-        g_sorted, bin_offsets = fsg._sort_rows_by_bin_rust(g, W)
-        for t in (None, t_case):
+        g_sorted, bin_offsets = fsg._sort_g_points_by_bin_rust(g, W)
+        for t in (zero, t_case):
             Fs_rust = bin_sorted_supercell_fourier_coefficients(
-                coefs, g_sorted, source_weight, bin_offsets, rotation=W, translation=t
+                coefs, g_sorted, source_weight, bin_offsets, W, t
             )
             Fs_python = _bin_sorted_coefficients_python(
-                coefs, g_sorted, source_weight, bin_offsets, rotation=W, translation=t
+                coefs, g_sorted, source_weight, bin_offsets, W, t
             )
             for F_rust, F_python in zip(Fs_rust, Fs_python, strict=True):
-                if t is None:
+                if t is zero:
                     np.testing.assert_array_equal(F_rust, F_python)
                 else:
                     np.testing.assert_allclose(
@@ -671,21 +678,24 @@ def test_bin_sorted_rust_equals_python(case: str, representatives: str):
                     )
 
 
-@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("g_point_selection", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_rows_closed_rust_equals_python(case: str, representatives: str):
-    """rows_closed_under_rotation of phonors equals its Python counterpart."""
-    fsg, shape, _, _, lattice = _make_fsg(case, representatives)
+def test_g_points_closed_rust_equals_python(case: str, g_point_selection: str):
+    """g_points_closed_under_rotation of phonors equals its Python counterpart."""
+    fsg, shape, _, _, lattice = _make_fsg(case, g_point_selection)
     supercell_mesh = np.array(shape[::-1], dtype="int64")
-    g, source_offsets, _ = fsg._get_representatives(shape[::-1])
+    mesh_data = fsg._get_mesh_data(shape[::-1])
+    g, source_offsets = mesh_data.g, mesh_data.source_offsets
     for W in _get_lattice_symmetries(lattice):
-        assert rows_closed_under_rotation(
+        assert g_points_closed_under_rotation(
             g, source_offsets, supercell_mesh, W
-        ) == _rows_closed_under_rotation_python(g, source_offsets, supercell_mesh, W)
+        ) == _g_points_closed_under_rotation_python(
+            g, source_offsets, supercell_mesh, W
+        )
 
 
-def test_rows_closed_under_rotation_examples():
-    """Closed and not closed chosen g.
+def test_g_points_closed_under_rotation_examples():
+    """Closed and not closed selected g.
 
     The shortest g of a mesh with the symmetry of the lattice are closed under
     all its rotations.  For the mesh (4, 4, 6) of a cubic lattice and the
@@ -697,53 +707,56 @@ def test_rows_closed_under_rotation_examples():
     fsg = FourierSeriesOnGrid(
         [4, 4, 3],
         np.diag([2, 2, 1]),
-        representatives="shortest",
+        g_point_selection="shortest",
         supercell_lattice=_hexagonal,
     )
     rotations = _get_lattice_symmetries(_hexagonal)
     assert len(rotations) == 24
-    assert all(fsg.rows_closed_under_rotation((6, 6, 5), W) for W in rotations)
-    assert not all(fsg.rows_closed_under_rotation((6, 5, 5), W) for W in rotations)
+    assert all(fsg.g_points_closed_under_rotation((6, 6, 5), W) for W in rotations)
+    assert not all(fsg.g_points_closed_under_rotation((6, 5, 5), W) for W in rotations)
 
     fsg = FourierSeriesOnGrid(
         [2, 2, 2], np.eye(3, dtype="int64"), "shortest", supercell_lattice=_cubic
     )
-    g, _, _ = fsg._get_representatives((4, 4, 6))
-    rows = {tuple(row) for row in g}
-    assert (0, 0, 3) in rows and (3, 0, 0) not in rows
+    g = fsg._get_mesh_data((4, 4, 6)).g
+    g_points = {tuple(point) for point in g}
+    assert (0, 0, 3) in g_points and (3, 0, 0) not in g_points
     swap13 = np.array([[0, 0, 1], [0, 1, 0], [1, 0, 0]])
-    assert not fsg.rows_closed_under_rotation((4, 4, 6), swap13)
-    assert fsg.rows_closed_under_rotation((4, 4, 6), None)
+    assert not fsg.g_points_closed_under_rotation((4, 4, 6), swap13)
+    assert fsg.g_points_closed_under_rotation((4, 4, 6), np.eye(3, dtype="int64"))
 
     fsg_box = FourierSeriesOnGrid([2, 2, 2], np.eye(3, dtype="int64"))
     minus = -np.eye(3, dtype="int64")
-    assert not fsg_box.rows_closed_under_rotation((4, 4, 4), minus)
-    assert fsg_box.rows_closed_under_rotation((5, 5, 5), minus)
+    assert not fsg_box.g_points_closed_under_rotation((4, 4, 4), minus)
+    assert fsg_box.g_points_closed_under_rotation((5, 5, 5), minus)
 
 
 @pytest.mark.parametrize("lang", ["Rust", "Python"])
-@pytest.mark.parametrize("representatives", ["box", "shortest"])
+@pytest.mark.parametrize("g_point_selection", ["box", "shortest"])
 @pytest.mark.parametrize("case", _cases)
-def test_bin_coefficients_equal_definition(case: str, representatives: str, lang: str):
+def test_bin_coefficients_equal_definition(
+    case: str, g_point_selection: str, lang: str
+):
     """F_q(Kbar) equal the term-by-term sum for all rotations of the lattice.
 
-    For a rotation under which the chosen g are not closed, the g' are sorted
-    for it and added in the order of the chosen g, as in the definition, so
+    For a rotation under which the selected g are not closed, the g' are sorted
+    for it and added in the order of the selected g, as in the definition, so
     the results are equal without the translation.  For the other rotations,
-    the chosen g sorted once are used, and the terms are added in another
+    the selected g sorted once are used, and the terms are added in another
     order.
 
     """
-    fsg, shape, _, translation, lattice = _make_fsg(case, representatives, lang)
+    fsg, shape, _, translation, lattice = _make_fsg(case, g_point_selection, lang)
     coefs = [_random_coefficients(shape, seed) for seed in (13, 14)]
-    t_case = np.array(translation if translation is not None else [0.1, 0.2, 0.3])
+    t_case = np.array(translation if np.any(translation) else [0.1, 0.2, 0.3])
+    zero = np.zeros(3)
     for W in _get_lattice_symmetries(lattice):
-        is_closed = fsg.rows_closed_under_rotation(shape[::-1], W)
-        for t in (None, t_case):
+        is_closed = fsg.g_points_closed_under_rotation(shape[::-1], W)
+        for t in (zero, t_case):
             Fs = fsg._bin_coefficients(coefs, W, t)
             refs = _bin_by_definition(fsg, coefs, W, t)
             for F, ref in zip(Fs, refs, strict=True):
-                if t is None and not is_closed:
+                if t is zero and not is_closed:
                     np.testing.assert_array_equal(F, ref)
                 else:
                     np.testing.assert_allclose(
@@ -770,14 +783,16 @@ def test_evaluate_equals_direct_sum_for_all_rotations(
     fsg = FourierSeriesOnGrid(
         fft_mesh,
         p2s,
-        representatives="shortest",
+        g_point_selection="shortest",
         supercell_lattice=_hexagonal,
         lang=lang,
     )
     coefs = [_random_coefficients(shape, 15)]
     grid_points, _ = get_grid_points(fft_mesh, p2s)
     rotations = _get_lattice_symmetries(_hexagonal)
-    num_closed = sum(fsg.rows_closed_under_rotation(shape[::-1], W) for W in rotations)
+    num_closed = sum(
+        fsg.g_points_closed_under_rotation(shape[::-1], W) for W in rotations
+    )
     assert num_closed == (24 if shape[1] == shape[2] else 8)
     for W in rotations:
         x = (grid_points - translation) @ np.linalg.inv(W).T
@@ -788,25 +803,31 @@ def test_evaluate_equals_direct_sum_for_all_rotations(
         )
 
 
-def test_rows_sorted_once_are_cached():
-    """The chosen g sorted once are made once for each mesh.
+def test_mesh_data_are_made_once_for_each_mesh():
+    """The data of a mesh are made once and made again when the mesh changes.
 
-    For the rotations under which the chosen g are closed, the cached g are
-    returned; for the others, the g' are sorted for the rotation.
+    For the rotations under which the selected g are closed, g_sorted of the
+    data of the mesh are returned; for the others, the g' are sorted for the
+    rotation.
 
     """
     fsg = FourierSeriesOnGrid(
         [4, 4, 3], np.diag([2, 2, 1]), "shortest", supercell_lattice=_hexagonal
     )
     rotations = _get_lattice_symmetries(_hexagonal)
+    made = []
     for shape in [(5, 6, 6), (5, 5, 6)]:
         coefs = [_random_coefficients(shape, 16)]
+        mesh_data = fsg._get_mesh_data(shape[::-1])
         for W in rotations:
-            fsg._bin_coefficients(coefs, W, None)
-            g_sorted, _ = fsg._get_rows_sorted_by_bin(shape[::-1], W)
-            cached = fsg._sorted_cache[shape[::-1]][0]
-            assert (g_sorted is cached) == fsg.rows_closed_under_rotation(
-                shape[::-1], W
+            fsg._bin_coefficients(coefs, W, np.zeros(3))
+            assert fsg._get_mesh_data(shape[::-1]) is mesh_data
+            g_sorted, _ = fsg._get_g_points_sorted_by_bin(shape[::-1], W)
+            assert (g_sorted is mesh_data.g_sorted) == (
+                fsg.g_points_closed_under_rotation(shape[::-1], W)
             )
-    assert len(fsg._sorted_cache) == 2
-    assert len(fsg._closed_cache) == 2 * len(rotations)
+        assert len(mesh_data.is_closed) == len(rotations)
+        made.append(mesh_data)
+    assert made[0] is not made[1]
+    assert made[0].supercell_mesh == (6, 6, 5)
+    assert made[1].supercell_mesh == (6, 5, 5)
