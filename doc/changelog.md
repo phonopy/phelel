@@ -13,9 +13,23 @@
   element-wise steps, which ran on one core, run in parallel in phonors. The
   results differ from before by rounding errors only. This needs phonors with
   these steps, which is not released yet.
+- With `--dv-evaluation-method shortest` (the default), the derivative of the
+  local potential is faster. The Fourier coefficients are sorted once, instead
+  of once for each symmetry operation, when the FFT mesh of the supercell has
+  the symmetry of the supercell. Otherwise they are sorted for each operation
+  as before for the rotations that need it, and a message tells how many
+  rotations these are. The results differ from before by rounding errors only.
+  This needs phonors with `sort_g_points_by_bin`, which is not released yet.
 - `LocalPotentialInterpolationNUFFT` of `phelel.base.local_potential` is
   renamed `DLocalPotentialFit`, after `DDijQijFit`. NUFFT is no longer used by
   default.
+- In `phelel.base.fourier_series`, the parameter `representatives` of
+  `FourierSeriesOnGrid` is renamed `g_point_selection`, and
+  `get_shortest_representatives` is renamed `get_shortest_g_points`, which
+  returns `(g, source_offsets)` instead of `(g, source, weight)`. `rotation`
+  and `translation` of `FourierSeriesOnGrid.evaluate` and
+  `FourierSeriesOnGrid.get_phi` have no default. For the function itself, give
+  the identity and zero.
 
 ## Nov-2-2026: Version 0.18.1
 

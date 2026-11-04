@@ -312,6 +312,49 @@ def test_run_without_symmetry(capsys: pytest.CaptureFixture, dv_evaluation_metho
     assert capsys.readouterr().out == ""
 
 
+@pytest.mark.parametrize(
+    "mesh,num_sorted_each_time", [((10, 8, 6), 40), ((8, 8, 8), 0)]
+)
+def test_run_prints_rotations_sorted_each_time(
+    capsys: pytest.CaptureFixture, mesh: tuple[int, int, int], num_sorted_each_time: int
+):
+    """With verbose, the rotations that need sorting each time are counted.
+
+    The 48 rotations of the cubic supercell of diamond are signed permutations
+    of the axes.  The shortest g of the mesh (6, 8, 10) are closed only under
+    the eight that do not exchange axes, and those of (8, 8, 8) under all.
+    The message is printed once.
+
+    """
+    phe = phelel.load(cwd / ".." / "phelel_disp_C111.yaml")
+    supercell = phe.supercell
+    u = 0.01
+    V_loc_per = np.zeros((1,) + mesh, dtype="complex128")
+    V_loc_disp = (u * _anisotropic_function(_mesh_fractions(mesh)))[None].astype(
+        "complex128"
+    )
+    dlp = DLocalPotential(
+        [4, 4, 4],
+        phe.p2s_matrix,
+        supercell,
+        atom_indices=np.array([0]),
+        dv_evaluation_method="shortest",
+        verbose=True,
+    )
+    dlp.run(V_loc_per, [V_loc_disp], [{"number": 0, "displacement": [u, 0, 0]}])
+    out = capsys.readouterr().out
+    if num_sorted_each_time:
+        message = (
+            f"For {num_sorted_each_time} of the 48 rotations of the supercell, the "
+            "Fourier coefficients of dV are sorted for each operation, which is "
+            "slower. This happens when the FFT mesh of the supercell "
+            f"{mesh[::-1]} does not have the symmetry of the supercell."
+        )
+        assert out.count(message) == 1
+    else:
+        assert "sorted for each operation" not in out
+
+
 def _model_potential_gradient(
     frac: np.ndarray, position: np.ndarray, lattice: np.ndarray, i_dir: int
 ) -> np.ndarray:

@@ -258,7 +258,7 @@ class DLocalPotentialFit:
             self._fourier_series = FourierSeriesOnGrid(
                 fft_mesh,
                 self._p2s_matrix,
-                representatives="shortest",
+                g_point_selection="shortest",
                 supercell_lattice=supercell.cell,
                 lang=lang,
             )
@@ -274,6 +274,7 @@ class DLocalPotentialFit:
         # Private #
         ###########
         self._finufft_plan = None
+        self._mesh_message_printed = False
 
     @property
     def p2s_matrix(self):
@@ -318,6 +319,9 @@ class DLocalPotentialFit:
         atoms, sitesym_sets = select_equivalent_atoms(
             disp_atom, self._symmetry, self._atom_indices_in
         )
+        if self._verbose and not self._mesh_message_printed:
+            self._print_rotations_sorted_each_time(delta_Vs[0].dV.shape[1:][::-1])
+            self._mesh_message_printed = True
 
         ncdij = delta_Vs[0].dV.shape[0]
         dVdu = np.zeros(
@@ -331,6 +335,43 @@ class DLocalPotentialFit:
                 print("Computed dV/du by displaced atom %d" % (atoms[i_atom] + 1))
         self._atom_indices_returned = atoms
         self._dVdu = dVdu
+
+    def _print_rotations_sorted_each_time(
+        self, supercell_mesh: tuple[int, ...]
+    ) -> None:
+        """Print how many rotations need the coefficients sorted each time.
+
+        With dv_evaluation_method="shortest", the Fourier coefficients are
+        sorted by bin once for the rotations under which the shortest g are
+        closed (FourierSeriesOnGrid.g_points_closed_under_rotation), and for each
+        operation for the other rotations, which is slower.  This happens when
+        the FFT mesh of the supercell does not have the symmetry of the
+        supercell.  The results are correct in both cases.
+
+        Parameters
+        ----------
+        supercell_mesh : tuple of int
+            FFT mesh of the supercell (N^s_1, N^s_2, N^s_3).
+
+        """
+        if self._dv_evaluation_method != "shortest":
+            return
+        assert self._fourier_series is not None
+        rotations = np.unique(
+            self._symmetry.symmetry_operations["rotations"].reshape(-1, 9), axis=0
+        ).reshape(-1, 3, 3)
+        num_sorted_each_time = sum(
+            not self._fourier_series.g_points_closed_under_rotation(supercell_mesh, r)
+            for r in rotations
+        )
+        if num_sorted_each_time:
+            mesh = tuple(int(n) for n in supercell_mesh)
+            print(
+                f"For {num_sorted_each_time} of the {len(rotations)} rotations of the "
+                "supercell, the Fourier coefficients of dV are sorted for each "
+                "operation, which is slower. This happens when the FFT mesh of the "
+                f"supercell {mesh} does not have the symmetry of the supercell."
+            )
 
     def _run_at_atom(
         self, delta_Vs: list[DeltaLocalPotential], sitesyms: NDArray
