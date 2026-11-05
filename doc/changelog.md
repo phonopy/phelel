@@ -2,6 +2,13 @@
 
 # Change Log
 
+## Unreleased
+
+- phonopy 4.9.0 or later is required.
+- `get_shortest_g_points` of `phelel.base.fourier_series` calls
+  `relocate_BZ_grid_address` of phonopy. The selected g-points are the same as
+  before, but the g-points with the same source can come in a different order.
+
 ## Nov-4-2026: Version 0.19.0
 
 - phonors 0.8.0 or later and earlier than 0.9 is required.
