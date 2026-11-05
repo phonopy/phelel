@@ -56,10 +56,10 @@ from typing import Literal
 import numpy as np
 import scipy.fft
 from numpy.typing import NDArray
-from phonopy.structure.cells import determinant, get_reduced_bases
+from phonopy.phonon.grid import relocate_BZ_grid_address
+from phonopy.structure.cells import determinant
 from phonors import (
     bin_sorted_supercell_fourier_coefficients,
-    bz_grid_addresses,
     g_points_closed_under_rotation,
     snf3x3,
     sort_g_points_by_bin,
@@ -775,15 +775,14 @@ def get_shortest_g_points(
 
     These are the points of the mesh in the Brillouin zone of the period
     lattice {N^s t}, including those on its surface, and they are computed by
-    phonors.bz_grid_addresses with the mesh N^s.  phonors takes two squared
-    lengths as equal when they differ by less than 0.01 max_i |r_i|^2 /
-    (N^s_i)^2, computed from the basis vectors r_i of the period lattice that
-    it is given.  For a skewed basis of the supercell, N^s_k b_k are long and
-    this tolerance can be larger than the difference to the next longer
-    vectors, so a Delaunay-reduced basis, the rows of T B with the rows
-    N^s_k b_k of B and the transformation matrix T (see _get_delaunay_tmat),
-    is given with (T^T)^-1.  Then the mesh and the returned g stay in the
-    coordinates g.
+    relocate_BZ_grid_address of phonopy with the mesh N^s and the basis vectors
+    N^s_k b_k of the period lattice.  It searches them with the Niggli-reduced
+    basis vectors r_i of the period lattice, and takes two squared lengths as
+    equal when they differ by less than 0.01 max_i |r_i|^2 / (N^s_i)^2.  For a
+    skewed basis of the supercell, N^s_k b_k are long, and this tolerance
+    computed from them could be larger than the difference to the next longer
+    vectors.  The mesh and the returned g stay in the coordinates g.  The order
+    of the g with the same source follows the search in the reduced basis.
 
     Parameters
     ----------
@@ -804,42 +803,16 @@ def get_shortest_g_points(
         dtype='int64', shape=(num, 3)
     source_offsets : ndarray
         The g with the source s are g[source_offsets[s]:source_offsets[s + 1]].
-        This is bz_map of phonors.bz_grid_addresses with the dense format.
+        This is bz_map of relocate_BZ_grid_address with store_dense_gp_map=True.
         dtype='int64', shape=(N^s_1 N^s_2 N^s_3 + 1,)
 
     """
     mesh = np.array(mesh, dtype="int64")
     period_lattice = np.diag(mesh) @ np.linalg.inv(supercell_lattice).T
-    tmat = _get_delaunay_tmat(period_lattice)
-    tmat_inv_t = np.array(np.rint(np.linalg.inv(tmat.T)), dtype="int64")
-    addresses, bz_map, _ = bz_grid_addresses(
+    addresses, bz_map, _ = relocate_BZ_grid_address(
         mesh,
-        tmat_inv_t,
-        np.zeros(3, dtype="int64"),
-        np.array((tmat @ period_lattice).T, dtype="double", order="C"),
-        2,
+        np.eye(3, dtype="int64"),
+        period_lattice.T,
+        store_dense_gp_map=True,
     )
-    return np.array(addresses, dtype="int64"), np.array(bz_map, dtype="int64")
-
-
-def _get_delaunay_tmat(period_lattice: NDArray) -> NDArray[np.int64]:
-    """Return the transformation matrix T with T period_lattice Delaunay-reduced.
-
-    Parameters
-    ----------
-    period_lattice : ndarray
-        Basis vectors N^s_k b_k of the period lattice in row vectors.
-        dtype='double', shape=(3, 3)
-
-    Returns
-    -------
-    ndarray
-        Unimodular transformation matrix T.
-        dtype='int64', shape=(3, 3)
-
-    """
-    reduced = get_reduced_bases(period_lattice, method="delaunay")
-    tmat = np.array(np.rint(reduced @ np.linalg.inv(period_lattice)), dtype="int64")
-    if abs(determinant(tmat)) != 1 or not np.allclose(tmat @ period_lattice, reduced):
-        raise RuntimeError("Delaunay reduction of the period lattice failed.")
-    return tmat
+    return addresses, bz_map
