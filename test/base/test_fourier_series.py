@@ -8,8 +8,10 @@ from collections.abc import Sequence
 import numpy as np
 import pytest
 from numpy.typing import NDArray
+from phonopy.structure.lattice_reduction import delaunay_reduce, niggli_reduce
 from phonors import (
     bin_sorted_supercell_fourier_coefficients,
+    bz_grid_addresses,
     g_points_closed_under_rotation,
 )
 
@@ -381,8 +383,7 @@ def test_shortest_equals_box_on_mesh(
 
 
 # Bases of the orthorhombic and hexagonal lattices multiplied by unimodular
-# matrices, for which the Delaunay reduction changes the basis of the period
-# lattice.
+# matrices, for which the reduction changes the basis of the period lattice.
 _skewed_orthorhombic = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]]) @ np.diag(
     [1.0, 1.3, 1.7]
 )
@@ -510,7 +511,8 @@ def test_shortest_g_points_are_closest(shape: tuple[int, int, int], lattice: NDA
     """
     mesh = np.array(shape[::-1])
     period_lattice = np.diag(mesh) @ np.linalg.inv(lattice).T
-    W = fourier_series._get_delaunay_tmat(period_lattice) @ np.diag(mesh)
+    _, tmat = delaunay_reduce(period_lattice)
+    W = tmat.T @ np.diag(mesh)
     v = np.array(list(itertools.product((-1, 0, 1), repeat=3))) @ W
     metric = np.linalg.inv(lattice @ lattice.T)
     g, _ = get_shortest_g_points(shape[::-1], lattice)
@@ -520,10 +522,50 @@ def test_shortest_g_points_are_closest(shape: tuple[int, int, int], lattice: NDA
     assert (others.min(axis=1) >= lengths * (1 - 1e-8)).all()
 
 
-@pytest.mark.parametrize("is_reduced", [True, False])
-def test_shortest_g_points_path_superbase(
-    is_reduced: bool, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "shape,lattice",
+    [
+        ((6, 4, 5), _random_skewed),
+        ((6, 5, 4), _shears @ _cubic),
+        ((6, 6, 6), _shears @ _cubic),
+        ((6, 6, 6), _shears @ _hexagonal),
+    ],
+)
+def test_shortest_g_points_do_not_depend_on_reduction(
+    shape: tuple[int, int, int], lattice: NDArray
 ):
+    """The g of each source are the same when searched in a Delaunay-reduced basis.
+
+    The search of get_shortest_g_points is made in the Niggli-reduced basis of
+    the period lattice.  The cases are those where the two reduced bases differ
+    and some sources have several g.  Only the order of the g of a source may
+    differ.
+
+    """
+    mesh = np.array(shape[::-1], dtype="int64")
+    period_lattice = np.diag(mesh) @ np.linalg.inv(lattice).T
+    delaunay_basis, tmat = delaunay_reduce(period_lattice)
+    niggli_basis, _ = niggli_reduce(period_lattice)
+    assert not np.allclose(delaunay_basis, niggli_basis)
+
+    g_ref, source_offsets_ref, _ = bz_grid_addresses(
+        mesh,
+        np.array(np.rint(np.linalg.inv(tmat)), dtype="int64"),
+        np.zeros(3, dtype="int64"),
+        np.array(delaunay_basis.T, dtype="double", order="C"),
+        2,
+    )
+    g, source_offsets = get_shortest_g_points(mesh, lattice)
+    counts = np.diff(source_offsets)
+    assert (counts > 1).any()
+    np.testing.assert_array_equal(source_offsets, source_offsets_ref)
+    source = np.repeat(np.arange(len(counts)), counts)
+    np.testing.assert_array_equal(
+        _sorted_rows(np.c_[source, g]), _sorted_rows(np.c_[source, g_ref])
+    )
+
+
+def test_shortest_g_points_path_superbase():
     """All the closest points are selected with the superbase of the path type.
 
     The period lattice {N^s n} is the cubic lattice with the basis
@@ -532,16 +574,9 @@ def test_shortest_g_points_path_superbase(
     g = (N/2, 0, N/2) is (w_1 + w_3) / 2 = (-1/2, 1/2, 1/2), the center of a cube
     of the lattice, so the shortest G are the eight (+-1/2, +-1/2, +-1/2).  One
     of them is G - w_1 - w_2 - 2 w_3, with the coefficient 2 outside
-    {-1, 0, 1}.  The search is made in this basis when the reduction, which
-    gives an orthogonal basis, is replaced by the identity.
+    {-1, 0, 1}.
 
     """
-    if not is_reduced:
-        monkeypatch.setattr(
-            fourier_series,
-            "_get_delaunay_tmat",
-            lambda _: np.eye(3, dtype="int64"),
-        )
     n = 4
     shape = (n, n, n)
     path = np.array([[-1.0, 1.0, 0.0], [1.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
