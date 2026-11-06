@@ -317,7 +317,9 @@ The force constants computed by finite differences are symmetrized by the symfc
 projector, and the symmetrized force constants are written to
 `phelel_params.hdf5`. With `-v`, the drift of the force constants is printed
 before and after the symmetrization, and the log of symfc is printed between
-these two lines.
+these two lines. With `--no-fc-symmetry`, the force constants are not
+symmetrized, and `Force constants are not symmetrized.` is printed after the FFT
+mesh (see {ref}`phelel_no_fc_symmetry_option`).
 
 (velph_phelel_phonopy_subcommand)=
 ### `velph phelel phonopy`

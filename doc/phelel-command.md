@@ -275,6 +275,17 @@ inverse FFTs and the steps done by phonors also run on all the CPU cores.
 In a configuration file, `DV_EVALUATION_METHOD = box` is the same as
 `--dv-evaluation-method box`.
 
+(phelel_no_fc_symmetry_option)=
+### `--no-fc-symmetry`
+
+The force constants computed by finite differences are symmetrized by the symfc
+projector by default. With `--no-fc-symmetry`, they are not symmetrized, as in
+version 0.19.0 and earlier. The derivatives of the local potentials and PAW
+strengths do not depend on this option.
+
+In a configuration file, `FC_SYMMETRY = .false.` is the same as
+`--no-fc-symmetry`.
+
 ### `--config`
 
 The settings are read from the configuration file given by `--config`, e.g.,

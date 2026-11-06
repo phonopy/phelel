@@ -15,6 +15,7 @@ class PhelelSettings(Settings):
     def __init__(self):
         """Init method."""
         super().__init__(load_phonopy_yaml=False)
+        self.fc_symmetry = True
         self.create_derivatives = None
         self.fft_mesh_numbers = None
         self.finufft_eps = None

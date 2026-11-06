@@ -426,6 +426,47 @@ def test_differentiate_with_dv_evaluation_method(
     np.testing.assert_allclose(dVdu["box"], dVdu["shortest"], rtol=0, atol=1e-4 * scale)
 
 
+def test_differentiate_no_fc_symmetry(
+    nacl_velph_toml: Callable[[], dict],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """With --no-fc-symmetry, only the force constants change.
+
+    The option is printed, and with -v, only the drift before the symmetrization
+    is printed.  dV/du and dDij/du do not depend on the force constants.
+
+    """
+    data = nacl_velph_toml()
+    results = {}
+    for option in ([], ["--no-fc-symmetry"]):
+        work_dir = tmp_path / ("no_fc_symmetry" if option else "default")
+        work_dir.mkdir()
+        (work_dir / "velph.toml").write_text(tomli_w.dumps(data))
+        shutil.copytree(cwd / "C111" / "phelel", work_dir / "phelel")
+        shutil.copy(
+            cwd / "C111" / "phelel_disp_C111.yaml",
+            work_dir / "phelel" / "phelel_disp.yaml",
+        )
+        monkeypatch.chdir(work_dir)
+        result = CliRunner().invoke(
+            cmd_root, ["phelel", "differentiate", "-v", *option]
+        )
+        assert result.exit_code == 0, result.output
+        lines = result.output.splitlines()
+        assert ("Force constants are not symmetrized." in lines) == bool(option)
+        drift_lines = [line for line in lines if line.startswith("Max drift")]
+        assert len(drift_lines) == (1 if option else 2)
+        with h5py.File(work_dir / "phelel" / "phelel_params.hdf5") as f:
+            results[bool(option)] = {
+                key: f[key][:] for key in ("force_constants", "dVdu", "dDijdu")
+            }
+    np.testing.assert_array_equal(results[True]["dVdu"], results[False]["dVdu"])
+    np.testing.assert_array_equal(results[True]["dDijdu"], results[False]["dDijdu"])
+    fc_difference = results[True]["force_constants"] - results[False]["force_constants"]
+    assert np.abs(fc_difference).max() > 1e-8
+
+
 def test_differentiate_without_supercell_directory(
     nacl_velph_toml: Callable[[], dict],
     tmp_path: pathlib.Path,

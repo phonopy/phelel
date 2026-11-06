@@ -39,6 +39,8 @@ class MockArgs:
     is_plusminus_displacements: bool = False
     fft_mesh_numbers: str | None = None
     magmoms: Sequence[str] | None = None
+    fc_symmetry: bool | None = None
+    subtract_rfs: bool = False
 
     def __iter__(self):
         """Make self iterable to support in."""
@@ -159,6 +161,47 @@ def test_phelel_script_create_derivatives(with_BORN_file: bool):
 
         finally:
             os.chdir(original_cwd)
+
+
+@pytest.mark.parametrize("fc_symmetry", [None, False])
+def test_phelel_script_create_derivatives_fc_symmetry(
+    fc_symmetry: bool | None,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+):
+    """The force constants are symmetrized unless --no-fc-symmetry is given.
+
+    fc_symmetry=False is what --no-fc-symmetry gives.  The sum of the force
+    constants over the second atom vanishes only after the symmetrization.  The
+    forces of this data have a drift only after subtracting the residual forces.
+
+    """
+    monkeypatch.chdir(tmp_path)
+    dirname = cwd / ".." / "interface" / "vasp"
+    argparse_control = _get_argparse_control(
+        "run",
+        cell_filename=str(dirname / "phelel_disp_C111.yaml"),
+        create_derivatives=[
+            str(dirname / "C111_disp-000"),
+            str(dirname / "C111_disp-001"),
+        ],
+        fft_mesh_numbers="1 1 1",
+        fc_symmetry=fc_symmetry,
+        subtract_rfs=True,
+    )
+    with pytest.raises(SystemExit) as excinfo:
+        main(**argparse_control)
+    assert excinfo.value.code == 0
+    with h5py.File("phelel_params.hdf5") as f:
+        drift = np.abs(f["force_constants"][:].sum(axis=1)).max()
+    message = "Force constants symmetrization: off"
+    if fc_symmetry is None:
+        assert drift < 1e-10
+        assert message not in capsys.readouterr().out
+    else:
+        assert drift > 1e-7
+        assert message in capsys.readouterr().out
 
 
 def test_phelel_script_create_derivatives_nac_from_phelel_disp_yaml(
@@ -789,6 +832,8 @@ def _get_argparse_control(
     filename: Sequence[str] = (),
     conf_filename: str | None = None,
     magmoms: Sequence[str] | None = None,
+    fc_symmetry: bool | None = None,
+    subtract_rfs: bool = False,
 ):
     # Mock of ArgumentParser.args.
     mockargs = MockArgs(
@@ -802,6 +847,8 @@ def _get_argparse_control(
         is_plusminus_displacements=is_plusminus_displacements,
         fft_mesh_numbers=fft_mesh_numbers,
         magmoms=magmoms,
+        fc_symmetry=fc_symmetry,
+        subtract_rfs=subtract_rfs,
     )
     return {"args": mockargs, "mode": mode}
 

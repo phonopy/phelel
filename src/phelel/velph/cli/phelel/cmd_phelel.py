@@ -105,6 +105,13 @@ def cmd_generate(toml_filename: str):
     ),
 )
 @click.option(
+    "--no-fc-symmetry",
+    "no_fc_symmetry",
+    is_flag=True,
+    default=False,
+    help="Do not symmetrize the force constants computed by finite differences.",
+)
+@click.option(
     "-v",
     "verbose",
     is_flag=True,
@@ -116,6 +123,7 @@ def cmd_differentiate(
     toml_filename: str,
     encut: float | None,
     dv_evaluation_method: Literal["shortest", "box", "finufft"] | None,
+    no_fc_symmetry: bool,
     verbose: bool,
 ) -> None:
     """Calculate derivatives and write phelel_params.hdf5.
@@ -142,6 +150,7 @@ def cmd_differentiate(
         # log_level=1 shows the progress of the derivatives, and 2 also the
         # drift of the force constants.
         log_level=2 if verbose else 1,
+        symmetrize_fc=not no_fc_symmetry,
     )
     phe.fft_mesh = get_fft_mesh(project, phe.primitive.cell, encut=encut)
     if encut is None:
@@ -150,6 +159,8 @@ def cmd_differentiate(
         click.echo(f"FFT mesh: {phe.fft_mesh} (encut={encut}).")
     if dv_evaluation_method is not None:
         click.echo(f"dV evaluation method: {dv_evaluation_method}.")
+    if no_fc_symmetry:
+        click.echo("Force constants are not symmetrized.")
 
     run_derivatives(phe, project_dir=project_dir, verbose=verbose)
     hdf5_filename.parent.mkdir(parents=True, exist_ok=True)
