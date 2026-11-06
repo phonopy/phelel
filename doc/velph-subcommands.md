@@ -311,8 +311,13 @@ Computing dDij/du and dqij/du of displaced atom 33...
 
 The lines after `Reading the VASP output files` show the progress of the
 derivatives, one line for each displaced atom. With `-v`, each VASP output file
-is also printed after it is read, and the drift of the force constants is
-printed.
+is also printed after it is read.
+
+The force constants computed by finite differences are symmetrized by the symfc
+projector, and the symmetrized force constants are written to
+`phelel_params.hdf5`. With `-v`, the drift of the force constants is printed
+before and after the symmetrization, and the log of symfc is printed between
+these two lines.
 
 (velph_phelel_phonopy_subcommand)=
 ### `velph phelel phonopy`

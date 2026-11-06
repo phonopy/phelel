@@ -476,8 +476,9 @@ def test_differentiate_progress(
 
     Without -v, the reading of the VASP output files and the derivatives of
     each displaced atom are printed.  With -v, the file that has been read and
-    the drift of the force constants are printed in addition, after
-    "Reading ...".  That each file is printed after it is read is tested by
+    the drift of the force constants before and after the symmetrization are
+    printed in addition, after "Reading ...".  That each file is printed after
+    it is read is tested by
     test_read_vasp_forces_prints_after_reading in
     test/interface/vasp/test_derivatives.py.
 
@@ -508,7 +509,7 @@ def test_differentiate_progress(
         'Forces were read from "phelel/disp-000/vasprun.xml.xz".',
         'Forces were read from "phelel/disp-001/vasprun.xml".',
     ]
-    is_drift = [line.startswith("Max drift of force constants") for line in lines]
+    is_drift = [line.startswith("Max drift") for line in lines]
     if not verbose:
         assert not any(line in lines for line in read_lines)
         assert not any(is_drift)
@@ -516,4 +517,9 @@ def test_differentiate_progress(
     reading = lines.index(progress[0])
     for line in read_lines:
         assert lines.index(line) > reading
-    assert any(is_drift)
+    drift_lines = [line for line, drift in zip(lines, is_drift, strict=True) if drift]
+    assert len(drift_lines) == 2
+    assert drift_lines[0].startswith("Max drift of force constants: ")
+    assert drift_lines[1].startswith(
+        "Max drift after symmetrization by symfc projector: "
+    )

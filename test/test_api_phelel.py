@@ -1,11 +1,13 @@
 """Test for Phelel class."""
 
+import itertools
 import pathlib
 import sys
 
 import h5py
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 from phonopy.file_IO import write_FORCE_SETS
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import apply_site_mixture
@@ -307,3 +309,138 @@ def test_phelel_dv_evaluation_method_finufft_not_installed(
             primitive_matrix="P",
             dv_evaluation_method="finufft",
         )
+
+
+def test_force_constants_keep_magnetic_symmetry():
+    """The symfc projector does not raise the symmetry lowered by magnetic moments.
+
+    The spring constants depend on the product of the magnetic moments, so the
+    force constants have only the symmetry of the operations of the magnetic
+    space group, whose time reversal is not applied.
+
+    """
+    magnetic_moments = np.array([1, -1, -1, 1, 0, 0, 0, 0], dtype=float)
+    unitcell = _get_NaCl_conventional_cell()
+    spring_force_constants = _get_spring_force_constants(
+        unitcell, 1 + 0.5 * np.outer(magnetic_moments, magnetic_moments)
+    )
+    unitcell.magnetic_moments = magnetic_moments
+    phe = _run_force_constants(unitcell, spring_force_constants)
+    assert len(phe.symmetry.symmetry_operations["rotations"]) == 64
+    np.testing.assert_allclose(
+        phe.force_constants, spring_force_constants, rtol=0, atol=1e-10
+    )
+
+
+def test_force_constants_without_symmetry():
+    """With is_symmetry=False, the symfc projector uses no crystal symmetry.
+
+    The force constants from random spring constants have no symmetry of the
+    crystal.  They have only the translational and permutation symmetries, which
+    the symfc projector imposes.
+
+    """
+    rng = np.random.default_rng(0)
+    spring_constants = rng.uniform(0.5, 1.5, (8, 8))
+    unitcell = _get_NaCl_conventional_cell()
+    spring_force_constants = _get_spring_force_constants(
+        unitcell, (spring_constants + spring_constants.T) / 2
+    )
+    phe = _run_force_constants(unitcell, spring_force_constants, is_symmetry=False)
+    assert len(phe.symmetry.symmetry_operations["rotations"]) == 1
+    np.testing.assert_allclose(
+        phe.force_constants, spring_force_constants, rtol=0, atol=1e-10
+    )
+
+
+def test_force_constants_with_symprec_larger_than_distortion():
+    """The symfc projector works with the symmetry found with symprec.
+
+    An atom is off its site by more than the default symprec of symfc, and by
+    less than the symprec given here.
+
+    """
+    spring_force_constants = _get_spring_force_constants(
+        _get_NaCl_conventional_cell(), np.ones((8, 8))
+    )
+    unitcell = _get_NaCl_conventional_cell()
+    positions = unitcell.scaled_positions
+    positions[0, 0] += 5e-4
+    unitcell.scaled_positions = positions
+    phe = _run_force_constants(unitcell, spring_force_constants, symprec=1e-2)
+    assert len(phe.symmetry.symmetry_operations["rotations"]) == 192
+    np.testing.assert_allclose(
+        phe.force_constants, spring_force_constants, rtol=0, atol=1e-10
+    )
+
+
+def _get_NaCl_conventional_cell() -> PhonopyAtoms:
+    """Return NaCl conventional unit cell."""
+    return PhonopyAtoms(
+        symbols=["Na"] * 4 + ["Cl"] * 4,
+        cell=np.eye(3) * 5.6,
+        scaled_positions=[
+            [0, 0, 0],
+            [0, 0.5, 0.5],
+            [0.5, 0, 0.5],
+            [0.5, 0.5, 0],
+            [0.5, 0.5, 0.5],
+            [0.5, 0, 0],
+            [0, 0.5, 0],
+            [0, 0, 0.5],
+        ],
+    )
+
+
+def _get_spring_force_constants(
+    unitcell: PhonopyAtoms, spring_constants: NDArray[np.double]
+) -> NDArray[np.double]:
+    """Return force constants of springs between atoms up to second neighbors.
+
+    The unit cell is taken as the supercell.  spring_constants has to be
+    symmetric.  The force constants have the translational and permutation
+    symmetries.
+
+    """
+    natom = len(unitcell)
+    force_constants = np.zeros((natom, natom, 3, 3))
+    for i, j in itertools.permutations(range(natom), 2):
+        for lattice_point in itertools.product((-1, 0, 1), repeat=3):
+            scaled_vector = (
+                unitcell.scaled_positions[j]
+                - unitcell.scaled_positions[i]
+                + lattice_point
+            )
+            vector = scaled_vector @ unitcell.cell
+            distance = np.linalg.norm(vector)
+            if distance < 4.5:
+                force_constants[i, j] -= (
+                    spring_constants[i, j] * np.outer(vector, vector) / distance**2
+                )
+    for i in range(natom):
+        force_constants[i, i] = -force_constants[i].sum(axis=0)
+    return force_constants
+
+
+def _run_force_constants(
+    unitcell: PhonopyAtoms,
+    spring_force_constants: NDArray[np.double],
+    symprec: float = 1e-5,
+    is_symmetry: bool = True,
+) -> Phelel:
+    """Return Phelel with force constants from forces of the spring model."""
+    phe = Phelel(
+        unitcell,
+        supercell_matrix=np.eye(3, dtype=int),
+        primitive_matrix=np.eye(3),
+        fft_mesh=[6, 6, 6],
+        symprec=symprec,
+        is_symmetry=is_symmetry,
+    )
+    phe.generate_displacements(distance=0.01)
+    forces = [
+        -spring_force_constants[:, first_atom["number"]] @ first_atom["displacement"]
+        for first_atom in phe._get_first_atoms()
+    ]
+    phe._prepare_phonon(forces=np.array(forces), show_drift=False)
+    return phe

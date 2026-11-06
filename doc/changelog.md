@@ -4,10 +4,18 @@
 
 ## Unreleased
 
-- phonopy 4.9.0 or later is required.
+- phonopy 4.10.0 or later and phono3py 4.10.0 or later are required.
 - `get_shortest_g_points` of `phelel.base.fourier_series` calls
   `relocate_BZ_grid_address` of phonopy. The selected g-points are the same as
   before, but the g-points with the same source can come in a different order.
+- The force constants computed by finite differences are symmetrized by the
+  symfc projector, as `phonopy.load` does. With magnetic moments, the operations
+  of the magnetic space group are used, and their time reversal is not applied.
+  With `is_symmetry=False`, only the translational and permutation symmetries
+  are imposed. Before, the force constants were not symmetrized. Therefore
+  `force_constants` in `phelel_params.hdf5` differ from those written by earlier
+  versions. With `-v`, `velph phelel differentiate` prints the drift of the
+  force constants after the symmetrization and the log of symfc.
 
 ## Nov-4-2026: Version 0.19.0
 

@@ -541,7 +541,8 @@ class Phelel:
         Note
         ----
         After calculation, temporary raw data may be deleted.
-        Force constants are created to have full matrix shape.
+        Force constants are created to have full matrix shape.  Those computed
+        by finite differences are symmetrized by the symfc projector.
 
         """
         if self.unmerged_unitcell is not None:
@@ -741,6 +742,13 @@ class Phelel:
                 fc_calculator_options=fc_calculator_options,
                 show_drift=show_drift,
             )
+            # As in phonopy.load.  The force constants fitted by symfc already
+            # have the symmetries.
+            if fc_calculator in (None, "traditional"):
+                ph.symmetrize_force_constants(
+                    show_drift=show_drift,
+                    use_symfc_projector=fc_calculator is None,
+                )
         except ForcesetsNotFoundError:
             if force_constants is not None:
                 ph.force_constants = force_constants
