@@ -45,6 +45,7 @@ def load(
     is_symmetry: bool = True,
     dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
     log_level: int = 0,
+    symmetrize_fc: bool = True,
 ) -> Phelel:
     """Loader function.
 
@@ -113,6 +114,9 @@ def load(
         points.  See Phelel.  Default is None, which is "shortest".
     log_level : int, optional
         Log level. 0 is most quiet. Default is 0.
+    symmetrize_fc : bool, optional
+        Symmetrize the force constants computed by finite differences by the
+        symfc projector or not. Default is True.
 
     """
     smat: Sequence[int] | Sequence[Sequence[int]] | NDArray | None
@@ -166,6 +170,7 @@ def load(
         dv_evaluation_method=dv_evaluation_method,
         log_level=log_level,
         site_mixture_scheme=site_mixture_scheme or "merge",
+        symmetrize_fc=symmetrize_fc,
     )
     if dataset:
         phelel.dataset = dataset

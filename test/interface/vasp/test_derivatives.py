@@ -134,6 +134,28 @@ def test_create_derivatives_C111_symmetrizes_force_constants():
     np.testing.assert_allclose(fc, fc.transpose(1, 0, 3, 2), atol=1e-10)
 
 
+def test_create_derivatives_C111_without_symmetrizing_force_constants():
+    """With symmetrize_fc=False, the force constants are not symmetrized.
+
+    They have to be those of Phonopy from the same forces, and the sum over the
+    second atom does not vanish.
+
+    """
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml", symmetrize_fc=False)
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    create_derivatives(phelel, dir_names, subtract_rfs=True)
+    ph = Phonopy(
+        phelel.unitcell,
+        supercell_matrix=phelel.supercell_matrix,
+        primitive_matrix=phelel.primitive_matrix,
+    )
+    ph.dataset = copy.deepcopy(phelel.dataset)
+    ph.produce_force_constants()
+    assert phelel.force_constants is not None and ph.force_constants is not None
+    np.testing.assert_array_equal(phelel.force_constants, ph.force_constants)
+    assert np.abs(phelel.force_constants.sum(axis=1)).max() > 1e-7
+
+
 @pytest.mark.parametrize("dataset_key", ["first_atoms", "displacements"])
 def test_create_derivatives_C111_phonon_supercell_C222(dataset_key: str):
     """Test creating derivatives with C-1x1x1 and the phonon supercell 2x2x2.
@@ -704,6 +726,7 @@ def _get_phelel_C111(
     phonon_supercell_matrix: NDArray | None = None,
     dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
     finufft_eps: float | None = None,
+    symmetrize_fc: bool = True,
 ) -> Phelel:
     phe_yml = PhelelYaml().read(cwd / phelel_yaml_filename)
     phelel = Phelel(
@@ -715,6 +738,7 @@ def _get_phelel_C111(
         dv_evaluation_method=dv_evaluation_method,
         finufft_eps=finufft_eps,
         log_level=1,
+        symmetrize_fc=symmetrize_fc,
     )
     phelel.dataset = phe_yml.dataset
     return phelel

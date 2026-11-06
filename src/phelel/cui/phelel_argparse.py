@@ -214,6 +214,13 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--no-fc-symmetry",
+        dest="fc_symmetry",
+        action="store_false",
+        default=None,
+        help="Do not symmetrize the force constants computed by finite differences",
+    )
+    parser.add_argument(
         "--srfs",
         "--subtract-residual-forces",
         dest="subtract_rfs",

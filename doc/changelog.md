@@ -16,6 +16,10 @@
   `force_constants` in `phelel_params.hdf5` differ from those written by earlier
   versions. With `-v`, `velph phelel differentiate` prints the drift of the
   force constants after the symmetrization and the log of symfc.
+- `--no-fc-symmetry` of `phelel` and `velph phelel differentiate`, `FC_SYMMETRY`
+  in the configuration file of `phelel`, and `symmetrize_fc` of `Phelel` and
+  `phelel.load()` are added. They turn off the symmetrization of the force
+  constants above. See {ref}`phelel_no_fc_symmetry_option`.
 
 ## Nov-4-2026: Version 0.19.0
 

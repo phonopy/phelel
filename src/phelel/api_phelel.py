@@ -98,6 +98,7 @@ class Phelel:
         finufft_eps: float | None = None,
         log_level: int = 0,
         site_mixture_scheme: Literal["merge", "split"] = "merge",
+        symmetrize_fc: bool = True,
     ):
         """Init method.
 
@@ -166,12 +167,16 @@ class Phelel:
             [Experimental] Scheme of site mixture for a unit cell with weighted
             species. See ``Phonopy``. Derivatives are not calculated with
             ``"merge"``. Default is ``"merge"``.
+        symmetrize_fc : bool, optional
+            Symmetrize the force constants computed by finite differences by
+            the symfc projector or not. Default is True.
 
         """
         self._unitcell = unitcell
         self._site_mixture_scheme: Literal["merge", "split"] = site_mixture_scheme
         self._symprec = symprec
         self._is_symmetry = is_symmetry
+        self._symmetrize_fc = symmetrize_fc
         self._calculator = calculator
         if dv_evaluation_method not in (None, "shortest", "box", "finufft"):
             raise ValueError(
@@ -542,7 +547,8 @@ class Phelel:
         ----
         After calculation, temporary raw data may be deleted.
         Force constants are created to have full matrix shape.  Those computed
-        by finite differences are symmetrized by the symfc projector.
+        by finite differences are symmetrized by the symfc projector, unless
+        symmetrize_fc=False is given to Phelel.
 
         """
         if self.unmerged_unitcell is not None:
@@ -744,7 +750,7 @@ class Phelel:
             )
             # As in phonopy.load.  The force constants fitted by symfc already
             # have the symmetries.
-            if fc_calculator in (None, "traditional"):
+            if self._symmetrize_fc and fc_calculator in (None, "traditional"):
                 ph.symmetrize_force_constants(
                     show_drift=show_drift,
                     use_symfc_projector=fc_calculator is None,
