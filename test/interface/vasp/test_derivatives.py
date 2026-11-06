@@ -118,19 +118,33 @@ def test_create_derivatives_C111():
     assert fc.shape[0] == fc.shape[1]
 
 
-@pytest.mark.parametrize(
-    "dataset_key,atol", [("first_atoms", 1e-6), ("displacements", 1e-3)]
-)
-def test_create_derivatives_C111_phonon_supercell_C222(dataset_key: str, atol: float):
+def test_create_derivatives_C111_symmetrizes_force_constants():
+    """The force constants from finite differences are symmetrized.
+
+    The sums over each of the two atoms vanish, and the force constants do not
+    change when the two atoms and the two Cartesian indices are exchanged.
+
+    """
+    phelel = _get_phelel_C111("phelel_disp_C111.yaml")
+    dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
+    create_derivatives(phelel, dir_names, subtract_rfs=True)
+    fc = phelel.force_constants
+    np.testing.assert_allclose(fc.sum(axis=0), 0, atol=1e-10)
+    np.testing.assert_allclose(fc.sum(axis=1), 0, atol=1e-10)
+    np.testing.assert_allclose(fc, fc.transpose(1, 0, 3, 2), atol=1e-10)
+
+
+@pytest.mark.parametrize("dataset_key", ["first_atoms", "displacements"])
+def test_create_derivatives_C111_phonon_supercell_C222(dataset_key: str):
     """Test creating derivatives with C-1x1x1 and the phonon supercell 2x2x2.
 
-    The force constants have to be those of Phonopy with the 2x2x2 supercell
-    from the same vasprun.xml, and the phonon dataset must not be replaced by
-    the dataset of the supercells.  With "displacements", the displacement of
-    C222_disp-001 is given twice, so the number of the phonon supercells
-    differs from that of the supercells.  The force constants are then computed
-    by symfc, which gives a difference of about 2e-4 from the traditional
-    calculator for the largest element of about 47.
+    The force constants have to be the symmetrized force constants of Phonopy
+    with the 2x2x2 supercell from the same vasprun.xml, and the phonon dataset
+    must not be replaced by the dataset of the supercells.  With
+    "displacements", the displacement of C222_disp-001 is given twice, so the
+    number of the phonon supercells differs from that of the supercells.  The
+    force constants are then computed by symfc, and they are not symmetrized
+    again.
 
     """
     dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
@@ -158,7 +172,7 @@ def test_create_derivatives_C111_phonon_supercell_C222(dataset_key: str, atol: f
         assert phelel.phonon_dataset["natom"] == len(ph.supercell)
     assert len(phelel.forces) == len(phonon_dir_names) - 1
     assert phelel.force_constants is not None and ph.force_constants is not None
-    np.testing.assert_allclose(phelel.force_constants, ph.force_constants, atol=atol)
+    np.testing.assert_allclose(phelel.force_constants, ph.force_constants, atol=1e-10)
 
 
 @pytest.mark.parametrize(
@@ -718,10 +732,11 @@ def _get_phonopy_C222(phelel: Phelel) -> Phonopy:
 
 
 def _produce_force_constants_C222(ph: Phonopy) -> None:
-    """Produce force constants from vasprun.xml of C222_disp-*."""
+    """Produce symmetrized force constants from vasprun.xml of C222_disp-*."""
     ph.forces = read_vasp_forces(
         [cwd / "C222_disp-001" / "vasprun.xml.xz"],
         ph.supercell,
         perfect_filename=cwd / "C222_disp-000" / "vasprun.xml.xz",
     )
     ph.produce_force_constants()
+    ph.symmetrize_force_constants(use_symfc_projector=True)
