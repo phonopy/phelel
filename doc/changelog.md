@@ -2,7 +2,7 @@
 
 # Change Log
 
-## Unreleased
+## Nov-7-2026: Version 0.20.0
 
 - phonopy 4.10.0 or later and phono3py 4.10.0 or later are required.
 - `get_shortest_g_points` of `phelel.base.fourier_series` calls
