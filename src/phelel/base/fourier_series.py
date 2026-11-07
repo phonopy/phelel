@@ -86,9 +86,7 @@ def get_fourier_coefficients(values: NDArray) -> NDArray[np.cdouble]:
         dtype='complex128', shape=values.shape
 
     """
-    coefficients: NDArray[np.cdouble] = np.fft.fftn(values)
-    coefficients /= values.size
-    return coefficients
+    return scipy.fft.fftn(values, norm="forward", workers=-1)
 
 
 @dataclass

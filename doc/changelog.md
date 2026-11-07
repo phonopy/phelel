@@ -2,6 +2,12 @@
 
 # Change Log
 
+## Unreleased
+
+- The Fourier coefficients of the changes of the local potential on the FFT mesh
+  of the supercell are computed by `scipy.fft` with all cores, not by `numpy.fft`
+  on one core. The results differ only by rounding errors.
+
 ## Nov-7-2026: Version 0.20.0
 
 - phonopy 4.10.0 or later and phono3py 4.10.0 or later are required.
