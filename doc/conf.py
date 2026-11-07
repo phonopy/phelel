@@ -10,8 +10,8 @@ project = "phelel"
 copyright = "2024, Atsushi Togo"
 author = "Atsushi Togo"
 
-version = "0.18"
-release = "0.18.1"
+version = "0.20"
+release = "0.20.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

@@ -19,6 +19,12 @@ from phonors import snf3x3
 
 from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
 from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.potential_change import (
+    add_to_normal_equation_rhs,
+    apply_inverse_normal_matrix,
+    apply_time_reversal_to_spin_components,
+    rotate_spin_components,
+)
 from phelel.base.symmetrization import (
     check_displaced_atoms,
     get_displacements_with_rotations,
@@ -26,10 +32,7 @@ from phelel.base.symmetrization import (
 )
 from phelel.interface.vasp.file_IO import get_CHGCAR
 from phelel.utils.lattice_points import get_lattice_points
-from phelel.utils.spinor import (
-    apply_time_reversal_in_spin_space,
-    rotate_delta_vals_in_spin_space,
-)
+from phelel.utils.spinor import SpinorRotationMatrices
 
 
 def check_finufft_installed():
@@ -120,18 +123,20 @@ class DeltaLocalPotential:
             w.write(locpot)
 
 
-class LocalPotentialInterpolationNUFFT:
-    """Interpolation of local potential by non-uniform FFT.
+class DLocalPotentialFit:
+    """Compute dV/du from the displacements of one atom.
 
-    For one displaced atom and maybe also symmetrically equivalent atoms to the
-    dispalced atom.
+    dV/du is computed for the atoms equivalent to the displaced atom, at the
+    grid points of the FFT mesh of the primitive cell in the supercell, by the
+    finite-difference method (see _run_at_atom).  For each of these atoms,
+    there are two loops:
 
-    There are two loops:
-    1) Atomic diplacement directions (outer)
-       iFFT of dV on supercell FFT mesh
-    2) Symmetry operations (inner)
-       NUFFT of iFFT(dV) onto primitive cell FFT mesh grid where
-       the grid is rotated by symmetry operations passively.
+    1) Displacements of the displaced atom (outer): the Fourier coefficients
+       of dV on the FFT mesh of the supercell.
+    2) Symmetry operations that send the displaced atom to the atom (inner):
+       dV of the rotated displacement at the grid points, by
+       FourierSeriesOnGrid or by finufft (dv_evaluation_method), added to the
+       right-hand side of the normal equations.
 
     Attributes
     ----------
@@ -155,12 +160,12 @@ class LocalPotentialInterpolationNUFFT:
         shape=(det(p2s_matrix), 3)
     dVdu : ndarray
         Displacement derivative of local potential in supercell interpolated on
-        mesh grid of primitve cell
+        mesh grid of primitive cell
         dtype='complex128'
         shape=(ncdij, atom_indices, 3, grid_points)
     atom_indices_returned : ndarray
         Atom indices in supercell where dV will be computed. If those indices
-        don't belong to symmetrically equivalent atoms to the dispalced atom.
+        don't belong to symmetrically equivalent atoms to the displaced atom.
         dtype='int64', shape=(atom_indices,)
 
     """
@@ -175,6 +180,7 @@ class LocalPotentialInterpolationNUFFT:
         finufft_eps: float | None = None,
         dv_evaluation_method: Literal["shortest", "box", "finufft"] = "shortest",
         verbose: bool = True,
+        lang: Literal["Rust", "Python"] = "Rust",
     ):
         """Init method.
 
@@ -215,11 +221,18 @@ class LocalPotentialInterpolationNUFFT:
             dependency of phelel.  Default is "shortest".
         verbose : bool, optional
             To display log or not
+        lang : str, optional
+            Implementation of the steps of phelel.base.potential_change and of
+            FourierSeriesOnGrid, "Rust" (default) by phonors or "Python" by
+            NumPy.  "Python" is kept as the reference of "Rust".
 
         """
         ##########
         # Inputs #
         ##########
+        if lang not in ("Rust", "Python"):
+            raise ValueError(f'lang has to be "Rust" or "Python", not "{lang}".')
+        self._lang: Literal["Rust", "Python"] = lang
         self._verbose = verbose
         self._supercell = supercell
         self._symmetry = symmetry
@@ -245,11 +258,14 @@ class LocalPotentialInterpolationNUFFT:
             self._fourier_series = FourierSeriesOnGrid(
                 fft_mesh,
                 self._p2s_matrix,
-                representatives="shortest",
+                g_point_selection="shortest",
                 supercell_lattice=supercell.cell,
+                lang=lang,
             )
         elif dv_evaluation_method == "box":
-            self._fourier_series = FourierSeriesOnGrid(fft_mesh, self._p2s_matrix)
+            self._fourier_series = FourierSeriesOnGrid(
+                fft_mesh, self._p2s_matrix, lang=lang
+            )
 
         self._dVdu: NDArray | None = None
         self._atom_indices_returned: NDArray | None = None
@@ -258,6 +274,7 @@ class LocalPotentialInterpolationNUFFT:
         # Private #
         ###########
         self._finufft_plan = None
+        self._mesh_message_printed = False
 
     @property
     def p2s_matrix(self):
@@ -302,6 +319,9 @@ class LocalPotentialInterpolationNUFFT:
         atoms, sitesym_sets = select_equivalent_atoms(
             disp_atom, self._symmetry, self._atom_indices_in
         )
+        if self._verbose and not self._mesh_message_printed:
+            self._print_rotations_sorted_each_time(delta_Vs[0].dV.shape[1:][::-1])
+            self._mesh_message_printed = True
 
         ncdij = delta_Vs[0].dV.shape[0]
         dVdu = np.zeros(
@@ -315,6 +335,43 @@ class LocalPotentialInterpolationNUFFT:
                 print("Computed dV/du by displaced atom %d" % (atoms[i_atom] + 1))
         self._atom_indices_returned = atoms
         self._dVdu = dVdu
+
+    def _print_rotations_sorted_each_time(
+        self, supercell_mesh: tuple[int, ...]
+    ) -> None:
+        """Print how many rotations need the coefficients sorted each time.
+
+        With dv_evaluation_method="shortest", the Fourier coefficients are
+        sorted by bin once for the rotations under which the shortest g are
+        closed (FourierSeriesOnGrid.g_points_closed_under_rotation), and for each
+        operation for the other rotations, which is slower.  This happens when
+        the FFT mesh of the supercell does not have the symmetry of the
+        supercell.  The results are correct in both cases.
+
+        Parameters
+        ----------
+        supercell_mesh : tuple of int
+            FFT mesh of the supercell (N^s_1, N^s_2, N^s_3).
+
+        """
+        if self._dv_evaluation_method != "shortest":
+            return
+        assert self._fourier_series is not None
+        rotations = np.unique(
+            self._symmetry.symmetry_operations["rotations"].reshape(-1, 9), axis=0
+        ).reshape(-1, 3, 3)
+        num_sorted_each_time = sum(
+            not self._fourier_series.g_points_closed_under_rotation(supercell_mesh, r)
+            for r in rotations
+        )
+        if num_sorted_each_time:
+            mesh = tuple(int(n) for n in supercell_mesh)
+            print(
+                f"For {num_sorted_each_time} of the {len(rotations)} rotations of the "
+                "supercell, the Fourier coefficients of dV are sorted for each "
+                "operation, which is slower. This happens when the FFT mesh of the "
+                f"supercell {mesh} does not have the symmetry of the supercell."
+            )
 
     def _run_at_atom(
         self, delta_Vs: list[DeltaLocalPotential], sitesyms: NDArray
@@ -335,12 +392,26 @@ class LocalPotentialInterpolationNUFFT:
 
         dV/du of b is the least-squares solution of
 
-            dV_kg = (R u_k) . dV/du  for all k and g,
+            dV_kg = (R u_k) . dV/du  for all k and g.
 
-        that is, dV/du = pinv(U) dV, where the rows of U are R u_k with g
-        running fastest (get_displacements_with_rotations).  The products of
-        the columns of pinv(U) and dV_kg are summed one (k, g) at a time, so
-        that dV_kg of all (k, g) are not stored at once.
+        Let U be the matrix whose rows are R u_k, with g running fastest
+        (get_displacements_with_rotations), and dV the column of dV_kg in the
+        same order.  The right-hand side of the normal equations
+        U^T U dV/du = U^T dV,
+
+            normal_equation_rhs = U^T dV = sum_(k, g) (R u_k) (x) dV_kg,
+
+        is summed one (k, g) at a time by add_to_normal_equation_rhs, so that dV_kg of
+        all (k, g) are not stored at once.  Then apply_inverse_normal_matrix turns it
+        into dV/du = pinv(U^T U) normal_equation_rhs.  This is equal to
+        pinv(U) dV in exact arithmetic.  The normal equations square the
+        condition number of U, which is small for the displacements of the
+        finite-difference method.
+
+        The 2x2 matrices of the spin rotations, U^T U and its pseudo-inverse
+        are computed before the loops, so that BLAS is not called in the
+        loops, where phonors runs its kernels in parallel with rayon.  Only
+        the finufft path inverts a 3x3 rotation matrix there.
 
         Parameters
         ----------
@@ -363,7 +434,7 @@ class LocalPotentialInterpolationNUFFT:
         time_reversals = get_time_reversals(self._symmetry)[sitesyms]
         lattice = self._supercell.cell.T
         disps = get_displacements_with_rotations(rotations, lattice, delta_Vs)
-        disps_inv = np.linalg.pinv(disps)
+        inverse_normal_matrix = np.linalg.pinv(np.einsum("ki,kj->ij", disps, disps))
 
         if self._verbose:
             if self._fourier_series is None:
@@ -375,7 +446,12 @@ class LocalPotentialInterpolationNUFFT:
                 )
 
         ncdij = delta_Vs[0].dV.shape[0]
-        dVdu = np.zeros(
+        if ncdij == 4:  # Need to rotate in spin space, too.
+            spin_rotations = [
+                SpinorRotationMatrices(rotation, lattice).run().Delta
+                for rotation in rotations
+            ]
+        normal_equation_rhs = np.zeros(
             (ncdij, 3, len(self._grid_points)), dtype="complex128", order="C"
         )
         if self._fourier_series is None:
@@ -384,24 +460,29 @@ class LocalPotentialInterpolationNUFFT:
         count = 0
         for delta_V in delta_Vs:
             dVs_rec = [self._get_Fourier_coefficients(dV) for dV in delta_V.dV]
-            for r, t, tr in zip(rotations, translations, time_reversals, strict=True):
-                dVs_rotated = self._rotate_dV(dVs_rec, r, t)
-                if ncdij == 4:  # Need to rotate in spin space, too.
-                    dVs_spinor_rotated = rotate_delta_vals_in_spin_space(
-                        dVs_rotated, r, lattice
+            for i_operation, (rotation, translation, time_reversal) in enumerate(
+                zip(rotations, translations, time_reversals, strict=True)
+            ):
+                dVs_rotated = self._rotate_dV(dVs_rec, rotation, translation)
+                if ncdij == 4:
+                    rotate_spin_components(
+                        dVs_rotated, spin_rotations[i_operation], lang=self._lang
                     )
-                    dVs_rotated.clear()
-                    dVs_rotated = dVs_spinor_rotated
-                if tr:
-                    dVs_rotated = apply_time_reversal_in_spin_space(dVs_rotated)
-                for i_cdij in range(ncdij):
-                    dVdu[i_cdij] += np.outer(disps_inv[:, count], dVs_rotated[i_cdij])
+                if time_reversal:
+                    apply_time_reversal_to_spin_components(dVs_rotated, lang=self._lang)
+                add_to_normal_equation_rhs(
+                    normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
+                )
                 count += 1
                 dVs_rotated.clear()
             dVs_rec.clear()
 
         if self._fourier_series is None:
             self._finalize_finufft()
+        apply_inverse_normal_matrix(
+            normal_equation_rhs, inverse_normal_matrix, lang=self._lang
+        )
+        dVdu = normal_equation_rhs
         return dVdu
 
     def _rotate_dV(
@@ -436,8 +517,10 @@ class LocalPotentialInterpolationNUFFT:
         if self._fourier_series is not None:
             return self._fourier_series.evaluate(dVs_rec, rotation=r, translation=t)
         r_inv = np.linalg.inv(r)
-        t_inv = -r_inv @ t
-        grid_points = self._grid_points @ r_inv.T + t_inv
+        # np.einsum without optimize does not call BLAS, which would compete
+        # with the rayon threads of phonors in the loops of _run_at_atom.
+        t_inv = -np.einsum("ij,j->i", r_inv, t)
+        grid_points = np.einsum("nj,ij->ni", self._grid_points, r_inv) + t_inv
         grid_points -= np.rint(grid_points)
         return self._run_finufft(grid_points, dVs_rec)
 
@@ -632,7 +715,7 @@ class DLocalPotential:
             corresponds to 1e-6.
         dv_evaluation_method : {"shortest", "box", "finufft"}, optional
             Method to compute dV at the grid points.  See
-            LocalPotentialInterpolationNUFFT.  Default is "shortest".
+            DLocalPotentialFit.  Default is "shortest".
         verbose : bool
             To display log or not
 
@@ -797,7 +880,7 @@ class DLocalPotential:
 
         """
         check_displaced_atoms(self._atom_indices, displacements, self._symmetry)
-        lpi = LocalPotentialInterpolationNUFFT(
+        local_potential_fit = DLocalPotentialFit(
             self._fft_mesh,
             self._p2s_matrix,
             self._supercell,
@@ -807,8 +890,8 @@ class DLocalPotential:
             dv_evaluation_method=self._dv_evaluation_method,
             verbose=self._verbose,
         )
-        self._lattice_points = lpi.lattice_points.copy(order="C")
-        self._grid_points = lpi.grid_points.copy(order="C")
+        self._lattice_points = local_potential_fit.lattice_points.copy(order="C")
+        self._grid_points = local_potential_fit.grid_points.copy(order="C")
 
         if self._dVdu is None:
             self._allocate_arrays(V_loc_per.shape[0])
@@ -822,12 +905,12 @@ class DLocalPotential:
                     dVs.append(
                         DeltaLocalPotential(V_loc_per, V_loc_disps[i], displacements[i])
                     )
-            lpi.run(dVs)
-            assert lpi.atom_indices_returned is not None
+            local_potential_fit.run(dVs)
+            assert local_potential_fit.atom_indices_returned is not None
             indices = []
-            for ai in lpi.atom_indices_returned:
+            for ai in local_potential_fit.atom_indices_returned:
                 indices.append(np.where(self.atom_indices == ai)[0][0])
-            self._dVdu[:, indices, :, :] = lpi.dVdu
+            self._dVdu[:, indices, :, :] = local_potential_fit.dVdu
 
     def visualize(
         self,

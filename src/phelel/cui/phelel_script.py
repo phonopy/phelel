@@ -232,6 +232,7 @@ def main(**argparse_control):
         calculator=phe_yml.calculator,
         finufft_eps=settings.finufft_eps,
         dv_evaluation_method=settings.dv_evaluation_method,
+        symmetrize_fc=settings.fc_symmetry,
     )
     if phonon_supercell_matrix is not None:
         assert phelel.phonon_supercell_matrix is not None
@@ -246,6 +247,7 @@ def main(**argparse_control):
             phonon_supercell_matrix,
             fft_mesh,
             settings.dv_evaluation_method,
+            settings.fc_symmetry,
         )
 
     if phe_yml.dataset is not None:
@@ -383,6 +385,7 @@ def _show_settings(
     phonon_supercell_matrix: NDArray | None,
     fft_mesh: NDArray | None,
     dv_evaluation_method: str | None = None,
+    fc_symmetry: bool = True,
 ) -> None:
     """Show the crystal structure and the settings."""
     print("")
@@ -411,6 +414,8 @@ def _show_settings(
         print("  FFT mesh: [%d %d %d]" % tuple(fft_mesh))
     if dv_evaluation_method is not None:
         print(f"  dV evaluation method: {dv_evaluation_method}")
+    if not fc_symmetry:
+        print("  Force constants symmetrization: off")
     print("Space group type: %s" % phelel.symmetry.get_international_table())
     print("-" * 30 + " primitive cell " + "-" * 30)
     print_cell(phelel.primitive)

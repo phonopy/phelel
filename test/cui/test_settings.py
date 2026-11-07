@@ -43,6 +43,22 @@ def test_dv_evaluation_method_from_args():
     )
 
 
+def test_fc_symmetry_from_args():
+    """Force constants are symmetrized unless --no-fc-symmetry is given."""
+    parser = get_parser("run")
+    assert PhelelConfParser(args=parser.parse_args([])).settings.fc_symmetry is True
+    settings = PhelelConfParser(args=parser.parse_args(["--no-fc-symmetry"])).settings
+    assert settings.fc_symmetry is False
+
+
+@pytest.mark.parametrize("value,expected", [(".true.", True), (".false.", False)])
+def test_fc_symmetry_from_conf_file(tmp_path: pathlib.Path, value: str, expected: bool):
+    """FC_SYMMETRY in a configuration file is read."""
+    filename = tmp_path / "phelel.conf"
+    filename.write_text(f"FC_SYMMETRY = {value}\n", encoding="utf-8")
+    assert PhelelConfParser(filename=filename).settings.fc_symmetry is expected
+
+
 def test_dv_evaluation_method_from_conf_file_with_wrong_value(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture
 ):

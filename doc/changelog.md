@@ -2,6 +2,50 @@
 
 # Change Log
 
+## Nov-7-2026: Version 0.20.0
+
+- phonopy 4.10.0 or later and phono3py 4.10.0 or later are required.
+- `get_shortest_g_points` of `phelel.base.fourier_series` calls
+  `relocate_BZ_grid_address` of phonopy. The selected g-points are the same as
+  before, but the g-points with the same source can come in a different order.
+- The force constants computed by finite differences are symmetrized by the
+  symfc projector, as `phonopy.load` does. With magnetic moments, the operations
+  of the magnetic space group are used, and their time reversal is not applied.
+  With `is_symmetry=False`, only the translational and permutation symmetries
+  are imposed. Before, the force constants were not symmetrized. Therefore
+  `force_constants` in `phelel_params.hdf5` differ from those written by earlier
+  versions. With `-v`, `velph phelel differentiate` prints the drift of the
+  force constants after the symmetrization and the log of symfc.
+- `--no-fc-symmetry` of `phelel` and `velph phelel differentiate`, `FC_SYMMETRY`
+  in the configuration file of `phelel`, and `symmetrize_fc` of `Phelel` and
+  `phelel.load()` are added. They turn off the symmetrization of the force
+  constants above. See {ref}`phelel_no_fc_symmetry_option`.
+
+## Nov-4-2026: Version 0.19.0
+
+- phonors 0.8.0 or later and earlier than 0.9 is required.
+- With spin, the check that the symmetry operations leave the PAW strengths
+  Dij of the perfect supercell unchanged is faster. Dij is rotated once for
+  each pair of rotation and time reversal, instead of once for each symmetry
+  operation. The results are unchanged.
+- The finite-difference derivative of the local potential is faster. The
+  element-wise steps, which ran on one core, run in parallel in phonors. The
+  results differ from before by rounding errors only.
+- With `--dv-evaluation-method shortest` (the default), the derivative of the
+  local potential is faster, in particular when the FFT mesh of the supercell
+  has the symmetry of the supercell. The results differ from before by
+  rounding errors only.
+- `LocalPotentialInterpolationNUFFT` of `phelel.base.local_potential` is
+  renamed `DLocalPotentialFit`, after `DDijQijFit`. NUFFT is no longer used by
+  default.
+- In `phelel.base.fourier_series`, the parameter `representatives` of
+  `FourierSeriesOnGrid` is renamed `g_point_selection`, and
+  `get_shortest_representatives` is renamed `get_shortest_g_points`, which
+  returns `(g, source_offsets)` instead of `(g, source, weight)`. `rotation`
+  and `translation` of `FourierSeriesOnGrid.evaluate` and
+  `FourierSeriesOnGrid.get_phi` have no default. For the function itself, give
+  the identity and zero.
+
 ## Nov-2-2026: Version 0.18.1
 
 - Maintenance release

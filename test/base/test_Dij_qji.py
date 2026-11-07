@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 from phonopy.structure.atoms import PhonopyAtoms
+from phonopy.structure.cells import get_supercell
 from phonopy.structure.symmetry import Symmetry
 
 from phelel.api_phelel import Phelel, PhelelDataset
@@ -19,10 +20,16 @@ from phelel.base.Dij_qij import (
     DDijQijFit,
     DeltaDijQij,
     _check_Dij_symmetry,
+    _get_Dij_symmetry_deviations,
     _rotate_Dij_in_orbital_space,
 )
+from phelel.base.magnetic_symmetry import get_time_reversals
 from phelel.exception import MagneticMomentsWarning
 from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
+from phelel.utils.spinor import (
+    apply_time_reversal_in_spin_space,
+    rotate_delta_vals_in_spin_space,
+)
 
 cwd = pathlib.Path(__file__).parent
 
@@ -243,6 +250,55 @@ def test_check_Dij_symmetry_without_time_reversal(monkeypatch: pytest.MonkeyPatc
     )
     with pytest.warns(MagneticMomentsWarning, match="PAW strengths Dij"):
         _check_Dij_symmetry(Dij, lm_channels, cell, symmetry)
+
+
+@pytest.mark.parametrize("name", ["Cr", "Fe-ncl"])
+def test_get_Dij_symmetry_deviations(name: str):
+    """The changes of Dij are those obtained by rotating Dij for each operation.
+
+    The 3x1x1 supercell has pure translations that move the atoms in cycles of
+    three, so the permutation of such an operation differs from its inverse.
+    Random Dij makes the change by each operation different.  Cr has
+    operations with time reversal, and Fe-ncl has four spin components.
+
+    """
+    Dij_unit, lm_channels_unit, cell = _load_Dij_perfect(name, "vasp")
+    scell = get_supercell(cell, np.diag([3, 1, 1]))
+    assert scell.magnetic_moments is not None
+    natom = len(scell)
+    lm_channels = [lm_channels_unit[0]] * natom
+    rng = np.random.default_rng(10)
+    shape = (Dij_unit.shape[0], natom, *Dij_unit.shape[2:])
+    Dij = rng.standard_normal(shape) + 1j * rng.standard_normal(shape)
+    symmetry = Symmetry(scell)
+    perms = symmetry.atomic_permutations
+    time_reversals = get_time_reversals(symmetry)
+    assert any(not np.array_equal(p[p], np.arange(natom)) for p in perms)
+    if name == "Cr":
+        assert time_reversals.any()
+
+    lattice = scell.cell.T
+    lxlylz = LxLyLzMatrices().run()
+    expected = []
+    for r, perm, tr in zip(
+        symmetry.symmetry_operations["rotations"], perms, time_reversals, strict=True
+    ):
+        shr = SHRotationMatrices(r, lattice, lxlylz)
+        shr.run()
+        vals = [
+            _rotate_Dij_in_orbital_space(Dij_s, lm_channels, shr.Delta, perm)
+            for Dij_s in Dij
+        ]
+        if len(Dij) == 4:
+            vals = rotate_delta_vals_in_spin_space(vals, r, lattice)
+        if tr:
+            vals = apply_time_reversal_in_spin_space(vals)
+        expected.append(
+            max(np.abs(v - d).max() for v, d in zip(vals, Dij, strict=True))
+        )
+
+    deviations = _get_Dij_symmetry_deviations(Dij, lm_channels, scell, symmetry)
+    np.testing.assert_allclose(deviations, expected, rtol=1e-12, atol=0)
 
 
 def test_DDijQij_checks_Dij_symmetry():
