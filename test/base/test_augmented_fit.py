@@ -328,7 +328,6 @@ def test_type1_synthetic_data_equal_finite_differences(
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
 
 
-
 def test_type1_grey_group_equal_finite_differences():
     """The fit agrees with the finite differences for zero magnetic moments.
 
@@ -363,6 +362,7 @@ def test_type1_grey_group_equal_finite_differences():
     fit = _get_fit(grey_cell, primitive, symmetry)
     fit.run(perfect, potentials, array)
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
+
 
 @pytest.mark.parametrize("structure", ["CsCl", "magnetic", "screw"])
 def test_random_displacements_equal_analytic_derivative(structure: Structure):
