@@ -13,7 +13,11 @@ from phelel.base.local_potential import (
     DeltaLocalPotential,
     DLocalPotentialFit,
 )
-from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.magnetic_symmetry import (
+    check_magnetic_moments,
+    get_time_reversals,
+    is_grey_group_without_time_reversal,
+)
 from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.utils.spinor import (
     apply_time_reversal_in_spin_space,
@@ -64,6 +68,31 @@ def test_get_time_reversals():
     time_reversals = get_time_reversals(sym)
     assert len(time_reversals) == len(sym.symmetry_operations["rotations"])
     assert time_reversals.sum() * 2 == len(time_reversals)
+
+
+def test_get_time_reversals_grey_group():
+    """Zero magnetic moments give a grey group, with one flag per operation.
+
+    phonopy 4.10.0 keeps every (R, t) of the grey group with and without time
+    reversal, and half of the flags are True.  Later versions keep only the
+    operations without time reversal, and all flags are False.  A group that
+    is not grey is not reported as a grey group without time reversal.
+
+    """
+    sym = Symmetry(_bcc_fe([0, 0]))
+    n_ops = len(sym.symmetry_operations["rotations"])
+    time_reversals = get_time_reversals(sym)
+    assert len(time_reversals) == n_ops
+    if is_grey_group_without_time_reversal(sym):
+        assert len(sym.dataset.time_reversals) == 2 * n_ops
+        assert not time_reversals.any()
+    else:
+        assert time_reversals.sum() * 2 == n_ops
+
+    assert not is_grey_group_without_time_reversal(
+        Symmetry(_bcc_fe([[0, 0, 3], [0, 0, 3]]))
+    )
+    assert not is_grey_group_without_time_reversal(Symmetry(_bcc_fe(None)))
 
 
 def test_get_time_reversals_nosym():
@@ -159,3 +188,39 @@ def test_magnetization_invariant_under_magnetic_operations():
             vals = apply_time_reversal_in_spin_space(vals)
         for val, ref in zip(vals, spinor, strict=True):
             np.testing.assert_allclose(val, ref, atol=1e-12)
+
+
+def test_finite_differences_of_grey_group_keep_time_reversal():
+    """Spin up and down of the derivatives are equal for zero magnetic moments.
+
+    The data have different spin up and down, which only the operations with
+    time reversal exchange.  If Symmetry lacks them, they are added in the
+    finite-difference method, so that the derivatives are the same as with
+    phonopy 4.10.0, which keeps them.  Without them, spin up and down differ
+    by about the size of the derivatives.  The mesh 4x4x4 and the s and p
+    channels are needed for derivatives that are not zero by the site
+    symmetry of bcc.
+
+    """
+    cell = _bcc_fe([0, 0])
+    rng = np.random.default_rng(0)
+    disp = {"number": 0, "displacement": [0.01, 0.02, 0.03]}
+
+    V_per = np.zeros((2, 4, 4, 4), dtype=complex)
+    V_disp = rng.standard_normal((2, 4, 4, 4)).astype(complex)
+    fit = DLocalPotentialFit(
+        [4, 4, 4], np.eye(3, dtype="int64"), cell, Symmetry(cell), verbose=False
+    )
+    fit.run([DeltaLocalPotential(V_per, V_disp, disp)])
+    assert np.abs(fit.dVdu).max() > 1
+    np.testing.assert_allclose(fit.dVdu[0], fit.dVdu[1], atol=1e-10)
+
+    lm_channels = [{"channels": [{"l": 0, "m": [0]}, {"l": 1, "m": [-1, 0, 1]}]}] * 2
+    Dij_per = np.zeros((2, 2, 4, 4), dtype=complex)
+    Dij_disp = rng.standard_normal((2, 2, 4, 4)).astype(complex)
+    delta_Dij_qij = DeltaDijQij(Dij_per, Dij_disp, Dij_per, Dij_disp, disp, lm_channels)
+    Dij_fit = DDijQijFit(cell, Symmetry(cell), verbose=False)
+    Dij_fit.run([delta_Dij_qij])
+    assert np.abs(Dij_fit.dDijdu).max() > 1
+    np.testing.assert_allclose(Dij_fit.dDijdu[0], Dij_fit.dDijdu[1], atol=1e-10)
+    np.testing.assert_allclose(Dij_fit.dqijdu[0], Dij_fit.dqijdu[1], atol=1e-10)
