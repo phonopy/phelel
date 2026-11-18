@@ -22,6 +22,7 @@ from phelel.base.magnetic_symmetry import (
     check_magnetic_moments,
     check_primitive_translations,
     get_time_reversals,
+    is_grey_group_without_time_reversal,
 )
 from phelel.base.potential_change import (
     add_to_normal_equation_rhs,
@@ -392,7 +393,9 @@ class DLocalPotentialFit:
         which is evaluated at the grid points by _rotate_dV.  For
         ncdij=4, dV_kg is also rotated in spin space by R, and for the
         operations combined with time reversal, time reversal is applied in
-        spin space.
+        spin space.  For a grey group whose operations lack time reversal
+        (is_grey_group_without_time_reversal), each dV_kg is used once more
+        with time reversal and the same R u_k, without rotating dV_k again.
 
         dV/du of b is the least-squares solution of
 
@@ -437,8 +440,12 @@ class DLocalPotentialFit:
         translations = self._symmetry.symmetry_operations["translations"][sitesyms]
         time_reversals = get_time_reversals(self._symmetry)[sitesyms]
         lattice = self._supercell.cell.T
+        adds_time_reversal = is_grey_group_without_time_reversal(self._symmetry)
         disps = get_displacements_with_rotations(rotations, lattice, delta_Vs)
-        inverse_normal_matrix = np.linalg.pinv(np.einsum("ki,kj->ij", disps, disps))
+        normal_matrix = np.einsum("ki,kj->ij", disps, disps)
+        if adds_time_reversal:
+            normal_matrix *= 2
+        inverse_normal_matrix = np.linalg.pinv(normal_matrix)
 
         if self._verbose:
             if self._fourier_series is None:
@@ -477,6 +484,11 @@ class DLocalPotentialFit:
                 add_to_normal_equation_rhs(
                     normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
                 )
+                if adds_time_reversal:
+                    apply_time_reversal_to_spin_components(dVs_rotated, lang=self._lang)
+                    add_to_normal_equation_rhs(
+                        normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
+                    )
                 count += 1
                 dVs_rotated.clear()
             dVs_rec.clear()

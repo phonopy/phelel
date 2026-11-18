@@ -11,7 +11,11 @@ from phonopy.harmonic.displacement import FirstAtomDisplacement
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import Symmetry
 
-from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.magnetic_symmetry import (
+    check_magnetic_moments,
+    get_time_reversals,
+    is_grey_group_without_time_reversal,
+)
 from phelel.base.symmetrization import (
     check_displaced_atoms,
     get_displacements_with_rotations,
@@ -331,7 +335,10 @@ class DDijQijFit:
         and dqij/du likewise, where the rows of U are R u_k with g running
         fastest (get_displacements_with_rotations).  Unlike in
         DLocalPotentialFit, the changes of all (k, g) are stored
-        and multiplied by pinv(U) at once.
+        and multiplied by pinv(U) at once.  For a grey group whose operations
+        lack time reversal (is_grey_group_without_time_reversal), the rows of U
+        are repeated, and the repeated rows have the changes of the first rows
+        with time reversal, without rotating dDij_k and dqij_k again.
 
         Parameters
         ----------
@@ -359,6 +366,10 @@ class DDijQijFit:
         atomic_permutations = self._symmetry.atomic_permutations[sitesyms]
 
         disps = get_displacements_with_rotations(rotations, lattice, delta_Dij_qijs)
+        num_rotated = len(disps)
+        adds_time_reversal = is_grey_group_without_time_reversal(self._symmetry)
+        if adds_time_reversal:
+            disps = np.concatenate([disps, disps])
         disps_inv = np.linalg.pinv(disps)
         Deltas = []
         for r in rotations:
@@ -396,6 +407,16 @@ class DDijQijFit:
                 for i_cdij in range(ncdij):
                     dDij_rotated_all[i_cdij, count] = dDij_rotated[i_cdij]
                     dqij_rotated_all[i_cdij, count] = dqij_rotated[i_cdij]
+                if adds_time_reversal:
+                    dDij_reversed = apply_time_reversal_in_spin_space(dDij_rotated)
+                    dqij_reversed = apply_time_reversal_in_spin_space(dqij_rotated)
+                    for i_cdij in range(ncdij):
+                        dDij_rotated_all[i_cdij, count + num_rotated] = dDij_reversed[
+                            i_cdij
+                        ]
+                        dqij_rotated_all[i_cdij, count + num_rotated] = dqij_reversed[
+                            i_cdij
+                        ]
                 count += 1
 
         shape = (ncdij, 3, natom, lmdim, lmdim)
@@ -859,6 +880,13 @@ def _get_Dij_symmetry_deviations(
     where the operation has it, transforms Dij. The change is the largest
     absolute difference between the transformed Dij and Dij.
 
+    For a grey group whose operations lack time reversal
+    (is_grey_group_without_time_reversal), each operation is also combined
+    with time reversal, and the change is the larger of the two. Without this,
+    Dij of a magnetic calculation given zero magnetic moments would not be
+    detected, because the operations without time reversal keep the
+    difference between spin up and spin down.
+
     The operations that have the same rotation and the same time reversal,
     e.g., those that differ by a pure translation, rotate Dij of each atom in
     the same way and differ only in the atom that receives it. So Dij of the
@@ -894,16 +922,18 @@ def _get_Dij_symmetry_deviations(
     perms = symmetry.atomic_permutations
     lxlylz = LxLyLzMatrices().run()
     time_reversals = get_time_reversals(symmetry)
+    adds_time_reversal = is_grey_group_without_time_reversal(symmetry)
     no_perm = np.arange(Dij.shape[1])
     # Indices of the operations for each pair of rotation and time reversal.
     groups: dict[tuple[bytes, bool], list[int]] = {}
     for i_op, (r, tr) in enumerate(zip(rotations, time_reversals, strict=True)):
-        key = (r.tobytes(), bool(tr))
-        if key not in groups:
-            groups[key] = []
-        groups[key].append(i_op)
+        keys = [(r.tobytes(), bool(tr))]
+        if adds_time_reversal:
+            keys.append((r.tobytes(), True))
+        for key in keys:
+            groups.setdefault(key, []).append(i_op)
     deviations = np.zeros(len(rotations), dtype="double")
-    for indices in groups.values():
+    for (_, tr), indices in groups.items():
         r = rotations[indices[0]]
         shr = SHRotationMatrices(r, lattice, lxlylz)
         shr.run()
@@ -914,11 +944,12 @@ def _get_Dij_symmetry_deviations(
         ]
         if ncdij == 4:
             vals = rotate_delta_vals_in_spin_space(vals, r, lattice)
-        if time_reversals[indices[0]]:
+        if tr:
             vals = apply_time_reversal_in_spin_space(vals)
         rotated = np.array(vals)
         # rotated[:, i] is Dij rotated from atom i, which each operation of the
         # pair moves to atom perm[i].
         for i_op in indices:
-            deviations[i_op] = np.abs(rotated - Dij[:, perms[i_op]]).max()
+            deviation = np.abs(rotated - Dij[:, perms[i_op]]).max()
+            deviations[i_op] = max(deviations[i_op], deviation)
     return deviations

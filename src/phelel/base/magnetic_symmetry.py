@@ -20,14 +20,38 @@ def get_time_reversals(symmetry: Symmetry) -> NDArray[np.bool_]:
     magnetic space group, and some of them are combined with time reversal.
     Without magnetic moments, no operation has time reversal.
 
+    In a grey magnetic space group (type II), for example with zero magnetic
+    moments, spglib gives every (R, t) with and without time reversal.
+    phonopy 4.10.0 keeps both, and the flags are those of spglib.  Later
+    versions of phonopy keep only the operations without time reversal, and
+    then all flags are False (see is_grey_group_without_time_reversal).
+
     """
     n_ops = len(symmetry.symmetry_operations["rotations"])
     dataset = symmetry.dataset
     if not isinstance(dataset, SpglibMagneticDataset):
         return np.zeros(n_ops, dtype=bool)
     time_reversals = np.array(dataset.time_reversals, dtype=bool)
-    assert len(time_reversals) == n_ops
-    return time_reversals
+    if len(time_reversals) == n_ops:
+        return time_reversals
+    assert is_grey_group_without_time_reversal(symmetry)
+    return np.zeros(n_ops, dtype=bool)
+
+
+def is_grey_group_without_time_reversal(symmetry: Symmetry) -> bool:
+    """Return whether the operations are those of a grey group without time reversal.
+
+    phonopy after version 4.10.0 keeps only the operations without time
+    reversal of a grey magnetic space group (type II), so ``Symmetry`` has half
+    of the operations of the spglib dataset.  The operations combined with time
+    reversal are then missing from ``Symmetry``.
+
+    """
+    dataset = symmetry.dataset
+    if not isinstance(dataset, SpglibMagneticDataset) or dataset.msg_type != 2:
+        return False
+    n_ops = len(symmetry.symmetry_operations["rotations"])
+    return len(dataset.time_reversals) == 2 * n_ops
 
 
 def check_primitive_translations(
