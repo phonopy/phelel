@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+- `Phelel` and `DLocalPotential.run` raise `ValueError` when a lattice vector
+  of the primitive cell moves an atom onto an atom with a different magnetic
+  moment. This happens for the primitive cell of the crystal structure of an
+  antiferromagnet, e.g., `primitive_matrix="I"` for antiferromagnetic bcc Cr,
+  which phonopy accepts. Before, the derivatives were computed for this cell,
+  and the derivatives of the atoms with the opposite moments, which are
+  obtained by the lattice vectors of the primitive cell, were wrong. Use
+  `primitive_matrix="auto"` or a primitive cell of the magnetic structure.
 - The Fourier coefficients of the changes of the local potential on the FFT mesh
   of the supercell are computed by `scipy.fft` with all cores, not by `numpy.fft`
   on one core. The results differ only by rounding errors.

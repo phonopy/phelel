@@ -20,6 +20,7 @@ from phonors import snf3x3
 from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
 from phelel.base.magnetic_symmetry import (
     check_magnetic_moments,
+    check_primitive_translations,
     get_time_reversals,
     is_grey_group_without_time_reversal,
 )
@@ -484,6 +485,7 @@ class DLocalPotentialFit:
                     normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
                 )
                 if adds_time_reversal:
+                    assert not time_reversal
                     apply_time_reversal_to_spin_components(dVs_rotated, lang=self._lang)
                     add_to_normal_equation_rhs(
                         normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
@@ -893,7 +895,17 @@ class DLocalPotential:
                 'displacement' : Displacement in Cartesian coordinates
                 'number' : Index of displaced atom
 
+        Raises
+        ------
+        ValueError
+            When a lattice vector of the primitive cell is not a translation of
+            the supercell with its magnetic moments (see
+            check_primitive_translations), and as in check_displaced_atoms.
+
         """
+        check_primitive_translations(
+            self._supercell, self._p2s_matrix, self._symmetry.tolerance
+        )
         check_displaced_atoms(self._atom_indices, displacements, self._symmetry)
         local_potential_fit = DLocalPotentialFit(
             self._fft_mesh,
