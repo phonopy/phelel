@@ -51,6 +51,7 @@ from phelel.base.magnetic_symmetry import (
     check_magnetic_moments,
     check_primitive_translations,
     get_time_reversals,
+    is_grey_group_without_time_reversal,
 )
 from phelel.base.potential_change import (
     add_to_augmented_normal_equation_rhs,
@@ -300,6 +301,7 @@ class DLocalPotentialAugmentedFit:
         self._coset_representatives = get_coset_representatives(
             symmetry, supercell, self._p2s_matrix
         )
+        self._adds_time_reversal = is_grey_group_without_time_reversal(symmetry)
         self._set_atoms_and_phases(primitive, symmetry.tolerance)
         self._dVdu: NDArray[np.cdouble] | None = None
         self._normal_matrix_eigenvalues: NDArray[np.double] | None = None
@@ -450,6 +452,17 @@ class DLocalPotentialAugmentedFit:
         FFT and used for all coset representatives g.  The loops do not call
         BLAS (see the comment in run).
 
+        phi_q of (j, g) is get_phi of the Fourier coefficients for the spatial
+        part of g, followed by the rotation in spin space for ncdij=4 and by
+        _apply_time_reversal when g has time reversal.  The rotation in spin
+        space has no complex conjugate, so it is applied at the same q.
+
+        For a grey group whose operations lack time reversal
+        (is_grey_group_without_time_reversal), the coset of g combined with
+        time reversal is a coset of its own.  Its phi_q is that of (j, g) after
+        _apply_time_reversal and is added with the same weights, without
+        computing get_phi again.
+
         Parameters
         ----------
         V_loc_per, V_loc_disps : ndarray, sequence of ndarray
@@ -485,17 +498,29 @@ class DLocalPotentialAugmentedFit:
                 get_fourier_coefficients(dV) for dV in V_loc_disp - V_loc_per
             ]
             for i_op in range(len(self._coset_representatives.rotations)):
-                phis = self._get_phi_of_augmented_snapshot(
+                phis = self._fourier_series.get_phi(
                     coefficients,
-                    i_op,
-                    None if spin_rotations is None else spin_rotations[i_op],
+                    self._coset_representatives.rotations[i_op],
+                    self._coset_representatives.translations[i_op],
                 )
+                if spin_rotations is not None:
+                    rotate_spin_components(phis, spin_rotations[i_op], lang=self._lang)
+                if self._coset_representatives.time_reversals[i_op]:
+                    phis = self._apply_time_reversal(phis)
                 weights = self._get_displacement_sums(displacement, i_op).conj()
                 add_to_augmented_normal_equation_rhs(
                     normal_equation_rhs,
                     weights,
                     [phi.reshape(num_cells, -1) for phi in phis],
                 )
+                if self._adds_time_reversal:
+                    assert not self._coset_representatives.time_reversals[i_op]
+                    phis = self._apply_time_reversal(phis)
+                    add_to_augmented_normal_equation_rhs(
+                        normal_equation_rhs,
+                        weights,
+                        [phi.reshape(num_cells, -1) for phi in phis],
+                    )
             if self._verbose:
                 print("Added a snapshot to the normal equations.")
         return normal_equation_rhs
@@ -589,6 +614,10 @@ class DLocalPotentialAugmentedFit:
 
             A(q) = sum_(j, g) conj(u~^(j,g)(q)) (x) u~^(j,g)(q).
 
+        For a grey group whose operations lack time reversal, each (j, g) is
+        used also with time reversal (_get_normal_equation_rhs), which keeps
+        the displacements, so A(q) is doubled.
+
         Parameters
         ----------
         displacements : ndarray
@@ -608,6 +637,8 @@ class DLocalPotentialAugmentedFit:
             for i_op in range(len(self._coset_representatives.rotations)):
                 sums = self._get_displacement_sums(displacement, i_op)
                 normal_matrices += np.einsum("qi,qj->qij", sums.conj(), sums)
+        if self._adds_time_reversal:
+            normal_matrices *= 2
         return normal_matrices
 
     def _get_spin_rotations(self) -> list[NDArray[np.cdouble]]:
@@ -618,52 +649,35 @@ class DLocalPotentialAugmentedFit:
             for rotation in self._coset_representatives.rotations
         ]
 
-    def _get_phi_of_augmented_snapshot(
-        self,
-        coefficients: list[NDArray[np.cdouble]],
-        i_op: int,
-        spin_rotation: NDArray[np.cdouble] | None,
+    def _apply_time_reversal(
+        self, phis: list[NDArray[np.cdouble]]
     ) -> list[NDArray[np.cdouble]]:
-        """Return phi_q(m) of the potential change of one augmented snapshot.
+        """Return phi_q(m) of the spin components after time reversal.
 
-        The rotation in spin space has no complex conjugate, so it is applied
-        at the same q.  Time reversal takes the complex conjugate of the values
-        on the grid, and the conjugate of the lattice Fourier sum at -q is the
-        lattice Fourier sum of the conjugate at q.  So the values at q are taken
-        from -q after apply_time_reversal_to_spin_components.  With
-        time_reversal_form="linear", _apply_linear_time_reversal is applied at
-        the same q instead.
+        Time reversal takes the complex conjugate of the values on the grid,
+        and the conjugate of the lattice Fourier sum at -q is the lattice
+        Fourier sum of the conjugate at q.  So the values at q are taken from
+        -q after apply_time_reversal_to_spin_components, which overwrites phis.
+        With time_reversal_form="linear", _apply_linear_time_reversal is
+        applied at the same q instead.
 
         Parameters
         ----------
-        coefficients : list of ndarray
-            Fourier coefficients of the potential change of the snapshot for
-            each spin component.
-        i_op : int
-            Index of the coset representative.
-        spin_rotation : ndarray or None
-            D^(1/2) of the operation for ncdij=4, otherwise None.
+        phis : list of ndarray
+            phi_q(m) of the spin components.
+            dtype='complex128', shape=(N_c, N^p_3, N^p_2, N^p_1) each
 
         Returns
         -------
         list of ndarray
-            dtype='complex128', shape=(N_c, N^p_3, N^p_2, N^p_1) each
+            phi_q(m) after time reversal, in the same shape.
 
         """
-        phis = self._fourier_series.get_phi(
-            coefficients,
-            self._coset_representatives.rotations[i_op],
-            self._coset_representatives.translations[i_op],
-        )
-        if spin_rotation is not None:
-            rotate_spin_components(phis, spin_rotation, lang=self._lang)
-        if self._coset_representatives.time_reversals[i_op]:
-            if self._time_reversal_form == "linear":
-                return _apply_linear_time_reversal(phis)
-            apply_time_reversal_to_spin_components(phis, lang=self._lang)
-            minus_q = self._fourier_series.indices_of_minus_qpoints
-            phis = [phi[minus_q] for phi in phis]
-        return phis
+        if self._time_reversal_form == "linear":
+            return _apply_linear_time_reversal(phis)
+        apply_time_reversal_to_spin_components(phis, lang=self._lang)
+        minus_q = self._fourier_series.indices_of_minus_qpoints
+        return [phi[minus_q] for phi in phis]
 
     def _sum_over_qpoints(self, solutions: NDArray[np.cdouble]) -> NDArray[np.cdouble]:
         """Return dV/du on the grid points from X(q).

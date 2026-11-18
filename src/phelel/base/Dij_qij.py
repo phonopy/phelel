@@ -408,6 +408,7 @@ class DDijQijFit:
                     dDij_rotated_all[i_cdij, count] = dDij_rotated[i_cdij]
                     dqij_rotated_all[i_cdij, count] = dqij_rotated[i_cdij]
                 if adds_time_reversal:
+                    assert not tr
                     dDij_reversed = apply_time_reversal_in_spin_space(dDij_rotated)
                     dqij_reversed = apply_time_reversal_in_spin_space(dqij_rotated)
                     for i_cdij in range(ncdij):
@@ -929,6 +930,7 @@ def _get_Dij_symmetry_deviations(
     for i_op, (r, tr) in enumerate(zip(rotations, time_reversals, strict=True)):
         keys = [(r.tobytes(), bool(tr))]
         if adds_time_reversal:
+            assert not tr
             keys.append((r.tobytes(), True))
         for key in keys:
             groups.setdefault(key, []).append(i_op)

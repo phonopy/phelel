@@ -328,6 +328,42 @@ def test_type1_synthetic_data_equal_finite_differences(
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
 
 
+
+def test_type1_grey_group_equal_finite_differences():
+    """The fit agrees with the finite differences for zero magnetic moments.
+
+    The symmetry is that of the "magnetic" cell with the moments set to zero,
+    a grey group, and the potentials are those of the "magnetic" cell, whose
+    spin up and down differ.  If Symmetry lacks the operations with time
+    reversal, both methods add them, and spin up and down of dV/du become
+    equal.  Without them in the fit, the two methods differ by about 0.3 of
+    the largest absolute value of dV/du.
+
+    """
+    magnetic_cell, primitive, _ = _get_cells("magnetic")
+    grey_cell = magnetic_cell.copy()
+    grey_cell.magnetic_moments = np.zeros(len(grey_cell))
+    symmetry = Symmetry(grey_cell)
+    displacements = _get_type1_displacements(primitive, "magnetic")
+    array = _to_type2(displacements, len(grey_cell))
+    perfect = _get_potential(magnetic_cell, True)
+    potentials = [_get_potential(magnetic_cell, True, d) for d in array]
+
+    finite_differences = DLocalPotential(
+        FFT_MESH,
+        P2S_MATRIX,
+        grey_cell,
+        symmetry=symmetry,
+        atom_indices=primitive.p2s_map,
+        dv_evaluation_method="shortest",
+        verbose=False,
+    )
+    finite_differences.run(perfect, potentials, displacements)
+
+    fit = _get_fit(grey_cell, primitive, symmetry)
+    fit.run(perfect, potentials, array)
+    _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
+
 @pytest.mark.parametrize("structure", ["CsCl", "magnetic", "screw"])
 def test_random_displacements_equal_analytic_derivative(structure: Structure):
     """All atoms displaced with +/- pairs give the derivative of the Gaussians."""

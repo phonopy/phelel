@@ -485,6 +485,7 @@ class DLocalPotentialFit:
                     normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
                 )
                 if adds_time_reversal:
+                    assert not time_reversal
                     apply_time_reversal_to_spin_components(dVs_rotated, lang=self._lang)
                     add_to_normal_equation_rhs(
                         normal_equation_rhs, disps[count], dVs_rotated, lang=self._lang
