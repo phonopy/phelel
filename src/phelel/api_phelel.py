@@ -27,6 +27,7 @@ from phonopy.structure.symmetry import Symmetry
 from phelel import __version__
 from phelel.base.Dij_qij import DDijQij
 from phelel.base.local_potential import DLocalPotential, check_finufft_installed
+from phelel.base.magnetic_symmetry import check_primitive_translations
 from phelel.file_IO import write_phelel_params_hdf5
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.utils.lattice_points import get_p2s_matrix
@@ -118,7 +119,12 @@ class Phelel:
             When 'F', 'I', 'A', 'C', or 'R' is given instead of a 3x3 matrix,
             the primitive matrix for the character found at
             https://spglib.github.io/spglib/definition.html
-            is used.
+            is used. The primitive cell need not be the smallest cell, but
+            its lattice vectors have to be translations of the supercell with
+            its magnetic moments. For an antiferromagnet, the primitive cell
+            of the crystal structure given by these characters is not
+            allowed, and 'auto' gives a primitive cell of the magnetic
+            structure.
         phonon_supercell_matrix : array_like, optional
             Supercell matrix used for phonon calculation. Supercell matrix for
             derivatives of potentials and phonon (derivative of forces) can be
@@ -171,6 +177,14 @@ class Phelel:
             Symmetrize the force constants computed by finite differences by
             the symfc projector or not. Default is True.
 
+        Raises
+        ------
+        ValueError
+            When a lattice vector of the primitive cell moves an atom onto an
+            atom with a different magnetic moment, as for the primitive cell of
+            the crystal structure of an antiferromagnet. See
+            phelel.base.magnetic_symmetry.check_primitive_translations.
+
         """
         self._unitcell = unitcell
         self._site_mixture_scheme: Literal["merge", "split"] = site_mixture_scheme
@@ -203,6 +217,7 @@ class Phelel:
             assert isclose(self._phelel_phonon.primitive, self._phonon.primitive)
 
         self._p2s_matrix = get_p2s_matrix(self.primitive.primitive_matrix)
+        check_primitive_translations(self.supercell, self._p2s_matrix, symprec)
 
         self._dVdu = None
         self._dmudu = None

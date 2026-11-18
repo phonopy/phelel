@@ -14,7 +14,9 @@ from phonopy.structure.cells import apply_site_mixture
 
 import phelel
 from phelel import Phelel
+from phelel.api_phelel import PhelelDataset
 from phelel.file_IO import _get_smallest_vectors, read_phelel_params_hdf5
+from phelel.interface.vasp.derivatives import read_files
 from phelel.utils.data import cmplx2real
 
 cwd = pathlib.Path(__file__).parent
@@ -444,3 +446,219 @@ def _run_force_constants(
     ]
     phe._prepare_phonon(forces=np.array(forces), show_drift=False)
     return phe
+
+
+# Basis vectors of the bcc primitive cell in those of the cubic cell.
+BCC_PRIMITIVE_MATRIX = 0.5 * np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])
+
+
+def _get_antiferromagnetic_bcc_fe() -> PhonopyAtoms:
+    return PhonopyAtoms(
+        symbols=["Fe", "Fe"],
+        cell=np.eye(3) * 2.83,
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+        magnetic_moments=[3.0, -3.0],
+    )
+
+
+@pytest.mark.parametrize(
+    "primitive_matrix", ["I", BCC_PRIMITIVE_MATRIX], ids=["I", "bcc"]
+)
+def test_phelel_rejects_primitive_cell_of_antiferromagnet(
+    primitive_matrix: str | NDArray,
+):
+    """The bcc primitive cell of antiferromagnetic Fe is rejected.
+
+    The body-centring vector moves each atom onto an atom with the opposite
+    moment, which phonopy accepts as an anti-translation.  phelel needs
+    translations without time reversal.
+
+    """
+    with pytest.raises(ValueError, match="Magnetic moments of the supercell"):
+        Phelel(
+            _get_antiferromagnetic_bcc_fe(),
+            supercell_matrix=[2, 2, 2],
+            primitive_matrix=primitive_matrix,
+        )
+
+
+def test_phelel_auto_primitive_cell_of_antiferromagnet():
+    """primitive_matrix="auto" gives the cubic cell of antiferromagnetic Fe."""
+    phe = Phelel(
+        _get_antiferromagnetic_bcc_fe(),
+        supercell_matrix=[2, 2, 2],
+        primitive_matrix="auto",
+    )
+    assert len(phe.primitive) == 2
+    np.testing.assert_array_equal(phe.p2s_matrix, np.diag([2, 2, 2]))
+
+
+# Primitive matrices of C111 and NaCl111 other than the crystallographic one,
+# relative to the conventional cubic cell, with their FFT meshes.  The grid
+# points of "F" with fft_mesh=[14, 14, 14] and of these are on the mesh of 28
+# points along each basis vector of the cubic cell.
+OTHER_PRIMITIVE_CELLS = {
+    # Not the smallest cell, kept by all operations.
+    "conventional": (np.eye(3), [28, 28, 28]),
+    # (a/2)(1, 1, 0), (a/2)(-1, 1, 0), (0, 0, a), not kept by the 3-fold
+    # rotations.
+    "tetragonal": (
+        np.array([[0.5, -0.5, 0], [0.5, 0.5, 0], [0, 0, 1]]),
+        [14, 14, 28],
+    ),
+}
+
+
+def _get_translation_permutation(
+    supercell: PhonopyAtoms, translation: NDArray
+) -> list[int] | None:
+    """Return j of atom i moved by translation, or None if not a translation.
+
+    The atoms have to be of the same species with the same magnetic moment.
+
+    """
+    positions = supercell.scaled_positions
+    moments = supercell.magnetic_moments
+    moments = (
+        np.zeros((len(positions), 1))
+        if moments is None
+        else np.reshape(moments, (len(positions), -1))
+    )
+    permutation = []
+    for i, position in enumerate(positions):
+        differences = positions - (position + translation)
+        differences -= np.rint(differences)
+        matches = np.where(
+            (np.linalg.norm(differences, axis=1) < 1e-8)
+            & (supercell.species_ids == supercell.species_ids[i])
+            & (np.linalg.norm(moments - moments[i], axis=1) < 1e-8)
+        )[0]
+        if len(matches) != 1:
+            return None
+        permutation.append(int(matches[0]))
+    return permutation
+
+
+def _assert_translation_relation(phe: Phelel, phe_ref: Phelel, edge: int):
+    """Assert the derivatives of phe from those of phe_ref by translations.
+
+    For each atom b' of the primitive cell of phe, an atom b of that of phe_ref
+    with a translation R of the supercell, b' = b + R, is found, and
+
+        dVdu(b', x) = dVdu_ref(b, x - R),
+        dDijdu(b', alpha, j') = dDijdu_ref(b, alpha, j),
+
+    where j' = j + R.  R = 0 for the atoms of both primitive cells.  The grid
+    points x are compared where those of phe and phe_ref meet, which are
+    labeled by the fractional coordinates in the supercell times edge.
+
+    """
+    supercell = phe.supercell
+    positions = supercell.scaled_positions
+    tables = []
+    for p in (phe, phe_ref):
+        x = p.dVdu.grid_points * edge
+        assert np.abs(x - np.rint(x)).max() < 1e-8
+        labels = np.rint(x).astype(int) % edge
+        tables.append({tuple(label): i for i, label in enumerate(labels)})
+    points, points_ref = tables
+
+    scale_dV = np.abs(phe_ref.dVdu.dVdu).max()
+    scale_dDij = np.abs(phe_ref.dDijdu.dDijdu).max()
+    atoms_ref = list(phe_ref.dVdu.atom_indices)
+    for i_atom, atom in enumerate(phe.dVdu.atom_indices):
+        found = []
+        for i_ref, atom_ref in enumerate(atoms_ref):
+            translation = positions[atom] - positions[atom_ref]
+            permutation = _get_translation_permutation(supercell, translation)
+            if permutation is not None:
+                found.append((i_ref, translation, permutation))
+        assert found, f"No atom of phe_ref is translated to {atom}."
+        i_ref, translation, permutation = found[0]
+        shift = np.rint(translation * edge).astype(int)
+        assert np.abs(translation * edge - shift).max() < 1e-8
+        pairs = [
+            (i, points_ref[key])
+            for label, i in points.items()
+            if (key := tuple((np.array(label) - shift) % edge)) in points_ref
+        ]
+        assert pairs
+        i_points, i_points_ref = np.array(pairs).T
+        np.testing.assert_allclose(
+            phe.dVdu.dVdu[:, i_atom][..., i_points],
+            phe_ref.dVdu.dVdu[:, i_ref][..., i_points_ref],
+            rtol=0,
+            atol=1e-12 * scale_dV,
+        )
+        np.testing.assert_allclose(
+            phe.dDijdu.dDijdu[:, i_atom][:, :, permutation],
+            phe_ref.dDijdu.dDijdu[:, i_ref],
+            rtol=0,
+            atol=1e-12 * scale_dDij,
+        )
+
+
+def _count_rotations_not_keeping_lattice(phe: Phelel) -> int:
+    """Return the number of operations of the supercell with S L_p != L_p."""
+    p2s_matrix = phe.p2s_matrix
+    return sum(
+        not np.allclose(
+            m := p2s_matrix @ rotation @ np.linalg.inv(p2s_matrix), np.rint(m)
+        )
+        for rotation in phe.symmetry.symmetry_operations["rotations"]
+    )
+
+
+@pytest.mark.parametrize("cell_name", ["conventional", "tetragonal"])
+@pytest.mark.parametrize("name", ["C111", "NaCl111"])
+def test_api_phelel_primitive_cell_other_than_crystallographic(
+    name: str, cell_name: str, request: pytest.FixtureRequest
+):
+    """The derivatives do not depend on the choice of the primitive cell.
+
+    The primitive cell given by "F" is compared with the cubic cell, which is
+    not the smallest cell, and with a tetragonal cell, which is not kept by the
+    3-fold rotations.  The derivatives of the atoms of these cells that are
+    not in the cell of "F" are those of the atoms of "F" moved by translations.
+
+    """
+    phe_input: PhelelDataset = request.getfixturevalue(f"phelel_input_{name}")
+    yaml_filename = cwd / f"phelel_disp_{name}.yaml"
+    phe_ref = phelel.load(yaml_filename, fft_mesh=[14, 14, 14])
+    phe_ref.run_derivatives(phe_input)
+    primitive_matrix, fft_mesh = OTHER_PRIMITIVE_CELLS[cell_name]
+    phe = phelel.load(
+        yaml_filename, primitive_matrix=primitive_matrix, fft_mesh=fft_mesh
+    )
+    phe.run_derivatives(phe_input)
+
+    assert len(phe.primitive) > len(phe_ref.primitive)
+    assert (_count_rotations_not_keeping_lattice(phe) > 0) == (
+        cell_name == "tetragonal"
+    )
+    _assert_translation_relation(phe, phe_ref, 28)
+
+
+def test_api_phelel_conventional_cell_of_noncollinear_fe():
+    """The cubic cell of non-collinear ferromagnetic Fe gives the same derivatives.
+
+    The operations rotate the spin components and some have time reversal.
+    The reference is the bcc primitive cell of phelel_disp.yaml.
+
+    """
+    directory = cwd / "interface" / "vasp" / "derivatives_lwap" / "Fe-ncl"
+    dir_names = sorted(directory.glob("disp-*"))
+    phes = []
+    for primitive_matrix, fft_mesh in ((None, [16, 16, 16]), (np.eye(3), [32] * 3)):
+        phe = phelel.load(
+            directory / "phelel_disp.yaml",
+            primitive_matrix=primitive_matrix,
+            fft_mesh=fft_mesh,
+            is_nac=False,
+        )
+        phe.run_derivatives(read_files(phe, dir_names, phonon_dir_names=dir_names))
+        phes.append(phe)
+    phe_ref, phe = phes
+    assert phe.dVdu.dVdu.shape[0] == 4
+    assert len(phe_ref.primitive) == 1 and len(phe.primitive) == 2
+    _assert_translation_relation(phe, phe_ref, 32)

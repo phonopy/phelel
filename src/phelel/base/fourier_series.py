@@ -143,8 +143,16 @@ class FourierSeriesOnGrid:
         q points commensurate with the supercell in the reciprocal basis of the
         primitive cell, 0 <= q_k < 1, in the order of the first axis of phi.
         With the Smith normal form P M^s Q = diag(d), q = P^T diag(d)^-1 n_q
-        mod 1, and n_q runs in the order of np.ndindex(d).
+        mod 1, where n_q is an integer vector with 0 <= (n_q)_k < d_k, and n_q
+        runs in the order of np.ndindex(d).
         dtype='double', shape=(N_c, 3)
+    indices_of_minus_qpoints : ndarray
+        Indices in qpoints of -q of qpoints:
+        qpoints[indices_of_minus_qpoints] = -qpoints mod 1.  The label of -q is
+        the integer vector (-n_q) mod d, taken element by element.  The indices
+        of q themselves are the order of qpoints, np.arange(N_c), so they are
+        not kept as an array.
+        dtype='int64', shape=(N_c,)
     lattice_points : ndarray
         Lattice points of the primitive cell, one from each class modulo the
         lattice of the supercell, in the basis vectors of the primitive cell,
@@ -286,6 +294,10 @@ class FourierSeriesOnGrid:
         n_q = np.array(list(np.ndindex(*self._snf_diag)), dtype="int64")
         nc_q = ((n_q * (self._num_cells // self._snf_diag)) @ P) % self._num_cells
         self._qpoints = nc_q / self._num_cells
+        self._indices_of_minus_qpoints = np.array(
+            np.ravel_multi_index(((-n_q) % self._snf_diag).T, self._snf_diag),
+            dtype="int64",
+        )
 
     def _set_phase_qm(self) -> None:
         """Set the phase factors exp(2 pi i q . (N^p)^-1 m) of phi_q(m).
@@ -306,6 +318,11 @@ class FourierSeriesOnGrid:
     def qpoints(self) -> NDArray[np.double]:
         """Return q points in the order of the first axis of phi."""
         return self._qpoints
+
+    @property
+    def indices_of_minus_qpoints(self) -> NDArray[np.int64]:
+        """Return the index in qpoints of -q mod 1 for each q of qpoints."""
+        return self._indices_of_minus_qpoints
 
     @property
     def lattice_points(self) -> NDArray[np.int64]:

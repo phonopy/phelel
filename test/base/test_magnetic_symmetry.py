@@ -11,9 +11,14 @@ from phonopy.structure.symmetry import Symmetry
 from phelel.base.Dij_qij import DDijQijFit, DeltaDijQij
 from phelel.base.local_potential import (
     DeltaLocalPotential,
+    DLocalPotential,
     DLocalPotentialFit,
 )
-from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.magnetic_symmetry import (
+    check_magnetic_moments,
+    check_primitive_translations,
+    get_time_reversals,
+)
 from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.utils.spinor import (
     apply_time_reversal_in_spin_space,
@@ -137,6 +142,70 @@ def test_Dij_qij_rejects_mismatched_magmoms():
     delta_Dij_qij = DeltaDijQij(Dij, Dij, Dij, Dij, disp, lm_channels)
     with pytest.raises(MagneticMomentsError, match="ncdij=2"):
         DDijQijFit(cell, Symmetry(cell), verbose=False).run([delta_Dij_qij])
+
+
+# Supercell matrix of the cubic cell relative to the bcc primitive cell.
+BCC_P2S_MATRIX = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]], dtype="int64")
+
+
+@pytest.mark.parametrize(
+    "magmoms,expected",
+    [
+        (None, "ok"),
+        ([3, 3], "ok"),
+        ([[0, 0, 3], [0, 0, 3]], "ok"),
+        ([3, -3], "error"),
+        ([3, -1], "error"),
+        ([[0, 0, 3], [0, 0, -3]], "error"),
+        ([[0, 0, 3], [3, 0, 0]], "error"),
+    ],
+)
+def test_check_primitive_translations(
+    magmoms: Sequence[float] | Sequence[Sequence[float]] | None, expected: str
+):
+    """The body-centring vector of bcc Fe has to keep the magnetic moments.
+
+    It is an anti-translation for the antiferromagnetic moments (3, -3), which
+    phonopy allows, and it is no symmetry operation for the others.
+
+    """
+    cell = _bcc_fe(magmoms)
+    if expected == "error":
+        with pytest.raises(ValueError, match="Magnetic moments of the supercell"):
+            check_primitive_translations(cell, BCC_P2S_MATRIX, 1e-5)
+    else:
+        check_primitive_translations(cell, BCC_P2S_MATRIX, 1e-5)
+    # The cubic cell itself is always a primitive cell.
+    check_primitive_translations(cell, np.eye(3, dtype="int64"), 1e-5)
+
+
+def test_check_primitive_translations_rejects_non_translation():
+    """The body-centring vector of CsCl moves Cs onto Cl."""
+    cell = PhonopyAtoms(
+        symbols=["Cs", "Cl"],
+        cell=np.eye(3) * 4.0,
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+    )
+    with pytest.raises(ValueError, match="not a translation of the supercell"):
+        check_primitive_translations(cell, BCC_P2S_MATRIX, 1e-5)
+
+
+def test_local_potential_rejects_primitive_cell_of_antiferromagnet():
+    """DLocalPotential.run rejects the bcc primitive cell of antiferromagnetic Fe.
+
+    The finite differences would give dV/du of atom 0 only, and dV/du of atom 1
+    with the opposite moment would be taken wrongly as that of atom 0 moved by
+    the body-centring vector.
+
+    """
+    cell = _bcc_fe([3, -3])
+    V = np.zeros((2, 2, 2, 2), dtype=complex)
+    disp = {"number": 0, "displacement": [0.01, 0, 0]}
+    dlp = DLocalPotential(
+        [2, 2, 2], BCC_P2S_MATRIX, cell, symmetry=Symmetry(cell), verbose=False
+    )
+    with pytest.raises(ValueError, match="Magnetic moments of the supercell"):
+        dlp.run(V, [V], [disp])
 
 
 def test_magnetization_invariant_under_magnetic_operations():

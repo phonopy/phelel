@@ -18,7 +18,11 @@ from phonopy.structure.symmetry import Symmetry
 from phonors import snf3x3
 
 from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
-from phelel.base.magnetic_symmetry import check_magnetic_moments, get_time_reversals
+from phelel.base.magnetic_symmetry import (
+    check_magnetic_moments,
+    check_primitive_translations,
+    get_time_reversals,
+)
 from phelel.base.potential_change import (
     add_to_normal_equation_rhs,
     apply_inverse_normal_matrix,
@@ -878,7 +882,17 @@ class DLocalPotential:
                 'displacement' : Displacement in Cartesian coordinates
                 'number' : Index of displaced atom
 
+        Raises
+        ------
+        ValueError
+            When a lattice vector of the primitive cell is not a translation of
+            the supercell with its magnetic moments (see
+            check_primitive_translations), and as in check_displaced_atoms.
+
         """
+        check_primitive_translations(
+            self._supercell, self._p2s_matrix, self._symmetry.tolerance
+        )
         check_displaced_atoms(self._atom_indices, displacements, self._symmetry)
         local_potential_fit = DLocalPotentialFit(
             self._fft_mesh,
