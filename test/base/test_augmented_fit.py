@@ -29,6 +29,7 @@ from phonopy.structure.symmetry import Symmetry
 
 import phelel
 from phelel.base.augmented_fit import (
+    AugmentedNormalMatrices,
     DLocalPotentialAugmentedFit,
     _get_inverse_normal_matrices,
     get_coset_representatives,
@@ -220,15 +221,27 @@ def _to_type2(displacements: list[dict], n_atoms: int) -> NDArray:
     return array
 
 
-def _get_fit(
+def _run_fit(
     supercell: PhonopyAtoms,
     primitive: Primitive,
     symmetry: Symmetry,
+    perfect: NDArray,
+    potentials: list[NDArray],
+    displacements: NDArray,
     lang: Literal["Rust", "Python"] = "Rust",
-) -> DLocalPotentialAugmentedFit:
-    return DLocalPotentialAugmentedFit(
-        FFT_MESH, P2S_MATRIX, supercell, primitive, symmetry, verbose=False, lang=lang
+    fft_mesh: tuple[int, int, int] | list[int] = FFT_MESH,
+    p2s_matrix: NDArray = P2S_MATRIX,
+) -> tuple[DLocalPotentialAugmentedFit, AugmentedNormalMatrices]:
+    """Return the fit of dV/du and its A(q) after their runs."""
+    normal_matrices = AugmentedNormalMatrices(
+        supercell, primitive, p2s_matrix, symmetry, verbose=False
     )
+    normal_matrices.run(displacements)
+    fit = DLocalPotentialAugmentedFit(
+        fft_mesh, normal_matrices, verbose=False, lang=lang
+    )
+    fit.run(perfect, potentials)
+    return fit, normal_matrices
 
 
 def _assert_close(values: NDArray, reference: NDArray, tolerance: float) -> None:
@@ -277,18 +290,15 @@ def test_type1_data_equal_finite_differences(data_dir: str):
     )
     finite_differences.run(potentials[0], potentials[1:], displacements)
 
-    fit = DLocalPotentialAugmentedFit(
-        fft_mesh,
-        phe.p2s_matrix,
+    fit, _ = _run_fit(
         phe.supercell,
         phe.primitive,
         phe.symmetry,
-        verbose=False,
-    )
-    fit.run(
         potentials[0],
         potentials[1:],
         _to_type2(displacements, len(phe.supercell)),
+        fft_mesh=fft_mesh,
+        p2s_matrix=phe.p2s_matrix,
     )
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
 
@@ -323,8 +333,7 @@ def test_type1_synthetic_data_equal_finite_differences(
     )
     finite_differences.run(perfect, potentials, displacements)
 
-    fit = _get_fit(supercell, primitive, symmetry, lang=lang)
-    fit.run(perfect, potentials, array)
+    fit, _ = _run_fit(supercell, primitive, symmetry, perfect, potentials, array, lang)
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
 
 
@@ -359,8 +368,7 @@ def test_type1_grey_group_equal_finite_differences():
     )
     finite_differences.run(perfect, potentials, displacements)
 
-    fit = _get_fit(grey_cell, primitive, symmetry)
-    fit.run(perfect, potentials, array)
+    fit, _ = _run_fit(grey_cell, primitive, symmetry, perfect, potentials, array)
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
 
 
@@ -376,9 +384,10 @@ def test_random_displacements_equal_analytic_derivative(structure: Structure):
     perfect = _get_potential(supercell, magnetic)
     potentials = [_get_potential(supercell, magnetic, d) for d in array]
 
-    fit = _get_fit(supercell, primitive, symmetry)
-    fit.run(perfect, potentials, array)
-    assert fit.normal_matrix_eigenvalues.min() > 1e-6
+    fit, normal_matrices = _run_fit(
+        supercell, primitive, symmetry, perfect, potentials, array
+    )
+    assert normal_matrices.eigenvalues.min() > 1e-6
     analytic = _get_analytic_dVdu(supercell, primitive, magnetic, fit.grid_points)
     _assert_close(fit.dVdu, analytic, 1e-3)
 
@@ -402,9 +411,10 @@ def test_random_displacements_without_drift():
     perfect = _get_potential(supercell, False)
     potentials = [_get_potential(supercell, False, d) for d in array]
 
-    fit = _get_fit(supercell, primitive, symmetry)
-    fit.run(perfect, potentials, array)
-    eigvals = fit.normal_matrix_eigenvalues
+    fit, normal_matrices = _run_fit(
+        supercell, primitive, symmetry, perfect, potentials, array
+    )
+    eigvals = normal_matrices.eigenvalues
     np.testing.assert_allclose(FourierSeriesOnGrid(FFT_MESH, P2S_MATRIX).qpoints[0], 0)
     np.testing.assert_array_equal(
         (eigvals <= 1e-10 * eigvals.max()).sum(axis=1), [3, 0, 0]
@@ -511,10 +521,17 @@ def test_type1_synthetic_data_with_lattice_not_kept(
     )
     finite_differences.run(perfect, potentials, displacements)
 
-    fit = DLocalPotentialAugmentedFit(
-        fft_mesh, p2s_matrix, supercell, primitive, symmetry, verbose=False, lang=lang
+    fit, _ = _run_fit(
+        supercell,
+        primitive,
+        symmetry,
+        perfect,
+        potentials,
+        array,
+        lang,
+        fft_mesh=fft_mesh,
+        p2s_matrix=p2s_matrix,
     )
-    fit.run(perfect, potentials, array)
     _assert_close(fit.dVdu, finite_differences.dVdu, 1e-12)
 
 
@@ -650,11 +667,17 @@ def test_random_displacements_do_not_depend_on_lattice_of_output_grid(
     for name in ("cubic", output_lattice):
         p2s_matrix, fft_mesh = OUTPUT_LATTICES[name]
         supercell, primitive, symmetry = _get_cubic_supercell_cells(structure, name)
-        fit = DLocalPotentialAugmentedFit(
-            fft_mesh, p2s_matrix, supercell, primitive, symmetry, verbose=False
+        fit, normal_matrices = _run_fit(
+            supercell,
+            primitive,
+            symmetry,
+            perfect,
+            potentials,
+            array,
+            fft_mesh=fft_mesh,
+            p2s_matrix=p2s_matrix,
         )
-        fit.run(perfect, potentials, array)
-        assert fit.normal_matrix_eigenvalues.min() > 1e-6
+        assert normal_matrices.eigenvalues.min() > 1e-6
         tables.append(_get_dVdu_by_atom_and_point(fit, primitive))
 
     cubic, other = tables
@@ -758,8 +781,8 @@ def test_fit_raises_for_primitive_cell_without_moments(
     s2p_map = primitive.s2p_map if with_s2p_map else None
     symmetry = Symmetry(supercell, is_symmetry=False, s2p_map=s2p_map)
     with pytest.raises(ValueError, match="Magnetic moments of the supercell differ"):
-        DLocalPotentialAugmentedFit(
-            (4, 4, 4), p2s_matrix, supercell, primitive, symmetry, verbose=False
+        AugmentedNormalMatrices(
+            supercell, primitive, p2s_matrix, symmetry, verbose=False
         )
 
 
@@ -811,16 +834,42 @@ def test_init_raises_for_primitive_cell_of_another_supercell():
         scaled_positions=np.roll(supercell.scaled_positions, 1, axis=0),
     )
     with pytest.raises(ValueError, match="primitive cell has to be that of"):
-        _get_fit(rolled_supercell, primitive, Symmetry(rolled_supercell))
+        AugmentedNormalMatrices(
+            rolled_supercell,
+            primitive,
+            P2S_MATRIX,
+            Symmetry(rolled_supercell),
+            verbose=False,
+        )
 
 
 def test_run_raises_for_wrong_shape_of_displacements():
-    """The number of snapshots has to agree with that of the potentials."""
+    """The displacements have to be given for all atoms of the supercell."""
+    supercell, primitive, symmetry = _get_cells("CsCl")
+    normal_matrices = AugmentedNormalMatrices(
+        supercell, primitive, P2S_MATRIX, symmetry, verbose=False
+    )
+    with pytest.raises(ValueError, match="Shape of displacements"):
+        normal_matrices.run(np.zeros((2, len(supercell) - 1, 3)))
+
+
+def test_fit_raises_for_wrong_number_of_snapshots():
+    """The number of snapshots has to agree with that of the potentials.
+
+    Before AugmentedNormalMatrices.run, the fit has no displacements.
+
+    """
     supercell, primitive, symmetry = _get_cells("CsCl")
     perfect = _get_potential(supercell, magnetic=False)
-    fit = _get_fit(supercell, primitive, symmetry)
-    with pytest.raises(ValueError, match="Shape of displacements"):
-        fit.run(perfect, [perfect], np.zeros((2, len(supercell), 3)))
+    normal_matrices = AugmentedNormalMatrices(
+        supercell, primitive, P2S_MATRIX, symmetry, verbose=False
+    )
+    fit = DLocalPotentialAugmentedFit(FFT_MESH, normal_matrices, verbose=False)
+    with pytest.raises(RuntimeError, match="has to be called before"):
+        fit.run(perfect, [perfect])
+    normal_matrices.run(np.zeros((2, len(supercell), 3)))
+    with pytest.raises(ValueError, match="Number of snapshots"):
+        fit.run(perfect, [perfect])
 
 
 def test_get_inverse_normal_matrices():

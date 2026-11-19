@@ -29,6 +29,10 @@ q points are discarded in pinv(A(q)).
 With phi_q in place of N_c phi_q in B(q), sum_over_qpoints applied to X(q) gives
 dV/du with the factor 1 / N_c of the inverse lattice Fourier sum included.
 
+A(q) depends only on the displacements.  AugmentedNormalMatrices computes
+pinv(A(q)) once, and the fits of the derivatives, DLocalPotentialAugmentedFit
+for dV/du, accumulate their own B(q) with it.
+
 Only g_point_selection="shortest" of FourierSeriesOnGrid is used.
 
 """
@@ -45,7 +49,11 @@ from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.cells import Primitive
 from phonopy.structure.symmetry import Symmetry
 
-from phelel.base.fourier_series import FourierSeriesOnGrid, get_fourier_coefficients
+from phelel.base.fourier_series import (
+    FourierSeriesOnGrid,
+    get_fourier_coefficients,
+    get_qpoints,
+)
 from phelel.base.local_potential import get_grid_points
 from phelel.base.magnetic_symmetry import (
     check_magnetic_moments,
@@ -192,26 +200,41 @@ def get_coset_representatives(
     )
 
 
-class DLocalPotentialAugmentedFit:
-    """Compute dV/du from snapshots by the augmented fit.
+class AugmentedNormalMatrices:
+    """A(q) of the augmented fit and its pseudo-inverse.
 
-    See the module docstring.
+    A(q) depends only on the displacements of the snapshots, so it is computed
+    once and used by the fits of the derivatives, such as
+    DLocalPotentialAugmentedFit (see the module docstring).  The coset
+    representatives and the lattice Fourier sums of the displacements, which
+    these fits also use, are given here.
 
     Attributes
     ----------
-    grid_points : ndarray
-        Grid points of get_grid_points.
-        dtype='double', shape=(prod(fft_mesh) * det(p2s_matrix), 3)
-    lattice_points : ndarray
-        Lattice points of get_grid_points.
-        dtype='int64', shape=(det(p2s_matrix), 3)
-    dVdu : ndarray
-        dV/du of the atoms of primitive.p2s_map on the grid points.
-        dtype='complex128', shape=(ncdij, n_p, 3, n_grid_points)
-    normal_matrix_eigenvalues : ndarray
+    supercell : PhonopyAtoms
+        Perfect supercell.
+    p2s_matrix : ndarray
+        Supercell matrix relative to the primitive cell.
+        dtype='int64', shape=(3, 3)
+    coset_representatives : CosetRepresentatives
+        Coset representatives of the operations of the supercell.
+    adds_time_reversal : bool
+        True for a grey group whose operations lack time reversal
+        (is_grey_group_without_time_reversal).  The coset of each coset
+        representative combined with time reversal is then a coset of its
+        own, which the fits add with the same displacements.
+    num_primitive_atoms : int
+        Number of the atoms of the primitive cell, n_p.
+    displacements : ndarray or None
+        Displacements given to run.
+        dtype='double', shape=(n_snapshots, n_atoms, 3)
+    inverse_normal_matrices : ndarray or None
+        pinv(A(q)) of each q point.
+        dtype='complex128', shape=(N_c, 3 n_p, 3 n_p)
+    eigenvalues : ndarray or None
         Eigenvalues of A(q) in ascending order, for each q point.  Those at or
-        below rcond times the largest one are discarded in the inverse of
-        A(q).  They mean that the snapshots do not determine dV/du along the
+        below rcond times the largest one are discarded in pinv(A(q)).  They
+        mean that the snapshots do not determine the derivatives along the
         eigenvectors, as at q = 0 for snapshots without a drift of the center
         of mass.
         dtype='double', shape=(N_c, 3 n_p)
@@ -220,30 +243,24 @@ class DLocalPotentialAugmentedFit:
 
     def __init__(
         self,
-        fft_mesh: Sequence[int] | NDArray,
-        p2s_matrix: Sequence[Sequence[int]] | NDArray[np.int64],
         supercell: PhonopyAtoms,
         primitive: Primitive,
+        p2s_matrix: Sequence[Sequence[int]] | NDArray[np.int64],
         symmetry: Symmetry,
         rcond: float = 1e-10,
         verbose: bool = True,
-        lang: Literal["Rust", "Python"] = "Rust",
-        time_reversal_form: Literal["conjugate", "linear"] = "conjugate",
     ):
         """Init method.
 
         Parameters
         ----------
-        fft_mesh : array_like
-            Mesh numbers for primitive cell.
-            dtype='int64', shape=(3,)
-        p2s_matrix : array_like
-            Supercell matrix relative to primitive cell.
-            dtype='int64', shape=(3, 3)
         supercell : PhonopyAtoms
             Perfect supercell.
         primitive : Primitive
             Primitive cell of the supercell.
+        p2s_matrix : array_like
+            Supercell matrix relative to primitive cell.
+            dtype='int64', shape=(3, 3)
         symmetry : Symmetry
             Symmetry of the supercell.
         rcond : float, optional
@@ -252,24 +269,10 @@ class DLocalPotentialAugmentedFit:
             1e-10.
         verbose : bool, optional
             To display log or not.
-        lang : str, optional
-            Implementation of FourierSeriesOnGrid and of the steps of
-            phelel.base.potential_change that have one in Rust, "Rust"
-            (default) by phonors or "Python" by NumPy.
-        time_reversal_form : str, optional
-            How time reversal of a coset representative is applied to phi_q.
-            "conjugate" (default) applies
-            apply_time_reversal_to_spin_components, which takes the complex
-            conjugate, and takes the values at -q.  "linear" exchanges and
-            negates the spin components at the same q without the complex
-            conjugate (_apply_linear_time_reversal).  The two give the same
-            dV/du when the potential changes are Hermitian, and "linear" is
-            kept to compare them.
 
         Raises
         ------
         ValueError
-            When time_reversal_form is neither "conjugate" nor "linear".
             When primitive is not the primitive cell of supercell and
             p2s_matrix, when the magnetic moments of supercell are not kept by
             the translations of primitive without time reversal (see
@@ -277,253 +280,132 @@ class DLocalPotentialAugmentedFit:
 
         """
         self._supercell = supercell
+        self._p2s_matrix = np.array(p2s_matrix, dtype="int64", order="C")
         self._rcond = rcond
         self._verbose = verbose
-        self._lang: Literal["Rust", "Python"] = lang
-        if time_reversal_form not in ("conjugate", "linear"):
-            raise ValueError(
-                f'time_reversal_form must be "conjugate" or "linear", '
-                f"not {time_reversal_form!r}."
-            )
-        self._time_reversal_form = time_reversal_form
-        self._p2s_matrix = np.array(p2s_matrix, dtype="int64", order="C")
-        self._grid_points, self._lattice_points = get_grid_points(
-            fft_mesh, self._p2s_matrix
-        )
-        self._fourier_series = FourierSeriesOnGrid(
-            fft_mesh,
-            self._p2s_matrix,
-            g_point_selection="shortest",
-            supercell_lattice=supercell.cell,
-            lang=lang,
-        )
         check_primitive_translations(supercell, self._p2s_matrix, symmetry.tolerance)
         self._coset_representatives = get_coset_representatives(
             symmetry, supercell, self._p2s_matrix
         )
         self._adds_time_reversal = is_grey_group_without_time_reversal(symmetry)
         self._set_atoms_and_phases(primitive, symmetry.tolerance)
-        self._dVdu: NDArray[np.cdouble] | None = None
-        self._normal_matrix_eigenvalues: NDArray[np.double] | None = None
+        self._displacements: NDArray[np.double] | None = None
+        self._inverse_normal_matrices: NDArray[np.cdouble] | None = None
+        self._eigenvalues: NDArray[np.double] | None = None
 
     @property
-    def grid_points(self) -> NDArray[np.double]:
-        """Return grid points."""
-        return self._grid_points
+    def supercell(self) -> PhonopyAtoms:
+        """Return the perfect supercell."""
+        return self._supercell
 
     @property
-    def lattice_points(self) -> NDArray[np.int64]:
-        """Return lattice points."""
-        return self._lattice_points
+    def p2s_matrix(self) -> NDArray[np.int64]:
+        """Return the supercell matrix relative to the primitive cell."""
+        return self._p2s_matrix
 
     @property
-    def dVdu(self) -> NDArray[np.cdouble] | None:
-        """Return dV/du."""
-        return self._dVdu
+    def coset_representatives(self) -> CosetRepresentatives:
+        """Return the coset representatives."""
+        return self._coset_representatives
 
     @property
-    def normal_matrix_eigenvalues(self) -> NDArray[np.double] | None:
+    def adds_time_reversal(self) -> bool:
+        """Return whether the cosets combined with time reversal are added."""
+        return self._adds_time_reversal
+
+    @property
+    def num_primitive_atoms(self) -> int:
+        """Return the number of the atoms of the primitive cell."""
+        return self._num_primitive_atoms
+
+    @property
+    def displacements(self) -> NDArray[np.double] | None:
+        """Return the displacements given to run."""
+        return self._displacements
+
+    @property
+    def inverse_normal_matrices(self) -> NDArray[np.cdouble] | None:
+        """Return pinv(A(q))."""
+        return self._inverse_normal_matrices
+
+    @property
+    def eigenvalues(self) -> NDArray[np.double] | None:
         """Return eigenvalues of A(q)."""
-        return self._normal_matrix_eigenvalues
+        return self._eigenvalues
 
-    def run(
-        self,
-        V_loc_per: NDArray[np.cdouble],
-        V_loc_disps: Sequence[NDArray[np.cdouble]],
-        displacements: NDArray,
-    ) -> None:
-        """Compute dV/du.
+    def run(self, displacements: NDArray) -> None:
+        """Compute pinv(A(q)) and the eigenvalues of A(q).
 
-        The results are stored in dVdu and normal_matrix_eigenvalues.
+        This calls BLAS, so it is called before the loops of the fits, in which
+        phonors runs its kernels in parallel with rayon.
 
         Parameters
         ----------
-        V_loc_per : ndarray
-            Local potential of perfect supercell.
-            dtype='complex128', shape=(ncdij, nz, ny, nx)
-        V_loc_disps : sequence of ndarray
-            Local potentials of the snapshots.
-            dtype='complex128', shape=(ncdij, nz, ny, nx) each
-        displacements : ndarray
+        displacements : array_like
             Displacements of all atoms of the snapshots in Cartesian
             coordinates.
             dtype='double', shape=(n_snapshots, n_atoms, 3)
 
-        """
-        ncdij = V_loc_per.shape[0]
-        displacements = self._get_checked_displacements(
-            ncdij, V_loc_disps, displacements
-        )
-
-        # BLAS is called only here, before the loops, where phonors runs its
-        # kernels in parallel with rayon.
-        normal_matrices = self._get_normal_matrices(displacements)
-        inverse_normal_matrices, self._normal_matrix_eigenvalues = (
-            _get_inverse_normal_matrices(normal_matrices, self._rcond)
-        )
-        if self._verbose:
-            self._print_discarded_eigenvalues()
-        spin_rotations = self._get_spin_rotations() if ncdij == 4 else None
-
-        normal_equation_rhs = self._get_normal_equation_rhs(
-            V_loc_per, V_loc_disps, displacements, spin_rotations
-        )
-        apply_inverse_augmented_normal_matrices(
-            normal_equation_rhs, inverse_normal_matrices
-        )
-        self._dVdu = self._sum_over_qpoints(normal_equation_rhs)
-
-    def _get_checked_displacements(
-        self,
-        ncdij: int,
-        V_loc_disps: Sequence[NDArray[np.cdouble]],
-        displacements: NDArray,
-    ) -> NDArray[np.double]:
-        """Return the displacements after checking the inputs of run.
-
-        The magnetic moments of the supercell are checked against ncdij by
-        check_magnetic_moments, and the displacements must have one row of all
-        atoms for each potential of V_loc_disps.
-
-        Parameters
-        ----------
-        ncdij : int
-            Number of spin components of the potentials.
-        V_loc_disps : sequence of ndarray
-            See run.
-        displacements : array_like
-            See run.
-
-        Returns
-        -------
-        ndarray
-            dtype='double', shape=(n_snapshots, n_atoms, 3), C-contiguous
-
         Raises
         ------
         ValueError
-            When the shape of displacements is not (len(V_loc_disps),
-            n_atoms, 3), and as in check_magnetic_moments.
+            When the shape of displacements is not (n_snapshots, n_atoms, 3).
 
         """
-        check_magnetic_moments(self._supercell, ncdij)
         displacements = np.array(displacements, dtype="double", order="C")
-        expected_shape = (len(V_loc_disps), len(self._supercell), 3)
-        if displacements.shape != expected_shape:
+        if displacements.ndim != 3 or displacements.shape[1:] != (
+            len(self._supercell),
+            3,
+        ):
             raise ValueError(
                 f"Shape of displacements is {displacements.shape}, not "
-                f"{expected_shape}."
+                f"(n_snapshots, {len(self._supercell)}, 3)."
             )
-        return displacements
-
-    def _print_discarded_eigenvalues(self) -> None:
-        """Print how many eigenvalues of A(q) are discarded in pinv(A(q)).
-
-        They are those at or below rcond times the largest eigenvalue over all
-        q points (_get_inverse_normal_matrices).
-
-        """
-        eigvals = self._normal_matrix_eigenvalues
-        assert eigvals is not None
-        num_discarded = int((eigvals <= self._rcond * eigvals.max()).sum())
-        print(
-            f"Discarded {num_discarded} of {eigvals.size} eigenvalues of "
-            f"A(q) at or below {self._rcond} times the largest one."
+        self._displacements = displacements
+        self._inverse_normal_matrices, self._eigenvalues = _get_inverse_normal_matrices(
+            self._get_normal_matrices(), self._rcond
         )
+        if self._verbose:
+            self._print_discarded_eigenvalues()
 
-    def _get_normal_equation_rhs(
-        self,
-        V_loc_per: NDArray[np.cdouble],
-        V_loc_disps: Sequence[NDArray[np.cdouble]],
-        displacements: NDArray[np.double],
-        spin_rotations: list[NDArray[np.cdouble]] | None,
-    ) -> NDArray[np.cdouble]:
-        """Return B(q) = U(q)^H Y(q), accumulated one augmented snapshot at a time.
+    def get_displacement_sums(self, i_snapshot: int, i_op: int) -> NDArray[np.cdouble]:
+        """Return the lattice Fourier sums of the displacements of one (j, g).
 
-        Row (j, g) of Y(q) is phi_q of the potential change of the augmented
-        snapshot (j, g), and column (j, g) of U(q)^H is conj(u~^(j,g)(q)).
-        B(q) is the sum over (j, g) of their outer products, and each pair
-        (j, g) adds its outer product to all elements of B(q)
-        (add_to_augmented_normal_equation_rhs).  Y(q) is not stored, because
-        it would take the memory of all augmented snapshots on the output grid.
-
-        The loop over the snapshots j is outside, so that the Fourier
-        coefficients of the potential change of snapshot j are computed by one
-        FFT and used for all coset representatives g.  The loops do not call
-        BLAS (see the comment in run).
-
-        phi_q of (j, g) is get_phi of the Fourier coefficients for the spatial
-        part of g, followed by the rotation in spin space for ncdij=4 and by
-        _apply_time_reversal when g has time reversal.  The rotation in spin
-        space has no complex conjugate, so it is applied at the same q.
-
-        For a grey group whose operations lack time reversal
-        (is_grey_group_without_time_reversal), the coset of g combined with
-        time reversal is a coset of its own.  Its phi_q is that of (j, g) after
-        _apply_time_reversal and is added with the same weights, without
-        computing get_phi again.
+        The operation moves atom i to the site of atom perm[i] and rotates its
+        displacement by S.  np.einsum without optimize does not call BLAS, which
+        would compete with the rayon threads of phonors in the loops of the
+        fits.
 
         Parameters
         ----------
-        V_loc_per, V_loc_disps : ndarray, sequence of ndarray
-            See run.
-        displacements : ndarray
-            See run.
-            dtype='double', shape=(n_snapshots, n_atoms, 3)
-        spin_rotations : list of ndarray or None
-            D^(1/2) of the coset representatives for ncdij=4, otherwise None.
+        i_snapshot : int
+            Index of the snapshot j in displacements.
+        i_op : int
+            Index of the coset representative g.
 
         Returns
         -------
         ndarray
-            B(q) with phi_q in place of N_c phi_q (see the module docstring).
-            dtype='complex128',
-            shape=(ncdij, 3 n_p, N_c, n_grid_points / N_c)
+            u~_(tau alpha)(q) of the augmented snapshot, with the index
+            i = 3 tau + alpha of the second axis.
+            dtype='complex128', shape=(N_c, 3 n_p)
 
         """
-        ncdij = V_loc_per.shape[0]
-        num_cells = len(self._lattice_points)
-        normal_equation_rhs = np.zeros(
-            (
-                ncdij,
-                3 * self._num_primitive_atoms,
-                num_cells,
-                len(self._grid_points) // num_cells,
-            ),
-            dtype="complex128",
-            order="C",
+        assert self._displacements is not None
+        rotated = np.zeros_like(self._displacements[i_snapshot])
+        rotated[self._coset_representatives.permutations[i_op]] = np.einsum(
+            "ij,nj->ni",
+            self._coset_representatives.cartesian_rotations[i_op],
+            self._displacements[i_snapshot],
         )
-        for displacement, V_loc_disp in zip(displacements, V_loc_disps, strict=True):
-            coefficients = [
-                get_fourier_coefficients(dV) for dV in V_loc_disp - V_loc_per
-            ]
-            for i_op in range(len(self._coset_representatives.rotations)):
-                phis = self._fourier_series.get_phi(
-                    coefficients,
-                    self._coset_representatives.rotations[i_op],
-                    self._coset_representatives.translations[i_op],
-                )
-                if spin_rotations is not None:
-                    rotate_spin_components(phis, spin_rotations[i_op], lang=self._lang)
-                if self._coset_representatives.time_reversals[i_op]:
-                    phis = self._apply_time_reversal(phis)
-                weights = self._get_displacement_sums(displacement, i_op).conj()
-                add_to_augmented_normal_equation_rhs(
-                    normal_equation_rhs,
-                    weights,
-                    [phi.reshape(num_cells, -1) for phi in phis],
-                )
-                if self._adds_time_reversal:
-                    assert not self._coset_representatives.time_reversals[i_op]
-                    phis = self._apply_time_reversal(phis)
-                    add_to_augmented_normal_equation_rhs(
-                        normal_equation_rhs,
-                        weights,
-                        [phi.reshape(num_cells, -1) for phi in phis],
-                    )
-            if self._verbose:
-                print("Added a snapshot to the normal equations.")
-        return normal_equation_rhs
+        sums = np.zeros(
+            (self._phases.shape[0], self._num_primitive_atoms, 3), dtype="complex128"
+        )
+        for i_atom, sublattice in enumerate(self._sublattices):
+            sums[:, i_atom] = np.einsum(
+                "qn,na->qa", self._phases[:, sublattice], rotated[sublattice]
+            )
+        return sums.reshape(sums.shape[0], -1)
 
     def _set_atoms_and_phases(self, primitive: Primitive, tolerance: float) -> None:
         """Set the sublattices and exp(-2 pi i q . l) of each atom of the supercell.
@@ -532,7 +414,7 @@ class DLocalPotentialAugmentedFit:
         primitive.s2p_map[i], and l is the difference of the fractional
         coordinates of the two atoms in the basis of the primitive cell.  This l
         can differ from one of get_lattice_points by a lattice vector of the
-        supercell, which does not change the phase.
+        supercell, which does not change the phase.  q are those of get_qpoints.
 
         Raises
         ------
@@ -560,68 +442,20 @@ class DLocalPotentialAugmentedFit:
                 "has to be that of the supercell and p2s_matrix."
             )
         self._phases = np.exp(
-            -2j * np.pi * (self._fourier_series.qpoints @ lattice_vectors.T)
+            -2j * np.pi * (get_qpoints(self._p2s_matrix) @ lattice_vectors.T)
         )
 
-    def _get_displacement_sums(
-        self, displacement: NDArray[np.double], i_op: int
-    ) -> NDArray[np.cdouble]:
-        """Return the lattice Fourier sums of the displacements of one (j, g).
-
-        The operation moves atom i to the site of atom perm[i] and rotates its
-        displacement by S.  np.einsum without optimize does not call BLAS, which
-        would compete with the rayon threads of phonors in the loops of run.
-
-        Parameters
-        ----------
-        displacement : ndarray
-            Displacements of all atoms of one snapshot.
-            dtype='double', shape=(n_atoms, 3)
-        i_op : int
-            Index of the coset representative.
-
-        Returns
-        -------
-        ndarray
-            u~_(tau alpha)(q) of the augmented snapshot, with the index
-            i = 3 tau + alpha of the second axis.
-            dtype='complex128', shape=(N_c, 3 n_p)
-
-        """
-        rotated = np.zeros_like(displacement)
-        rotated[self._coset_representatives.permutations[i_op]] = np.einsum(
-            "ij,nj->ni",
-            self._coset_representatives.cartesian_rotations[i_op],
-            displacement,
-        )
-        sums = np.zeros(
-            (self._phases.shape[0], self._num_primitive_atoms, 3), dtype="complex128"
-        )
-        for i_atom, sublattice in enumerate(self._sublattices):
-            sums[:, i_atom] = np.einsum(
-                "qn,na->qa", self._phases[:, sublattice], rotated[sublattice]
-            )
-        return sums.reshape(sums.shape[0], -1)
-
-    def _get_normal_matrices(
-        self, displacements: NDArray[np.double]
-    ) -> NDArray[np.cdouble]:
+    def _get_normal_matrices(self) -> NDArray[np.cdouble]:
         """Return A(q) of each q point.
 
         A(q) = U(q)^H U(q) is the matrix of the normal equations, where U(q)
         has one row u~^(j,g)(q) for each augmented snapshot (j, g)
-        (_get_displacement_sums), so that
+        (get_displacement_sums), so that
 
             A(q) = sum_(j, g) conj(u~^(j,g)(q)) (x) u~^(j,g)(q).
 
-        For a grey group whose operations lack time reversal, each (j, g) is
-        used also with time reversal (_get_normal_equation_rhs), which keeps
-        the displacements, so A(q) is doubled.
-
-        Parameters
-        ----------
-        displacements : ndarray
-            See run.
+        When adds_time_reversal, each (j, g) is used also with time reversal,
+        which keeps the displacements, so A(q) is doubled.
 
         Returns
         -------
@@ -629,24 +463,261 @@ class DLocalPotentialAugmentedFit:
             dtype='complex128', shape=(N_c, 3 n_p, 3 n_p)
 
         """
+        assert self._displacements is not None
         n_pairs = 3 * self._num_primitive_atoms
         normal_matrices = np.zeros(
             (self._phases.shape[0], n_pairs, n_pairs), dtype="complex128"
         )
-        for displacement in displacements:
+        for i_snapshot in range(len(self._displacements)):
             for i_op in range(len(self._coset_representatives.rotations)):
-                sums = self._get_displacement_sums(displacement, i_op)
+                sums = self.get_displacement_sums(i_snapshot, i_op)
                 normal_matrices += np.einsum("qi,qj->qij", sums.conj(), sums)
         if self._adds_time_reversal:
             normal_matrices *= 2
         return normal_matrices
 
+    def _print_discarded_eigenvalues(self) -> None:
+        """Print how many eigenvalues of A(q) are discarded in pinv(A(q)).
+
+        They are those at or below rcond times the largest eigenvalue over all
+        q points (_get_inverse_normal_matrices).
+
+        """
+        eigvals = self._eigenvalues
+        assert eigvals is not None
+        num_discarded = int((eigvals <= self._rcond * eigvals.max()).sum())
+        print(
+            f"Discarded {num_discarded} of {eigvals.size} eigenvalues of "
+            f"A(q) at or below {self._rcond} times the largest one."
+        )
+
+
+class DLocalPotentialAugmentedFit:
+    """Compute dV/du from snapshots by the augmented fit.
+
+    See the module docstring.  pinv(A(q)) and the displacements are those of
+    AugmentedNormalMatrices after its run.
+
+    Attributes
+    ----------
+    grid_points : ndarray
+        Grid points of get_grid_points.
+        dtype='double', shape=(prod(fft_mesh) * det(p2s_matrix), 3)
+    lattice_points : ndarray
+        Lattice points of get_grid_points.
+        dtype='int64', shape=(det(p2s_matrix), 3)
+    dVdu : ndarray
+        dV/du of the atoms of primitive.p2s_map on the grid points.
+        dtype='complex128', shape=(ncdij, n_p, 3, n_grid_points)
+
+    """
+
+    def __init__(
+        self,
+        fft_mesh: Sequence[int] | NDArray,
+        normal_matrices: AugmentedNormalMatrices,
+        verbose: bool = True,
+        lang: Literal["Rust", "Python"] = "Rust",
+        time_reversal_form: Literal["conjugate", "linear"] = "conjugate",
+    ):
+        """Init method.
+
+        Parameters
+        ----------
+        fft_mesh : array_like
+            Mesh numbers for primitive cell.
+            dtype='int64', shape=(3,)
+        normal_matrices : AugmentedNormalMatrices
+            A(q) of the snapshots.  Its run is called before run of this
+            class.
+        verbose : bool, optional
+            To display log or not.
+        lang : str, optional
+            Implementation of FourierSeriesOnGrid and of the steps of
+            phelel.base.potential_change that have one in Rust, "Rust"
+            (default) by phonors or "Python" by NumPy.
+        time_reversal_form : str, optional
+            How time reversal of a coset representative is applied to phi_q.
+            "conjugate" (default) applies
+            apply_time_reversal_to_spin_components, which takes the complex
+            conjugate, and takes the values at -q.  "linear" exchanges and
+            negates the spin components at the same q without the complex
+            conjugate (_apply_linear_time_reversal).  The two give the same
+            dV/du when the potential changes are Hermitian, and "linear" is
+            kept to compare them.
+
+        Raises
+        ------
+        ValueError
+            When time_reversal_form is neither "conjugate" nor "linear".
+
+        """
+        self._normal_matrices = normal_matrices
+        self._verbose = verbose
+        self._lang: Literal["Rust", "Python"] = lang
+        if time_reversal_form not in ("conjugate", "linear"):
+            raise ValueError(
+                f'time_reversal_form must be "conjugate" or "linear", '
+                f"not {time_reversal_form!r}."
+            )
+        self._time_reversal_form = time_reversal_form
+        p2s_matrix = normal_matrices.p2s_matrix
+        self._grid_points, self._lattice_points = get_grid_points(fft_mesh, p2s_matrix)
+        self._fourier_series = FourierSeriesOnGrid(
+            fft_mesh,
+            p2s_matrix,
+            g_point_selection="shortest",
+            supercell_lattice=normal_matrices.supercell.cell,
+            lang=lang,
+        )
+        self._dVdu: NDArray[np.cdouble] | None = None
+
+    @property
+    def grid_points(self) -> NDArray[np.double]:
+        """Return grid points."""
+        return self._grid_points
+
+    @property
+    def lattice_points(self) -> NDArray[np.int64]:
+        """Return lattice points."""
+        return self._lattice_points
+
+    @property
+    def dVdu(self) -> NDArray[np.cdouble] | None:
+        """Return dV/du."""
+        return self._dVdu
+
+    def run(
+        self,
+        V_loc_per: NDArray[np.cdouble],
+        V_loc_disps: Sequence[NDArray[np.cdouble]],
+    ) -> None:
+        """Compute dV/du.
+
+        The result is stored in dVdu.
+
+        Parameters
+        ----------
+        V_loc_per : ndarray
+            Local potential of perfect supercell.
+            dtype='complex128', shape=(ncdij, nz, ny, nx)
+        V_loc_disps : sequence of ndarray
+            Local potentials of the snapshots, in the order of the
+            displacements of normal_matrices.
+            dtype='complex128', shape=(ncdij, nz, ny, nx) each
+
+        """
+        ncdij = V_loc_per.shape[0]
+        inverse_normal_matrices = _get_checked_inverse_normal_matrices(
+            self._normal_matrices, ncdij, len(V_loc_disps)
+        )
+        spin_rotations = self._get_spin_rotations() if ncdij == 4 else None
+        normal_equation_rhs = self._get_normal_equation_rhs(
+            V_loc_per, V_loc_disps, spin_rotations
+        )
+        apply_inverse_augmented_normal_matrices(
+            normal_equation_rhs, inverse_normal_matrices
+        )
+        self._dVdu = self._sum_over_qpoints(normal_equation_rhs)
+
+    def _get_normal_equation_rhs(
+        self,
+        V_loc_per: NDArray[np.cdouble],
+        V_loc_disps: Sequence[NDArray[np.cdouble]],
+        spin_rotations: list[NDArray[np.cdouble]] | None,
+    ) -> NDArray[np.cdouble]:
+        """Return B(q) = U(q)^H Y(q), accumulated one augmented snapshot at a time.
+
+        Row (j, g) of Y(q) is phi_q of the potential change of the augmented
+        snapshot (j, g), and column (j, g) of U(q)^H is conj(u~^(j,g)(q)).
+        B(q) is the sum over (j, g) of their outer products, and each pair
+        (j, g) adds its outer product to all elements of B(q)
+        (add_to_augmented_normal_equation_rhs).  Y(q) is not stored, because
+        it would take the memory of all augmented snapshots on the output grid.
+
+        The loop over the snapshots j is outside, so that the Fourier
+        coefficients of the potential change of snapshot j are computed by one
+        FFT and used for all coset representatives g.  The loops do not call
+        BLAS (see AugmentedNormalMatrices.run).
+
+        phi_q of (j, g) is get_phi of the Fourier coefficients for the spatial
+        part of g, followed by the rotation in spin space for ncdij=4 and by
+        _apply_time_reversal when g has time reversal.  The rotation in spin
+        space has no complex conjugate, so it is applied at the same q.
+
+        For a grey group whose operations lack time reversal
+        (AugmentedNormalMatrices.adds_time_reversal), the coset of g combined
+        with time reversal is a coset of its own.  Its phi_q is that of (j, g)
+        after _apply_time_reversal and is added with the same weights, without
+        computing get_phi again.
+
+        Parameters
+        ----------
+        V_loc_per, V_loc_disps : ndarray, sequence of ndarray
+            See run.
+        spin_rotations : list of ndarray or None
+            D^(1/2) of the coset representatives for ncdij=4, otherwise None.
+
+        Returns
+        -------
+        ndarray
+            B(q) with phi_q in place of N_c phi_q (see the module docstring).
+            dtype='complex128',
+            shape=(ncdij, 3 n_p, N_c, n_grid_points / N_c)
+
+        """
+        ncdij = V_loc_per.shape[0]
+        num_cells = len(self._lattice_points)
+        cosets = self._normal_matrices.coset_representatives
+        adds_time_reversal = self._normal_matrices.adds_time_reversal
+        normal_equation_rhs = np.zeros(
+            (
+                ncdij,
+                3 * self._normal_matrices.num_primitive_atoms,
+                num_cells,
+                len(self._grid_points) // num_cells,
+            ),
+            dtype="complex128",
+            order="C",
+        )
+        for i_snapshot, V_loc_disp in enumerate(V_loc_disps):
+            coefficients = [
+                get_fourier_coefficients(dV) for dV in V_loc_disp - V_loc_per
+            ]
+            for i_op in range(len(cosets.rotations)):
+                phis = self._fourier_series.get_phi(
+                    coefficients, cosets.rotations[i_op], cosets.translations[i_op]
+                )
+                if spin_rotations is not None:
+                    rotate_spin_components(phis, spin_rotations[i_op], lang=self._lang)
+                if cosets.time_reversals[i_op]:
+                    phis = self._apply_time_reversal(phis)
+                weights = self._normal_matrices.get_displacement_sums(
+                    i_snapshot, i_op
+                ).conj()
+                add_to_augmented_normal_equation_rhs(
+                    normal_equation_rhs,
+                    weights,
+                    [phi.reshape(num_cells, -1) for phi in phis],
+                )
+                if adds_time_reversal:
+                    assert not cosets.time_reversals[i_op]
+                    phis = self._apply_time_reversal(phis)
+                    add_to_augmented_normal_equation_rhs(
+                        normal_equation_rhs,
+                        weights,
+                        [phi.reshape(num_cells, -1) for phi in phis],
+                    )
+            if self._verbose:
+                print("Added a snapshot to the normal equations.")
+        return normal_equation_rhs
+
     def _get_spin_rotations(self) -> list[NDArray[np.cdouble]]:
         """Return the 2x2 matrices D^(1/2) of the coset representatives."""
-        lattice = self._supercell.cell.T
+        lattice = self._normal_matrices.supercell.cell.T
         return [
             SpinorRotationMatrices(rotation, lattice).run().Delta
-            for rotation in self._coset_representatives.rotations
+            for rotation in self._normal_matrices.coset_representatives.rotations
         ]
 
     def _apply_time_reversal(
@@ -703,7 +774,52 @@ class DLocalPotentialAugmentedFit:
                 dVdu[i_component, i_pair] = self._fourier_series.sum_over_qpoints(
                     solutions[i_component, i_pair]
                 )
-        return dVdu.reshape(ncdij, self._num_primitive_atoms, 3, -1)
+        return dVdu.reshape(ncdij, self._normal_matrices.num_primitive_atoms, 3, -1)
+
+
+def _get_checked_inverse_normal_matrices(
+    normal_matrices: AugmentedNormalMatrices, ncdij: int, num_snapshots: int
+) -> NDArray[np.cdouble]:
+    """Return pinv(A(q)) after checking it against the data of the snapshots.
+
+    The magnetic moments of the supercell are checked against ncdij by
+    check_magnetic_moments.
+
+    Parameters
+    ----------
+    normal_matrices : AugmentedNormalMatrices
+        A(q) of the snapshots.
+    ncdij : int
+        Number of spin components of the data.
+    num_snapshots : int
+        Number of the snapshots of the data.
+
+    Returns
+    -------
+    ndarray
+        normal_matrices.inverse_normal_matrices.
+        dtype='complex128', shape=(N_c, 3 n_p, 3 n_p)
+
+    Raises
+    ------
+    RuntimeError
+        When normal_matrices.run has not been called.
+    ValueError
+        When num_snapshots differs from the number of the displacements of
+        normal_matrices, and as in check_magnetic_moments.
+
+    """
+    displacements = normal_matrices.displacements
+    inverse_normal_matrices = normal_matrices.inverse_normal_matrices
+    if displacements is None or inverse_normal_matrices is None:
+        raise RuntimeError("AugmentedNormalMatrices.run has to be called before.")
+    check_magnetic_moments(normal_matrices.supercell, ncdij)
+    if num_snapshots != len(displacements):
+        raise ValueError(
+            f"Number of snapshots of the data is {num_snapshots}, not "
+            f"{len(displacements)} of the displacements."
+        )
+    return inverse_normal_matrices
 
 
 def _apply_linear_time_reversal(
