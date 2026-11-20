@@ -210,7 +210,7 @@ def generate_phelel_supercells(
         print("Displacement distance: %s" % _distance)
         print("Number of displacements: %d" % len(phelel.supercells_with_displacements))
         if number_of_snapshots is not None:
-            _print_eigenvalues_of_normal_matrices(phelel)
+            print_eigenvalues_of_normal_matrices(phelel)
 
     if phelel.phonon_supercell_matrix is not None:
         phelel.generate_phonon_displacements(
@@ -229,7 +229,7 @@ def generate_phelel_supercells(
             )
 
 
-def _print_eigenvalues_of_normal_matrices(phelel: Phelel) -> None:
+def print_eigenvalues_of_normal_matrices(phelel: Phelel) -> None:
     """Print a summary of the eigenvalues of A(q) of the random displacements.
 
     A(q) depends only on the displacements, so whether the snapshots are

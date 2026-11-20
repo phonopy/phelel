@@ -126,9 +126,9 @@ def test_code_keys_are_fields_of_code_section():
     """The keys of each code and the supercell are the fields of CodeSection.
 
     A field allowed in none of the codes, or a key that is not a field, makes
-    the test fail.  Which code allows which field, such as number_of_snapshots
-    for phonopy and phono3py only, is not checked, because only CODE_KEYS
-    says which code allows which field.
+    the test fail.  Which code allows which field, such as site_mixture_scheme
+    for phelel and phonopy only, is not checked, because only CODE_KEYS says
+    which code allows which field.
 
     """
     names = _field_names(CodeSection)

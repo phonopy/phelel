@@ -345,10 +345,6 @@ def test_write_velph_toml_checks(tmp_path: pathlib.Path):
             '[phelel] Unknown key "bar"',
         ),
         (
-            "[phelel]\nnumber_of_snapshots = 2",
-            '[phelel] Unknown key "number_of_snapshots"',
-        ),
-        (
             '[phono3py]\nsite_mixture_scheme = "merge"',
             '[phono3py] Unknown key "site_mixture_scheme"',
         ),

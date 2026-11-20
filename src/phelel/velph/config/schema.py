@@ -198,6 +198,7 @@ CODE_KEYS: Mapping[CodeName, tuple[str, ...]] = MappingProxyType(
             "diagonal",
             "plusminus",
             "nosym",
+            "number_of_snapshots",
             "site_mixture_scheme",
         ),
         "phonopy": (

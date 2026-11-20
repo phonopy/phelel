@@ -5,7 +5,10 @@ from __future__ import annotations
 import click
 
 from phelel import Phelel
-from phelel.cui.create_supercells import generate_phelel_supercells
+from phelel.cui.create_supercells import (
+    generate_phelel_supercells,
+    print_eigenvalues_of_normal_matrices,
+)
 from phelel.velph.cli.supercells import (
     read_phonopy_phonon,
     set_nac_params,
@@ -20,6 +23,13 @@ def run_init(
     phonon_from_phonopy: bool = False,
 ) -> Phelel:
     """Return Phelel with the supercells with displacements of [phelel].
+
+    With number_of_snapshots of [phelel], all atoms are displaced randomly in
+    each supercell, and plusminus=true, the default, adds the supercells with
+    the opposite displacements.  Unlike [phonopy], plusminus is used for random
+    displacements, because the pairs cancel the terms of even order of the
+    potential changes in the fit of the derivatives.  The summary of the
+    eigenvalues of U(q)^H U(q) of the augmented fit is printed for them.
 
     With phonon_from_phonopy, the phonon supercell matrix and the phonon dataset
     are those of phonopy/phonopy_disp.yaml.  project_dir gives the directories
@@ -52,10 +62,13 @@ def run_init(
         distance=section.amplitude,
         is_plusminus=section.plusminus,
         is_diagonal=section.diagonal,
+        number_of_snapshots=section.number_of_snapshots,
     )
     assert phe.supercells_with_displacements is not None
     click.echo(f"Displacement distance: {section.amplitude}")
     click.echo(f"Number of displacements: {len(phe.supercells_with_displacements)}")
+    if section.number_of_snapshots is not None:
+        print_eigenvalues_of_normal_matrices(phe)
     if ph_phonon is not None:
         # generate_phelel_supercells also generates phonon displacements, which
         # are replaced by those of phonopy.
