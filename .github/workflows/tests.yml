@@ -42,6 +42,8 @@ jobs:
           pip install . -vvv
           cd ..
       - name: Install phonopy develop branch
+        env:
+          PHONOPY_NO_C_EXT: "1"
         run: |
           conda activate test
           git clone https://github.com/phonopy/phonopy.git
@@ -49,6 +51,8 @@ jobs:
           pip install -e . -vvv
           cd ..
       - name: Install phono3py
+        env:
+          PHONO3PY_NO_C_EXT: "1"
         run: |
           conda activate test
           git clone https://github.com/phonopy/phono3py.git
