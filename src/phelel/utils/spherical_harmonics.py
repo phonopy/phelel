@@ -360,7 +360,7 @@ class SHRotationMatrices:
         self._Delta = delta
 
     def _compute_d(self):
-        r"""Calculate <lm'|e^iL.n\alpha|lm> for all l channels."""
+        """Calculate <lm'|exp(-i L.n alpha)|lm> for all l channels."""
         self._d = []
         n = self._n_vec
         for lx, ly, lz in zip(
@@ -382,12 +382,16 @@ def get_n_and_rotation_order(
         n is the eigenvector of the proper rotation in Cartesian coordinates
         whose eigenvalue is 1, i.e., the rotation axis. alpha = pi.
     r_order in (3, 4, 6) :
-        Given e_1=(1, 0, 0), e_2=(0, 1, 0), e_3=(0, 0, 1),
-            v = R.e - e
-        is perpendicular to the rotationa axis. Compute cross product,
+        With R the proper rotation in Cartesian coordinates, a row of R - I,
+            v = (R^T - I).e
+        for one of e_1=(1, 0, 0), e_2=(0, 1, 0), e_3=(0, 0, 1), is
+        perpendicular to the rotation axis. The row is chosen by the largest
+        norm of the columns, which equals that of the rows because R is
+        orthogonal. Compute cross product,
             v_a = cross(v, R.v).
         The unit vector of the rotation axis is
-            n = v_a / |v_a|
+            n = v_a / |v_a|,
+        so that R is the rotation about n by an angle between 0 and pi.
         Order of rotation (N) is obtained by iterating rotation matrix until
         being identity. The rotation angle is
             alpha = 2pi / N.

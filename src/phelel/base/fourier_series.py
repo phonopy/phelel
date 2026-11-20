@@ -89,6 +89,87 @@ def get_fourier_coefficients(values: NDArray) -> NDArray[np.cdouble]:
     return scipy.fft.fftn(values, norm="forward", workers=-1)
 
 
+def get_qpoints(p2s_matrix: NDArray[np.int64]) -> NDArray[np.double]:
+    """Return the q points commensurate with the supercell.
+
+    They are in the order of FourierSeriesOnGrid.qpoints (see
+    _get_qpoints_and_labels).
+
+    Parameters
+    ----------
+    p2s_matrix : ndarray
+        Supercell matrix relative to the primitive cell.
+        dtype='int64', shape=(3, 3)
+
+    Returns
+    -------
+    ndarray
+        q in the fractional coordinates of the reciprocal basis of the
+        primitive cell.
+        dtype='double', shape=(N_c, 3)
+
+    """
+    return _get_qpoints_and_labels(p2s_matrix)[0]
+
+
+def _get_qpoints_and_labels(
+    p2s_matrix: NDArray[np.int64],
+) -> tuple[NDArray[np.double], NDArray[np.int64], NDArray[np.int64], NDArray[np.int64]]:
+    """Return the q points, their labels n_q, and d and Q of the Smith normal form.
+
+    For h = (M^s)^-T g of FourierSeriesOnGrid._set_integer_coordinates,
+    snf3x3 gives the unimodular P and Q with P M^s Q = diag(d), so
+
+        (M^s)^-T = P^T diag(d)^-1 Q^T,
+        h = (M^s)^-T g = P^T diag(d)^-1 (Q^T g).
+
+    Adding d_k to the k-th element of Q^T g adds the integer vector
+    P^T e_k to h, so the fractional part q of h depends only on
+
+        n_q = Q^T g mod d,
+
+    and the N_c = d_1 d_2 d_3 labels n_q give N_c different q because P^T
+    is unimodular:
+
+        q = P^T diag(d)^-1 n_q mod 1.
+
+    With row vectors, N_c q = ((n_q * N_c / d) @ P) mod N_c, where N_c / d_k
+    is an integer because N_c = d_1 d_2 d_3.  n_q runs in the order of
+    np.ndindex(d), which is the order of q.  q and n_q are computed together
+    so that FourierSeriesOnGrid.indices_of_minus_qpoints, which is computed
+    from n_q, refers to the same order as q.
+
+    Parameters
+    ----------
+    p2s_matrix : ndarray
+        Supercell matrix relative to the primitive cell.
+        dtype='int64', shape=(3, 3)
+
+    Returns
+    -------
+    qpoints : ndarray
+        q in the fractional coordinates of the reciprocal basis of the
+        primitive cell.
+        dtype='double', shape=(N_c, 3)
+    labels : ndarray
+        n_q of each q.
+        dtype='int64', shape=(N_c, 3)
+    snf_diag : ndarray
+        d.
+        dtype='int64', shape=(3,)
+    snf_Q : ndarray
+        Q.
+        dtype='int64', shape=(3, 3)
+
+    """
+    d, P, Q = snf3x3(p2s_matrix)
+    snf_diag = np.array(d, dtype="int64")
+    num_cells = int(np.prod(snf_diag))
+    labels = np.array(list(np.ndindex(*snf_diag)), dtype="int64")
+    nc_q = ((labels * (num_cells // snf_diag)) @ np.array(P, dtype="int64")) % num_cells
+    return nc_q / num_cells, labels, snf_diag, np.array(Q, dtype="int64")
+
+
 @dataclass
 class _MeshData:
     """Data that depend on the FFT mesh of the supercell.
@@ -256,24 +337,9 @@ class FourierSeriesOnGrid:
     def _set_lattice_points_and_qpoints(self, p2s_matrix: NDArray[np.int64]) -> None:
         """Set the lattice points l and the q points by the Smith normal form.
 
-        snf3x3 gives the unimodular P and Q with P M^s Q = diag(d), so
-
-            (M^s)^-T = P^T diag(d)^-1 Q^T,
-            h = (M^s)^-T g = P^T diag(d)^-1 (Q^T g).
-
-        Adding d_k to the k-th element of Q^T g adds the integer vector
-        P^T e_k to h, so the fractional part q of h depends only on
-
-            n_q = Q^T g mod d,
-
-        and the N_c = d_1 d_2 d_3 labels n_q give N_c different q because P^T
-        is unimodular:
-
-            q = P^T diag(d)^-1 n_q mod 1.
-
-        With row vectors, N_c q = ((n_q * N_c / d) @ P) mod N_c, where N_c / d_k
-        is an integer because N_c = d_1 d_2 d_3.  n_q runs in the order of
-        np.ndindex(d).
+        q, their labels n_q, d and Q of P M^s Q = diag(d) are given by
+        _get_qpoints_and_labels, and the indices of -q are computed from the
+        same n_q.
 
         get_lattice_points gives l = P^-1 n_l with n_l in the order of
         np.ndindex(d).  Then q . l = n_q . diag(d)^-1 P P^-1 n_l mod 1, so
@@ -288,12 +354,9 @@ class FourierSeriesOnGrid:
         """
         lattice_points, _ = get_lattice_points(p2s_matrix)
         self._lattice_points = np.array(lattice_points, dtype="int64")
-        d, P, Q = snf3x3(p2s_matrix)
-        self._snf_diag = np.array(d, dtype="int64")
-        self._snf_Q = np.array(Q, dtype="int64")
-        n_q = np.array(list(np.ndindex(*self._snf_diag)), dtype="int64")
-        nc_q = ((n_q * (self._num_cells // self._snf_diag)) @ P) % self._num_cells
-        self._qpoints = nc_q / self._num_cells
+        self._qpoints, n_q, self._snf_diag, self._snf_Q = _get_qpoints_and_labels(
+            p2s_matrix
+        )
         self._indices_of_minus_qpoints = np.array(
             np.ravel_multi_index(((-n_q) % self._snf_diag).T, self._snf_diag),
             dtype="int64",
