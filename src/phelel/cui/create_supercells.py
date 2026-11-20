@@ -19,9 +19,11 @@ from phonopy import Phonopy
 from phonopy.cui.collect_cell_info import CellInfoResult
 from phonopy.cui.collect_cell_info import get_cell_info as phonopy_get_cell_info
 from phonopy.cui.phonopy_script import store_nac_params
+from phonopy.harmonic.displacement import Type2DisplacementDataset
 from phonopy.interface.calculator import write_supercells_with_displacements
 
 from phelel.api_phelel import Phelel
+from phelel.base.augmented_fit import AugmentedNormalMatrices
 from phelel.cui.settings import PhelelSettings
 from phelel.interface.phelel_yaml import PhelelYaml
 
@@ -127,6 +129,9 @@ def create_phelel_supercells(
         distance=settings.displacement_distance,
         is_plusminus=settings.is_plusminus_displacement,
         is_diagonal=settings.is_diagonal_displacement,
+        number_of_snapshots=settings.random_displacements,
+        random_seed=settings.random_seed,
+        number_estimation_factor=settings.rd_number_estimation_factor,
         log_level=log_level,
     )
 
@@ -174,26 +179,47 @@ def generate_phelel_supercells(
     distance: float | None = None,
     is_plusminus: Literal["auto"] | bool = "auto",
     is_diagonal: bool = True,
+    number_of_snapshots: int | Literal["auto"] | None = None,
+    random_seed: int | None = None,
+    number_estimation_factor: float | None = None,
     log_level: int = 0,
 ):
-    """Generate phelel supercells."""
+    """Generate phelel supercells.
+
+    With number_of_snapshots, the displacements are random (see
+    Phelel.generate_displacements), and with log_level > 0 a summary of the
+    eigenvalues of A(q) of the augmented fit is printed, which shows whether
+    the snapshots are enough.
+
+    """
     if distance is None:
         _distance = get_default_displacement_distance(interface_mode)
     else:
         _distance = distance
-
     phelel.generate_displacements(
-        distance=_distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
+        distance=_distance,
+        is_plusminus=is_plusminus,
+        is_diagonal=is_diagonal,
+        number_of_snapshots=number_of_snapshots,
+        random_seed=random_seed,
+        number_estimation_factor=number_estimation_factor,
     )
 
     if log_level:
         assert phelel.supercells_with_displacements is not None
         print("Displacement distance: %s" % _distance)
         print("Number of displacements: %d" % len(phelel.supercells_with_displacements))
+        if number_of_snapshots is not None:
+            _print_eigenvalues_of_normal_matrices(phelel)
 
     if phelel.phonon_supercell_matrix is not None:
         phelel.generate_phonon_displacements(
-            distance=_distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
+            distance=_distance,
+            is_plusminus=is_plusminus,
+            is_diagonal=is_diagonal,
+            number_of_snapshots=number_of_snapshots,
+            random_seed=random_seed,
+            number_estimation_factor=number_estimation_factor,
         )
         if log_level:
             assert phelel.phonon_supercells_with_displacements is not None
@@ -201,3 +227,22 @@ def generate_phelel_supercells(
                 "Number of displacements for phonon: %d"
                 % len(phelel.phonon_supercells_with_displacements)
             )
+
+
+def _print_eigenvalues_of_normal_matrices(phelel: Phelel) -> None:
+    """Print a summary of the eigenvalues of A(q) of the random displacements.
+
+    A(q) depends only on the displacements, so whether the snapshots are
+    enough for the augmented fit is known before any calculation.
+
+    """
+    assert phelel.dataset is not None and "displacements" in phelel.dataset
+    dataset = cast(Type2DisplacementDataset, phelel.dataset)
+    normal_matrices = AugmentedNormalMatrices(
+        phelel.supercell,
+        phelel.primitive,
+        phelel.p2s_matrix,
+        phelel.symmetry,
+        verbose=True,
+    )
+    normal_matrices.run(np.array(dataset["displacements"], dtype="double"))

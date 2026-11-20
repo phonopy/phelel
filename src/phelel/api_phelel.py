@@ -549,10 +549,52 @@ class Phelel:
         distance: float | None = 0.01,
         is_plusminus: Literal["auto"] | bool = "auto",
         is_diagonal: bool = True,
+        number_of_snapshots: int | Literal["auto"] | None = None,
+        random_seed: int | None = None,
+        max_distance: float | None = None,
+        number_estimation_factor: float | None = None,
     ):
-        """Generate displacement dataset."""
+        """Generate the displacement dataset of the supercell.
+
+        The parameters are those of Phonopy.generate_displacements.  Without
+        number_of_snapshots, one atom is displaced in each supercell for the
+        finite-difference method.  With number_of_snapshots, all atoms are
+        displaced randomly in each supercell, and the derivatives are computed
+        by the augmented fit.  Plus-minus pairs are generated for random
+        displacements only with is_plusminus=True.
+
+        Parameters
+        ----------
+        distance : float or None, optional
+            Displacement distance, or with max_distance its lower bound.
+            Default is 0.01.
+        is_plusminus : "auto" or bool, optional
+            Whether the opposite displacements are generated.  Default is
+            "auto".
+        is_diagonal : bool, optional
+            Systematic displacements only.  When False, displace only along
+            basis vectors.  Default is True.
+        number_of_snapshots : int, "auto" or None, optional
+            Number of supercells with random displacements.  "auto" estimates
+            it with symfc.  Default is None.
+        random_seed : int or None, optional
+            Random seed of the random displacements.  Default is None.
+        max_distance : float or None, optional
+            Upper bound of the distance of the random displacements.  Default
+            is None.
+        number_estimation_factor : float or None, optional
+            Factor on the estimate of number_of_snapshots="auto".  Default is
+            None.
+
+        """
         self._phelel_phonon.generate_displacements(
-            distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
+            distance=distance,
+            is_plusminus=is_plusminus,
+            is_diagonal=is_diagonal,
+            number_of_snapshots=number_of_snapshots,
+            random_seed=random_seed,
+            max_distance=max_distance,
+            number_estimation_factor=number_estimation_factor,
         )
 
     def generate_phonon_displacements(
@@ -560,13 +602,27 @@ class Phelel:
         distance: float | None = 0.01,
         is_plusminus: Literal["auto"] | bool = "auto",
         is_diagonal: bool = True,
+        number_of_snapshots: int | Literal["auto"] | None = None,
+        random_seed: int | None = None,
+        max_distance: float | None = None,
+        number_estimation_factor: float | None = None,
     ):
-        """Generate displacement dataset."""
+        """Generate the displacement dataset of the phonon supercell.
+
+        The parameters are those of generate_displacements.
+
+        """
         if self._phonon is None:
             msg = "Phonon instance has to be initialized."
             raise RuntimeError(msg)
         self._phonon.generate_displacements(
-            distance=distance, is_plusminus=is_plusminus, is_diagonal=is_diagonal
+            distance=distance,
+            is_plusminus=is_plusminus,
+            is_diagonal=is_diagonal,
+            number_of_snapshots=number_of_snapshots,
+            random_seed=random_seed,
+            max_distance=max_distance,
+            number_estimation_factor=number_estimation_factor,
         )
 
     def run_derivatives(self, phe_input: PhelelDataset):

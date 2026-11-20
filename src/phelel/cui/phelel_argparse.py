@@ -161,6 +161,27 @@ def _add_init_options(parser: argparse.ArgumentParser) -> None:
         default=False,
         help="Set plus minus displacements",
     )
+    parser.add_argument(
+        "--random-seed",
+        dest="random_seed",
+        type=int,
+        default=None,
+        help="Random seed by a 32 bit unsigned integer",
+    )
+    parser.add_argument(
+        "--rd",
+        "--random-displacements",
+        dest="random_displacements",
+        default=None,
+        help='Number of supercells with random displacements or "auto"',
+    )
+    parser.add_argument(
+        "--rd-auto-factor",
+        dest="rd_number_estimation_factor",
+        type=float,
+        default=None,
+        help="Factor to estimate number of supercells with random displacements",
+    )
 
 
 def _add_run_options(parser: argparse.ArgumentParser) -> None:
@@ -259,6 +280,9 @@ def _reject_init_options(parser: argparse.ArgumentParser) -> None:
         (("--magmom",), "+"),
         (("--nodiag",), 0),
         (("--pm",), 0),
+        (("--random-seed",), 1),
+        (("--rd", "--random-displacements"), 1),
+        (("--rd-auto-factor",), 1),
     ]
     for option_strings, nargs in specs:
         kwargs: dict = {

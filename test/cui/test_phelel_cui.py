@@ -12,6 +12,7 @@ from dataclasses import dataclass, fields
 import h5py
 import numpy as np
 import pytest
+from phonopy.structure.dataset import get_displacements_and_forces
 
 import phelel.cui.phelel_script as phelel_script
 from phelel import load
@@ -20,6 +21,7 @@ from phelel.cui.phelel_argparse import get_parser
 from phelel.cui.phelel_script import main
 from phelel.exception import MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
+from phelel.interface.vasp.derivatives import create_derivatives
 
 cwd = pathlib.Path(__file__).parent
 cwd_called = pathlib.Path.cwd()
@@ -41,6 +43,8 @@ class MockArgs:
     magmoms: Sequence[str] | None = None
     fc_symmetry: bool | None = None
     subtract_rfs: bool = False
+    random_displacements: str | None = None
+    random_seed: int | None = None
 
     def __iter__(self):
         """Make self iterable to support in."""
@@ -287,6 +291,99 @@ def test_phelel_script_create_displacements(is_plusminus_displacements: bool):
             os.chdir(original_cwd)
 
 
+@pytest.mark.parametrize("is_displacement", [True, False])
+def test_phelel_script_create_random_displacements(
+    is_displacement: bool, capsys: pytest.CaptureFixture
+):
+    """Test phelel-init with --rd and --random-seed.
+
+    The supercells of the random displacements are written, and phelel_disp.yaml
+    read back has the dataset of type 2.  As in phonopy, -d is not needed with
+    --rd.
+
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = pathlib.Path.cwd()
+        os.chdir(temp_dir)
+
+        try:
+            dirname = cwd / ".." / "interface" / "vasp"
+            argparse_control = _get_argparse_control(
+                "init",
+                cell_filename=str(dirname / "POSCAR-unitcell_C111"),
+                supercell_dimenstion="1 1 1",
+                is_displacement=is_displacement,
+                random_displacements="3",
+                random_seed=1,
+            )
+            with pytest.raises(SystemExit) as excinfo:
+                main(**argparse_control)
+            assert excinfo.value.code == 0
+            assert "Eigenvalues of U(q)^H U(q) at" in capsys.readouterr().out
+
+            for created_filename in ("POSCAR-001", "POSCAR-002", "POSCAR-003"):
+                assert pathlib.Path(created_filename).exists()
+            assert not pathlib.Path("POSCAR-004").exists()
+            phe = load("phelel_disp.yaml", log_level=0)
+            assert phe.dataset is not None
+            assert "first_atoms" not in phe.dataset
+            assert phe.dataset["displacements"].shape == (3, len(phe.supercell), 3)
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_phelel_script_create_derivatives_random_displacements(
+    tmp_path: pathlib.Path,
+):
+    """Test phelel --cd with a dataset of random displacements.
+
+    The type-1 dataset of the test data of C is written as a type-2 dataset in
+    phelel_disp.yaml.  phelel --cd computes the derivatives by the augmented
+    fit, which equal those of the finite-difference method computed from the
+    type-1 dataset.
+
+    """
+    data_dir = cwd / ".." / "interface" / "vasp" / "derivatives_vaspout" / "C"
+    with h5py.File(data_dir / "reference.hdf5") as f:
+        fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
+    dir_names = sorted(data_dir.glob("disp-*"))
+    finite_differences = load(
+        data_dir / "phelel_disp.yaml", fft_mesh=fft_mesh, is_nac=False, log_level=0
+    )
+    create_derivatives(finite_differences, dir_names)
+    finite_differences.save_hdf5(filename=tmp_path / "phelel_params_fd.hdf5")
+
+    phe = load(data_dir / "phelel_disp.yaml", log_level=0)
+    assert phe.dataset is not None
+    displacements, _ = get_displacements_and_forces(phe.dataset)
+    phe.dataset = {"displacements": displacements}
+    original_cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    try:
+        pathlib.Path("phelel_disp.yaml").write_text(str(phe.to_phelel_yaml()))
+        argparse_control = _get_argparse_control(
+            "run",
+            cell_filename="phelel_disp.yaml",
+            create_derivatives=[str(dir_name) for dir_name in dir_names],
+            fft_mesh_numbers=[str(n) for n in fft_mesh],
+        )
+        with pytest.raises(SystemExit) as excinfo:
+            main(**argparse_control)
+        assert excinfo.value.code == 0
+        with (
+            h5py.File("phelel_params.hdf5") as f_aug,
+            h5py.File("phelel_params_fd.hdf5") as f_fd,
+        ):
+            for key in ("grid_point", "lattice_point"):
+                np.testing.assert_array_equal(f_aug[key][()], f_fd[key][()])
+            for key in ("dVdu", "dDijdu"):
+                reference = f_fd[key][()]
+                atol = 1e-12 * np.abs(reference).max()
+                np.testing.assert_allclose(f_aug[key][()], reference, rtol=0, atol=atol)
+    finally:
+        os.chdir(original_cwd)
+
+
 def test_phelel_script_create_displacements_with_magmom():
     """Test phelel-init command for creating displacements with --magmom.
 
@@ -447,6 +544,10 @@ def test_phelel_script_parser(mode: str, monkeypatch: pytest.MonkeyPatch):
         ["--pm"],
         ["--nodiag"],
         ["--magmom", "1", "-1"],
+        ["--rd", "3"],
+        ["--random-displacements", "3"],
+        ["--random-seed", "1"],
+        ["--rd-auto-factor", "2"],
     ],
 )
 def test_phelel_parser_rejects_init_options(options: list[str], capsys):
@@ -834,6 +935,8 @@ def _get_argparse_control(
     magmoms: Sequence[str] | None = None,
     fc_symmetry: bool | None = None,
     subtract_rfs: bool = False,
+    random_displacements: str | None = None,
+    random_seed: int | None = None,
 ):
     # Mock of ArgumentParser.args.
     mockargs = MockArgs(
@@ -849,6 +952,8 @@ def _get_argparse_control(
         magmoms=magmoms,
         fc_symmetry=fc_symmetry,
         subtract_rfs=subtract_rfs,
+        random_displacements=random_displacements,
+        random_seed=random_seed,
     )
     return {"args": mockargs, "mode": mode}
 

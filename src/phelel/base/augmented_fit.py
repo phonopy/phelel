@@ -388,7 +388,7 @@ class AugmentedNormalMatrices:
             self._get_normal_matrices(), self._rcond
         )
         if self._verbose:
-            self._print_discarded_eigenvalues()
+            self._print_eigenvalues()
 
     def get_displacement_sums(self, i_snapshot: int, i_op: int) -> NDArray[np.cdouble]:
         """Return the lattice Fourier sums of the displacements of one (j, g).
@@ -593,20 +593,39 @@ class AugmentedNormalMatrices:
             normal_matrices *= 2
         return normal_matrices
 
-    def _print_discarded_eigenvalues(self) -> None:
-        """Print how many eigenvalues of A(q) are discarded in pinv(A(q)).
+    def _print_eigenvalues(self) -> None:
+        """Print a summary of the eigenvalues of A(q).
 
-        They are those at or below rcond times the largest eigenvalue over all
-        q points (_get_inverse_normal_matrices).
+        A(q) is written as U(q)^H U(q) in the output, because the name A(q) is
+        not known to the user.  The ratio of the smallest to the largest
+        eigenvalue over all q points shows how well the snapshots determine the
+        derivatives.  The eigenvalues at or below rcond times the largest one
+        are discarded in pinv(A(q)) (_get_inverse_normal_matrices).  A(q) with
+        such eigenvalues is singular, and the snapshots do not determine all
+        derivatives at that q point.
 
         """
         eigvals = self._eigenvalues
         assert eigvals is not None
-        num_discarded = int((eigvals <= self._rcond * eigvals.max()).sum())
+        largest = eigvals.max()
+        is_discarded = eigvals <= self._rcond * largest
+        num_discarded = int(is_discarded.sum())
         print(
-            f"Discarded {num_discarded} of {eigvals.size} eigenvalues of "
-            f"A(q) at or below {self._rcond} times the largest one."
+            f"Eigenvalues of U(q)^H U(q) at {len(eigvals)} q points, where the rows "
+            "of U(q) are the\nlattice Fourier sums of the displacements of the "
+            "snapshots and of their\nsymmetry-equivalents:"
         )
+        print(f"  Smallest / largest over all q points: {eigvals.min() / largest:.3e}")
+        print(
+            f"  Discarded at or below {self._rcond} times the largest: "
+            f"{num_discarded} of {eigvals.size}"
+        )
+        if num_discarded:
+            num_qpoints = int(is_discarded.any(axis=1).sum())
+            print(
+                f"  Warning: U(q)^H U(q) is singular at {num_qpoints} q points. "
+                "More snapshots are needed."
+            )
 
 
 class DLocalPotentialAugmentedFit:
