@@ -13,10 +13,13 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 from phonopy import Phonopy
+from phonopy.structure.dataset import get_displacements_and_forces
 
 import phelel
 import phelel.interface.vasp.derivatives as derivatives
 from phelel import Phelel
+from phelel.base.augmented_fit import DLocalPotentialAugmentedFit
+from phelel.base.Dij_qij import DDijQijAugmentedFit
 from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.interface.vasp.derivatives import (
@@ -680,13 +683,74 @@ def test_create_derivatives_shortest_is_real():
     np.testing.assert_allclose(dVdu["shortest"], ref, rtol=0, atol=1e-4 * scale)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "derivatives_vaspout/C",
+        "derivatives_vaspout/Mg",
+        "derivatives_lwap/Cr",
+        "derivatives_lwap/Fe-ncl",
+    ],
+)
+def test_create_derivatives_type2_equal_finite_differences(name: str, tmp_path: Path):
+    """The augmented fit of a type-2 dataset equals the finite differences.
+
+    The type-1 dataset of the test data is written as a type-2 dataset, whose
+    snapshots displace one atom each.  For such data, the augmented fit gives
+    the derivatives of the finite-difference method up to rounding errors.  The
+    arrays written to phelel_params.hdf5 are compared as well.  Cr has
+    operations with time reversal, and Fe-ncl the rotation in spin space.
+
+    """
+    data_dir = cwd / name
+    finite_differences = _create_derivatives(data_dir)
+    augmented = _create_derivatives(data_dir, to_type2=True)
+    assert isinstance(augmented.dVdu, DLocalPotentialAugmentedFit)
+    assert isinstance(augmented.dDijdu, DDijQijAugmentedFit)
+    assert finite_differences.dVdu is not None
+    for key in ("dVdu", "dDijdu"):
+        values = getattr(getattr(augmented, key), key)
+        reference = getattr(getattr(finite_differences, key), key)
+        scale = np.abs(reference).max()
+        np.testing.assert_allclose(values, reference, rtol=0, atol=1e-12 * scale)
+    np.testing.assert_array_equal(
+        augmented.dVdu.grid_points, finite_differences.dVdu.grid_points
+    )
+    np.testing.assert_array_equal(
+        augmented.dVdu.lattice_points, finite_differences.dVdu.lattice_points
+    )
+    np.testing.assert_array_equal(augmented.dDijdu.Dij, finite_differences.dDijdu.Dij)
+
+    files = {}
+    for label, phe in (("fd", finite_differences), ("augmented", augmented)):
+        files[label] = tmp_path / f"phelel_params_{label}.hdf5"
+        phe.save_hdf5(filename=files[label])
+    with h5py.File(files["fd"]) as f_fd, h5py.File(files["augmented"]) as f_aug:
+        for key in ("grid_point", "lattice_point", "FFT_mesh", "Dij"):
+            np.testing.assert_array_equal(f_aug[key][()], f_fd[key][()])
+        for key in ("dVdu", "dDijdu"):
+            reference = f_fd[key][()]
+            atol = 1e-12 * np.abs(reference).max()
+            np.testing.assert_allclose(f_aug[key][()], reference, rtol=0, atol=atol)
+
+
+def test_create_derivatives_type2_requires_shortest():
+    """A type-2 dataset with dv_evaluation_method other than shortest raises."""
+    with pytest.raises(ValueError, match='Only dv_evaluation_method="shortest"'):
+        _create_derivatives(
+            cwd / "derivatives_vaspout" / "C", dv_evaluation_method="box", to_type2=True
+        )
+
+
 def _create_derivatives(
     data_dir: Path,
     dv_evaluation_method: Literal["shortest", "box", "finufft"] | None = None,
+    to_type2: bool = False,
 ) -> Phelel:
     """Return Phelel with the derivatives from the files of data_dir.
 
-    fft_mesh is that stored in reference.hdf5.
+    fft_mesh is that stored in reference.hdf5.  With to_type2=True, the type-1
+    dataset is written as a type-2 dataset with the same displacements.
 
     """
     with h5py.File(data_dir / "reference.hdf5") as f:
@@ -697,6 +761,10 @@ def _create_derivatives(
         is_nac=False,
         dv_evaluation_method=dv_evaluation_method,
     )
+    if to_type2:
+        assert phe.dataset is not None
+        displacements, _ = get_displacements_and_forces(phe.dataset)
+        phe.dataset = {"displacements": displacements}
     create_derivatives(phe, sorted(data_dir.glob("disp-*")))
     assert phe.dVdu is not None
     return phe

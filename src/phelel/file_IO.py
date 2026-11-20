@@ -13,16 +13,17 @@ from phonopy.structure.cells import Primitive, dense_to_sparse_svecs
 from phonopy.structure.symmetry import Symmetry
 from spglib import SpglibDataset, SpglibMagneticDataset
 
-from phelel.base.Dij_qij import DDijQij
+from phelel.base.augmented_fit import DLocalPotentialAugmentedFit
+from phelel.base.Dij_qij import DDijQij, DDijQijAugmentedFit
 from phelel.base.local_potential import DLocalPotential
 from phelel.utils.data import cmplx2real, real2cmplx
 from phelel.utils.lattice_points import get_lattice_points, get_p2s_matrix
 
 
 def write_phelel_params_hdf5(
-    dVdu: DLocalPotential | None = None,
-    dDijdu: DDijQij | None = None,
-    dmudu: DLocalPotential | None = None,
+    dVdu: DLocalPotential | DLocalPotentialAugmentedFit | None = None,
+    dDijdu: DDijQij | DDijQijAugmentedFit | None = None,
+    dmudu: DLocalPotential | DLocalPotentialAugmentedFit | None = None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
     primitive: Primitive | None = None,
@@ -190,9 +191,9 @@ def read_dDijdu_hdf5(f):
 
 def _add_datasets(
     w,
-    dVdu: DLocalPotential | None = None,
-    dmudu: DLocalPotential | None = None,
-    dDijdu: DDijQij | None = None,
+    dVdu: DLocalPotential | DLocalPotentialAugmentedFit | None = None,
+    dmudu: DLocalPotential | DLocalPotentialAugmentedFit | None = None,
+    dDijdu: DDijQij | DDijQijAugmentedFit | None = None,
     supercell_matrix: NDArray | None = None,
     primitive_matrix: NDArray | None = None,
     primitive: Primitive | None = None,
