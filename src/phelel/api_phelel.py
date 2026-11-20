@@ -16,6 +16,7 @@ from phonopy.harmonic.displacement import (
     DisplacementDataset,
     FirstAtomDisplacementWithForces,
     Type1DisplacementDataset,
+    Type2DisplacementDataset,
 )
 from phonopy.harmonic.dynamical_matrix import DynamicalMatrix, NacParams
 from phonopy.interface.phonopy_yaml import PhonopyYaml
@@ -25,7 +26,11 @@ from phonopy.structure.cells import Primitive, Supercell, isclose
 from phonopy.structure.symmetry import Symmetry
 
 from phelel import __version__
-from phelel.base.Dij_qij import DDijQij
+from phelel.base.augmented_fit import (
+    AugmentedNormalMatrices,
+    DLocalPotentialAugmentedFit,
+)
+from phelel.base.Dij_qij import DDijQij, DDijQijAugmentedFit
 from phelel.base.local_potential import DLocalPotential, check_finufft_installed
 from phelel.base.magnetic_symmetry import check_primitive_translations
 from phelel.file_IO import write_phelel_params_hdf5
@@ -219,20 +224,15 @@ class Phelel:
         self._p2s_matrix = get_p2s_matrix(self.primitive.primitive_matrix)
         check_primitive_translations(self.supercell, self._p2s_matrix, symprec)
 
-        self._dVdu = None
-        self._dmudu = None
+        self._dVdu: DLocalPotential | DLocalPotentialAugmentedFit | None = None
+        self._dmudu: DLocalPotential | DLocalPotentialAugmentedFit | None = None
 
         if fft_mesh is None:
             self._fft_mesh = None
         else:
             self.fft_mesh = fft_mesh
 
-        self._dDijdu = DDijQij(
-            self._phelel_phonon.supercell,
-            symmetry=self._phelel_phonon.symmetry,
-            atom_indices=self._phelel_phonon.primitive.p2s_map,
-            verbose=self._log_level > 0,
-        )
+        self._dDijdu: DDijQij | DDijQijAugmentedFit = self._get_DDijQij()
 
     @property
     def version(self) -> str:
@@ -466,30 +466,44 @@ class Phelel:
         self._fft_mesh = np.array(fft_mesh, dtype="int64")
 
     @property
-    def dVdu(self) -> DLocalPotential | None:
-        """Return DLocalPotential class instance."""
+    def dVdu(self) -> DLocalPotential | DLocalPotentialAugmentedFit | None:
+        """Return the derivatives of the local potential.
+
+        DLocalPotentialAugmentedFit for a dataset of random displacements,
+        otherwise DLocalPotential.
+
+        """
         return self._dVdu
 
     @dVdu.setter
-    def dVdu(self, dVdu: DLocalPotential):
+    def dVdu(self, dVdu: DLocalPotential | DLocalPotentialAugmentedFit):
         self._dVdu = dVdu
 
     @property
-    def dmudu(self) -> DLocalPotential | None:
-        """Return DLocalPotential class instance of kinetic potential."""
+    def dmudu(self) -> DLocalPotential | DLocalPotentialAugmentedFit | None:
+        """Return the derivatives of the kinetic-energy-density potential.
+
+        The class is that of dVdu.
+
+        """
         return self._dmudu
 
     @dmudu.setter
-    def dmudu(self, dmudu: DLocalPotential):
+    def dmudu(self, dmudu: DLocalPotential | DLocalPotentialAugmentedFit):
         self._dmudu = dmudu
 
     @property
-    def dDijdu(self) -> DDijQij:
-        """Return DDijQij class instance."""
+    def dDijdu(self) -> DDijQij | DDijQijAugmentedFit:
+        """Return the derivatives of Dij and qij.
+
+        DDijQijAugmentedFit for a dataset of random displacements, otherwise
+        DDijQij.
+
+        """
         return self._dDijdu
 
     @dDijdu.setter
-    def dDijdu(self, dDijdu: DDijQij):
+    def dDijdu(self, dDijdu: DDijQij | DDijQijAugmentedFit):
         self._dDijdu = dDijdu
 
     @property
@@ -579,6 +593,11 @@ class Phelel:
 
         if phe_input.dataset is not None:
             self._phelel_phonon.dataset = phe_input.dataset
+        if self._is_type2_dataset() and self._dv_evaluation_method != "shortest":
+            raise ValueError(
+                'Only dv_evaluation_method="shortest" is supported with a dataset '
+                f'of random displacements, not "{self._dv_evaluation_method}".'
+            )
 
         # With the phonon supercell, the dataset of the supercell has a different
         # number of atoms, so the phonon dataset already stored is used.
@@ -602,22 +621,10 @@ class Phelel:
             calculate_full_force_constants=True,
             show_drift=self._log_level > 1,
         )
-        self._dVdu = self._get_derivatives_of_potential(phe_input.local_potentials)
-        if phe_input.kinetic_potentials is not None:
-            self._dmudu = self._get_derivatives_of_potential(
-                phe_input.kinetic_potentials
-            )
-
-        Dijs = phe_input.Dijs
-        qijs = phe_input.qijs
-        self._dDijdu.run(
-            Dijs[0],
-            Dijs[1:],
-            qijs[0],
-            qijs[1:],
-            self._get_first_atoms(),
-            phe_input.lm_channels,
-        )
+        if self._is_type2_dataset():
+            self._run_augmented_fits(phe_input)
+        else:
+            self._run_finite_differences(phe_input)
 
     def save_hdf5(self, filename: str | os.PathLike = "phelel_params.hdf5"):
         """Write phelel_params.hdf5."""
@@ -696,6 +703,100 @@ class Phelel:
             elif self.phonon_supercell is not None:
                 phe_yaml.phonon_supercell = self.phonon_supercell
         return phe_yaml
+
+    def _get_DDijQij(self) -> DDijQij:
+        """Return DDijQij for the finite-difference method of Dij and qij."""
+        return DDijQij(
+            self._phelel_phonon.supercell,
+            symmetry=self._phelel_phonon.symmetry,
+            atom_indices=self._phelel_phonon.primitive.p2s_map,
+            verbose=self._log_level > 0,
+        )
+
+    def _is_type2_dataset(self) -> bool:
+        """Return whether the dataset has the displacements of all atoms."""
+        dataset = self._phelel_phonon.dataset
+        return dataset is not None and "displacements" in dataset
+
+    def _run_finite_differences(self, phe_input: PhelelDataset) -> None:
+        """Compute the derivatives from a dataset of type 1 by finite differences."""
+        self._dVdu = self._get_derivatives_of_potential(phe_input.local_potentials)
+        if phe_input.kinetic_potentials is not None:
+            self._dmudu = self._get_derivatives_of_potential(
+                phe_input.kinetic_potentials
+            )
+        dDijdu = self._dDijdu
+        if not isinstance(dDijdu, DDijQij):
+            dDijdu = self._get_DDijQij()
+        dDijdu.run(
+            phe_input.Dijs[0],
+            phe_input.Dijs[1:],
+            phe_input.qijs[0],
+            phe_input.qijs[1:],
+            self._get_first_atoms(),
+            phe_input.lm_channels,
+        )
+        self._dDijdu = dDijdu
+
+    def _run_augmented_fits(self, phe_input: PhelelDataset) -> None:
+        """Compute the derivatives from a dataset of type 2 by the augmented fit.
+
+        pinv(A(q)) depends only on the displacements, so AugmentedNormalMatrices
+        computes it once, and the fits of the local potential, of the
+        kinetic-energy-density potential and of Dij and qij use it.
+
+        """
+        dataset = cast(Type2DisplacementDataset, self._phelel_phonon.dataset)
+        normal_matrices = AugmentedNormalMatrices(
+            self._phelel_phonon.supercell,
+            self._phelel_phonon.primitive,
+            self._p2s_matrix,
+            self.symmetry,
+            verbose=self._log_level > 0,
+        )
+        normal_matrices.run(dataset["displacements"])
+        self._dVdu = self._get_augmented_fit_of_potential(
+            normal_matrices, phe_input.local_potentials
+        )
+        if phe_input.kinetic_potentials is not None:
+            self._dmudu = self._get_augmented_fit_of_potential(
+                normal_matrices, phe_input.kinetic_potentials
+            )
+        dDijdu = DDijQijAugmentedFit(normal_matrices, verbose=self._log_level > 0)
+        dDijdu.run(
+            phe_input.Dijs[0],
+            phe_input.Dijs[1:],
+            phe_input.qijs[0],
+            phe_input.qijs[1:],
+            phe_input.lm_channels,
+        )
+        self._dDijdu = dDijdu
+
+    def _get_augmented_fit_of_potential(
+        self, normal_matrices: AugmentedNormalMatrices, potentials: list[NDArray]
+    ) -> DLocalPotentialAugmentedFit:
+        """Return the derivatives of a potential by the augmented fit.
+
+        Parameters
+        ----------
+        normal_matrices : AugmentedNormalMatrices
+            pinv(A(q)) of the displacements of the dataset, after its run.
+        potentials : list of ndarray
+            The potential of the perfect supercell followed by those of the
+            supercells of the snapshots of the dataset, such as
+            PhelelDataset.local_potentials.
+
+        Returns
+        -------
+        DLocalPotentialAugmentedFit
+
+        """
+        assert self._fft_mesh is not None
+        fit = DLocalPotentialAugmentedFit(
+            self._fft_mesh, normal_matrices, verbose=self._log_level > 0
+        )
+        fit.run(potentials[0], potentials[1:])
+        return fit
 
     def _get_derivatives_of_potential(
         self, potentials: list[NDArray]

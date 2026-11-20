@@ -632,6 +632,8 @@ class DLocalPotentialAugmentedFit:
 
     Attributes
     ----------
+    fft_mesh : array_like
+        Mesh numbers of the primitive cell given to __init__.
     grid_points : ndarray
         Grid points of get_grid_points.
         dtype='double', shape=(prod(fft_mesh) * det(p2s_matrix), 3)
@@ -693,6 +695,7 @@ class DLocalPotentialAugmentedFit:
                 f"not {time_reversal_form!r}."
             )
         self._time_reversal_form = time_reversal_form
+        self._fft_mesh = fft_mesh
         p2s_matrix = normal_matrices.p2s_matrix
         self._grid_points, self._lattice_points = get_grid_points(fft_mesh, p2s_matrix)
         self._fourier_series = FourierSeriesOnGrid(
@@ -703,6 +706,11 @@ class DLocalPotentialAugmentedFit:
             lang=lang,
         )
         self._dVdu: NDArray[np.cdouble] | None = None
+
+    @property
+    def fft_mesh(self) -> Sequence[int] | NDArray:
+        """Return the mesh numbers of the primitive cell."""
+        return self._fft_mesh
 
     @property
     def grid_points(self) -> NDArray[np.double]:

@@ -120,7 +120,7 @@ def create_derivatives(
 
     """
     dataset, phonon_dataset = _get_datasets(phelel)
-    num_disp = len(dataset["first_atoms"]) + 1
+    num_disp = _get_number_of_displacements(dataset) + 1
     num_disp_ph = _get_number_of_displacements(phonon_dataset) + 1
     if len(dir_names) == num_disp:
         phonon_dir_names = dir_names
@@ -208,16 +208,19 @@ def get_vasp_force_filenames(
 
 def _get_datasets(
     phelel: Phelel,
-) -> tuple[Type1DisplacementDataset, DisplacementDataset]:
+) -> tuple[DisplacementDataset, DisplacementDataset]:
     """Return inwap dataset and phonopy dataset.
 
-    Without the phonon supercell, the phonopy dataset is the inwap dataset.
+    The inwap dataset has "first_atoms" for the finite-difference method or
+    "displacements" for random displacements.  Without the phonon supercell,
+    the phonopy dataset is the inwap dataset.
 
     """
-    assert phelel.dataset is not None
-    if "first_atoms" not in phelel.dataset:
+    dataset = phelel.dataset
+    if dataset is None or (
+        "first_atoms" not in dataset and "displacements" not in dataset
+    ):
         raise RuntimeError("Displacement dataset has to be stored in Phelel instance.")
-    dataset = cast(Type1DisplacementDataset, phelel.dataset)
     if phelel.phonon_supercell_matrix is None:
         return dataset, dataset
     if phelel.phonon_dataset is None:
