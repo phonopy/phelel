@@ -14,12 +14,6 @@ as here), and one in pure Python, which is the reference of the Rust one.  The
 function without the underscore selects one of them by ``lang``.  Every
 function writes into its first argument.
 
-The two functions of the augmented fit, add_to_augmented_normal_equation_rhs and
-apply_inverse_augmented_normal_matrices, are written in pure Python only for
-now.  Their loops are written out, with only the innermost loop over the mesh
-points left to NumPy, so that they can be read next to Rust versions added
-later.
-
 """
 
 from __future__ import annotations
@@ -327,80 +321,3 @@ def _apply_inverse_normal_matrix_python(
             for j in range(3):
                 product += inverse_normal_matrix[i, j] * original[j]
             normal_equation_rhs[i_component, i] = product
-
-
-def add_to_augmented_normal_equation_rhs(
-    normal_equation_rhs: NDArray[np.cdouble],
-    weights: NDArray[np.cdouble],
-    values: list[NDArray[np.cdouble]],
-) -> None:
-    """Add one augmented snapshot to the right-hand side B(q), in place.
-
-        normal_equation_rhs[c, i, i_q, i_m] += weights[i_q, i] * values[c][i_q, i_m]
-
-    for each spin component c, each pair i = 3 tau + alpha of an atom tau of the
-    primitive cell and a Cartesian direction alpha, each q point i_q and each
-    mesh point i_m of the primitive cell.  In DLocalPotentialAugmentedFit,
-    weights are the complex conjugates of the lattice Fourier sums of the
-    displacements and values are phi_q(m) of the potential change of the
-    augmented snapshot.  The calls for all augmented snapshots give B(q).
-
-    Parameters
-    ----------
-    normal_equation_rhs : ndarray
-        Right-hand side of the normal equations, to which the products are
-        added.
-        dtype='complex128', shape=(n_components, 3 n_p, N_c, n_mesh_points),
-        C-contiguous
-    weights : ndarray
-        Weight of each q point and each pair i.
-        dtype='complex128', shape=(N_c, 3 n_p)
-    values : list of ndarray
-        n_components spin components of phi_q(m).
-        dtype='complex128', shape=(N_c, n_mesh_points) each, C-contiguous
-
-    """
-    n_pairs = normal_equation_rhs.shape[1]
-    n_qpoints = normal_equation_rhs.shape[2]
-    for i_component, value in enumerate(values):
-        for i_pair in range(n_pairs):
-            for i_q in range(n_qpoints):
-                normal_equation_rhs[i_component, i_pair, i_q] += (
-                    weights[i_q, i_pair] * value[i_q]
-                )
-
-
-def apply_inverse_augmented_normal_matrices(
-    normal_equation_rhs: NDArray[np.cdouble],
-    inverse_normal_matrices: NDArray[np.cdouble],
-) -> None:
-    """Multiply B(q) by pinv(A(q)) along the axis of the pairs, in place.
-
-        normal_equation_rhs[c, :, i_q, i_m]
-            <- inverse_normal_matrices[i_q] @ normal_equation_rhs[c, :, i_q, i_m]
-
-    The sum over the columns runs in their order, without BLAS.  This turns the
-    right-hand side B(q) of the normal equations into X(q).
-
-    Parameters
-    ----------
-    normal_equation_rhs : ndarray
-        Right-hand side of the normal equations, overwritten by the products.
-        dtype='complex128', shape=(n_components, 3 n_p, N_c, n_mesh_points),
-        C-contiguous
-    inverse_normal_matrices : ndarray
-        Pseudo-inverse of the matrix A(q) of each q point.
-        dtype='complex128', shape=(N_c, 3 n_p, 3 n_p)
-
-    """
-    n_components, n_pairs, n_qpoints = normal_equation_rhs.shape[:3]
-    for i_component in range(n_components):
-        for i_q in range(n_qpoints):
-            original = normal_equation_rhs[i_component, :, i_q].copy()
-            for i_pair in range(n_pairs):
-                product = np.zeros_like(original[0])
-                for j_pair in range(n_pairs):
-                    product += (
-                        inverse_normal_matrices[i_q, i_pair, j_pair] * original[j_pair]
-                    )
-                normal_equation_rhs[i_component, i_pair, i_q] = product

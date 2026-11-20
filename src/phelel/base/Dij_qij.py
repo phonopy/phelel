@@ -11,6 +11,11 @@ from phonopy.harmonic.displacement import FirstAtomDisplacement
 from phonopy.structure.atoms import PhonopyAtoms
 from phonopy.structure.symmetry import Symmetry
 
+from phelel.base.augmented_fit import (
+    AugmentedNormalMatrices,
+    add_to_augmented_normal_equation_rhs,
+    apply_inverse_augmented_normal_matrices,
+)
 from phelel.base.magnetic_symmetry import (
     check_magnetic_moments,
     get_time_reversals,
@@ -712,6 +717,314 @@ class DDijQij:
         shape = (ncdij, len(self._atom_indices), 3, natom, lmdim, lmdim)
         self._dDijdu = np.zeros(shape, dtype="complex128", order="C")
         self._dqijdu = np.zeros(shape, dtype="complex128", order="C")
+
+
+class DDijQijAugmentedFit:
+    """Compute dDij/du and dqij/du from snapshots by the augmented fit.
+
+    This is the fit of phelel.base.augmented_fit with Dij and qij in place of
+    the local potential.  To first order in the displacements, the change dD^j
+    of Dij of snapshot j has the lattice Fourier sums over the cells l' of the
+    atoms (l' tau')
+
+        dD~^j(tau'; q) = sum_l' dD^j(l' tau') exp(-2 pi i q . l')
+            = sum_(tau alpha) D~^(1)_(tau alpha)(tau'; q) u~^j_(tau alpha)(q),
+
+    where D~^(1) are the lattice Fourier sums of dDij/du.  The fit therefore
+    splits into one problem for each q point, with the same A(q) as that of
+    dV/du.  For each spin component,
+
+        B(q) = sum_(j, g) conj(u~^(j,g)(q)) (x) dD~^(j,g)(tau'; q)
+
+    is accumulated over the augmented snapshots, with the columns
+    (tau', L, L'), and the inverse lattice Fourier sum of
+    X(q) = pinv(A(q)) B(q) gives dDij/du.  qij is fitted in the same way.
+
+    dD^(j,g) is dD^j transformed by g in real space, as in
+    DDijQijFit._run_at_atom: the atoms are permuted and Dij of each atom is
+    rotated in the space of the atomic-like orbitals, the spin components are
+    rotated for ncdij=4, and, when g has time reversal, the complex conjugate
+    of the elements is taken and Theta acts on the spin components.  Time
+    reversal is therefore applied before the lattice Fourier sums, and the
+    change from q to -q of DLocalPotentialAugmentedFit is not needed.
+
+    Attributes
+    ----------
+    dDijdu, dqijdu : ndarray
+        dDij/du and dqij/du of the displacements of the atoms of atom_indices,
+        for all n_atoms = N_c n_p atoms of the supercell.
+        dtype='complex128', shape=(ncdij, n_p, 3, n_atoms, lmdim, lmdim)
+    Dij, qij : ndarray
+        Dij and qij of the perfect supercell at atom_indices.
+        dtype='complex128', shape=(ncdij, n_p, lmdim, lmdim)
+    atom_indices : ndarray
+        Atoms of the primitive cell in the supercell, primitive.p2s_map of
+        normal_matrices.
+        dtype='int64', shape=(n_p,)
+
+    """
+
+    def __init__(self, normal_matrices: AugmentedNormalMatrices, verbose: bool = True):
+        """Init method.
+
+        Parameters
+        ----------
+        normal_matrices : AugmentedNormalMatrices
+            A(q) of the snapshots.  Its run is called before run of this
+            class.
+        verbose : bool, optional
+            To display log or not.
+
+        """
+        self._normal_matrices = normal_matrices
+        self._verbose = verbose
+        self._dDijdu: NDArray[np.cdouble] | None = None
+        self._dqijdu: NDArray[np.cdouble] | None = None
+        self._Dij: NDArray[np.cdouble] | None = None
+        self._qij: NDArray[np.cdouble] | None = None
+
+    @property
+    def dDijdu(self) -> NDArray[np.cdouble] | None:
+        """Return dDij/du."""
+        return self._dDijdu
+
+    @property
+    def dqijdu(self) -> NDArray[np.cdouble] | None:
+        """Return dqij/du."""
+        return self._dqijdu
+
+    @property
+    def Dij(self) -> NDArray[np.cdouble] | None:
+        """Return Dij of the perfect supercell at atom_indices."""
+        return self._Dij
+
+    @property
+    def qij(self) -> NDArray[np.cdouble] | None:
+        """Return qij of the perfect supercell at atom_indices."""
+        return self._qij
+
+    @property
+    def atom_indices(self) -> NDArray[np.int64]:
+        """Return atom indices where dDijdu and dqijdu are stored."""
+        return self._normal_matrices.p2s_map
+
+    def run(
+        self,
+        Dij_per: NDArray[np.cdouble],
+        Dij_disps: Sequence[NDArray[np.cdouble]],
+        qij_per: NDArray[np.cdouble],
+        qij_disps: Sequence[NDArray[np.cdouble]],
+        lm_channels: list[dict],
+    ) -> None:
+        """Compute dDij/du and dqij/du.
+
+        Parameters
+        ----------
+        Dij_per, qij_per : ndarray
+            Dij and qij of the perfect supercell.
+            dtype='complex128', shape=(ncdij, n_atoms, lmdim, lmdim)
+        Dij_disps, qij_disps : sequence of ndarray
+            Dij and qij of the snapshots, in the order of the displacements of
+            normal_matrices.
+            dtype='complex128', shape=(ncdij, n_atoms, lmdim, lmdim) each
+        lm_channels : list of dict
+            lm channels of the atoms (see DeltaDijQij).
+
+        Raises
+        ------
+        ValueError
+            When Dij_disps and qij_disps differ in length, and as in
+            AugmentedNormalMatrices.check_data.
+
+        """
+        if len(Dij_disps) != len(qij_disps):
+            raise ValueError(
+                f"Numbers of snapshots of Dij and qij differ, {len(Dij_disps)} and "
+                f"{len(qij_disps)}."
+            )
+        ncdij, _, lmdim, _ = Dij_per.shape
+        self._normal_matrices.check_data(ncdij, len(Dij_disps))
+        inverse_normal_matrices = self._normal_matrices.inverse_normal_matrices
+        assert inverse_normal_matrices is not None
+        _check_Dij_symmetry(
+            Dij_per,
+            lm_channels,
+            self._normal_matrices.supercell,
+            self._normal_matrices.symmetry,
+        )
+        normal_equation_rhs = self._get_normal_equation_rhs(
+            Dij_per,
+            Dij_disps,
+            qij_per,
+            qij_disps,
+            lm_channels,
+            len(inverse_normal_matrices),
+        )
+        derivatives = []
+        for rhs in normal_equation_rhs:
+            apply_inverse_augmented_normal_matrices(rhs, inverse_normal_matrices)
+            derivatives.append(self._sum_over_qpoints(rhs, lmdim))
+        self._dDijdu, self._dqijdu = derivatives
+        p2s_map = self._normal_matrices.p2s_map
+        self._Dij = np.array(Dij_per[:, p2s_map], dtype="complex128", order="C")
+        self._qij = np.array(qij_per[:, p2s_map], dtype="complex128", order="C")
+
+    def _get_normal_equation_rhs(
+        self,
+        Dij_per: NDArray[np.cdouble],
+        Dij_disps: Sequence[NDArray[np.cdouble]],
+        qij_per: NDArray[np.cdouble],
+        qij_disps: Sequence[NDArray[np.cdouble]],
+        lm_channels: list[dict],
+        num_cells: int,
+    ) -> tuple[NDArray[np.cdouble], NDArray[np.cdouble]]:
+        """Return B(q) of Dij and of qij, accumulated one augmented snapshot at a time.
+
+        B(q) is that of the class docstring.  The changes dD^(j,g) are made
+        in real space as described there and summed over the cells by
+        _add_to_rhs.
+
+        For a grey group whose operations lack time reversal
+        (AugmentedNormalMatrices.adds_time_reversal), dD^(j,g) with time
+        reversal is added with the same conj(u~^(j,g)(q)).
+
+        The loops call BLAS in _rotate_Dij_in_orbital_space and in the rotation
+        in spin space.  No kernel of phonors runs in these loops now, but this
+        has to be changed when add_to_augmented_normal_equation_rhs calls
+        phonors (see AugmentedNormalMatrices.run).
+
+        Parameters
+        ----------
+        Dij_per, Dij_disps, qij_per, qij_disps, lm_channels
+            See run.
+        num_cells : int
+            Number of the q points, N_c.
+
+        Returns
+        -------
+        tuple of ndarray
+            B(q) of Dij and of qij with the full lattice Fourier sums, without
+            the factor 1/N_c, which the inverse transform has.
+            dtype='complex128', shape=(ncdij, 3 n_p, N_c, n_p lmdim lmdim) each
+
+        """
+        normal_matrices = self._normal_matrices
+        cosets = normal_matrices.coset_representatives
+        lattice = normal_matrices.supercell.cell.T
+        ncdij, _, lmdim, _ = Dij_per.shape
+        n_p = normal_matrices.num_primitive_atoms
+        lxlylz = LxLyLzMatrices().run()
+        orbital_rotations = []
+        for rotation in cosets.rotations:
+            shr = SHRotationMatrices(rotation, lattice, lxlylz)
+            shr.run()
+            assert shr.Delta is not None
+            orbital_rotations.append(shr.Delta)
+        shape = (ncdij, 3 * n_p, num_cells, n_p * lmdim * lmdim)
+        rhs_Dij = np.zeros(shape, dtype="complex128", order="C")
+        rhs_qij = np.zeros(shape, dtype="complex128", order="C")
+        for i_snapshot, (Dij_disp, qij_disp) in enumerate(
+            zip(Dij_disps, qij_disps, strict=True)
+        ):
+            changes = (Dij_disp - Dij_per, qij_disp - qij_per)
+            for i_op in range(len(cosets.rotations)):
+                conj_displacement_sums = normal_matrices.get_displacement_sums(
+                    i_snapshot, i_op
+                ).conj()
+                for change, rhs in zip(changes, (rhs_Dij, rhs_qij), strict=True):
+                    values = [
+                        _rotate_Dij_in_orbital_space(
+                            change[i_cdij],
+                            lm_channels,
+                            orbital_rotations[i_op],
+                            cosets.permutations[i_op],
+                        )
+                        for i_cdij in range(ncdij)
+                    ]
+                    if ncdij == 4:
+                        values = rotate_delta_vals_in_spin_space(
+                            values, cosets.rotations[i_op], lattice
+                        )
+                    if cosets.time_reversals[i_op]:
+                        values = apply_time_reversal_in_spin_space(values)
+                    self._add_to_rhs(rhs, conj_displacement_sums, values)
+                    if normal_matrices.adds_time_reversal:
+                        assert not cosets.time_reversals[i_op]
+                        self._add_to_rhs(
+                            rhs,
+                            conj_displacement_sums,
+                            apply_time_reversal_in_spin_space(values),
+                        )
+            if self._verbose:
+                print("Added a snapshot to the normal equations of Dij and qij.")
+        return rhs_Dij, rhs_qij
+
+    def _add_to_rhs(
+        self,
+        normal_equation_rhs: NDArray[np.cdouble],
+        conj_displacement_sums: NDArray[np.cdouble],
+        values: list[NDArray[np.cdouble]],
+    ) -> None:
+        """Add one augmented snapshot to B(q).
+
+        Parameters
+        ----------
+        normal_equation_rhs : ndarray
+            B(q), to which the products are added.
+            dtype='complex128', shape=(ncdij, 3 n_p, N_c, n_p lmdim lmdim)
+        conj_displacement_sums : ndarray
+            conj(u~^(j,g)(q)).
+            dtype='complex128', shape=(N_c, 3 n_p)
+        values : list of ndarray
+            dD^(j,g) of the spin components.
+            dtype='complex128', shape=(n_atoms, lmdim, lmdim) each
+
+        """
+        sums = [
+            self._normal_matrices.get_lattice_fourier_sums(value).reshape(
+                normal_equation_rhs.shape[2], -1
+            )
+            for value in values
+        ]
+        add_to_augmented_normal_equation_rhs(
+            normal_equation_rhs, conj_displacement_sums, sums
+        )
+
+    def _sum_over_qpoints(
+        self, solutions: NDArray[np.cdouble], lmdim: int
+    ) -> NDArray[np.cdouble]:
+        """Return dDij/du of the atoms from X(q).
+
+        The axes of X(q), (ncdij, tau, alpha, q, tau', L, L'), are reordered to
+        (q, tau', ncdij, tau, alpha, L, L') for
+        AugmentedNormalMatrices.get_inverse_lattice_fourier_sums, which gives
+        the values of the n_atoms atoms of the supercell, in their order, on the
+        first axis.
+
+        Parameters
+        ----------
+        solutions : ndarray
+            X(q), with the index (tau', L, L') of the last axis.
+            dtype='complex128', shape=(ncdij, 3 n_p, N_c, n_p lmdim lmdim)
+        lmdim : int
+            Number of the lm channels.
+
+        Returns
+        -------
+        ndarray
+            dDij/du, where n_atoms = N_c n_p is the number of the atoms of the
+            supercell.
+            dtype='complex128', shape=(ncdij, n_p, 3, n_atoms, lmdim, lmdim)
+
+        """
+        ncdij, _, num_cells, _ = solutions.shape
+        n_p = self._normal_matrices.num_primitive_atoms
+        sums = solutions.reshape(ncdij, n_p, 3, num_cells, n_p, lmdim, lmdim)
+        sums = sums.transpose(3, 4, 0, 1, 2, 5, 6)
+        values = self._normal_matrices.get_inverse_lattice_fourier_sums(sums)
+        return np.array(
+            values.transpose(1, 2, 3, 0, 4, 5), dtype="complex128", order="C"
+        )
 
 
 def _get_orbital_rotation_matrix(

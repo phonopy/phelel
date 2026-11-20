@@ -31,7 +31,14 @@ dV/du with the factor 1 / N_c of the inverse lattice Fourier sum included.
 
 A(q) depends only on the displacements.  AugmentedNormalMatrices computes
 pinv(A(q)) once, and the fits of the derivatives, DLocalPotentialAugmentedFit
-for dV/du, accumulate their own B(q) with it.
+for dV/du and DDijQijAugmentedFit (phelel.base.Dij_qij) for dDij/du and
+dqij/du, accumulate their own B(q) with it.
+
+The two steps that the fits share, add_to_augmented_normal_equation_rhs and
+apply_inverse_augmented_normal_matrices, are written in pure Python only for
+now.  Their loops are written out, with only the innermost loop over the
+columns left to NumPy, so that they can be read next to Rust versions added
+later.
 
 Only g_point_selection="shortest" of FourierSeriesOnGrid is used.
 
@@ -62,8 +69,6 @@ from phelel.base.magnetic_symmetry import (
     is_grey_group_without_time_reversal,
 )
 from phelel.base.potential_change import (
-    add_to_augmented_normal_equation_rhs,
-    apply_inverse_augmented_normal_matrices,
     apply_time_reversal_to_spin_components,
     rotate_spin_components,
 )
@@ -148,7 +153,8 @@ def get_coset_representatives(
         the operations are the translations of the primitive cell, which
         phonopy takes from s2p_map without looking at the magnetic moments,
         so the check passes whatever the moments are.
-        DLocalPotentialAugmentedFit checks the moments separately.
+        AugmentedNormalMatrices checks the moments separately
+        (check_primitive_translations).
 
     """
     rotations = symmetry.symmetry_operations["rotations"]
@@ -213,9 +219,14 @@ class AugmentedNormalMatrices:
     ----------
     supercell : PhonopyAtoms
         Perfect supercell.
+    symmetry : Symmetry
+        Symmetry of the supercell.
     p2s_matrix : ndarray
         Supercell matrix relative to the primitive cell.
         dtype='int64', shape=(3, 3)
+    p2s_map : ndarray
+        Indices in the supercell of the atoms of the primitive cell, tau.
+        dtype='int64', shape=(n_p,)
     coset_representatives : CosetRepresentatives
         Coset representatives of the operations of the supercell.
     adds_time_reversal : bool
@@ -280,6 +291,7 @@ class AugmentedNormalMatrices:
 
         """
         self._supercell = supercell
+        self._symmetry = symmetry
         self._p2s_matrix = np.array(p2s_matrix, dtype="int64", order="C")
         self._rcond = rcond
         self._verbose = verbose
@@ -299,9 +311,19 @@ class AugmentedNormalMatrices:
         return self._supercell
 
     @property
+    def symmetry(self) -> Symmetry:
+        """Return the symmetry of the supercell."""
+        return self._symmetry
+
+    @property
     def p2s_matrix(self) -> NDArray[np.int64]:
         """Return the supercell matrix relative to the primitive cell."""
         return self._p2s_matrix
+
+    @property
+    def p2s_map(self) -> NDArray[np.int64]:
+        """Return the indices in the supercell of the atoms of the primitive cell."""
+        return self._p2s_map
 
     @property
     def coset_representatives(self) -> CosetRepresentatives:
@@ -398,14 +420,109 @@ class AugmentedNormalMatrices:
             self._coset_representatives.cartesian_rotations[i_op],
             self._displacements[i_snapshot],
         )
+        sums = self.get_lattice_fourier_sums(rotated)
+        return sums.reshape(sums.shape[0], -1)
+
+    def get_lattice_fourier_sums(self, values: NDArray) -> NDArray[np.cdouble]:
+        """Return the lattice Fourier sums of values given at the atoms.
+
+            f~(tau; q) = sum_l f(l tau) exp(-2 pi i q . l)
+
+        for each atom tau of the primitive cell, where atom (l tau) is the atom
+        of the supercell in the cell l.  np.einsum without optimize does not
+        call BLAS (see get_displacement_sums).
+
+        Parameters
+        ----------
+        values : ndarray
+            f(l tau) of each atom of the supercell, with any shape of the
+            remaining axes.  The first axis has the n_atoms = N_c n_p atoms of
+            the supercell in their order.
+            shape=(n_atoms, ...)
+
+        Returns
+        -------
+        ndarray
+            dtype='complex128', shape=(N_c, n_p, ...)
+
+        """
         sums = np.zeros(
-            (self._phases.shape[0], self._num_primitive_atoms, 3), dtype="complex128"
+            (self._phases.shape[0], self._num_primitive_atoms, *values.shape[1:]),
+            dtype="complex128",
         )
         for i_atom, sublattice in enumerate(self._sublattices):
             sums[:, i_atom] = np.einsum(
-                "qn,na->qa", self._phases[:, sublattice], rotated[sublattice]
+                "qn,n...->q...", self._phases[:, sublattice], values[sublattice]
             )
-        return sums.reshape(sums.shape[0], -1)
+        return sums
+
+    def get_inverse_lattice_fourier_sums(
+        self, sums: NDArray[np.cdouble]
+    ) -> NDArray[np.cdouble]:
+        """Return the values at the atoms from their lattice Fourier sums.
+
+            f(l tau) = (1 / N_c) sum_q f~(tau; q) exp(2 pi i q . l),
+
+        the inverse of get_lattice_fourier_sums.
+
+        Parameters
+        ----------
+        sums : ndarray
+            f~(tau; q), with any shape of the remaining axes.
+            dtype='complex128', shape=(N_c, n_p, ...)
+
+        Returns
+        -------
+        ndarray
+            f(l tau) at the n_atoms = N_c n_p atoms of the supercell in their
+            order.
+            dtype='complex128', shape=(n_atoms, ...)
+
+        """
+        num_cells = self._phases.shape[0]
+        values = np.zeros((len(self._supercell), *sums.shape[2:]), dtype="complex128")
+        for i_atom, sublattice in enumerate(self._sublattices):
+            values[sublattice] = (
+                np.einsum(
+                    "qn,q...->n...",
+                    self._phases[:, sublattice].conj(),
+                    sums[:, i_atom],
+                )
+                / num_cells
+            )
+        return values
+
+    def check_data(self, ncdij: int, num_snapshots: int) -> None:
+        """Check the data of the snapshots of a fit against the displacements.
+
+        A fit calls this before it uses inverse_normal_matrices, which is not
+        None after this check. The magnetic moments of the supercell are
+        checked against ncdij by check_magnetic_moments.
+
+        Parameters
+        ----------
+        ncdij : int
+            Number of spin components of the data.
+        num_snapshots : int
+            Number of the snapshots of the data.
+
+        Raises
+        ------
+        RuntimeError
+            When run has not been called.
+        ValueError
+            When num_snapshots differs from the number of the displacements,
+            and as in check_magnetic_moments.
+
+        """
+        if self._displacements is None or self._inverse_normal_matrices is None:
+            raise RuntimeError("AugmentedNormalMatrices.run has to be called before.")
+        check_magnetic_moments(self._supercell, ncdij)
+        if num_snapshots != len(self._displacements):
+            raise ValueError(
+                f"Number of snapshots of the data is {num_snapshots}, not "
+                f"{len(self._displacements)} of the displacements."
+            )
 
     def _set_atoms_and_phases(self, primitive: Primitive, tolerance: float) -> None:
         """Set the sublattices and exp(-2 pi i q . l) of each atom of the supercell.
@@ -426,10 +543,10 @@ class AugmentedNormalMatrices:
             check_primitive_translations in __init__.
 
         """
-        p2s_map = np.array(primitive.p2s_map, dtype="int64")
+        self._p2s_map = np.array(primitive.p2s_map, dtype="int64")
         s2p_map = np.array(primitive.s2p_map, dtype="int64")
-        self._num_primitive_atoms = len(p2s_map)
-        self._sublattices = [np.where(s2p_map == atom)[0] for atom in p2s_map]
+        self._num_primitive_atoms = len(self._p2s_map)
+        self._sublattices = [np.where(s2p_map == atom)[0] for atom in self._p2s_map]
         positions = self._supercell.scaled_positions
         differences = (positions - positions[s2p_map]) @ self._p2s_matrix.T
         lattice_vectors = np.rint(differences).astype("int64")
@@ -495,8 +612,23 @@ class AugmentedNormalMatrices:
 class DLocalPotentialAugmentedFit:
     """Compute dV/du from snapshots by the augmented fit.
 
-    See the module docstring.  pinv(A(q)) and the displacements are those of
-    AugmentedNormalMatrices after its run.
+    The fit is that of the module docstring.  pinv(A(q)) and the displacements
+    are those of AugmentedNormalMatrices after its run.  For each spin
+    component,
+
+        B(q) = sum_(j, g) conj(u~^(j,g)(q)) (x) phi_q[dV^(j,g)](m)
+
+    is accumulated over the augmented snapshots, with the columns m, the
+    points of the output grid in the primitive cell.  The values phi_q of all
+    augmented snapshots, Y(q) in B(q) = U(q)^H Y(q), are not stored, because
+    they would take the memory of all augmented snapshots on the output grid.
+
+    phi_q[dV^(j,g)] is computed from the Fourier coefficients of dV^j: get_phi
+    for the spatial part of g, the rotation in spin space for ncdij=4, and
+    _apply_time_reversal when g has time reversal.  Time reversal takes the
+    complex conjugate, which changes q to -q in the lattice Fourier sums, so
+    it comes after the rotation in spin space, which has no complex conjugate
+    and stays at the same q.
 
     Attributes
     ----------
@@ -608,9 +740,9 @@ class DLocalPotentialAugmentedFit:
 
         """
         ncdij = V_loc_per.shape[0]
-        inverse_normal_matrices = _get_checked_inverse_normal_matrices(
-            self._normal_matrices, ncdij, len(V_loc_disps)
-        )
+        self._normal_matrices.check_data(ncdij, len(V_loc_disps))
+        inverse_normal_matrices = self._normal_matrices.inverse_normal_matrices
+        assert inverse_normal_matrices is not None
         spin_rotations = self._get_spin_rotations() if ncdij == 4 else None
         normal_equation_rhs = self._get_normal_equation_rhs(
             V_loc_per, V_loc_disps, spin_rotations
@@ -626,30 +758,18 @@ class DLocalPotentialAugmentedFit:
         V_loc_disps: Sequence[NDArray[np.cdouble]],
         spin_rotations: list[NDArray[np.cdouble]] | None,
     ) -> NDArray[np.cdouble]:
-        """Return B(q) = U(q)^H Y(q), accumulated one augmented snapshot at a time.
-
-        Row (j, g) of Y(q) is phi_q of the potential change of the augmented
-        snapshot (j, g), and column (j, g) of U(q)^H is conj(u~^(j,g)(q)).
-        B(q) is the sum over (j, g) of their outer products, and each pair
-        (j, g) adds its outer product to all elements of B(q)
-        (add_to_augmented_normal_equation_rhs).  Y(q) is not stored, because
-        it would take the memory of all augmented snapshots on the output grid.
+        """Return B(q) of the class docstring, one augmented snapshot at a time.
 
         The loop over the snapshots j is outside, so that the Fourier
         coefficients of the potential change of snapshot j are computed by one
         FFT and used for all coset representatives g.  The loops do not call
         BLAS (see AugmentedNormalMatrices.run).
 
-        phi_q of (j, g) is get_phi of the Fourier coefficients for the spatial
-        part of g, followed by the rotation in spin space for ncdij=4 and by
-        _apply_time_reversal when g has time reversal.  The rotation in spin
-        space has no complex conjugate, so it is applied at the same q.
-
         For a grey group whose operations lack time reversal
         (AugmentedNormalMatrices.adds_time_reversal), the coset of g combined
         with time reversal is a coset of its own.  Its phi_q is that of (j, g)
-        after _apply_time_reversal and is added with the same weights, without
-        computing get_phi again.
+        after _apply_time_reversal and is added with the same
+        conj(u~^(j,g)(q)), without computing get_phi again.
 
         Parameters
         ----------
@@ -692,12 +812,12 @@ class DLocalPotentialAugmentedFit:
                     rotate_spin_components(phis, spin_rotations[i_op], lang=self._lang)
                 if cosets.time_reversals[i_op]:
                     phis = self._apply_time_reversal(phis)
-                weights = self._normal_matrices.get_displacement_sums(
+                conj_displacement_sums = self._normal_matrices.get_displacement_sums(
                     i_snapshot, i_op
                 ).conj()
                 add_to_augmented_normal_equation_rhs(
                     normal_equation_rhs,
-                    weights,
+                    conj_displacement_sums,
                     [phi.reshape(num_cells, -1) for phi in phis],
                 )
                 if adds_time_reversal:
@@ -705,7 +825,7 @@ class DLocalPotentialAugmentedFit:
                     phis = self._apply_time_reversal(phis)
                     add_to_augmented_normal_equation_rhs(
                         normal_equation_rhs,
-                        weights,
+                        conj_displacement_sums,
                         [phi.reshape(num_cells, -1) for phi in phis],
                     )
             if self._verbose:
@@ -775,51 +895,6 @@ class DLocalPotentialAugmentedFit:
                     solutions[i_component, i_pair]
                 )
         return dVdu.reshape(ncdij, self._normal_matrices.num_primitive_atoms, 3, -1)
-
-
-def _get_checked_inverse_normal_matrices(
-    normal_matrices: AugmentedNormalMatrices, ncdij: int, num_snapshots: int
-) -> NDArray[np.cdouble]:
-    """Return pinv(A(q)) after checking it against the data of the snapshots.
-
-    The magnetic moments of the supercell are checked against ncdij by
-    check_magnetic_moments.
-
-    Parameters
-    ----------
-    normal_matrices : AugmentedNormalMatrices
-        A(q) of the snapshots.
-    ncdij : int
-        Number of spin components of the data.
-    num_snapshots : int
-        Number of the snapshots of the data.
-
-    Returns
-    -------
-    ndarray
-        normal_matrices.inverse_normal_matrices.
-        dtype='complex128', shape=(N_c, 3 n_p, 3 n_p)
-
-    Raises
-    ------
-    RuntimeError
-        When normal_matrices.run has not been called.
-    ValueError
-        When num_snapshots differs from the number of the displacements of
-        normal_matrices, and as in check_magnetic_moments.
-
-    """
-    displacements = normal_matrices.displacements
-    inverse_normal_matrices = normal_matrices.inverse_normal_matrices
-    if displacements is None or inverse_normal_matrices is None:
-        raise RuntimeError("AugmentedNormalMatrices.run has to be called before.")
-    check_magnetic_moments(normal_matrices.supercell, ncdij)
-    if num_snapshots != len(displacements):
-        raise ValueError(
-            f"Number of snapshots of the data is {num_snapshots}, not "
-            f"{len(displacements)} of the displacements."
-        )
-    return inverse_normal_matrices
 
 
 def _apply_linear_time_reversal(
@@ -898,3 +973,92 @@ def _get_inverse_normal_matrices(
         eigvecs.conj(), 1, 2
     )
     return inverse_normal_matrices, np.array(eigvals, dtype="double")
+
+
+def add_to_augmented_normal_equation_rhs(
+    normal_equation_rhs: NDArray[np.cdouble],
+    conj_displacement_sums: NDArray[np.cdouble],
+    values: list[NDArray[np.cdouble]],
+) -> None:
+    """Add one augmented snapshot to the right-hand side B(q), in place.
+
+        normal_equation_rhs[c, i, i_q, k]
+            += conj_displacement_sums[i_q, i] * values[c][i_q, k]
+
+    for each spin component c, each pair i = 3 tau + alpha of an atom tau of the
+    primitive cell and a Cartesian direction alpha, each q point i_q and each
+    column k.  conj_displacement_sums are conj(u~^(j,g)(q)), the complex
+    conjugates of the lattice Fourier sums of the displacements of the
+    augmented snapshot (j, g), which are the elements of U(q)^H in
+    B(q) = U(q)^H Y(q).  The columns and the values depend on the fit.
+
+    DLocalPotentialAugmentedFit
+        The columns are the mesh points m of the primitive cell, and the
+        values are phi_q(m) of the potential change.
+    DDijQijAugmentedFit
+        The columns are (tau', L, L'), and the values are the lattice Fourier
+        sums of the change of Dij or qij.
+
+    The calls for all augmented snapshots give B(q).
+
+    Parameters
+    ----------
+    normal_equation_rhs : ndarray
+        Right-hand side of the normal equations, to which the products are
+        added.
+        dtype='complex128', shape=(n_components, 3 n_p, N_c, n_columns),
+        C-contiguous
+    conj_displacement_sums : ndarray
+        conj(u~^(j,g)(q)) of each q point and each pair i.
+        dtype='complex128', shape=(N_c, 3 n_p)
+    values : list of ndarray
+        Values of the n_components spin components.
+        dtype='complex128', shape=(N_c, n_columns) each, C-contiguous
+
+    """
+    n_pairs = normal_equation_rhs.shape[1]
+    n_qpoints = normal_equation_rhs.shape[2]
+    for i_component, value in enumerate(values):
+        for i_pair in range(n_pairs):
+            for i_q in range(n_qpoints):
+                normal_equation_rhs[i_component, i_pair, i_q] += (
+                    conj_displacement_sums[i_q, i_pair] * value[i_q]
+                )
+
+
+def apply_inverse_augmented_normal_matrices(
+    normal_equation_rhs: NDArray[np.cdouble],
+    inverse_normal_matrices: NDArray[np.cdouble],
+) -> None:
+    """Multiply B(q) by pinv(A(q)) along the axis of the pairs, in place.
+
+        normal_equation_rhs[c, :, i_q, k]
+            <- inverse_normal_matrices[i_q] @ normal_equation_rhs[c, :, i_q, k]
+
+    for each spin component c, each q point i_q and each column k, with the
+    columns of add_to_augmented_normal_equation_rhs.  The sum over the pairs
+    runs in their order, without BLAS.  This turns the right-hand side B(q) of
+    the normal equations into X(q).
+
+    Parameters
+    ----------
+    normal_equation_rhs : ndarray
+        Right-hand side of the normal equations, overwritten by the products.
+        dtype='complex128', shape=(n_components, 3 n_p, N_c, n_columns),
+        C-contiguous
+    inverse_normal_matrices : ndarray
+        Pseudo-inverse of the matrix A(q) of each q point.
+        dtype='complex128', shape=(N_c, 3 n_p, 3 n_p)
+
+    """
+    n_components, n_pairs, n_qpoints = normal_equation_rhs.shape[:3]
+    for i_component in range(n_components):
+        for i_q in range(n_qpoints):
+            original = normal_equation_rhs[i_component, :, i_q].copy()
+            for i_pair in range(n_pairs):
+                product = np.zeros_like(original[0])
+                for j_pair in range(n_pairs):
+                    product += (
+                        inverse_normal_matrices[i_q, i_pair, j_pair] * original[j_pair]
+                    )
+                normal_equation_rhs[i_component, i_pair, i_q] = product

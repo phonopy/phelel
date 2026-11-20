@@ -32,16 +32,25 @@ from phelel.base.augmented_fit import (
     AugmentedNormalMatrices,
     DLocalPotentialAugmentedFit,
     _get_inverse_normal_matrices,
+    add_to_augmented_normal_equation_rhs,
+    apply_inverse_augmented_normal_matrices,
     get_coset_representatives,
+)
+from phelel.base.Dij_qij import (
+    DDijQij,
+    DDijQijAugmentedFit,
+    _rotate_Dij_in_orbital_space,
 )
 from phelel.base.fourier_series import FourierSeriesOnGrid
 from phelel.base.local_potential import DLocalPotential
-from phelel.base.potential_change import (
-    add_to_augmented_normal_equation_rhs,
-    apply_inverse_augmented_normal_matrices,
-)
+from phelel.base.magnetic_symmetry import get_time_reversals
 from phelel.base.symmetrization import select_equivalent_atoms
 from phelel.interface.vasp.derivatives import read_files
+from phelel.utils.spherical_harmonics import LxLyLzMatrices, SHRotationMatrices
+from phelel.utils.spinor import (
+    apply_time_reversal_in_spin_space,
+    rotate_delta_vals_in_spin_space,
+)
 
 cwd = Path(__file__).parent
 vasp_dir = cwd.parent / "interface" / "vasp"
@@ -797,15 +806,17 @@ def test_indices_of_minus_qpoints():
 
 
 def test_add_to_augmented_normal_equation_rhs():
-    """The function adds weights[q, i] * values[c][q, m]."""
+    """The function adds conj_displacement_sums[q, i] * values[c][q, m]."""
     rng = np.random.default_rng(1)
     rhs = rng.standard_normal((2, 6, 3, 5)) + 1j * rng.standard_normal((2, 6, 3, 5))
-    weights = rng.standard_normal((3, 6)) + 1j * rng.standard_normal((3, 6))
+    conj_displacement_sums = rng.standard_normal((3, 6)) + 1j * rng.standard_normal(
+        (3, 6)
+    )
     values = [
         rng.standard_normal((3, 5)) + 1j * rng.standard_normal((3, 5)) for _ in range(2)
     ]
-    expected = rhs + np.einsum("qi,cqm->ciqm", weights, np.array(values))
-    add_to_augmented_normal_equation_rhs(rhs, weights, values)
+    expected = rhs + np.einsum("qi,cqm->ciqm", conj_displacement_sums, np.array(values))
+    add_to_augmented_normal_equation_rhs(rhs, conj_displacement_sums, values)
     np.testing.assert_allclose(rhs, expected, atol=1e-14)
 
 
@@ -904,3 +915,253 @@ def test_get_inverse_normal_matrices():
         normal_matrices[:2],
         atol=1e-10,
     )
+
+
+# Channels s and p of every atom for the synthetic Dij and qij, so that the
+# rotation in the space of the orbitals is not the identity.
+SYNTHETIC_LM_CHANNELS = {"channels": [{"l": 0, "m": [0]}, {"l": 1, "m": [-1, 0, 1]}]}
+SYNTHETIC_LMDIM = 4
+
+
+def _transform_Dij(
+    Dij: NDArray,
+    lm_channels: list[dict],
+    rotation: NDArray,
+    time_reversal: bool,
+    permutation: NDArray,
+    lattice: NDArray,
+) -> NDArray:
+    """Return Dij of all atoms transformed by an operation, shape of Dij.
+
+    The steps are those of the augmented snapshots of DDijQijAugmentedFit.
+
+    """
+    shr = SHRotationMatrices(rotation, lattice, LxLyLzMatrices().run())
+    shr.run()
+    assert shr.Delta is not None
+    values = [
+        _rotate_Dij_in_orbital_space(component, lm_channels, shr.Delta, permutation)
+        for component in Dij
+    ]
+    if len(Dij) == 4:
+        values = rotate_delta_vals_in_spin_space(values, rotation, lattice)
+    if time_reversal:
+        values = apply_time_reversal_in_spin_space(values)
+    return np.array(values)
+
+
+def _get_symmetric_Dij_derivatives(
+    supercell: PhonopyAtoms, symmetry: Symmetry, ncdij: int, seed: int
+) -> NDArray:
+    """Return random dDij/du of all atoms that is invariant under symmetry.
+
+    shape=(ncdij, n_atoms, 3, n_atoms, lmdim, lmdim), where the second and third
+    axes are the displacement u_(k alpha) and the fourth axis is the atom whose
+    Dij it is.  For dD^j = sum_(k alpha) dDij/du[:, k, alpha] u^j_(k alpha), the
+    change of an augmented snapshot is that of the transformed displacements
+    when, for each operation g with rotation S and permutation perm,
+
+        dDij/du[:, perm[k], beta] = sum_alpha S[beta, alpha] T_g(dDij/du[:, k, alpha]),
+
+    where T_g is _transform_Dij.  A random tensor is averaged over the operations
+    of symmetry with this action, which makes it invariant.
+
+    """
+    rng = np.random.default_rng(seed)
+    natom = len(supercell)
+    shape = (ncdij, natom, 3, natom, SYNTHETIC_LMDIM, SYNTHETIC_LMDIM)
+    derivatives = rng.standard_normal(shape) + 1j * rng.standard_normal(shape)
+    lattice = supercell.cell.T
+    lm_channels = [SYNTHETIC_LM_CHANNELS] * natom
+    rotations = symmetry.symmetry_operations["rotations"]
+    time_reversals = get_time_reversals(symmetry)
+    symmetrized = np.zeros_like(derivatives)
+    for rotation, time_reversal, permutation in zip(
+        rotations, time_reversals, symmetry.atomic_permutations, strict=True
+    ):
+        cartesian = lattice @ rotation @ np.linalg.inv(lattice)
+        for k in range(natom):
+            for alpha in range(3):
+                transformed = _transform_Dij(
+                    derivatives[:, k, alpha],
+                    lm_channels,
+                    rotation,
+                    bool(time_reversal),
+                    permutation,
+                    lattice,
+                )
+                for beta in range(3):
+                    symmetrized[:, permutation[k], beta] += (
+                        cartesian[beta, alpha] * transformed
+                    )
+    return symmetrized / len(rotations)
+
+
+def _get_synthetic_Dijs(derivatives: NDArray, displacements: NDArray) -> list[NDArray]:
+    """Return dD^j of each snapshot from dDij/du of _get_symmetric_Dij_derivatives."""
+    return [np.einsum("ckaiLM,ka->ciLM", derivatives, u) for u in displacements]
+
+
+def _run_Dij_fit(
+    supercell: PhonopyAtoms,
+    primitive: Primitive,
+    symmetry: Symmetry,
+    Dijs: list[NDArray],
+    qijs: list[NDArray],
+    lm_channels: list[dict],
+    displacements: NDArray,
+    p2s_matrix: NDArray = P2S_MATRIX,
+) -> DDijQijAugmentedFit:
+    """Return the fit of dDij/du and dqij/du after its run.
+
+    Dijs[0] and qijs[0] are those of the perfect supercell.
+
+    """
+    normal_matrices = AugmentedNormalMatrices(
+        supercell, primitive, p2s_matrix, symmetry, verbose=False
+    )
+    normal_matrices.run(displacements)
+    fit = DDijQijAugmentedFit(normal_matrices, verbose=False)
+    fit.run(Dijs[0], Dijs[1:], qijs[0], qijs[1:], lm_channels)
+    return fit
+
+
+def test_inverse_lattice_fourier_sums():
+    """The inverse lattice Fourier sum gives back the values of the atoms.
+
+    On the 3x1x1 supercell q != -q, so a wrong sign of the phase of one of the
+    two sums would not give back the values.
+
+    """
+    supercell, primitive, symmetry = _get_cells("CsCl")
+    normal_matrices = AugmentedNormalMatrices(
+        supercell, primitive, P2S_MATRIX, symmetry, verbose=False
+    )
+    rng = np.random.default_rng(0)
+    values = rng.standard_normal((len(supercell), 2, 3)) + 1j * rng.standard_normal(
+        (len(supercell), 2, 3)
+    )
+    sums = normal_matrices.get_lattice_fourier_sums(values)
+    assert sums.shape == (3, 2, 2, 3)
+    np.testing.assert_allclose(
+        normal_matrices.get_inverse_lattice_fourier_sums(sums), values, atol=1e-14
+    )
+
+
+@pytest.mark.parametrize(
+    "data_dir",
+    [
+        "derivatives_vaspout/C",
+        "derivatives_vaspout/Mg",
+        "derivatives_lwap/Cr",
+        "derivatives_lwap/Fe-ncl",
+    ],
+)
+def test_Dij_type1_data_equal_finite_differences(data_dir: str):
+    """The fit of Dij of type-1 data agrees with the finite differences of DDijQij.
+
+    Cr has operations with time reversal, and Fe-ncl the rotation in spin space.
+    qij of the snapshots of these data equal that of the perfect supercell, so
+    only dDij/du is compared.
+
+    """
+    directory = vasp_dir / data_dir
+    with h5py.File(directory / "reference.hdf5") as f:
+        fft_mesh = [int(n) for n in f.attrs["fft_mesh"]]
+    phe = phelel.load(
+        directory / "phelel_disp.yaml",
+        fft_mesh=fft_mesh,
+        is_nac=False,
+        dv_evaluation_method="shortest",
+    )
+    dir_names = sorted(directory.glob("disp-*"))
+    phe_input = read_files(phe, dir_names, phonon_dir_names=dir_names)
+    Dijs, qijs = phe_input.Dijs, phe_input.qijs
+    displacements = phe.dataset["first_atoms"]
+    finite_differences = DDijQij(
+        phe.supercell,
+        symmetry=phe.symmetry,
+        atom_indices=phe.primitive.p2s_map,
+        verbose=False,
+    )
+    finite_differences.run(
+        Dijs[0], Dijs[1:], qijs[0], qijs[1:], displacements, phe_input.lm_channels
+    )
+
+    fit = _run_Dij_fit(
+        phe.supercell,
+        phe.primitive,
+        phe.symmetry,
+        Dijs,
+        qijs,
+        phe_input.lm_channels,
+        _to_type2(displacements, len(phe.supercell)),
+        p2s_matrix=phe.p2s_matrix,
+    )
+    np.testing.assert_array_equal(fit.atom_indices, finite_differences.atom_indices)
+    _assert_close(fit.dDijdu, finite_differences.dDijdu, 1e-12)
+    np.testing.assert_array_equal(fit.Dij, finite_differences.Dij)
+
+
+@pytest.mark.parametrize("structure", ["CsCl", "magnetic", "screw"])
+def test_Dij_random_displacements_equal_synthetic_derivative(structure: Structure):
+    """The fit gives back dDij/du and dqij/du of synthetic linear data.
+
+    The data are linear in the displacements with derivatives that are invariant
+    under the operations of the supercell, which has q != -q.  In "magnetic",
+    half of the operations have time reversal.  dDij/du and dqij/du are
+    different random tensors, so that the two fits are checked separately.
+
+    """
+    supercell, primitive, symmetry = _get_cells(structure)
+    ncdij = 2 if structure == "magnetic" else 1
+    natom = len(supercell)
+    dDijdu = _get_symmetric_Dij_derivatives(supercell, symmetry, ncdij, seed=1)
+    dqijdu = _get_symmetric_Dij_derivatives(supercell, symmetry, ncdij, seed=2)
+    displacements = np.random.default_rng(3).standard_normal((2, natom, 3)) * 0.01
+    perfect = np.zeros((ncdij, natom, SYNTHETIC_LMDIM, SYNTHETIC_LMDIM), dtype=complex)
+    Dijs = [perfect] + _get_synthetic_Dijs(dDijdu, displacements)
+    qijs = [perfect] + _get_synthetic_Dijs(dqijdu, displacements)
+
+    fit = _run_Dij_fit(
+        supercell,
+        primitive,
+        symmetry,
+        Dijs,
+        qijs,
+        [SYNTHETIC_LM_CHANNELS] * natom,
+        displacements,
+    )
+    _assert_close(fit.dDijdu, dDijdu[:, primitive.p2s_map], 1e-12)
+    _assert_close(fit.dqijdu, dqijdu[:, primitive.p2s_map], 1e-12)
+
+
+def test_Dij_type1_grey_group_equal_finite_differences():
+    """The fit of Dij agrees with the finite differences for zero magnetic moments.
+
+    As in test_type1_grey_group_equal_finite_differences, the symmetry is that
+    of the "magnetic" cell with the moments set to zero, a grey group, and the
+    data are those of the "magnetic" cell, whose spin up and down differ.  Both
+    methods add the operations with time reversal if Symmetry lacks them.
+
+    """
+    magnetic_cell, primitive, magnetic_symmetry = _get_cells("magnetic")
+    grey_cell = magnetic_cell.copy()
+    grey_cell.magnetic_moments = np.zeros(len(grey_cell))
+    symmetry = Symmetry(grey_cell)
+    natom = len(grey_cell)
+    dDijdu = _get_symmetric_Dij_derivatives(magnetic_cell, magnetic_symmetry, 2, seed=1)
+    displacements = _get_type1_displacements(primitive, "magnetic")
+    array = _to_type2(displacements, natom)
+    perfect = np.zeros((2, natom, SYNTHETIC_LMDIM, SYNTHETIC_LMDIM), dtype=complex)
+    Dijs = [perfect] + _get_synthetic_Dijs(dDijdu, array)
+    lm_channels = [SYNTHETIC_LM_CHANNELS] * natom
+    finite_differences = DDijQij(
+        grey_cell, symmetry=symmetry, atom_indices=primitive.p2s_map, verbose=False
+    )
+    finite_differences.run(
+        Dijs[0], Dijs[1:], Dijs[0], Dijs[1:], displacements, lm_channels
+    )
+
+    fit = _run_Dij_fit(grey_cell, primitive, symmetry, Dijs, Dijs, lm_channels, array)
+    _assert_close(fit.dDijdu, finite_differences.dDijdu, 1e-12)
