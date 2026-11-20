@@ -24,6 +24,10 @@
   default, is supported. A summary of the eigenvalues of U(q)^H U(q), where
   the rows of U(q) are the lattice Fourier sums of the displacements, is shown
   when the supercells are generated.
+- `number_of_snapshots` can be given in `[phelel]` of `velph.toml`, and
+  `velph phelel init` then generates supercells with random displacements.
+  Unlike `[phonopy]`, `plusminus = true`, the default, adds the supercells with
+  the opposite displacements.
 
 ## Nov-7-2026: Version 0.20.0
 

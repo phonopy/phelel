@@ -160,6 +160,49 @@ def test_phelel_init_shows_displacements(
     assert f"Number of displacements: {len(disps)}" in out
 
 
+@pytest.mark.parametrize(
+    "plusminus_lines,is_paired",
+    [([], True), (["plusminus = false"], False), (['plusminus = "auto"'], False)],
+)
+def test_phelel_init_random_displacements(
+    plusminus_lines: list[str],
+    is_paired: bool,
+    tmp_path: pathlib.Path,
+    code_init_project: Callable[[dict], Project],
+    capsys: pytest.CaptureFixture[str],
+):
+    """With number_of_snapshots, all atoms are displaced randomly.
+
+    Unlike [phonopy], plusminus=true, the default, adds the supercells with the
+    opposite displacements, and false and "auto" do not.  The summary of the
+    eigenvalues of U(q)^H U(q) is shown.
+
+    """
+    toml_str = "\n".join(
+        [
+            "[phelel]",
+            "supercell_dimension = [2, 2, 1]",
+            "number_of_snapshots = 3",
+            *plusminus_lines,
+        ]
+    )
+    phe = run_init(
+        code_init_project(tomllib.loads(toml_str + _TI_UNITCELL)),
+        project_dir=ProjectDirectory(tmp_path),
+    )
+    assert phe.dataset is not None
+    assert "first_atoms" not in phe.dataset
+    displacements = phe.dataset["displacements"]
+    num_snapshots = 6 if is_paired else 3
+    assert displacements.shape == (num_snapshots, len(phe.supercell), 3)
+    assert (np.linalg.norm(displacements, axis=2) > 0).all()
+    if is_paired:
+        np.testing.assert_allclose(displacements[3:], -displacements[:3])
+    out = capsys.readouterr().out
+    assert f"Number of displacements: {num_snapshots}" in out
+    assert "Eigenvalues of U(q)^H U(q) at" in out
+
+
 @pytest.mark.parametrize("split_site_mixture", [False, True])
 def test_phelel_init_site_mixture(
     site_mixture_velph_toml: Callable[[bool], dict],
