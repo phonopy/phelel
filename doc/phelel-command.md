@@ -40,9 +40,12 @@ the displacements, is created. Additionally, the supercell structures `SPOSCAR`,
 
 ### `-d`
 
-This generates supercells with systematically introduced displacements. The
-displacements are determined by crystal symmetry, with exactly one displacement
-applied in each supercell. `phelel-init` needs this option.
+This generates supercells with displacements. Without `--rd`, the displacements
+are introduced systematically: they are determined by crystal symmetry, with
+exactly one displacement applied in each supercell, and the derivatives are
+computed by finite differences. With `--rd`, all atoms in each supercell are
+displaced in random directions, and the derivatives are computed by the
+augmented fit. `phelel-init` needs this option or `--rd`.
 
 ### `--dim`
 
@@ -88,11 +91,40 @@ the same way as the `PRIMITIVE_AXES` tag in
 Unless specified, only one directional displacement is selected among
 symmetrically equivalent displacements in the opposite direction. With this
 option specified, both directions are included in the generated supercells with
-displacements. Use of this option is recommended.
+displacements. Use of this option is recommended. With `--rd`, the supercells
+with the opposite displacements of the random supercells are added.
 
 ```bash
 % phelel-init --pm [OPTIONS]
 ```
+
+### `--rd`, `--random-displacements`
+
+The number of supercells with random displacements, or `auto`. With this option,
+all atoms in each supercell are displaced by the distance of `--amplitude` in
+random directions. With `auto`, the number is estimated with symfc, as in
+phonopy. As in phonopy, `-d` is not needed with this option.
+
+```bash
+% phelel-init --dim 2 2 2 -c POSCAR-unitcell --pa auto --rd 10 --pm
+```
+
+The derivatives of these supercells are computed by the augmented fit, which
+adds the supercells transformed by the symmetry operations to the fit. Only the
+default `--dv-evaluation-method shortest` can be used for them. When the
+supercells are generated, a summary of the eigenvalues of U(q)^H U(q) is shown,
+where the rows of U(q) are the lattice Fourier sums of the displacements. They
+depend only on the displacements. When some of them vanish, U(q)^H U(q) is
+singular, a warning is shown, and more supercells are needed.
+
+### `--random-seed`
+
+Random seed of the random displacements, a positive integer smaller than 2^32.
+The same seed gives the same displacements.
+
+### `--rd-auto-factor`
+
+Safety factor on the number of supercells estimated by `--rd auto`.
 
 ### `--magmom`
 

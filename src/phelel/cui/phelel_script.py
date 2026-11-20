@@ -321,10 +321,14 @@ def _check_operation(
             "'--cd' calculates the derivatives, which is done by 'phelel'.\n"
             "Replace 'phelel-init' with 'phelel' in your command."
         )
-    elif mode == "init" and not settings.create_displacements:
+    elif (
+        mode == "init"
+        and not settings.create_displacements
+        and settings.random_displacements is None
+    ):
         message = (
             "'phelel-init' generates supercells with displacements, and needs "
-            "'-d' for it.\n"
+            "'-d' or '--rd' for it.\n"
             "To calculate the derivatives, use 'phelel --cd'."
         )
     elif mode == "run" and settings.create_derivatives:
