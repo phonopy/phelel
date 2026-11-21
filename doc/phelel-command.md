@@ -40,12 +40,18 @@ the displacements, is created. Additionally, the supercell structures `SPOSCAR`,
 
 ### `-d`
 
+This generates supercells with systematically introduced displacements. The
+displacements are determined by crystal symmetry, with exactly one displacement
+applied in each supercell. `phelel-init` needs this option.
+
+<!-- Hidden until random displacements are public:
 This generates supercells with displacements. Without `--rd`, the displacements
 are introduced systematically: they are determined by crystal symmetry, with
 exactly one displacement applied in each supercell, and the derivatives are
 computed by finite differences. With `--rd`, all atoms in each supercell are
 displaced in random directions, and the derivatives are computed by the
 augmented fit. `phelel-init` needs this option or `--rd`.
+-->
 
 ### `--dim`
 
@@ -91,13 +97,18 @@ the same way as the `PRIMITIVE_AXES` tag in
 Unless specified, only one directional displacement is selected among
 symmetrically equivalent displacements in the opposite direction. With this
 option specified, both directions are included in the generated supercells with
-displacements. Use of this option is recommended. With `--rd`, the supercells
-with the opposite displacements of the random supercells are added.
+displacements. Use of this option is recommended.
+
+<!-- Hidden until random displacements are public:
+With `--rd`, the supercells with the opposite displacements of the random
+supercells are added.
+-->
 
 ```bash
 % phelel-init --pm [OPTIONS]
 ```
 
+<!-- Hidden until random displacements are public:
 ### `--rd`, `--random-displacements`
 
 The number of supercells with random displacements, or `auto`. With this option,
@@ -125,6 +136,7 @@ The same seed gives the same displacements.
 ### `--rd-auto-factor`
 
 Safety factor on the number of supercells estimated by `--rd auto`.
+-->
 
 ### `--magmom`
 

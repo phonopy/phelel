@@ -128,13 +128,16 @@ nosym = false
 | `diagonal`            | bool                  | `false` | Whether to include displacements along non-axis (diagonal) directions. |
 | `plusminus`           | bool or `"auto"`      | `true`  | Whether to add the opposite (minus) displacement of each displacement. |
 | `nosym`               | bool                  | `false` | Disable symmetry reduction of displacements.                           |
+<!-- Hidden until random displacements are public:
 | `number_of_snapshots` | int                   | —       | Number of supercells with random displacements.                        |
+-->
 <!-- Hidden until site mixture is public:
 | `site_mixture_scheme` | `"merge"` or `"split"` | —      | Scheme of site mixture, written by `velph init` with `--site-mixture`. |
 -->
 
 The default column gives the value used when the key is not written.
 
+<!-- Hidden until random displacements are public:
 With `number_of_snapshots`, all atoms in each supercell are displaced by
 `amplitude` in random directions, and the derivatives are computed by the
 augmented fit (see `--rd` in {ref}`phelel_command`). `diagonal` is not used
@@ -143,6 +146,7 @@ adds the supercells with the opposite displacements of the random supercells,
 which cancel the terms of even order in the displacements in the fit. With
 `false` or `"auto"`, they are not added. `velph phelel init` shows a summary of
 the eigenvalues of U(q)^H U(q), which tells whether the supercells are enough.
+-->
 
 ```{note}
 Give either `supercell_dimension` (three integers) or `supercell_matrix` (a 3x3
@@ -169,8 +173,16 @@ nosym = false
 They have the keys of `[phelel]` with the same meanings and defaults, except
 that the default `amplitude` of `[phonopy]` is `0.01`. These defaults are the
 default displacement distances of phonopy (0.01) and phono3py (0.03) for VASP.
+In addition, they have the following key:
+
+| Key                   | Type           | Meaning                                                                 |
+| --------------------- | -------------- | ----------------------------------------------------------------------- |
+| `number_of_snapshots` | int (optional) | Number of supercells with random directional displacements to generate. |
+
+<!-- Hidden until random displacements are public:
 With `number_of_snapshots`, `diagonal` and `plusminus` are not used, and the
 supercells with the opposite displacements are not added.
+-->
 
 The phonon part of phelel and the second-order (fc2) part of phono3py can be
 computed with the supercell of `[phonopy]`, which can be larger than the
