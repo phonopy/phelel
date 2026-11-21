@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import functools
 import os
 import pathlib
-from collections.abc import Sequence
-from typing import Literal, cast
+from collections.abc import Callable, Sequence
+from typing import Literal, cast, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -274,26 +275,28 @@ def _read_local_potentials(
     inwap_per: dict,
     key: Literal["total", "xcmu"] = "total",
     log_level: int = 0,
-) -> list[NDArray] | None:
-    """Read the local potentials.
+) -> LocalPotentialsOnAccess | None:
+    """Return the local potentials, read when each one is accessed.
 
     LOCAL-POTENTIAL.bin, which VASP writes with LWAP = .TRUE. together with
     vaspout.h5, is read in place of vaspout.h5, because VASP 6.6.1 and older do
     not write the local potential correctly in vaspout.h5 for ISPIN = 2 or
     LNONCOLLINEAR = .TRUE.
 
+    The potential of the first directory is read here once and discarded, so
+    that a file that cannot be read, or vaspout.h5 without the potential of
+    key, for which None is returned, is found before the derivatives are
+    computed.
+
     """
-    loc_pots = []
     bin_paths = _find_files(dir_names, "LOCAL-POTENTIAL.bin")
     if bin_paths is not None:
         # Meta-GGA kinetic potential is not available.
         if key == "xcmu":
             return None
-        for locpot_path in bin_paths:
-            loc_pots.append(read_local_potential(inwap_per, filename=locpot_path))
-            if log_level:
-                print(f'Local potential was read from "{locpot_path}".')
-        return loc_pots
+        read_bin = functools.partial(read_local_potential, inwap_per)
+        read_bin(bin_paths[0])
+        return LocalPotentialsOnAccess(bin_paths, read_bin, log_level=log_level)
 
     vaspout_paths = _find_files(dir_names, "vaspout.h5")
     if vaspout_paths is None:
@@ -301,16 +304,68 @@ def _read_local_potentials(
             f'Neither "LOCAL-POTENTIAL.bin" nor "vaspout.h5" was found in '
             f'"{dir_names[0]}".'
         )
-    for locpot_path in vaspout_paths:
-        try:
-            loc_pots.append(
-                read_local_potential_vaspouth5(filename=locpot_path, key=key)
+    read_vaspout = functools.partial(read_local_potential_vaspouth5, key=key)
+    try:
+        read_vaspout(vaspout_paths[0])
+    except KeyError:
+        return None
+    return LocalPotentialsOnAccess(vaspout_paths, read_vaspout, log_level=log_level)
+
+
+class LocalPotentialsOnAccess(Sequence[NDArray]):
+    """Local potentials of the directories, each read when it is accessed.
+
+    Reading the potentials of all snapshots at once takes the memory of all of
+    them, while the fits of the derivatives use one snapshot at a time.  So the
+    potential of a directory is read from its file when it is accessed, and it
+    is not kept: accessing it again reads the file again.  A slice is a
+    sequence of the same kind, which reads nothing until it is accessed.
+
+    """
+
+    def __init__(
+        self,
+        paths: Sequence[pathlib.Path],
+        read: Callable[[pathlib.Path], NDArray],
+        log_level: int = 0,
+    ):
+        """Init method.
+
+        Parameters
+        ----------
+        paths : sequence of pathlib.Path
+            Files of the potentials.
+        read : callable
+            Function that returns the potential of a file.
+        log_level : int, optional
+            With log_level > 0, each reading is printed.
+
+        """
+        self._paths = list(paths)
+        self._read = read
+        self._log_level = log_level
+
+    def __len__(self) -> int:
+        """Return the number of the potentials."""
+        return len(self._paths)
+
+    @overload
+    def __getitem__(self, index: int) -> NDArray: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> LocalPotentialsOnAccess: ...
+
+    def __getitem__(self, index: int | slice) -> NDArray | LocalPotentialsOnAccess:
+        """Return the potential read from its file, or a slice of the sequence."""
+        if isinstance(index, slice):
+            return LocalPotentialsOnAccess(
+                self._paths[index], self._read, log_level=self._log_level
             )
-        except KeyError:
-            return None
-        if log_level:
-            print(f'Local potential was read from "{locpot_path}".')
-    return loc_pots
+        path = self._paths[index]
+        potential = self._read(path)
+        if self._log_level:
+            print(f'Local potential was read from "{path}".')
+        return potential
 
 
 def _read_PAW_strength_and_overlap(

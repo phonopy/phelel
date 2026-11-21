@@ -93,7 +93,7 @@ class DeltaLocalPotential:
             dtype='complex128'
             shape=(ncdij, nz, ny, nx)
         V_loc_disp : ndarray
-            Local potential of sueprcell with a displacement
+            Local potential of supercell with a displacement
             dtype=''complex128''
             shape=(ncdij, nz, ny, nx)
         displacement : dict
@@ -872,7 +872,7 @@ class DLocalPotential:
     def run(
         self,
         V_loc_per: NDArray,
-        V_loc_disps: list[NDArray],
+        V_loc_disps: Sequence[NDArray],
         displacements: Sequence[FirstAtomDisplacement],
     ):
         """Calculate dV/du.
@@ -885,10 +885,9 @@ class DLocalPotential:
             Local potential of perfect supercell
             dtype='complex128'
             shape=(ncdij, nz, ny, nx)
-        V_loc_disps : list of ndarrays
-            Local potentials of sueprcells with respective displacements
-            dtype='complex128'
-            shape=(ndisp, ncdij, nz, ny, nx)
+        V_loc_disps : sequence of ndarray
+            Local potentials of supercells with respective displacements, each
+            with dtype='complex128' and shape=(ncdij, nz, ny, nx)
         displacements : list of dicts
             Displacements of displaced atoms
             keys of each dict:

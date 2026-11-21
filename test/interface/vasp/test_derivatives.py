@@ -23,6 +23,7 @@ from phelel.base.Dij_qij import DDijQijAugmentedFit
 from phelel.exception import MagneticMomentsError, MagneticMomentsWarning
 from phelel.interface.phelel_yaml import PhelelYaml
 from phelel.interface.vasp.derivatives import (
+    LocalPotentialsOnAccess,
     create_derivatives,
     read_files,
     read_vasp_forces,
@@ -89,6 +90,62 @@ def test_read_files_C111():
     phelel = _get_phelel_C111("phelel_disp_C111.yaml")
     dir_names = [cwd / "C111_disp-000", cwd / "C111_disp-001"]
     _ = read_files(phelel, dir_names, subtract_rfs=True, log_level=1)
+
+
+def test_read_files_reads_local_potentials_on_access(monkeypatch: pytest.MonkeyPatch):
+    """The local potentials in vaspout.h5 are read when they are accessed.
+
+    read_files reads the potential of the first directory once to check it,
+    each access reads one file, and a slice reads nothing.  The values are those
+    read directly from vaspout.h5.
+
+    """
+    data_dir = cwd / "derivatives_vaspout" / "C"
+    dir_names = sorted(data_dir.glob("disp-*"))
+    phe = phelel.load(data_dir / "phelel_disp.yaml", is_nac=False, log_level=0)
+    original = derivatives.read_local_potential_vaspouth5
+    read_paths: list[Path] = []
+
+    def _read(filename: Path, key: Literal["total", "xcmu"] = "total") -> NDArray:
+        if key == "total":
+            read_paths.append(Path(filename))
+        return original(filename, key=key)
+
+    monkeypatch.setattr(derivatives, "read_local_potential_vaspouth5", _read)
+    potentials = read_files(phe, dir_names).local_potentials
+    assert isinstance(potentials, LocalPotentialsOnAccess)
+    assert len(potentials) == len(dir_names)
+    assert read_paths == [dir_names[0] / "vaspout.h5"]
+
+    snapshots = potentials[1:]
+    assert isinstance(snapshots, LocalPotentialsOnAccess)
+    assert len(snapshots) == len(dir_names) - 1
+    assert len(read_paths) == 1
+    for i, dir_name in enumerate(dir_names[1:]):
+        np.testing.assert_array_equal(snapshots[i], original(dir_name / "vaspout.h5"))
+    assert read_paths[1:] == [dir_name / "vaspout.h5" for dir_name in dir_names[1:]]
+
+
+def test_read_files_reads_local_potential_bin_on_access(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The local potentials in LOCAL-POTENTIAL.bin are read when accessed."""
+    data_dir = cwd / "derivatives_lwap" / "Cr"
+    dir_names = sorted(data_dir.glob("disp-*"))
+    phe = phelel.load(data_dir / "phelel_disp.yaml", is_nac=False, log_level=0)
+    original = derivatives.read_local_potential
+    num_reads = []
+
+    def _read(inwap: dict, filename: Path) -> NDArray:
+        num_reads.append(1)
+        return original(inwap, filename=filename)
+
+    monkeypatch.setattr(derivatives, "read_local_potential", _read)
+    potentials = read_files(phe, dir_names).local_potentials
+    assert isinstance(potentials, LocalPotentialsOnAccess)
+    assert len(num_reads) == 1
+    assert potentials[1].shape == potentials[0].shape
+    assert len(num_reads) == 3
 
 
 def test_read_files_does_not_read_BORN(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

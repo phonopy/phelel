@@ -28,6 +28,11 @@
   `velph phelel init` then generates supercells with random displacements.
   Unlike `[phonopy]`, `plusminus = true`, the default, adds the supercells with
   the opposite displacements.
+- The local potentials of the supercells are read from the files when each one
+  is used in the calculation of the derivatives, not all at once before it, so
+  that the potentials of all supercells are not held in memory at the same time
+  with random displacements. The message of reading a local potential is shown
+  at that time.
 
 ## Nov-7-2026: Version 0.20.0
 
