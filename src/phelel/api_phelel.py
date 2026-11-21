@@ -42,11 +42,11 @@ from phelel.utils.lattice_points import get_p2s_matrix
 class PhelelDataset:
     """Data structure of input data to run derivatives."""
 
-    local_potentials: list[NDArray]
+    local_potentials: Sequence[NDArray]
     Dijs: list[NDArray]
     qijs: list[NDArray]
     lm_channels: list[dict]
-    kinetic_potentials: list[NDArray] | None = None
+    kinetic_potentials: Sequence[NDArray] | None = None
     dataset: DisplacementDataset | None = None
     phonon_dataset: DisplacementDataset | None = None
     forces: NDArray | None = None
@@ -829,7 +829,9 @@ class Phelel:
         self._dDijdu = dDijdu
 
     def _get_augmented_fit_of_potential(
-        self, normal_matrices: AugmentedNormalMatrices, potentials: list[NDArray]
+        self,
+        normal_matrices: AugmentedNormalMatrices,
+        potentials: Sequence[NDArray],
     ) -> DLocalPotentialAugmentedFit:
         """Return the derivatives of a potential by the augmented fit.
 
@@ -837,7 +839,7 @@ class Phelel:
         ----------
         normal_matrices : AugmentedNormalMatrices
             pinv(A(q)) of the displacements of the dataset, after its run.
-        potentials : list of ndarray
+        potentials : sequence of ndarray
             The potential of the perfect supercell followed by those of the
             supercells of the snapshots of the dataset, such as
             PhelelDataset.local_potentials.
@@ -855,13 +857,13 @@ class Phelel:
         return fit
 
     def _get_derivatives_of_potential(
-        self, potentials: list[NDArray]
+        self, potentials: Sequence[NDArray]
     ) -> DLocalPotential:
         """Return the derivatives of a potential on the grid points.
 
         Parameters
         ----------
-        potentials : list of ndarray
+        potentials : sequence of ndarray
             The potential of the perfect supercell followed by those of the
             supercells with the displacements of the dataset, such as
             PhelelDataset.local_potentials.
